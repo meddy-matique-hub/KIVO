@@ -1,0 +1,8 @@
+# Dependencies
+node_modules/
+.DS_Store
+
+# Temporary & Log files
+*.log
+.vscode/
+.idea/
