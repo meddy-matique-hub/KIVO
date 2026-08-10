@@ -10,6 +10,38 @@ window.KivoApp = {
   activeReminderDocId: null,
 
   /**
+   * BLANK initial state for a brand-new user who just signed up
+   * No demo data here — user must fill everything in onboarding
+   */
+  BLANK_STATE: {
+    isOnboarded: false,
+    userEmail: null,
+    userPassword: null, // hashed in real app, plain for MVP
+    business: {
+      name: "",
+      owner: "",
+      email: "",
+      phone: "",
+      industry: "",
+      country: "",
+      currency: "FCFA",
+      currencySymbol: "FCFA",
+      address: "",
+      taxId: "",
+      logoText: "KV",
+      logoBg: "linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)",
+      bankDetails: { bankName: "", accountName: "", iban: "", mobileMoney: { wave: "", orangeMoney: "", mtn: "" } },
+      documentPrefix: "KVO-",
+      templateStyle: "modern",
+      subscriptionTier: "Gratuit",
+      subscriptionStatus: "active"
+    },
+    clients: [],
+    documents: [],
+    catalog: []
+  },
+
+  /**
    * Initializes application state and event listeners
    */
   init: function () {
@@ -21,19 +53,26 @@ window.KivoApp = {
   },
 
   /**
-   * Loads state from localStorage or seeds initial demo data
+   * Loads state from localStorage.
+   * If no session exists, starts with a completely BLANK state — user must register.
    */
   loadState: function () {
     const saved = localStorage.getItem('kivo_app_state');
     if (saved) {
       try {
         this.state = JSON.parse(saved);
+        // Migrate old demo states that weren't created by real onboarding
+        if (this.state.isOnboarded === undefined) {
+          this.state.isOnboarded = false;
+        }
       } catch (e) {
-        console.error("Failed to parse saved state, using demo data seed.", e);
-        this.state = JSON.parse(JSON.stringify(window.KIVO_DEMO_DATA));
+        console.error("[KivoApp] State parse error, resetting.", e);
+        this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
+        this.saveState();
       }
     } else {
-      this.state = JSON.parse(JSON.stringify(window.KIVO_DEMO_DATA));
+      // Brand new visitor — start completely blank
+      this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.saveState();
     }
   },
@@ -46,14 +85,37 @@ window.KivoApp = {
   },
 
   /**
-   * Resets data to initial seed
+   * Loads the demo data so the user can explore KIVO with realistic data
+   */
+  loadDemoData: function () {
+    const demo = JSON.parse(JSON.stringify(window.KIVO_DEMO_DATA));
+    demo.isOnboarded = true;
+    this.state = demo;
+    this.saveState();
+    this.updateUserBrandingUI();
+    this.showToast("🎭 Mode démo activé ! Compte MD Creative Studio chargé.", "success");
+    this.navigate('dashboard');
+  },
+
+  /**
+   * Logs out and clears the session
+   */
+  logout: function () {
+    if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+      localStorage.removeItem('kivo_app_state');
+      this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
+      this.saveState();
+      this.navigate('landing');
+      this.showToast("Vous avez été déconnecté.", "info");
+    }
+  },
+
+  /**
+   * Resets data to initial blank state
    */
   resetDemoData: function () {
     if (confirm("Voulez-vous vraiment réinitialiser les données avec le compte de démonstration ?")) {
-      this.state = JSON.parse(JSON.stringify(window.KIVO_DEMO_DATA));
-      this.saveState();
-      this.showToast("Données de démo réinitialisées avec succès.", "info");
-      this.renderCurrentView();
+      this.loadDemoData();
     }
   },
 
@@ -68,17 +130,35 @@ window.KivoApp = {
 
   /**
    * Handles hash routes and view switching
+   * Includes authentication guard — unauthenticated users go to landing
    */
   handleRoute: function () {
-    const hash = window.location.hash || '#dashboard';
+    const hash = window.location.hash || '';
     let viewName = hash.split('?')[0].replace('#', '');
-    if (!viewName) viewName = 'dashboard';
+    if (!viewName) viewName = '';
 
-    // Map views
-    const validViews = ['landing', 'onboarding', 'dashboard', 'documents', 'document-builder', 'public-doc', 'clients', 'catalog', 'reminders', 'analytics', 'settings'];
+    // Public-access views (no auth required)
+    const publicViews = ['landing', 'auth', 'onboarding', 'public-doc'];
+    const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'catalog', 'reminders', 'analytics', 'settings'];
+    const validViews = [...publicViews, ...appViews];
+
     if (!validViews.includes(viewName)) {
-      viewName = 'dashboard';
+      viewName = '';
     }
+
+    // ─── AUTH GUARD ───────────────────────────────────────────────────────────
+    // If no view or app view requested, check if user is onboarded
+    const isOnboarded = this.state && this.state.isOnboarded === true;
+
+    if (!viewName) {
+      // No hash → send new users to landing, returning users to dashboard
+      viewName = isOnboarded ? 'dashboard' : 'landing';
+    } else if (!isOnboarded && appViews.includes(viewName)) {
+      // Trying to access app without having registered → redirect to landing
+      this.showToast("Veuillez créer votre compte pour accéder à KIVO.", "info");
+      viewName = 'landing';
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     this.activeView = viewName;
 
@@ -92,22 +172,26 @@ window.KivoApp = {
       targetSection.style.display = 'block';
     }
 
-    // Toggle Sidebar & Mobile Nav visibility for public doc, landing & onboarding
-    const isFullWidthView = (viewName === 'public-doc' || viewName === 'landing' || viewName === 'onboarding');
+    // Hide sidebar & bottom nav for public / full-width views
+    const isFullWidthView = publicViews.includes(viewName);
     const sidebar = document.getElementById('sidebar');
     const mobileBottomNav = document.querySelector('.mobile-bottom-nav');
+    const mobileHeader = document.querySelector('.mobile-header');
 
     if (sidebar) sidebar.style.display = isFullWidthView ? 'none' : 'flex';
     if (mobileBottomNav) mobileBottomNav.style.display = isFullWidthView ? 'none' : 'flex';
+    if (mobileHeader) mobileHeader.style.display = isFullWidthView ? 'none' : 'flex';
 
     const mainContent = document.querySelector('.main-content');
     if (mainContent) {
       if (isFullWidthView) {
         mainContent.style.marginLeft = '0';
         mainContent.style.maxWidth = '100vw';
+        mainContent.style.padding = '0';
       } else {
         mainContent.style.marginLeft = '';
         mainContent.style.maxWidth = '';
+        mainContent.style.padding = '';
       }
     }
 
@@ -996,21 +1080,68 @@ window.KivoApp = {
   },
 
   /**
-   * Login Submission
+   * Login Submission — validates credentials against stored state
    */
   submitLogin: function () {
-    const email = document.getElementById('auth-login-email').value;
-    this.showToast(`Bienvenue à nouveau (${email}) !`, "success");
-    this.navigate('dashboard');
+    const email = document.getElementById('auth-login-email').value.trim();
+    const pwd = document.getElementById('auth-login-password').value;
+
+    if (!email || !pwd) {
+      this.showToast("Veuillez saisir votre email et mot de passe.", "error");
+      return;
+    }
+
+    // Check if account exists
+    if (!this.state.userEmail) {
+      this.showToast("Aucun compte trouvé. Veuillez créer un compte d'abord.", "error");
+      return;
+    }
+
+    if (this.state.userEmail === email && this.state.userPassword === pwd) {
+      if (this.state.isOnboarded) {
+        this.showToast(`Bienvenue ${this.state.business.owner} ! 👋`, "success");
+        this.navigate('dashboard');
+      } else {
+        this.showToast("Compte trouvé ! Finalisons la configuration de votre entreprise.", "info");
+        this.navigate('onboarding');
+      }
+    } else {
+      this.showToast("Email ou mot de passe incorrect.", "error");
+    }
   },
 
   /**
-   * Register Submission
+   * Register Submission — saves credentials and sends to onboarding
    */
   submitRegister: function () {
-    const name = document.getElementById('auth-reg-name').value;
-    this.showToast(`Compte créé avec succès pour ${name} ! Redirection vers l'onboarding...`, "success");
-    this.navigate('onboarding');
+    const name = document.getElementById('auth-reg-name').value.trim();
+    const email = document.getElementById('auth-reg-email').value.trim();
+    const pwd = document.getElementById('auth-reg-password').value;
+    const pwd2 = document.getElementById('auth-reg-password2') ? document.getElementById('auth-reg-password2').value : pwd;
+
+    if (!name || !email || !pwd) {
+      this.showToast("Veuillez remplir tous les champs obligatoires.", "error");
+      return;
+    }
+    if (pwd !== pwd2) {
+      this.showToast("Les mots de passe ne correspondent pas.", "error");
+      return;
+    }
+    if (pwd.length < 6) {
+      this.showToast("Le mot de passe doit contenir au moins 6 caractères.", "error");
+      return;
+    }
+
+    // Save credentials in state (MVP — plaintext, would be hashed in production)
+    this.state.userEmail = email;
+    this.state.userPassword = pwd;
+    this.state.userName = name;
+    this.state.business.owner = name;
+    this.state.business.email = email;
+    this.saveState();
+
+    this.showToast(`🎉 Compte créé pour ${name} ! Configurons votre entreprise...`, "success");
+    setTimeout(() => this.navigate('onboarding'), 1000);
   },
 
   /**
@@ -1098,24 +1229,25 @@ window.KivoApp = {
 
   /**
    * Completes onboarding flow and saves new business profile
+   * Sets isOnboarded = true so the auth guard allows access to app views
    */
   completeOnboarding: function () {
-    const bizName = document.getElementById('onboard-biz-name').value;
-    const bizOwner = document.getElementById('onboard-biz-owner').value;
+    const bizName = document.getElementById('onboard-biz-name').value.trim();
+    const bizOwner = document.getElementById('onboard-biz-owner').value.trim();
     const bizIndustry = document.getElementById('onboard-biz-industry').value;
     const bizCountry = document.getElementById('onboard-biz-country').value;
     const bizCurrency = document.getElementById('onboard-biz-currency').value;
     const phonePrefix = document.getElementById('onboard-biz-phone-prefix').value;
-    const rawPhone = document.getElementById('onboard-biz-phone').value;
-    const bizEmail = document.getElementById('onboard-biz-email').value;
-    const bizTaxId = document.getElementById('onboard-biz-taxid').value;
+    const rawPhone = document.getElementById('onboard-biz-phone').value.trim();
+    const bizEmail = document.getElementById('onboard-biz-email').value.trim();
+    const bizTaxId = document.getElementById('onboard-biz-taxid').value.trim();
 
     if (!bizName || !bizOwner || !rawPhone || !bizEmail) {
       this.showToast("Veuillez remplir tous les champs obligatoires (*).", "error");
       return;
     }
 
-    const fullPhone = `${phonePrefix} ${rawPhone.trim()}`;
+    const fullPhone = `${phonePrefix} ${rawPhone}`;
 
     const biz = this.state.business;
     biz.name = bizName;
@@ -1126,16 +1258,21 @@ window.KivoApp = {
     biz.phone = fullPhone;
     biz.email = bizEmail;
     biz.taxId = bizTaxId;
-    biz.subscriptionTier = this.selectedOnboardPlan || 'Pro';
+    biz.subscriptionTier = this.selectedOnboardPlan || 'Gratuit';
     biz.subscriptionStatus = 'active';
 
-    // Set initials logo text
-    const words = bizName.split(' ');
-    biz.logoText = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : bizName.substring(0, 2).toUpperCase();
+    // Generate logo initials from business name
+    const words = bizName.split(' ').filter(w => w.length > 0);
+    biz.logoText = words.length > 1
+      ? (words[0][0] + words[1][0]).toUpperCase()
+      : bizName.substring(0, 2).toUpperCase();
+
+    // ✔ Mark as onboarded — this is the key flag that unlocks the app
+    this.state.isOnboarded = true;
 
     this.saveState();
     this.updateUserBrandingUI();
-    this.showToast(`🎉 Bienvenue sur KIVO ! Votre entreprise "${bizName}" (${bizCountry}) est prête.`, "success");
+    this.showToast(`🎉 Bienvenue sur KIVO, ${bizOwner} ! Votre espace est prêt.`, "success");
     this.navigate('dashboard');
   },
 

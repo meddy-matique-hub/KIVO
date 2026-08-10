@@ -93,12 +93,16 @@
 
         <div class="sidebar-footer">
           <div class="user-profile-badge">
-            <div class="avatar" id="sidebar-avatar">MK</div>
+            <div class="avatar" id="sidebar-avatar">KV</div>
             <div class="user-info">
-              <div class="user-name" id="sidebar-user-name">Marc Koffi</div>
-              <div class="user-business" id="sidebar-business-name">MD Creative Studio</div>
+              <div class="user-name" id="sidebar-user-name">Mon Compte</div>
+              <div class="user-business" id="sidebar-business-name">Mon Entreprise</div>
             </div>
           </div>
+          <button onclick="KivoApp.logout()" style="width: 100%; margin-top: 0.75rem; background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 0.45rem; border-radius: var(--radius-md); font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem;" onmouseover="this.style.color='var(--danger-text)'" onmouseout="this.style.color='var(--text-muted)'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Déconnexion
+          </button>
         </div>
       </aside>
 
@@ -114,8 +118,8 @@
               Créez des devis et factures professionnels, envoyez-les directement à vos clients par WhatsApp et Email, recevez vos paiements Mobile Money ou Carte et relancez les impayés en un clic.
             </p>
             <div class="landing-cta-group">
-              <a href="#onboarding" class="btn btn-primary btn-lg">Commencer gratuitement ✨</a>
-              <a href="#dashboard" class="btn btn-secondary btn-lg">Voir la démonstration ➔</a>
+              <a href="#auth" class="btn btn-primary btn-lg">Commencer gratuitement ✨</a>
+              <button onclick="KivoApp.loadDemoData()" class="btn btn-secondary btn-lg">Voir la démonstration ➔</button>
             </div>
 
             <!-- Visual Product Demo Preview Card -->
@@ -285,34 +289,47 @@
             <form id="auth-form-login" onsubmit="event.preventDefault(); KivoApp.submitLogin();">
               <div class="form-group">
                 <label class="form-label">Email professionnel</label>
-                <input type="email" id="auth-login-email" class="form-input" value="marc.koffi@mdcreative.design" required>
+                <input type="email" id="auth-login-email" class="form-input" placeholder="contact@entreprise.com" required>
               </div>
               <div class="form-group">
                 <label class="form-label">Mot de passe</label>
-                <input type="password" id="auth-login-pass" class="form-input" value="●●●●●●●●" required>
+                <input type="password" id="auth-login-password" class="form-input" placeholder="Votre mot de passe" required>
               </div>
-              <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem;">
+              <div style="text-align: right; margin-top: -0.5rem; margin-bottom: 1rem;">
+                <a href="#" style="font-size: 0.82rem; color: var(--primary);">Mot de passe oublié ?</a>
+              </div>
+              <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
                 Se connecter
               </button>
+              <p style="text-align: center; margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary);">
+                Pas encore de compte ? <a href="#" onclick="KivoApp.switchAuthTab('register')" style="color: var(--primary); font-weight: 600;">Créer un compte</a>
+              </p>
             </form>
 
             <!-- Register Form -->
             <form id="auth-form-register" style="display: none;" onsubmit="event.preventDefault(); KivoApp.submitRegister();">
               <div class="form-group">
-                <label class="form-label">Votre Nom complet</label>
+                <label class="form-label">Votre Nom complet <span style="color: var(--danger-text);">*</span></label>
                 <input type="text" id="auth-reg-name" class="form-input" placeholder="Ex: Jean-Marc Ndiaye" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Email professionnel</label>
+                <label class="form-label">Email professionnel <span style="color: var(--danger-text);">*</span></label>
                 <input type="email" id="auth-reg-email" class="form-input" placeholder="contact@entreprise.com" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Mot de passe</label>
-                <input type="password" id="auth-reg-pass" class="form-input" placeholder="Mot de passe sécurisé" required>
+                <label class="form-label">Mot de passe <span style="color: var(--danger-text);">*</span></label>
+                <input type="password" id="auth-reg-password" class="form-input" placeholder="Au moins 6 caractères" required minlength="6">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Confirmer le mot de passe <span style="color: var(--danger-text);">*</span></label>
+                <input type="password" id="auth-reg-password2" class="form-input" placeholder="Répétez votre mot de passe" required minlength="6">
               </div>
               <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem;">
                 Créer mon compte ➔
               </button>
+              <p style="text-align: center; margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary);">
+                Déjà un compte ? <a href="#" onclick="KivoApp.switchAuthTab('login')" style="color: var(--primary); font-weight: 600;">Se connecter</a>
+              </p>
             </form>
           </div>
         </section>
