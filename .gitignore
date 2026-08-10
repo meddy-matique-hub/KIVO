@@ -6,3 +6,8 @@ node_modules/
 *.log
 .vscode/
 .idea/
+
+# Temp/scratch scripts (non-source)
+fix_name.ps1
+test_supabase.ps1
+seed_supabase.ps1

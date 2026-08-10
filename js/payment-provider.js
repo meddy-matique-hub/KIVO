@@ -1,10 +1,18 @@
-/**
- * KIVO SaaS - Payment Provider Abstraction Layer
- * Supports Wave Mobile Money, Orange Money, MTN MoMo, Card (Stripe/Flutterwave) and Wire Transfer.
+﻿/**
+ * KIVO MATIQUE - Payment Provider & Billing Engine Layer
+ * Supports Stripe (Visa/Mastercard), Wave Mobile Money, Orange Money, MTN MoMo, and Wire Transfer.
  */
 
 window.PaymentProvider = {
   providers: [
+    {
+      id: "stripe",
+      name: "Stripe & Carte Bancaire (Visa / Mastercard)",
+      icon: "💳",
+      badge: "International",
+      color: "#6366F1",
+      description: "Paiement sécurisé par carte bancaire avec Stripe Checkout."
+    },
     {
       id: "wave",
       name: "Wave Mobile Money",
@@ -30,14 +38,6 @@ window.PaymentProvider = {
       description: "Paiement direct depuis votre compte MTN MoMo."
     },
     {
-      id: "card",
-      name: "Carte Bancaire (Visa / Mastercard)",
-      icon: "💳",
-      badge: "International",
-      color: "#4F46E5",
-      description: "Paiement sécurisé crypté SSL 256-bit par Carte bancaire."
-    },
-    {
       id: "bank_wire",
       name: "Virement Bancaire / RIB",
       icon: "🏦",
@@ -48,14 +48,14 @@ window.PaymentProvider = {
   ],
 
   /**
-   * Process simulated payment transaction for an invoice
+   * Process simulated payment transaction for an invoice (Stripe or Mobile Money)
    */
   processPayment: function (document, providerId, paymentDetails, onSuccess, onError) {
     console.log(`[PaymentProvider] Initiating payment for ${document.number} via ${providerId}`);
 
-    // Simulated network processing latency (1.5 seconds)
+    // Simulated processing delay (1.2s)
     setTimeout(() => {
-      const transactionId = "TXN_" + Math.random().toString(36).substring(2, 9).toUpperCase();
+      const transactionId = (providerId === 'stripe' ? 'ch_stripe_' : 'txn_') + Math.random().toString(36).substring(2, 9).toUpperCase();
       const paidAmount = document.total - (document.amountPaid || 0);
 
       const paymentRecord = {
@@ -79,7 +79,37 @@ window.PaymentProvider = {
       if (typeof onSuccess === "function") {
         onSuccess(paymentRecord);
       }
-    }, 1500);
+    }, 1200);
+  },
+
+  /**
+   * Process a refund for a paid invoice
+   */
+  processRefund: function (document, reason, onSuccess) {
+    console.log(`[PaymentProvider] Processing refund for document ${document.number}`);
+
+    setTimeout(() => {
+      const refundId = "re_stripe_" + Math.random().toString(36).substring(2, 9).toUpperCase();
+      const refundRecord = {
+        refundId: refundId,
+        documentId: document.id,
+        documentNumber: document.number,
+        amount: document.amountPaid || document.total,
+        currency: document.currency || "FCFA",
+        reason: reason || "Demande de remboursement client",
+        refundedAt: new Date().toISOString(),
+        status: "REFUNDED"
+      };
+
+      window.PaymentProvider.simulateWebhookEvent({
+        event: "invoice.refund.succeeded",
+        data: refundRecord
+      });
+
+      if (typeof onSuccess === "function") {
+        onSuccess(refundRecord);
+      }
+    }, 1000);
   },
 
   /**
@@ -88,9 +118,15 @@ window.PaymentProvider = {
   simulateWebhookEvent: function (payload) {
     console.log("[PaymentProvider Webhook] Received webhook payload:", payload);
 
-    if (payload && payload.event === "invoice.payment.succeeded" && window.KivoApp) {
+    if (!payload || !window.KivoApp) return;
+
+    if (payload.event === "invoice.payment.succeeded") {
       const data = payload.data;
       window.KivoApp.recordInvoicePayment(data.documentId, data.amount, data.provider, data.transactionId);
+    } else if (payload.event === "invoice.refund.succeeded") {
+      const data = payload.data;
+      window.KivoApp.recordInvoiceRefund(data.documentId, data.amount, data.refundId, data.reason);
     }
   }
 };
+

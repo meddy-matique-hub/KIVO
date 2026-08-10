@@ -1,13 +1,13 @@
-/**
- * KIVO AI Assistant - Intelligent Text Parser & Smart Reminders Engine
+﻿/**
+ * KIVO MATIQUE - Intelligent Text Parser & Smart Reminders Engine
  */
 
 window.KivoAI = {
   /**
    * Parses natural text input into structured invoice/quote items and metadata
-   * Example input: "Vidéo promo pour Restaurant La Paix, 150 000 FCFA avec 2 flyers à 15 000 FCFA chacun, livraison vendredi"
+   * Example input: "Vidéo promo pour Restaurant La Paix, 150 000 FCFA avec 2 flyers à 15 000 FCFA chacun, TVA 18%"
    */
-  parseTextToDocument: function (textInput, availableClients = [], defaultCurrency = "FCFA") {
+  parseTextToDocument: function (textInput, availableClients = [], defaultCurrency = "FCFA", defaultTaxRate = 18) {
     if (!textInput || textInput.trim().length === 0) {
       return null;
     }
@@ -42,36 +42,39 @@ window.KivoAI = {
       }
     }
 
-    // 2. Parse Line Items and Prices
+    // 2. Detect VAT / Tax rate in text
+    let taxRate = defaultTaxRate;
+    const vatMatch = text.match(/(?:tva|taxe)\s*(\d{1,2})\s*%/i);
+    if (vatMatch) {
+      taxRate = parseFloat(vatMatch[1]) || 0;
+    } else if (/sans tva|exonéré|ht/i.test(text)) {
+      taxRate = 0;
+    }
+
+    // 3. Parse Line Items and Prices
     const items = [];
-    
-    // Split sentences or line segments by comma, plus sign, or newlines
     const segments = text.split(/,|\+|\n| et /i);
 
     for (let segment of segments) {
       segment = segment.trim();
       if (!segment) continue;
 
-      // Extract price pattern (e.g. 50 000 FCFA, 50000, 50k, 75.000 F)
       let price = 0;
       const priceMatch = segment.match(/(\d+[\d\s.,]*)\s*(?:fcfa|f cfa|cfa|f|€|\$|k)/i);
       
       if (priceMatch) {
         let rawPriceStr = priceMatch[1].replace(/\s+|\./g, "").replace(",", ".");
-        // Handle "k" notation like 50k
         if (/k$/i.test(segment)) {
           rawPriceStr = (parseFloat(rawPriceStr) * 1000).toString();
         }
         price = parseFloat(rawPriceStr) || 0;
       } else {
-        // Fallback simple digits check if end of phrase
         const simpleDigit = segment.match(/(\d{4,9})/);
         if (simpleDigit) {
           price = parseFloat(simpleDigit[1]);
         }
       }
 
-      // Quantity pattern (e.g. 2 x, 3 flyers, 5 packs)
       let qty = 1;
       const qtyMatch = segment.match(/^(\d+)\s*(?:x|\*|fois|articles?|exemplaires?|visuels?|flyers?)/i) || 
                        segment.match(/(\d+)\s*(?:x|\*|à|a)/i);
@@ -79,26 +82,23 @@ window.KivoAI = {
         qty = parseInt(qtyMatch[1], 10) || 1;
       }
 
-      // Clean item title
       let title = segment
         .replace(/(\d+[\d\s.,]*)\s*(?:fcfa|f cfa|cfa|f|€|\$|k)/gi, "")
         .replace(/(?:pour|chez|client)\s+([A-Z0-9À-ÖØ-öø-ÿ\s'-]{2,30})/gi, "")
         .replace(/^(\d+)\s*(?:x|\*|fois)\s*/gi, "")
         .replace(/^j'ai fait|création|facture|devis|fourniture/gi, "")
+        .replace(/(?:tva|taxe)\s*\d{1,2}\s*%/gi, "")
         .trim();
 
-      // Capitalize first letter
       if (title.length > 2) {
         title = title.charAt(0).toUpperCase() + title.slice(1);
-        // Clean trailing prepositions
         title = title.replace(/\s+(à|a|pour|avec)$/i, "");
 
         if (price > 0 || items.length === 0) {
-          // Calculate unit price if price was specified for total quantity
           const unitPrice = (qty > 1 && price > 1000) ? Math.round(price / qty) : (price || 25000);
           items.push({
             name: title || "Prestation de service",
-            description: "Service généré via l'assistant KIVO AI",
+            description: "Service structuré via KIVO MATIQUE AI",
             quantity: qty,
             price: unitPrice,
             total: unitPrice * qty
@@ -107,7 +107,6 @@ window.KivoAI = {
       }
     }
 
-    // Default item fallback if parsing couldn't isolate items
     if (items.length === 0) {
       items.push({
         name: "Service / Prestation créative",
@@ -118,7 +117,6 @@ window.KivoAI = {
       });
     }
 
-    // 3. Detect Due Date / Payment Terms hints
     let suggestedDueDateDays = 7;
     if (/vendredi/i.test(text)) suggestedDueDateDays = 5;
     if (/fin de mois|30 jours/i.test(text)) suggestedDueDateDays = 30;
@@ -132,39 +130,40 @@ window.KivoAI = {
       clientName: detectedClient || "",
       clientId: matchedClientId || "",
       items: items,
+      taxRate: taxRate,
       suggestedDueDate: dueDateStr,
-      notes: `Document généré automatiquement via KIVO AI.\nContext: "${text}"`,
+      notes: `Généré via KIVO MATIQUE AI Assistant. Context: "${text}"`,
       confidence: detectedClient ? "high" : "medium"
     };
   },
 
   /**
-   * Generates a smart, professional French reminder message for overdue or pending invoices
+   * Generates a smart French reminder message for overdue or pending invoices
    */
   generateReminder: function (doc, tone = "courtois", businessName = "MD Creative Studio") {
-    const docNum = doc.number || `KVO-${doc.id}`;
+    const docNum = doc.number || `FAC-${doc.id}`;
     const amountStr = (doc.total || 0).toLocaleString("fr-FR") + " " + (doc.currency || "FCFA");
     const clientName = doc.clientName || "Cher client";
-    const publicUrl = `${window.location.origin}${window.location.pathname}#public-view?id=${doc.id}`;
+    const publicUrl = `${window.location.origin}${window.location.pathname}#public-doc?id=${doc.id}`;
 
     let message = "";
 
     switch (tone) {
       case "amical":
-        message = `Bonjour ${clientName} 😊\n\nJ'espère que vous allez bien ! Petit rappel amical concernant la facture ${docNum} d'un montant de ${amountStr}.\n\nVous pouvez la consulter et la régler rapidement via ce lien : ${publicUrl}\n\nN'hésitez pas si vous avez la moindre question.\nExcellente journée,\n${businessName}`;
+        message = `Bonjour ${clientName} 😊\n\nJ'espère que vous allez bien ! Petit rappel amical concernant la facture ${docNum} d'un montant de ${amountStr}.\n\nVous pouvez la consulter et la régler en un clic par Carte bancaire (Stripe) ou Mobile Money via ce lien :\n👉 ${publicUrl}\n\nN'hésitez pas si vous avez la moindre question.\nExcellente journée,\n${businessName}`;
         break;
 
       case "formel":
-        message = `Bonjour ${clientName},\n\nSauf erreur ou omission de notre part, nous constatons que la facture N° ${docNum} datée du ${doc.issueDate} d'un montant de ${amountStr} est toujours en attente de paiement.\n\nNous vous prions de bien vouloir procéder au règlement via notre lien sécurisé : ${publicUrl}\n\nRestant à votre disposition,\nBien cordialement,\n${businessName}`;
+        message = `Bonjour ${clientName},\n\nSauf erreur ou omission de notre part, nous constatons que la facture N° ${docNum} datée du ${doc.issueDate} d'un montant de ${amountStr} est toujours en attente de paiement.\n\nNous vous prions de bien vouloir procéder au règlement via notre lien sécurisé :\n👉 ${publicUrl}\n\nRestant à votre disposition,\nBien cordialement,\n${businessName}`;
         break;
 
       case "urgent":
-        message = `⚠️ RAPPEL DE PAIEMENT EN RETARD\n\nBonjour ${clientName},\n\nMalgré nos relances précédentes, la facture N° ${docNum} (${amountStr}) arrivée à échéance le ${doc.dueDate} demeure impayée.\n\nAfin d'éviter toute pénalité ou interruption de nos services, nous vous demandons de régulariser la situation immédiatement via ce lien : ${publicUrl}\n\nMerci de nous transmettre la confirmation de paiement.\n${businessName}`;
+        message = `⚠️ RAPPEL DE PAIEMENT EN RETARD\n\nBonjour ${clientName},\n\nMalgré nos relances précédentes, la facture N° ${docNum} (${amountStr}) arrivée à échéance le ${doc.dueDate} demeure impayée.\n\nAfin d'éviter toute pénalité ou interruption de nos services, nous vous demandons de régulariser la situation immédiatement via ce lien :\n👉 ${publicUrl}\n\nMerci de nous transmettre la confirmation de paiement.\n${businessName}`;
         break;
 
       case "courtois":
       default:
-        message = `Bonjour ${clientName} 👋\n\nNous vous rappelons que la facture ${docNum} d'un montant de ${amountStr} est actuellement en attente de règlement.\n\nVous pouvez consulter le détail et effectuer le paiement en un clic ici : ${publicUrl}\n\nMerci pour votre confiance,\n${businessName}`;
+        message = `Bonjour ${clientName} 👋\n\nNous vous rappelons que la facture ${docNum} d'un montant de ${amountStr} est actuellement en attente de règlement.\n\nVous pouvez consulter le détail et effectuer le paiement sécurisé par Carte (Stripe) ou Mobile Money ici :\n👉 ${publicUrl}\n\nMerci pour votre confiance,\n${businessName}`;
         break;
     }
 
@@ -176,3 +175,4 @@ window.KivoAI = {
     };
   }
 };
+

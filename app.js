@@ -1,6 +1,6 @@
 /**
- * KIVO SaaS - Main Application Controller & Router
- * Modern Vanilla JS Single Page Application (SPA) Engine
+ * KIVO MATIQUE - Main Application Controller & Router
+ * Single Page Application (SPA) Engine with Real-Time Split Preview, VAT, Stripe, and i18n
  */
 
 window.KivoApp = {
@@ -8,62 +8,294 @@ window.KivoApp = {
   activeView: 'dashboard',
   selectedReminderTone: 'courtois',
   activeReminderDocId: null,
+  pendingDeleteAction: null,
 
   /**
-   * BLANK initial state for a brand-new user who just signed up
-   * No demo data here — user must fill everything in onboarding
+   * Translations Dictionary for i18n (Français, English, Español)
+   */
+  translations: {
+    fr: {
+      appName: "KIVO MATIQUE",
+      dashboard: "Tableau de bord",
+      documents: "Documents",
+      clients: "Clients",
+      catalog: "Services & Produits",
+      reminders: "Relances Intelligentes",
+      analytics: "Statistiques",
+      settings: "Paramètres",
+      newDoc: "+ Nouveau document",
+      save: "Enregistrer",
+      cancel: "Annuler",
+      delete: "Supprimer",
+      confirmDelete: "Confirmer la suppression",
+      paid: "Payée ✓",
+      overdue: "En retard ⚠️",
+      sent: "Envoyée",
+      draft: "Brouillon",
+      refunded: "Remboursée ↩️",
+      cancelled: "Annulée",
+      accepted: "Accepté ✓",
+      totalTtc: "TOTAL TTC",
+      subtotalHt: "Sous-total HT",
+      taxVat: "TVA / Taxe"
+    },
+    en: {
+      appName: "KIVO MATIQUE",
+      dashboard: "Dashboard",
+      documents: "Documents",
+      clients: "Clients",
+      catalog: "Products & Services",
+      reminders: "Smart Reminders",
+      analytics: "Analytics",
+      settings: "Settings",
+      newDoc: "+ New Document",
+      save: "Save",
+      cancel: "Cancel",
+      delete: "Delete",
+      confirmDelete: "Confirm Deletion",
+      paid: "Paid ✓",
+      overdue: "Overdue ⚠️",
+      sent: "Sent",
+      draft: "Draft",
+      refunded: "Refunded ↩️",
+      cancelled: "Cancelled",
+      accepted: "Accepted ✓",
+      totalTtc: "GRAND TOTAL",
+      subtotalHt: "Subtotal (excl. tax)",
+      taxVat: "VAT / Tax"
+    },
+    es: {
+      appName: "KIVO MATIQUE",
+      dashboard: "Panel de Control",
+      documents: "Documentos",
+      clients: "Clientes",
+      catalog: "Productos y Servicios",
+      reminders: "Recordatorios",
+      analytics: "Estadísticas",
+      settings: "Ajustes",
+      newDoc: "+ Nuevo Documento",
+      save: "Guardar",
+      cancel: "Cancelar",
+      delete: "Eliminar",
+      confirmDelete: "Confirmar eliminación",
+      paid: "Pagado ✓",
+      overdue: "Vencido ⚠️",
+      sent: "Enviado",
+      draft: "Borrador",
+      refunded: "Reembolsado ↩️",
+      cancelled: "Cancelado",
+      accepted: "Aceptado ✓",
+      totalTtc: "TOTAL FINAL",
+      subtotalHt: "Subtotal sin impuestos",
+      taxVat: "IVA / Impuesto"
+    }
+  },
+
+  /**
+   * Default BLANK initial state for new users
    */
   BLANK_STATE: {
     isOnboarded: false,
+    language: 'fr',
     userEmail: null,
-    userPassword: null, // hashed in real app, plain for MVP
+    userPassword: null,
     business: {
-      name: "",
+      name: "Mon Entreprise",
       owner: "",
       email: "",
       phone: "",
-      industry: "",
-      country: "",
+      industry: "Prestations & Commerce",
+      country: "Sénégal",
       currency: "FCFA",
       currencySymbol: "FCFA",
+      defaultVatRate: 18,
       address: "",
       taxId: "",
-      logoText: "KV",
+      logoText: "KM",
       logoBg: "linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)",
+      stripeKey: "pk_test_51KivoMastiqueDemoStripeKey998",
+      invoicePrefix: "FAC-2026-",
+      quotePrefix: "DEV-2026-",
+      nextInvoiceNumber: 1001,
+      nextQuoteNumber: 1001,
       bankDetails: { bankName: "", accountName: "", iban: "", mobileMoney: { wave: "", orangeMoney: "", mtn: "" } },
-      documentPrefix: "KVO-",
-      templateStyle: "modern",
       subscriptionTier: "Gratuit",
       subscriptionStatus: "active"
     },
     clients: [],
     documents: [],
-    catalog: []
+    catalog: [],
+    activities: []
   },
 
   /**
-   * Initializes application state and event listeners
+   * Initializes application state and router
    */
   init: function () {
-    console.log("[KivoApp] Initializing KIVO application...");
+    console.log("[KivoApp] Initializing KIVO MATIQUE application...");
     this.loadState();
     this.setupRouting();
     this.setupEventListeners();
     this.handleRoute();
+    // Connect to Supabase in background — non-blocking
+    this.initSupabase();
   },
 
   /**
-   * Loads state from localStorage.
-   * If no session exists, starts with a completely BLANK state — user must register.
+   * Tests Supabase connectivity and syncs cloud data into local state
+   */
+  initSupabase: async function () {
+    if (!window.KivoDb) return;
+    const connected = await window.KivoDb.ping();
+    if (!connected) {
+      console.warn('[KivoApp] Supabase not reachable — running offline.');
+      return;
+    }
+    this.supabaseConnected = true;
+    console.log('[KivoApp] ✅ Supabase connected — syncing cloud data...');
+    try {
+      await this.syncFromSupabase();
+    } catch (e) {
+      console.error('[KivoApp] Supabase sync error:', e);
+    }
+  },
+
+  /**
+   * Loads all data from Supabase and merges into local state
+   */
+  syncFromSupabase: async function () {
+    if (!window.KivoDb || !this.supabaseConnected) return;
+    const data = await window.KivoDb.loadAll();
+    if (!data) return;
+
+    // Merge Supabase settings into local business object
+    if (data.settings && data.settings.length > 0) {
+      const s = data.settings[0];
+      this.state.business = {
+        ...this.state.business,
+        name: s.name || this.state.business.name,
+        owner: s.owner || this.state.business.owner,
+        email: s.email || this.state.business.email,
+        phone: s.phone || this.state.business.phone,
+        industry: s.industry || this.state.business.industry,
+        country: s.country || this.state.business.country,
+        currency: s.currency || this.state.business.currency,
+        defaultVatRate: s.default_vat_rate !== undefined ? s.default_vat_rate : this.state.business.defaultVatRate,
+        address: s.address || this.state.business.address,
+        taxId: s.tax_id || this.state.business.taxId,
+        invoicePrefix: s.invoice_prefix || this.state.business.invoicePrefix,
+        quotePrefix: s.quote_prefix || this.state.business.quotePrefix,
+        nextInvoiceNumber: s.next_invoice_number || this.state.business.nextInvoiceNumber,
+        nextQuoteNumber: s.next_quote_number || this.state.business.nextQuoteNumber,
+        subscriptionTier: s.subscription_tier || this.state.business.subscriptionTier,
+      };
+    }
+
+    // Merge clients from Supabase
+    if (data.clients && data.clients.length > 0) {
+      const cloudIds = new Set(data.clients.map(c => c.id));
+      const localOnly = (this.state.clients || []).filter(c => !cloudIds.has(c.id));
+      this.state.clients = [
+        ...data.clients.map(c => ({
+          id: c.id, name: c.name, type: c.client_type, company: c.company,
+          contactName: c.contact_name, taxId: c.tax_id, email: c.email,
+          phone: c.phone, address: c.address,
+          totalInvoiced: c.total_invoiced, totalPaid: c.total_paid, balanceDue: c.balance_due
+        })),
+        ...localOnly
+      ];
+    }
+
+    // Merge catalog
+    if (data.catalog && data.catalog.length > 0) {
+      const cloudIds = new Set(data.catalog.map(p => p.id));
+      const localOnly = (this.state.catalog || []).filter(p => !cloudIds.has(p.id));
+      this.state.catalog = [
+        ...data.catalog.map(p => ({
+          id: p.id, name: p.name, description: p.description,
+          price: p.price, unit: p.unit, taxRate: p.tax_rate
+        })),
+        ...localOnly
+      ];
+    }
+
+    // Merge documents
+    if (data.documents && data.documents.length > 0) {
+      const cloudIds = new Set(data.documents.map(d => d.id));
+      const localOnly = (this.state.documents || []).filter(d => !cloudIds.has(d.id));
+      this.state.documents = [
+        ...data.documents.map(d => ({
+          id: d.id, number: d.number, type: d.type, status: d.status,
+          currency: d.currency, clientId: d.client_id, clientName: d.client_name,
+          clientType: d.client_type, clientTaxId: d.client_tax_id,
+          clientEmail: d.client_email, clientPhone: d.client_phone,
+          issueDate: d.issue_date, dueDate: d.due_date,
+          items: typeof d.items === 'string' ? JSON.parse(d.items) : (d.items || []),
+          subtotal: d.subtotal, discount: d.discount, taxRate: d.tax_rate,
+          tax: d.tax, total: d.total, amountPaid: d.amount_paid,
+          notes: d.notes, terms: d.terms,
+          publicToken: d.public_token, viewsCount: d.views_count
+        })),
+        ...localOnly
+      ];
+    }
+
+    // Merge activities
+    if (data.activities && data.activities.length > 0) {
+      this.state.activities = data.activities.map(a => ({
+        id: a.id, timestamp: a.timestamp, type: a.type,
+        icon: a.icon, title: a.title, details: a.details
+      }));
+    }
+
+    this.saveState();
+    this.renderCurrentView();
+    this.showToast('☁️ Données synchronisées depuis Supabase.', 'success');
+    console.log('[KivoApp] Supabase sync complete.');
+  },
+
+  /**
+   * Pushes local state changes to Supabase (async, fire-and-forget)
+   */
+  syncDocumentToSupabase: async function (doc) {
+    if (!window.KivoDb || !this.supabaseConnected) return;
+    try {
+      await window.KivoDb.saveDocument({
+        id: doc.id, number: doc.number, type: doc.type, status: doc.status,
+        currency: doc.currency || 'FCFA',
+        client_id: doc.clientId, client_name: doc.clientName, client_type: doc.clientType,
+        client_tax_id: doc.clientTaxId, client_email: doc.clientEmail, client_phone: doc.clientPhone,
+        issue_date: doc.issueDate, due_date: doc.dueDate,
+        items: JSON.stringify(doc.items || []),
+        subtotal: doc.subtotal, discount: doc.discount, tax_rate: doc.taxRate,
+        tax: doc.tax, total: doc.total, amount_paid: doc.amountPaid || 0,
+        notes: doc.notes, terms: doc.terms,
+        public_token: doc.publicToken, views_count: doc.viewsCount || 0
+      });
+    } catch (e) {
+      console.error('[KivoApp] Supabase doc sync error:', e);
+    }
+  },
+
+  /**
+   * Loads state from localStorage
    */
   loadState: function () {
     const saved = localStorage.getItem('kivo_app_state');
     if (saved) {
       try {
         this.state = JSON.parse(saved);
-        // Migrate old demo states that weren't created by real onboarding
         if (this.state.isOnboarded === undefined) {
           this.state.isOnboarded = false;
+        }
+        if (!this.state.business.invoicePrefix) {
+          this.state.business.invoicePrefix = "FAC-2026-";
+          this.state.business.quotePrefix = "DEV-2026-";
+          this.state.business.nextInvoiceNumber = 1001;
+          this.state.business.nextQuoteNumber = 1001;
+        }
+        if (this.state.business.defaultVatRate === undefined) {
+          this.state.business.defaultVatRate = 18;
         }
       } catch (e) {
         console.error("[KivoApp] State parse error, resetting.", e);
@@ -71,21 +303,20 @@ window.KivoApp = {
         this.saveState();
       }
     } else {
-      // Brand new visitor — start completely blank
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.saveState();
     }
   },
 
   /**
-   * Persists state back to localStorage
+   * Persists state to localStorage (Supabase sync is handled per-entity)
    */
   saveState: function () {
     localStorage.setItem('kivo_app_state', JSON.stringify(this.state));
   },
 
   /**
-   * Loads the demo data so the user can explore KIVO with realistic data
+   * Loads demo data seed for MD Creative Studio
    */
   loadDemoData: function () {
     const demo = JSON.parse(JSON.stringify(window.KIVO_DEMO_DATA));
@@ -93,15 +324,15 @@ window.KivoApp = {
     this.state = demo;
     this.saveState();
     this.updateUserBrandingUI();
-    this.showToast("🎭 Mode démo activé ! Compte MD Creative Studio chargé.", "success");
+    this.showToast("🎭 Mode démo KIVO MATIQUE activé ! Compte MD Creative Studio chargé.", "success");
     this.navigate('dashboard');
   },
 
   /**
-   * Logs out and clears the session
+   * Logs out and returns to landing
    */
   logout: function () {
-    if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+    if (confirm("Voulez-vous vraiment vous déconnecter de KIVO MATIQUE ?")) {
       localStorage.removeItem('kivo_app_state');
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.saveState();
@@ -111,16 +342,16 @@ window.KivoApp = {
   },
 
   /**
-   * Resets data to initial blank state
+   * Resets demo data seed
    */
   resetDemoData: function () {
-    if (confirm("Voulez-vous vraiment réinitialiser les données avec le compte de démonstration ?")) {
+    if (confirm("Voulez-vous réinitialiser toutes les données avec la démo KIVO MATIQUE ?")) {
       this.loadDemoData();
     }
   },
 
   /**
-   * Sets up hash change routing
+   * Hash routing configuration
    */
   setupRouting: function () {
     window.addEventListener('hashchange', () => {
@@ -129,15 +360,13 @@ window.KivoApp = {
   },
 
   /**
-   * Handles hash routes and view switching
-   * Includes authentication guard — unauthenticated users go to landing
+   * Handles hash navigation and auth guards
    */
   handleRoute: function () {
     const hash = window.location.hash || '';
     let viewName = hash.split('?')[0].replace('#', '');
     if (!viewName) viewName = '';
 
-    // Public-access views (no auth required)
     const publicViews = ['landing', 'auth', 'onboarding', 'public-doc'];
     const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'catalog', 'reminders', 'analytics', 'settings'];
     const validViews = [...publicViews, ...appViews];
@@ -146,23 +375,17 @@ window.KivoApp = {
       viewName = '';
     }
 
-    // ─── AUTH GUARD ───────────────────────────────────────────────────────────
-    // If no view or app view requested, check if user is onboarded
     const isOnboarded = this.state && this.state.isOnboarded === true;
 
     if (!viewName) {
-      // No hash → send new users to landing, returning users to dashboard
       viewName = isOnboarded ? 'dashboard' : 'landing';
     } else if (!isOnboarded && appViews.includes(viewName)) {
-      // Trying to access app without having registered → redirect to landing
-      this.showToast("Veuillez créer votre compte pour accéder à KIVO.", "info");
+      this.showToast("Veuillez vous connecter ou créer votre compte KIVO MATIQUE.", "info");
       viewName = 'landing';
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
     this.activeView = viewName;
 
-    // Update visibility of view sections
     document.querySelectorAll('.view-section').forEach(sec => {
       sec.style.display = 'none';
     });
@@ -172,7 +395,6 @@ window.KivoApp = {
       targetSection.style.display = 'block';
     }
 
-    // Hide sidebar & bottom nav for public / full-width views
     const isFullWidthView = publicViews.includes(viewName);
     const sidebar = document.getElementById('sidebar');
     const mobileBottomNav = document.querySelector('.mobile-bottom-nav');
@@ -195,7 +417,6 @@ window.KivoApp = {
       }
     }
 
-    // Update Nav Highlights
     document.querySelectorAll('.nav-item, .mobile-nav-item').forEach(item => {
       item.classList.remove('active');
       if (item.getAttribute('data-view') === viewName) {
@@ -203,25 +424,21 @@ window.KivoApp = {
       }
     });
 
-    // Render View Content
     this.renderCurrentView();
-
-    // Scroll to top
     window.scrollTo(0, 0);
   },
 
   /**
-   * Navigates programmatically to a view
+   * Programmatic navigation helper
    */
   navigate: function (viewName, params = '') {
     window.location.hash = `#${viewName}${params ? '?' + params : ''}`;
   },
 
   /**
-   * Set up global interactive event listeners
+   * Setup event listeners
    */
   setupEventListeners: function () {
-    // Mobile menu toggle
     const toggleBtn = document.getElementById('mobile-menu-toggle');
     if (toggleBtn) {
       toggleBtn.addEventListener('click', () => {
@@ -229,7 +446,6 @@ window.KivoApp = {
       });
     }
 
-    // Document Filter Buttons
     const filterPills = document.querySelectorAll('#doc-filter-pills button');
     filterPills.forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -240,7 +456,6 @@ window.KivoApp = {
       });
     });
 
-    // Document Search Input
     const searchInput = document.getElementById('doc-search-input');
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
@@ -250,7 +465,7 @@ window.KivoApp = {
   },
 
   /**
-   * Main Render Dispatcher based on activeView
+   * Render Dispatcher
    */
   renderCurrentView: function () {
     this.updateUserBrandingUI();
@@ -283,7 +498,7 @@ window.KivoApp = {
   },
 
   /**
-   * Updates sidebar branding labels
+   * Updates sidebar and header branding elements
    */
   updateUserBrandingUI: function () {
     const biz = this.state.business;
@@ -291,19 +506,35 @@ window.KivoApp = {
     const bizEl = document.getElementById('sidebar-business-name');
     const avatarEl = document.getElementById('sidebar-avatar');
     
-    if (nameEl) nameEl.textContent = biz.owner;
-    if (bizEl) bizEl.textContent = biz.name;
-    if (avatarEl) avatarEl.textContent = biz.logoText || "KD";
+    if (nameEl) nameEl.textContent = biz.owner || "Mon Compte";
+    if (bizEl) bizEl.textContent = biz.name || "KIVO MATIQUE";
+    if (avatarEl) avatarEl.textContent = biz.logoText || "KM";
   },
 
   /**
-   * Renders Dashboard KPIs, SVG Revenue Chart, Recent Activity, and Recent Docs Table
+   * Multi-language switcher helper
+   */
+  setLanguage: function (lang) {
+    if (this.translations[lang]) {
+      this.state.language = lang;
+      this.saveState();
+      this.showToast(`Langue modifiée : ${lang.toUpperCase()}`, "info");
+      this.renderCurrentView();
+    }
+  },
+
+  t: function (key) {
+    const lang = this.state.language || 'fr';
+    return (this.translations[lang] && this.translations[lang][key]) || this.translations.fr[key] || key;
+  },
+
+  /**
+   * Renders Dashboard KPIs and Recent Documents
    */
   renderDashboard: function () {
     const docs = this.state.documents;
     const biz = this.state.business;
 
-    // 1. Calculate KPIs
     let paidTotal = 0;
     let pendingTotal = 0;
     let overdueTotal = 0;
@@ -326,18 +557,24 @@ window.KivoApp = {
       }
     });
 
-    const formatCurrency = (val) => val.toLocaleString('fr-FR') + ' ' + biz.currency;
+    const formatCurrency = (val) => val.toLocaleString('fr-FR') + ' ' + (biz.currency || 'FCFA');
 
-    document.getElementById('dash-greeting').textContent = `Bonjour, ${biz.owner.split(' ')[0]} 👋`;
-    document.getElementById('kpi-paid').textContent = formatCurrency(paidTotal);
-    document.getElementById('kpi-pending').textContent = formatCurrency(pendingTotal);
-    document.getElementById('kpi-overdue').textContent = formatCurrency(overdueTotal);
-    document.getElementById('kpi-quotes-count').textContent = pendingQuotesCount;
+    const greetingEl = document.getElementById('dash-greeting');
+    if (greetingEl) {
+      greetingEl.textContent = `Bonjour, ${(biz.owner || 'Marc').split(' ')[0]} 👋`;
+    }
+    
+    const paidEl = document.getElementById('kpi-paid');
+    if (paidEl) paidEl.textContent = formatCurrency(paidTotal);
+    const pendEl = document.getElementById('kpi-pending');
+    if (pendEl) pendEl.textContent = formatCurrency(pendingTotal);
+    const overEl = document.getElementById('kpi-overdue');
+    if (overEl) overEl.textContent = formatCurrency(overdueTotal);
+    const quotEl = document.getElementById('kpi-quotes-count');
+    if (quotEl) quotEl.textContent = pendingQuotesCount;
 
-    // 2. Render SVG Revenue Chart
     this.renderRevenueChart();
 
-    // 3. Render Activity Feed
     const activityFeed = document.getElementById('activity-feed-list');
     if (activityFeed) {
       activityFeed.innerHTML = (this.state.activities || []).slice(0, 4).map(act => `
@@ -353,7 +590,6 @@ window.KivoApp = {
       `).join('');
     }
 
-    // 4. Render Recent Documents Table in Dashboard
     const tbody = document.getElementById('dashboard-recent-docs-tbody');
     if (tbody) {
       const recentDocs = docs.slice(0, 5);
@@ -362,7 +598,7 @@ window.KivoApp = {
   },
 
   /**
-   * Draws dynamic responsive SVG Area Chart for Revenue Trend
+   * Draws dynamic SVG Revenue Chart
    */
   renderRevenueChart: function () {
     const container = document.getElementById('revenue-chart-container');
@@ -401,10 +637,12 @@ window.KivoApp = {
   },
 
   /**
-   * Helper to create table row HTML for documents
+   * Helper to format table row for documents with Edit, Refund, and Delete options
    */
   createDocTableRowHtml: function (doc) {
     const biz = this.state.business;
+    const currencyStr = doc.currency || biz.currency || 'FCFA';
+
     const badgeClass = {
       paid: 'badge-paid',
       accepted: 'badge-accepted',
@@ -412,7 +650,8 @@ window.KivoApp = {
       sent: 'badge-sent',
       viewed: 'badge-viewed',
       draft: 'badge-draft',
-      cancelled: 'badge-cancelled'
+      cancelled: 'badge-cancelled',
+      refunded: 'badge-overdue'
     }[doc.status] || 'badge-draft';
 
     const statusLabel = {
@@ -422,33 +661,31 @@ window.KivoApp = {
       sent: 'Envoyée',
       viewed: 'Vue 👁️',
       draft: 'Brouillon',
-      cancelled: 'Annulée'
+      cancelled: 'Annulée',
+      refunded: 'Remboursée ↩️'
     }[doc.status] || doc.status;
-
-    const docTypeLabel = doc.type === 'quote' ? 'Devis' : 'Facture';
 
     return `
       <tr>
         <td><strong>${doc.number}</strong></td>
-        <td>${doc.clientName || 'Client anonyme'}</td>
-        <td><span class="badge ${doc.type === 'quote' ? 'badge-sent' : 'badge-draft'}">${docTypeLabel}</span></td>
+        <td>${doc.clientName || 'Client anonyme'} ${doc.clientType ? `<span style="font-size: 0.7rem; color: var(--text-muted);">(${doc.clientType})</span>` : ''}</td>
+        <td><span class="badge ${doc.type === 'quote' ? 'badge-sent' : 'badge-draft'}">${doc.type === 'quote' ? 'Devis' : 'Facture'}</span></td>
         <td>${doc.issueDate}</td>
-        <td><strong>${(doc.total || 0).toLocaleString('fr-FR')} ${biz.currency}</strong></td>
+        <td><strong>${(doc.total || 0).toLocaleString('fr-FR')} ${currencyStr}</strong></td>
         <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
-        <td style="text-align: right;">
-          <button class="btn btn-secondary btn-sm" onclick="KivoApp.viewPublicDoc('${doc.id}')">
-            🔗 Aperçu
-          </button>
-          <button class="btn btn-whatsapp btn-sm" onclick="KivoApp.shareOnWhatsApp('${doc.id}')">
-            💬 WhatsApp
-          </button>
+        <td style="text-align: right; display: flex; gap: 0.35rem; justify-content: flex-end;">
+          <button class="btn btn-secondary btn-sm" onclick="KivoApp.viewPublicDoc('${doc.id}')" title="Voir l'aperçu">👁️</button>
+          <button class="btn btn-secondary btn-sm" onclick="KivoApp.editDocument('${doc.id}')" title="Modifier la facture">✏️</button>
+          <button class="btn btn-whatsapp btn-sm" onclick="KivoApp.shareOnWhatsApp('${doc.id}')" title="Partager WhatsApp">💬</button>
+          ${doc.status === 'paid' ? `<button class="btn btn-secondary btn-sm" style="color: var(--danger-text);" onclick="KivoApp.refundInvoice('${doc.id}')" title="Rembourser la facture">↩️</button>` : ''}
+          <button class="btn btn-danger btn-sm" onclick="KivoApp.confirmDeleteDocument('${doc.id}')" title="Supprimer">🗑️</button>
         </td>
       </tr>
     `;
   },
 
   /**
-   * Renders Master Documents Table with filtering and search
+   * Renders Master Documents Table
    */
   renderDocumentsTable: function (filter = 'all', searchQuery = '') {
     const tbody = document.getElementById('documents-list-tbody');
@@ -477,50 +714,30 @@ window.KivoApp = {
       return;
     }
 
-    const biz = this.state.business;
-
-    tbody.innerHTML = docs.map(doc => {
-      const badgeClass = {
-        paid: 'badge-paid',
-        accepted: 'badge-accepted',
-        overdue: 'badge-overdue',
-        sent: 'badge-sent',
-        viewed: 'badge-viewed',
-        draft: 'badge-draft'
-      }[doc.status] || 'badge-draft';
-
-      const statusLabel = {
-        paid: 'Payée ✓',
-        accepted: 'Accepté ✓',
-        overdue: 'En retard ⚠️',
-        sent: 'Envoyée',
-        viewed: 'Vue 👁️',
-        draft: 'Brouillon'
-      }[doc.status] || doc.status;
-
-      return `
-        <tr>
-          <td><strong>${doc.number}</strong></td>
-          <td>${doc.clientName}</td>
-          <td><span class="badge badge-draft">${doc.type === 'quote' ? 'Devis' : 'Facture'}</span></td>
-          <td>${doc.issueDate}</td>
-          <td>${doc.dueDate}</td>
-          <td><strong>${(doc.total || 0).toLocaleString('fr-FR')} ${biz.currency}</strong></td>
-          <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
-          <td style="text-align: right;">
-            <button class="btn btn-secondary btn-sm" onclick="KivoApp.viewPublicDoc('${doc.id}')">Voir</button>
-            <button class="btn btn-whatsapp btn-sm" onclick="KivoApp.shareOnWhatsApp('${doc.id}')">💬</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+    tbody.innerHTML = docs.map(doc => this.createDocTableRowHtml(doc)).join('');
   },
 
   /**
-   * Opens New Document Type Choice Modal
+   * Opens New Document Choice Modal
    */
   openNewDocModal: function () {
     this.openModal('modal-new-doc-choice');
+  },
+
+  /**
+   * Generates auto sequential document number
+   */
+  generateDocumentNumber: function (type = 'invoice') {
+    const biz = this.state.business;
+    if (type === 'quote') {
+      const prefix = biz.quotePrefix || "DEV-2026-";
+      const num = biz.nextQuoteNumber || (1001 + this.state.documents.filter(d => d.type === 'quote').length);
+      return `${prefix}${String(num).padStart(4, '0')}`;
+    } else {
+      const prefix = biz.invoicePrefix || "FAC-2026-";
+      const num = biz.nextInvoiceNumber || (1001 + this.state.documents.filter(d => d.type === 'invoice').length);
+      return `${prefix}${String(num).padStart(4, '0')}`;
+    }
   },
 
   /**
@@ -529,38 +746,85 @@ window.KivoApp = {
   startNewDocument: function (type = 'invoice') {
     this.closeModal('modal-new-doc-choice');
     
-    // Set builder form defaults
-    const nextNum = 'KVO-' + (1024 + this.state.documents.length + 1);
+    const nextNum = this.generateDocumentNumber(type);
     const today = new Date().toISOString().split('T')[0];
     const dueObj = new Date();
     dueObj.setDate(dueObj.getDate() + 7);
     const dueStr = dueObj.toISOString().split('T')[0];
 
+    document.getElementById('builder-title').textContent = type === 'quote' ? 'Nouveau Devis' : 'Nouvelle Facture';
     document.getElementById('builder-doc-id').value = '';
     document.getElementById('builder-doc-type').value = type;
     document.getElementById('builder-doc-number').value = nextNum;
     document.getElementById('builder-issue-date').value = today;
     document.getElementById('builder-due-date').value = dueStr;
-    document.getElementById('builder-notes').value = "Merci pour votre confiance. Envoi sous 5 jours.";
-    document.getElementById('builder-terms').value = "Paiement à réception par Wave, Mobile Money ou Virement.";
+    document.getElementById('builder-doc-status').value = 'sent';
+    document.getElementById('builder-input-tax').value = this.state.business.defaultVatRate || 18;
+    document.getElementById('builder-input-discount').value = 0;
+    document.getElementById('builder-notes').value = "Merci pour votre confiance.";
+    document.getElementById('builder-terms').value = "Paiement à réception par Carte bancaire (Stripe) ou Mobile Money.";
 
-    // Populate Clients Selector
     const clientSelect = document.getElementById('builder-doc-client-select');
-    clientSelect.innerHTML = this.state.clients.map(c => `
-      <option value="${c.id}">${c.name} (${c.company || c.contactName})</option>
-    `).join('');
+    if (this.state.clients.length === 0) {
+      clientSelect.innerHTML = `<option value="">-- Aucun client (Créez un client) --</option>`;
+    } else {
+      clientSelect.innerHTML = this.state.clients.map(c => `
+        <option value="${c.id}">${c.name} (${c.company || c.contactName || 'Particulier'})</option>
+      `).join('');
+    }
 
-    // Set initial 1 empty row
     const tbody = document.getElementById('builder-items-tbody');
     tbody.innerHTML = '';
-    this.addBuilderLineItem('Identité visuelle / Prestation créative', 1, 150000);
+    this.addBuilderLineItem('Prestation de service / Design & Développement', 1, 150000);
 
     this.recalculateBuilderTotals();
+    this.updateLiveInvoicePreview();
     this.navigate('document-builder');
   },
 
   /**
-   * Adds a row item to the builder
+   * Loads an existing document into the editor for modifying
+   */
+  editDocument: function (docId) {
+    const doc = this.state.documents.find(d => d.id === docId);
+    if (!doc) return;
+
+    document.getElementById('builder-title').textContent = `Modifier ${doc.type === 'quote' ? 'le Devis' : 'la Facture'} #${doc.number}`;
+    document.getElementById('builder-doc-id').value = doc.id;
+    document.getElementById('builder-doc-type').value = doc.type || 'invoice';
+    document.getElementById('builder-doc-number').value = doc.number;
+    document.getElementById('builder-doc-currency').value = doc.currency || this.state.business.currency || 'FCFA';
+    document.getElementById('builder-issue-date').value = doc.issueDate || new Date().toISOString().split('T')[0];
+    document.getElementById('builder-due-date').value = doc.dueDate || new Date().toISOString().split('T')[0];
+    document.getElementById('builder-doc-status').value = doc.status || 'sent';
+    document.getElementById('builder-input-tax').value = doc.taxRate !== undefined ? doc.taxRate : (this.state.business.defaultVatRate || 18);
+    document.getElementById('builder-input-discount').value = doc.discount || 0;
+    document.getElementById('builder-notes').value = doc.notes || '';
+    document.getElementById('builder-terms').value = doc.terms || '';
+
+    const clientSelect = document.getElementById('builder-doc-client-select');
+    clientSelect.innerHTML = this.state.clients.map(c => `
+      <option value="${c.id}" ${c.id === doc.clientId ? 'selected' : ''}>${c.name} (${c.company || c.contactName || 'Particulier'})</option>
+    `).join('');
+
+    const tbody = document.getElementById('builder-items-tbody');
+    tbody.innerHTML = '';
+
+    if (doc.items && doc.items.length > 0) {
+      doc.items.forEach(it => {
+        this.addBuilderLineItem(it.name, it.quantity, it.price);
+      });
+    } else {
+      this.addBuilderLineItem('Prestation de service', 1, doc.subtotal || doc.total || 50000);
+    }
+
+    this.recalculateBuilderTotals();
+    this.updateLiveInvoicePreview();
+    this.navigate('document-builder');
+  },
+
+  /**
+   * Adds a line item row in builder
    */
   addBuilderLineItem: function (name = '', qty = 1, price = 0) {
     const tbody = document.getElementById('builder-items-tbody');
@@ -572,7 +836,7 @@ window.KivoApp = {
 
     tr.innerHTML = `
       <td>
-        <input type="text" class="form-input item-name" value="${name}" placeholder="Nom de l'article ou service">
+        <input type="text" class="form-input item-name" value="${name}" placeholder="Description de l'article ou service" oninput="KivoApp.updateLiveInvoicePreview()">
       </td>
       <td>
         <input type="number" class="form-input item-qty" value="${qty}" min="1" oninput="KivoApp.recalculateBuilderTotals()">
@@ -593,27 +857,189 @@ window.KivoApp = {
   },
 
   /**
-   * Recalculates Subtotal, Tax, Discount and Grand Total in builder
+   * Recalculates Subtotal HT, VAT amount, and Total TTC in builder
    */
   recalculateBuilderTotals: function () {
     let subtotal = 0;
+    const currency = document.getElementById('builder-doc-currency') ? document.getElementById('builder-doc-currency').value : (this.state.business.currency || 'FCFA');
+
     document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
       const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
       const price = parseFloat(tr.querySelector('.item-price').value) || 0;
       const rowTotal = qty * price;
-      tr.querySelector('.item-total-display').textContent = rowTotal.toLocaleString('fr-FR') + ' FCFA';
+      tr.querySelector('.item-total-display').textContent = rowTotal.toLocaleString('fr-FR') + ' ' + currency;
       subtotal += rowTotal;
     });
 
     const discount = parseFloat(document.getElementById('builder-input-discount').value) || 0;
     const taxRate = parseFloat(document.getElementById('builder-input-tax').value) || 0;
 
-    const taxAmount = (subtotal - discount) * (taxRate / 100);
-    const grandTotal = Math.max(0, subtotal - discount + taxAmount);
+    const taxableAmount = Math.max(0, subtotal - discount);
+    const taxAmount = taxableAmount * (taxRate / 100);
+    const grandTotal = Math.max(0, taxableAmount + taxAmount);
 
+    document.getElementById('builder-calc-subtotal').textContent = subtotal.toLocaleString('fr-FR') + ' ' + currency;
+    document.getElementById('builder-calc-tax-amount').textContent = taxAmount.toLocaleString('fr-FR') + ' ' + currency;
+    document.getElementById('builder-calc-total').textContent = grandTotal.toLocaleString('fr-FR') + ' ' + currency;
+
+    this.updateLiveInvoicePreview();
+  },
+
+  /**
+   * Updates Live Paper Invoice Preview in Real-Time
+   */
+  updateLiveInvoicePreview: function () {
     const biz = this.state.business;
-    document.getElementById('builder-calc-subtotal').textContent = subtotal.toLocaleString('fr-FR') + ' ' + biz.currency;
-    document.getElementById('builder-calc-total').textContent = grandTotal.toLocaleString('fr-FR') + ' ' + biz.currency;
+    const docType = document.getElementById('builder-doc-type') ? document.getElementById('builder-doc-type').value : 'invoice';
+    const docNum = document.getElementById('builder-doc-number') ? document.getElementById('builder-doc-number').value : 'FAC-2026-0001';
+    const currency = document.getElementById('builder-doc-currency') ? document.getElementById('builder-doc-currency').value : (biz.currency || 'FCFA');
+    const issueDate = document.getElementById('builder-issue-date') ? document.getElementById('builder-issue-date').value : '';
+    const dueDate = document.getElementById('builder-due-date') ? document.getElementById('builder-due-date').value : '';
+    const status = document.getElementById('builder-doc-status') ? document.getElementById('builder-doc-status').value : 'sent';
+    const notes = document.getElementById('builder-notes') ? document.getElementById('builder-notes').value : '';
+    const terms = document.getElementById('builder-terms') ? document.getElementById('builder-terms').value : '';
+
+    const clientId = document.getElementById('builder-doc-client-select') ? document.getElementById('builder-doc-client-select').value : '';
+    const client = this.state.clients.find(c => c.id === clientId) || { name: 'Client Destinataire', company: '', contactName: '', phone: '', address: '' };
+
+    // Update Paper Header
+    const logoEl = document.getElementById('paper-logo-display');
+    if (logoEl) logoEl.textContent = biz.logoText || "KM";
+
+    const bizNameEl = document.getElementById('paper-biz-name');
+    if (bizNameEl) bizNameEl.textContent = biz.name || "KIVO MATIQUE";
+
+    const bizAddrEl = document.getElementById('paper-biz-address');
+    if (bizAddrEl) bizAddrEl.textContent = biz.address || "Avenue Cheikh Anta Diop, Dakar";
+
+    const bizTaxEl = document.getElementById('paper-biz-taxid');
+    if (bizTaxEl) bizTaxEl.textContent = biz.taxId ? `Tax ID: ${biz.taxId}` : '';
+
+    const paperDocTypeEl = document.getElementById('paper-doc-type');
+    if (paperDocTypeEl) paperDocTypeEl.textContent = docType === 'quote' ? 'DEVIS' : 'FACTURE';
+
+    const paperDocNumEl = document.getElementById('paper-doc-number');
+    if (paperDocNumEl) paperDocNumEl.textContent = docNum;
+
+    const paperIssueEl = document.getElementById('paper-date-issue');
+    if (paperIssueEl) paperIssueEl.textContent = issueDate || '--/--/----';
+
+    const paperDueEl = document.getElementById('paper-date-due');
+    if (paperDueEl) paperDueEl.textContent = dueDate || '--/--/----';
+
+    // Update Sender & Client Details
+    const senderDetailsEl = document.getElementById('paper-sender-details');
+    if (senderDetailsEl) {
+      senderDetailsEl.innerHTML = `
+        <strong>${biz.name || 'KIVO MATIQUE'}</strong><br>
+        ${biz.phone ? `Tél: ${biz.phone}<br>` : ''}
+        ${biz.email ? `Email: ${biz.email}` : ''}
+      `;
+    }
+
+    const clientDetailsEl = document.getElementById('paper-client-details');
+    if (clientDetailsEl) {
+      clientDetailsEl.innerHTML = `
+        <strong>${client.name}</strong> ${client.clientType ? `(${client.clientType})` : ''}<br>
+        ${client.company ? `${client.company}<br>` : ''}
+        ${client.contactName ? `Attn: ${client.contactName}<br>` : ''}
+        ${client.taxId ? `SIRET/NINEA: ${client.taxId}<br>` : ''}
+        ${client.phone ? `Tél: ${client.phone}` : ''}
+      `;
+    }
+
+    // Render Items Table
+    const paperItemsTbody = document.getElementById('paper-items-tbody');
+    if (paperItemsTbody) {
+      const rows = [];
+      let subtotal = 0;
+
+      document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
+        const nameInput = tr.querySelector('.item-name');
+        const qtyInput = tr.querySelector('.item-qty');
+        const priceInput = tr.querySelector('.item-price');
+
+        const name = nameInput ? nameInput.value : '';
+        const qty = parseFloat(qtyInput ? qtyInput.value : 1) || 1;
+        const price = parseFloat(priceInput ? priceInput.value : 0) || 0;
+        const total = qty * price;
+
+        if (name) {
+          subtotal += total;
+          rows.push(`
+            <tr>
+              <td><strong>${name}</strong></td>
+              <td style="text-align: center;">${qty}</td>
+              <td style="text-align: right;">${price.toLocaleString('fr-FR')} ${currency}</td>
+              <td style="text-align: right;"><strong>${total.toLocaleString('fr-FR')} ${currency}</strong></td>
+            </tr>
+          `);
+        }
+      });
+
+      if (rows.length === 0) {
+        paperItemsTbody.innerHTML = `<tr><td colspan="4" style="color: var(--text-muted); text-align: center;">Saisissez au moins un article...</td></tr>`;
+      } else {
+        paperItemsTbody.innerHTML = rows.join('');
+      }
+
+      const discount = parseFloat(document.getElementById('builder-input-discount') ? document.getElementById('builder-input-discount').value : 0) || 0;
+      const taxRate = parseFloat(document.getElementById('builder-input-tax') ? document.getElementById('builder-input-tax').value : 18) || 0;
+
+      const taxable = Math.max(0, subtotal - discount);
+      const taxAmount = taxable * (taxRate / 100);
+      const grandTotal = Math.max(0, taxable + taxAmount);
+
+      document.getElementById('paper-subtotal').textContent = subtotal.toLocaleString('fr-FR') + ' ' + currency;
+      document.getElementById('paper-tax-rate').textContent = taxRate;
+      document.getElementById('paper-tax-amount').textContent = taxAmount.toLocaleString('fr-FR') + ' ' + currency;
+      document.getElementById('paper-grand-total').textContent = grandTotal.toLocaleString('fr-FR') + ' ' + currency;
+
+      const discRow = document.getElementById('paper-discount-row');
+      if (discRow) {
+        if (discount > 0) {
+          discRow.style.display = 'flex';
+          document.getElementById('paper-discount-amount').textContent = '-' + discount.toLocaleString('fr-FR') + ' ' + currency;
+        } else {
+          discRow.style.display = 'none';
+        }
+      }
+    }
+
+    // Terms text
+    const termsEl = document.getElementById('paper-terms-text');
+    if (termsEl) termsEl.textContent = terms || notes || "Paiement à réception par Carte bancaire (Stripe) ou Mobile Money.";
+
+    // Stamp watermark
+    const watermarkEl = document.getElementById('paper-watermark-stamp');
+    if (watermarkEl) {
+      if (status === 'paid') {
+        watermarkEl.style.display = 'block';
+        watermarkEl.textContent = 'PAYÉE';
+        watermarkEl.style.color = '#10B981';
+      } else if (status === 'refunded') {
+        watermarkEl.style.display = 'block';
+        watermarkEl.textContent = 'REMBOURSÉE';
+        watermarkEl.style.color = '#EF4444';
+      } else {
+        watermarkEl.style.display = 'none';
+      }
+    }
+  },
+
+  /**
+   * Share live document from builder on WhatsApp
+   */
+  shareCurrentBuilderWhatsApp: function () {
+    const docNum = document.getElementById('builder-doc-number').value;
+    const clientId = document.getElementById('builder-doc-client-select').value;
+    const client = this.state.clients.find(c => c.id === clientId) || { name: 'Client', phone: '' };
+    const currency = document.getElementById('builder-doc-currency').value;
+    const grandTotal = document.getElementById('builder-calc-total').textContent;
+
+    const msg = `Bonjour ${client.name} 👋,\n\nVoici le document *${docNum}* d'un montant de *${grandTotal}* émis par *${this.state.business.name}*.\n\nN'hésitez pas si vous avez des questions !\nKIVO MATIQUE`;
+    const url = window.WhatsAppHelper.getWhatsAppWebUrl(client.phone, msg);
+    window.open(url, '_blank');
   },
 
   /**
@@ -626,9 +1052,11 @@ window.KivoApp = {
       return;
     }
 
-    const parsed = window.KivoAI.parseTextToDocument(input, this.state.clients, this.state.business.currency);
+    const defaultCurrency = document.getElementById('builder-doc-currency') ? document.getElementById('builder-doc-currency').value : 'FCFA';
+    const defaultTaxRate = parseFloat(document.getElementById('builder-input-tax') ? document.getElementById('builder-input-tax').value : 18) || 18;
+
+    const parsed = window.KivoAI.parseTextToDocument(input, this.state.clients, defaultCurrency, defaultTaxRate);
     if (parsed) {
-      // Clear line items
       const tbody = document.getElementById('builder-items-tbody');
       tbody.innerHTML = '';
 
@@ -644,8 +1072,12 @@ window.KivoApp = {
         document.getElementById('builder-due-date').value = parsed.suggestedDueDate;
       }
 
+      if (parsed.taxRate !== undefined) {
+        document.getElementById('builder-input-tax').value = parsed.taxRate;
+      }
+
       this.recalculateBuilderTotals();
-      this.showToast("✨ IA : Document généré automatiquement avec succès !", "success");
+      this.showToast("✨ KIVO MATIQUE AI : Formulaire complété avec succès !", "success");
     }
   },
 
@@ -653,12 +1085,15 @@ window.KivoApp = {
    * Saves Document from Builder into State
    */
   saveDocumentFromBuilder: function () {
+    const existingDocId = document.getElementById('builder-doc-id').value;
     const type = document.getElementById('builder-doc-type').value;
     const num = document.getElementById('builder-doc-number').value;
+    const currency = document.getElementById('builder-doc-currency').value;
     const clientId = document.getElementById('builder-doc-client-select').value;
-    const clientObj = this.state.clients.find(c => c.id === clientId) || this.state.clients[0];
+    const clientObj = this.state.clients.find(c => c.id === clientId) || { id: 'cli_anon', name: 'Client Anonyme', email: '', phone: '', clientType: 'B2C' };
     const issueDate = document.getElementById('builder-issue-date').value;
     const dueDate = document.getElementById('builder-due-date').value;
+    const status = document.getElementById('builder-doc-status').value;
     const notes = document.getElementById('builder-notes').value;
     const terms = document.getElementById('builder-terms').value;
 
@@ -677,50 +1112,138 @@ window.KivoApp = {
 
     const discount = parseFloat(document.getElementById('builder-input-discount').value) || 0;
     const taxRate = parseFloat(document.getElementById('builder-input-tax').value) || 0;
-    const taxAmount = (subtotal - discount) * (taxRate / 100);
-    const grandTotal = Math.max(0, subtotal - discount + taxAmount);
+    const taxable = Math.max(0, subtotal - discount);
+    const taxAmount = taxable * (taxRate / 100);
+    const grandTotal = Math.max(0, taxable + taxAmount);
 
-    const docId = 'doc_' + Math.random().toString(36).substring(2, 8);
+    const docId = existingDocId || ('doc_' + Math.random().toString(36).substring(2, 8));
 
-    const newDoc = {
+    const docObj = {
       id: docId,
       number: num,
       type: type,
-      status: 'sent',
+      status: status,
+      currency: currency,
       clientId: clientObj.id,
       clientName: clientObj.name,
-      clientEmail: clientObj.email,
-      clientPhone: clientObj.phone,
+      clientType: clientObj.clientType || 'B2C',
+      clientTaxId: clientObj.taxId || '',
+      clientEmail: clientObj.email || '',
+      clientPhone: clientObj.phone || '',
       issueDate: issueDate,
       dueDate: dueDate,
       items: items,
       subtotal: subtotal,
       discount: discount,
+      taxRate: taxRate,
       tax: taxAmount,
       total: grandTotal,
-      amountPaid: 0,
+      amountPaid: status === 'paid' ? grandTotal : 0,
       notes: notes,
       terms: terms,
       publicToken: 'tok_' + Math.random().toString(36).substring(2, 8),
-      viewsCount: 0,
-      lastViewedAt: null
+      viewsCount: 1,
+      lastViewedAt: new Date().toLocaleString('fr-FR')
     };
 
-    this.state.documents.unshift(newDoc);
+    if (existingDocId) {
+      const idx = this.state.documents.findIndex(d => d.id === existingDocId);
+      if (idx !== -1) {
+        this.state.documents[idx] = docObj;
+      } else {
+        this.state.documents.unshift(docObj);
+      }
+    } else {
+      this.state.documents.unshift(docObj);
 
-    // Add activity log
+      // Increment document numbering counter in business settings
+      if (type === 'quote') {
+        this.state.business.nextQuoteNumber = (this.state.business.nextQuoteNumber || 1001) + 1;
+      } else {
+        this.state.business.nextInvoiceNumber = (this.state.business.nextInvoiceNumber || 1001) + 1;
+      }
+    }
+
     this.state.activities.unshift({
       id: 'act_' + Date.now(),
       timestamp: "À l'instant",
       type: type === 'quote' ? 'quote_created' : 'invoice_sent',
       icon: 'file-text',
-      title: `${type === 'quote' ? 'Devis' : 'Facture'} #${num} créé(e)`,
-      details: `Destinataire : ${clientObj.name} (${grandTotal.toLocaleString('fr-FR')} ${this.state.business.currency})`
+      title: `${type === 'quote' ? 'Devis' : 'Facture'} #${num} ${existingDocId ? 'mis à jour' : 'enregistré(e)'}`,
+      details: `${clientObj.name} (${grandTotal.toLocaleString('fr-FR')} ${currency})`
     });
 
     this.saveState();
     this.showToast(`Document ${num} enregistré avec succès !`, "success");
     this.viewPublicDoc(docId);
+  },
+
+  /**
+   * Triggers Refund for a Paid Invoice
+   */
+  refundInvoice: function (docId) {
+    const doc = this.state.documents.find(d => d.id === docId);
+    if (!doc) return;
+
+    if (confirm(`Voulez-vous vraiment rembourser la facture ${doc.number} (${doc.total.toLocaleString('fr-FR')} ${doc.currency || 'FCFA'}) ?`)) {
+      window.PaymentProvider.processRefund(doc, "Remboursement demandé par le client", () => {
+        this.showToast(`Facture ${doc.number} remboursée avec succès.`, "success");
+        this.renderCurrentView();
+      });
+    }
+  },
+
+  /**
+   * Confirmation modal trigger for destructive operations
+   */
+  confirmAction: function (title, message, actionCallback) {
+    document.getElementById('confirm-modal-title').textContent = title;
+    document.getElementById('confirm-modal-message').textContent = message;
+    
+    const actionBtn = document.getElementById('confirm-modal-action-btn');
+    const newBtn = actionBtn.cloneNode(true);
+    actionBtn.parentNode.replaceChild(newBtn, actionBtn);
+
+    newBtn.addEventListener('click', () => {
+      this.closeModal('modal-confirm-delete');
+      if (typeof actionCallback === 'function') {
+        actionCallback();
+      }
+    });
+
+    this.openModal('modal-confirm-delete');
+  },
+
+  confirmDeleteDocument: function (docId) {
+    const doc = this.state.documents.find(d => d.id === docId);
+    const num = doc ? doc.number : 'ce document';
+    
+    this.confirmAction(
+      "Confirmer la suppression",
+      `Êtes-vous sûr de vouloir supprimer définitivement le document #${num} ?`,
+      () => {
+        this.state.documents = this.state.documents.filter(d => d.id !== docId);
+        this.saveState();
+        this.showToast(`Document ${num} supprimé.`, "info");
+        this.renderCurrentView();
+      }
+    );
+  },
+
+  confirmDeleteClient: function (clientId) {
+    const cli = this.state.clients.find(c => c.id === clientId);
+    const name = cli ? cli.name : 'ce client';
+
+    this.confirmAction(
+      "Supprimer le client",
+      `Voulez-vous vraiment supprimer le client ${name} ?`,
+      () => {
+        this.state.clients = this.state.clients.filter(c => c.id !== clientId);
+        this.saveState();
+        this.showToast(`Client ${name} supprimé.`, "info");
+        this.renderClients();
+      }
+    );
   },
 
   /**
@@ -735,19 +1258,21 @@ window.KivoApp = {
    */
   renderPublicDocView: function () {
     const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
-    const docId = urlParams.get('id') || this.state.documents[0].id;
+    const docId = urlParams.get('id') || (this.state.documents[0] ? this.state.documents[0].id : null);
+    
+    if (!docId) return;
     const doc = this.state.documents.find(d => d.id === docId) || this.state.documents[0];
     const biz = this.state.business;
+    const currencyStr = doc.currency || biz.currency || 'FCFA';
 
-    // Track view
     doc.viewsCount = (doc.viewsCount || 0) + 1;
     doc.lastViewedAt = new Date().toLocaleString('fr-FR');
     if (doc.status === 'sent') doc.status = 'viewed';
     this.saveState();
 
-    document.getElementById('pub-business-logo').textContent = biz.logoText || "KD";
-    document.getElementById('pub-business-name').textContent = biz.name;
-    document.getElementById('pub-business-address').textContent = biz.address;
+    document.getElementById('pub-business-logo').textContent = biz.logoText || "KM";
+    document.getElementById('pub-business-name').textContent = biz.name || "KIVO MATIQUE";
+    document.getElementById('pub-business-address').textContent = biz.address || "Avenue Cheikh Anta Diop, Dakar";
 
     document.getElementById('pub-doc-title').textContent = doc.type === 'quote' ? 'DEVIS' : 'FACTURE';
     document.getElementById('pub-doc-number').textContent = doc.number;
@@ -757,7 +1282,8 @@ window.KivoApp = {
       accepted: 'badge-accepted',
       overdue: 'badge-overdue',
       sent: 'badge-sent',
-      viewed: 'badge-viewed'
+      viewed: 'badge-viewed',
+      refunded: 'badge-overdue'
     }[doc.status] || 'badge-draft';
 
     const statusLabel = {
@@ -765,39 +1291,40 @@ window.KivoApp = {
       accepted: '✓ Devis Accepté',
       overdue: '⚠️ En retard',
       sent: 'Envoyée',
-      viewed: 'Vue par le client'
+      viewed: 'Vue par le client',
+      refunded: '↩️ Remboursée'
     }[doc.status] || doc.status;
 
     const badgeEl = document.getElementById('pub-doc-status-badge');
-    badgeEl.className = `badge ${badgeClass}`;
-    badgeEl.textContent = statusLabel;
+    if (badgeEl) {
+      badgeEl.className = `badge ${badgeClass}`;
+      badgeEl.textContent = statusLabel;
+    }
 
     document.getElementById('pub-client-name').textContent = doc.clientName;
-    document.getElementById('pub-client-contact').textContent = doc.clientEmail;
-    document.getElementById('pub-client-phone').textContent = doc.clientPhone;
+    document.getElementById('pub-client-contact').textContent = `${doc.clientType || 'B2C'} ${doc.clientTaxId ? '• ' + doc.clientTaxId : ''} ${doc.clientEmail ? '• ' + doc.clientEmail : ''}`;
+    document.getElementById('pub-client-phone').textContent = doc.clientPhone || '';
     document.getElementById('pub-issue-date').textContent = doc.issueDate;
     document.getElementById('pub-due-date').textContent = doc.dueDate;
 
-    // Render items table
     const tbody = document.getElementById('pub-items-tbody');
     tbody.innerHTML = (doc.items || []).map(it => `
       <tr>
         <td><strong>${it.name}</strong><br><span style="font-size: 0.8rem; color: var(--text-secondary);">${it.description || ''}</span></td>
         <td style="text-align: center;">${it.quantity}</td>
-        <td style="text-align: right;">${(it.price || 0).toLocaleString('fr-FR')} ${biz.currency}</td>
-        <td style="text-align: right;"><strong>${(it.total || 0).toLocaleString('fr-FR')} ${biz.currency}</strong></td>
+        <td style="text-align: right;">${(it.price || 0).toLocaleString('fr-FR')} ${currencyStr}</td>
+        <td style="text-align: right;"><strong>${(it.total || 0).toLocaleString('fr-FR')} ${currencyStr}</strong></td>
       </tr>
     `).join('');
 
-    document.getElementById('pub-subtotal').textContent = (doc.subtotal || doc.total).toLocaleString('fr-FR') + ' ' + biz.currency;
-    document.getElementById('pub-discount').textContent = '-' + (doc.discount || 0).toLocaleString('fr-FR') + ' ' + biz.currency;
-    document.getElementById('pub-total').textContent = (doc.total || 0).toLocaleString('fr-FR') + ' ' + biz.currency;
-    document.getElementById('pub-bar-total').textContent = (doc.total || 0).toLocaleString('fr-FR') + ' ' + biz.currency;
+    document.getElementById('pub-subtotal').textContent = (doc.subtotal || doc.total).toLocaleString('fr-FR') + ' ' + currencyStr;
+    document.getElementById('pub-discount').textContent = '-' + (doc.discount || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
+    document.getElementById('pub-total').textContent = (doc.total || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
+    document.getElementById('pub-bar-total').textContent = (doc.total || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
 
-    document.getElementById('pub-terms').textContent = doc.terms || "Paiement à réception.";
+    document.getElementById('pub-terms').textContent = doc.terms || "Paiement à réception par Carte bancaire (Stripe) ou Mobile Money.";
     document.getElementById('pub-notes').textContent = doc.notes || "Merci pour votre confiance.";
 
-    // Render Sticky Action Bar Buttons
     const btnContainer = document.getElementById('pub-bar-buttons-container');
     
     if (doc.type === 'quote' && (doc.status === 'sent' || doc.status === 'viewed')) {
@@ -807,10 +1334,10 @@ window.KivoApp = {
         </button>
         <button class="btn btn-secondary" onclick="window.print()">Télécharger PDF</button>
       `;
-    } else if (doc.type === 'invoice' && doc.status !== 'paid') {
+    } else if (doc.type === 'invoice' && doc.status !== 'paid' && doc.status !== 'refunded') {
       btnContainer.innerHTML = `
         <button class="btn btn-primary" onclick="KivoApp.openPaymentModal('${doc.id}')">
-          🔒 Payer en ligne (${(doc.total).toLocaleString('fr-FR')} ${biz.currency})
+          🔒 Payer en ligne (${(doc.total).toLocaleString('fr-FR')} ${currencyStr})
         </button>
         <button class="btn btn-secondary" onclick="window.print()">Télécharger PDF</button>
         <button class="btn btn-whatsapp" onclick="KivoApp.shareOnWhatsApp('${doc.id}')">💬 WhatsApp</button>
@@ -836,7 +1363,7 @@ window.KivoApp = {
         type: 'quote_accepted',
         icon: 'check-circle',
         title: `Devis #${doc.number} accepté 🎉`,
-        details: `Accepté en ligne par ${doc.clientName}`
+        details: `Validé par ${doc.clientName}`
       });
 
       this.saveState();
@@ -846,7 +1373,7 @@ window.KivoApp = {
   },
 
   /**
-   * Opens Payment Provider Checkout Modal
+   * Payment provider modal checkout trigger
    */
   openPaymentModal: function (docId) {
     const doc = this.state.documents.find(d => d.id === docId);
@@ -874,40 +1401,43 @@ window.KivoApp = {
     this.openModal('modal-payment-checkout');
   },
 
-  /**
-   * Selects payment provider in checkout modal
-   */
   selectPaymentProvider: function (providerId) {
     this.selectedProviderId = providerId;
     document.getElementById('payment-input-step').style.display = 'block';
-    document.getElementById('pay-input-phone').value = this.activePaymentDoc.clientPhone || '';
+    
+    const labelEl = document.getElementById('pay-input-label');
+    const inputEl = document.getElementById('pay-input-phone');
+    
+    if (providerId === 'stripe') {
+      if (labelEl) labelEl.textContent = "Numéro de carte bancaire Stripe (Demo)";
+      if (inputEl) inputEl.placeholder = "4242 4242 4242 4242";
+    } else {
+      if (labelEl) labelEl.textContent = "Numéro de téléphone Mobile Money";
+      if (inputEl) inputEl.placeholder = "+221 77 000 00 00";
+    }
+
+    inputEl.value = this.activePaymentDoc.clientPhone || '';
     document.getElementById('pay-confirm-btn').scrollIntoView({ behavior: 'smooth' });
   },
 
-  /**
-   * Confirms payment execution and handles webhook callback
-   */
   confirmOnlinePayment: function () {
     const doc = this.activePaymentDoc;
-    const phone = document.getElementById('pay-input-phone').value;
+    const details = document.getElementById('pay-input-phone').value;
     const btn = document.getElementById('pay-confirm-btn');
 
     btn.textContent = "Traitement sécurisé en cours...";
     btn.disabled = true;
 
-    window.PaymentProvider.processPayment(doc, this.selectedProviderId, { phone }, (record) => {
+    window.PaymentProvider.processPayment(doc, this.selectedProviderId, { phone: details }, (record) => {
       this.closeModal('modal-payment-checkout');
       btn.textContent = "Confirmer le paiement instantané 🔒";
       btn.disabled = false;
 
-      this.showToast(`Paiement de ${doc.total.toLocaleString('fr-FR')} FCFA confirmé via Wave/Mobile Money !`, "success");
+      this.showToast(`Paiement de ${doc.total.toLocaleString('fr-FR')} ${doc.currency || 'FCFA'} confirmé via ${this.selectedProviderId.toUpperCase()} !`, "success");
       this.renderPublicDocView();
     });
   },
 
-  /**
-   * Internal webhook callback handler triggered when invoice payment completes
-   */
   recordInvoicePayment: function (docId, amount, providerId, transactionId) {
     const doc = this.state.documents.find(d => d.id === docId);
     if (doc) {
@@ -920,16 +1450,31 @@ window.KivoApp = {
         type: 'payment',
         icon: 'dollar-sign',
         title: `Paiement reçu pour #${doc.number}`,
-        details: `${amount.toLocaleString('fr-FR')} ${this.state.business.currency} encaissés via ${providerId.toUpperCase()} (Tx: ${transactionId})`
+        details: `${amount.toLocaleString('fr-FR')} ${doc.currency || 'FCFA'} encaissés via ${providerId.toUpperCase()} (Tx: ${transactionId})`
       });
 
       this.saveState();
     }
   },
 
-  /**
-   * Shares document link formatted on WhatsApp
-   */
+  recordInvoiceRefund: function (docId, amount, refundId, reason) {
+    const doc = this.state.documents.find(d => d.id === docId);
+    if (doc) {
+      doc.status = 'refunded';
+
+      this.state.activities.unshift({
+        id: 'act_' + Date.now(),
+        timestamp: "À l'instant",
+        type: 'refund',
+        icon: 'rotate-ccw',
+        title: `Remboursement effectué pour #${doc.number}`,
+        details: `${amount.toLocaleString('fr-FR')} ${doc.currency || 'FCFA'} remboursés (ID: ${refundId})`
+      });
+
+      this.saveState();
+    }
+  },
+
   shareOnWhatsApp: function (docId) {
     const doc = this.state.documents.find(d => d.id === docId);
     if (doc) {
@@ -940,32 +1485,48 @@ window.KivoApp = {
   },
 
   /**
-   * Renders Clients CRM View
+   * Client CRM management
    */
+  toggleClientTypeForm: function (type) {
+    const taxGroup = document.getElementById('new-cli-taxid-group');
+    const labelEl = document.getElementById('new-cli-name-label');
+    
+    if (type === 'B2B') {
+      if (taxGroup) taxGroup.style.display = 'block';
+      if (labelEl) labelEl.textContent = 'Nom commercial / Raison Sociale *';
+    } else {
+      if (taxGroup) taxGroup.style.display = 'none';
+      if (labelEl) labelEl.textContent = 'Nom complet du particulier *';
+    }
+  },
+
   renderClients: function () {
     const tbody = document.getElementById('clients-list-tbody');
     if (!tbody) return;
 
     const biz = this.state.business;
 
+    if (this.state.clients.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Aucun client enregistré. Cliquez sur "+ Nouveau client".</td></tr>`;
+      return;
+    }
+
     tbody.innerHTML = this.state.clients.map(c => `
       <tr>
-        <td><strong>${c.name}</strong></td>
-        <td>${c.company || '-'}</td>
+        <td><strong>${c.name}</strong> ${c.clientType ? `<span class="badge badge-accepted" style="font-size: 0.65rem;">${c.clientType}</span>` : ''}</td>
+        <td>${c.company || c.taxId || '-'}</td>
         <td>${c.phone || '-'}</td>
         <td><strong>${(c.totalInvoiced || 0).toLocaleString('fr-FR')} ${biz.currency}</strong></td>
         <td style="color: var(--success-text);"><strong>${(c.totalPaid || 0).toLocaleString('fr-FR')} ${biz.currency}</strong></td>
         <td style="color: var(--danger-text);"><strong>${(c.balanceDue || 0).toLocaleString('fr-FR')} ${biz.currency}</strong></td>
-        <td style="text-align: right;">
+        <td style="text-align: right; display: flex; gap: 0.35rem; justify-content: flex-end;">
           <button class="btn btn-secondary btn-sm" onclick="KivoApp.startNewDocument('invoice')">+ Facturer</button>
+          <button class="btn btn-danger btn-sm" onclick="KivoApp.confirmDeleteClient('${c.id}')">🗑️</button>
         </td>
       </tr>
     `).join('');
   },
 
-  /**
-   * Renders Catalog Library View
-   */
   renderCatalog: function () {
     const container = document.getElementById('catalog-grid');
     if (!container) return;
@@ -989,17 +1550,14 @@ window.KivoApp = {
     `).join('');
   },
 
-  /**
-   * Renders Smart Reminders View
-   */
   renderReminders: function () {
     const listEl = document.getElementById('reminders-doc-list');
     if (!listEl) return;
 
-    const overdueDocs = this.state.documents.filter(d => d.type === 'invoice' && d.status !== 'paid');
+    const overdueDocs = this.state.documents.filter(d => d.type === 'invoice' && d.status !== 'paid' && d.status !== 'refunded');
 
     if (overdueDocs.length === 0) {
-      listEl.innerHTML = `<p style="color: var(--text-muted);">Aucune facture en attente de relance ! 🎉</p>`;
+      listEl.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">Aucune facture en attente de relance ! 🎉</p>`;
       return;
     }
 
@@ -1010,7 +1568,7 @@ window.KivoApp = {
             <strong>${doc.number} — ${doc.clientName}</strong>
             <div style="font-size: 0.8rem; color: var(--text-secondary);">Échéance: ${doc.dueDate}</div>
           </div>
-          <span class="badge ${doc.status === 'overdue' ? 'badge-overdue' : 'badge-sent'}">${(doc.total).toLocaleString('fr-FR')} FCFA</span>
+          <span class="badge ${doc.status === 'overdue' ? 'badge-overdue' : 'badge-sent'}">${(doc.total).toLocaleString('fr-FR')} ${doc.currency || 'FCFA'}</span>
         </div>
       </div>
     `).join('');
@@ -1020,9 +1578,6 @@ window.KivoApp = {
     }
   },
 
-  /**
-   * Selects active reminder document and triggers KIVO AI message generator
-   */
   selectReminderDoc: function (docId) {
     this.activeReminderDocId = docId;
     const doc = this.state.documents.find(d => d.id === docId);
@@ -1033,9 +1588,6 @@ window.KivoApp = {
     document.getElementById('reminder-send-whatsapp').href = reminder.whatsappUrl;
   },
 
-  /**
-   * Sets Reminder AI tone
-   */
   setReminderTone: function (tone) {
     this.selectedReminderTone = tone;
     if (this.activeReminderDocId) {
@@ -1043,19 +1595,13 @@ window.KivoApp = {
     }
   },
 
-  /**
-   * Copies reminder message text to clipboard
-   */
   copyReminderText: function () {
     const text = document.getElementById('reminder-message-preview').value;
     navigator.clipboard.writeText(text).then(() => {
-      this.showToast("Message copié dans le presse-papier !", "info");
+      this.showToast("Message de relance copié dans le presse-papier !", "info");
     });
   },
 
-  /**
-   * Switches Auth Tab (Login vs Register)
-   */
   switchAuthTab: function (tab) {
     document.getElementById('auth-tab-login').classList.remove('active-pill');
     document.getElementById('auth-tab-register').classList.remove('active-pill');
@@ -1071,17 +1617,11 @@ window.KivoApp = {
     }
   },
 
-  /**
-   * Google Authentication Simulation
-   */
   simulateGoogleAuth: function () {
-    this.showToast("Connexion Google réussie ! Welcome Marc Koffi 👋", "success");
+    this.showToast("Connexion Google réussie ! Bienvenue sur KIVO MATIQUE 👋", "success");
     this.navigate('dashboard');
   },
 
-  /**
-   * Login Submission — validates credentials against stored state
-   */
   submitLogin: function () {
     const email = document.getElementById('auth-login-email').value.trim();
     const pwd = document.getElementById('auth-login-password').value;
@@ -1091,18 +1631,17 @@ window.KivoApp = {
       return;
     }
 
-    // Check if account exists
     if (!this.state.userEmail) {
-      this.showToast("Aucun compte trouvé. Veuillez créer un compte d'abord.", "error");
+      this.showToast("Aucun compte trouvé. Veuillez vous inscrire.", "error");
       return;
     }
 
     if (this.state.userEmail === email && this.state.userPassword === pwd) {
       if (this.state.isOnboarded) {
-        this.showToast(`Bienvenue ${this.state.business.owner} ! 👋`, "success");
+        this.showToast(`Bienvenue sur KIVO MATIQUE ${this.state.business.owner} ! 👋`, "success");
         this.navigate('dashboard');
       } else {
-        this.showToast("Compte trouvé ! Finalisons la configuration de votre entreprise.", "info");
+        this.showToast("Compte vérifié ! Finalisons l'installation.", "info");
         this.navigate('onboarding');
       }
     } else {
@@ -1110,29 +1649,16 @@ window.KivoApp = {
     }
   },
 
-  /**
-   * Register Submission — saves credentials and sends to onboarding
-   */
   submitRegister: function () {
     const name = document.getElementById('auth-reg-name').value.trim();
     const email = document.getElementById('auth-reg-email').value.trim();
     const pwd = document.getElementById('auth-reg-password').value;
-    const pwd2 = document.getElementById('auth-reg-password2') ? document.getElementById('auth-reg-password2').value : pwd;
 
     if (!name || !email || !pwd) {
       this.showToast("Veuillez remplir tous les champs obligatoires.", "error");
       return;
     }
-    if (pwd !== pwd2) {
-      this.showToast("Les mots de passe ne correspondent pas.", "error");
-      return;
-    }
-    if (pwd.length < 6) {
-      this.showToast("Le mot de passe doit contenir au moins 6 caractères.", "error");
-      return;
-    }
 
-    // Save credentials in state (MVP — plaintext, would be hashed in production)
     this.state.userEmail = email;
     this.state.userPassword = pwd;
     this.state.userName = name;
@@ -1140,13 +1666,10 @@ window.KivoApp = {
     this.state.business.email = email;
     this.saveState();
 
-    this.showToast(`🎉 Compte créé pour ${name} ! Configurons votre entreprise...`, "success");
-    setTimeout(() => this.navigate('onboarding'), 1000);
+    this.showToast(`🎉 Compte créé ! Configurons votre entreprise KIVO MATIQUE...`, "success");
+    setTimeout(() => this.navigate('onboarding'), 800);
   },
 
-  /**
-   * Automatically updates Phone Code & Currency when Country selection changes
-   */
   onCountrySelectChange: function () {
     const select = document.getElementById('onboard-biz-country');
     const selectedOption = select.options[select.selectedIndex];
@@ -1157,7 +1680,6 @@ window.KivoApp = {
       if (code) {
         const prefixSelect = document.getElementById('onboard-biz-phone-prefix');
         if (prefixSelect) {
-          // If code exists in options set it, else add it dynamically
           prefixSelect.value = code;
           if (prefixSelect.value !== code) {
             const opt = document.createElement('option');
@@ -1173,21 +1695,11 @@ window.KivoApp = {
         const currSelect = document.getElementById('onboard-biz-currency');
         if (currSelect) {
           currSelect.value = curr;
-          if (currSelect.value !== curr) {
-            const opt = document.createElement('option');
-            opt.value = curr;
-            opt.textContent = `${curr}`;
-            currSelect.appendChild(opt);
-            currSelect.value = curr;
-          }
         }
       }
     }
   },
 
-  /**
-   * 1-Click quick demo fill for Onboarding
-   */
   fillDemoOnboardingData: function () {
     document.getElementById('onboard-biz-name').value = "MD Creative Studio";
     document.getElementById('onboard-biz-owner').value = "Marc Koffi";
@@ -1197,14 +1709,11 @@ window.KivoApp = {
     document.getElementById('onboard-biz-currency').value = "FCFA";
     document.getElementById('onboard-biz-email').value = "marc.koffi@mdcreative.design";
     document.getElementById('onboard-biz-taxid').value = "SN-NINEA-849204812";
-    this.showToast("⚡ Données de démo chargées dans le formulaire.", "info");
+    this.showToast("⚡ Données de démonstration chargées.", "info");
   },
 
   selectedOnboardPlan: 'Pro',
 
-  /**
-   * Selects subscription tier card in Onboarding wizard
-   */
   selectOnboardingPlan: function (tier) {
     this.selectedOnboardPlan = tier;
     const cards = ['free', 'pro', 'business'];
@@ -1227,10 +1736,6 @@ window.KivoApp = {
     }
   },
 
-  /**
-   * Completes onboarding flow and saves new business profile
-   * Sets isOnboarded = true so the auth guard allows access to app views
-   */
   completeOnboarding: function () {
     const bizName = document.getElementById('onboard-biz-name').value.trim();
     const bizOwner = document.getElementById('onboard-biz-owner').value.trim();
@@ -1261,45 +1766,43 @@ window.KivoApp = {
     biz.subscriptionTier = this.selectedOnboardPlan || 'Gratuit';
     biz.subscriptionStatus = 'active';
 
-    // Generate logo initials from business name
     const words = bizName.split(' ').filter(w => w.length > 0);
     biz.logoText = words.length > 1
       ? (words[0][0] + words[1][0]).toUpperCase()
       : bizName.substring(0, 2).toUpperCase();
 
-    // ✔ Mark as onboarded — this is the key flag that unlocks the app
+    // Mark as onboarded to unlock app
     this.state.isOnboarded = true;
 
     this.saveState();
     this.updateUserBrandingUI();
-    this.showToast(`🎉 Bienvenue sur KIVO, ${bizOwner} ! Votre espace est prêt.`, "success");
+    this.showToast(`🎉 Bienvenue sur KIVO MATIQUE, ${bizOwner} ! Espace prêt.`, "success");
     this.navigate('dashboard');
   },
 
-  /**
-   * Switches Subscription Tier live in Settings
-   */
   switchSubscriptionTier: function (tier) {
     this.state.business.subscriptionTier = tier;
     this.state.business.subscriptionStatus = 'active';
     this.saveState();
     this.renderSettings();
-    this.showToast(`✨ Forfait ${tier} activé avec succès pour votre entreprise !`, "success");
+    this.showToast(`✨ Forfait ${tier} (KIVO MATIQUE) activé !`, "success");
   },
 
-  /**
-   * Renders Settings View Form
-   */
   renderSettings: function () {
     const biz = this.state.business;
-    document.getElementById('setting-biz-name').value = biz.name;
-    document.getElementById('setting-biz-owner').value = biz.owner;
-    document.getElementById('setting-biz-phone').value = biz.phone;
-    document.getElementById('setting-biz-email').value = biz.email;
-    document.getElementById('setting-biz-currency').value = biz.currency;
-    document.getElementById('setting-biz-prefix').value = biz.documentPrefix;
+    if (document.getElementById('setting-biz-name')) document.getElementById('setting-biz-name').value = biz.name;
+    if (document.getElementById('setting-biz-owner')) document.getElementById('setting-biz-owner').value = biz.owner;
+    if (document.getElementById('setting-biz-phone')) document.getElementById('setting-biz-phone').value = biz.phone;
+    if (document.getElementById('setting-biz-email')) document.getElementById('setting-biz-email').value = biz.email;
+    if (document.getElementById('setting-biz-address')) document.getElementById('setting-biz-address').value = biz.address || '';
+    if (document.getElementById('setting-biz-taxid')) document.getElementById('setting-biz-taxid').value = biz.taxId || '';
+    if (document.getElementById('setting-biz-currency')) document.getElementById('setting-biz-currency').value = biz.currency;
+    if (document.getElementById('setting-biz-prefix')) document.getElementById('setting-biz-prefix').value = biz.invoicePrefix || "FAC-2026-";
+    if (document.getElementById('setting-biz-quote-prefix')) document.getElementById('setting-biz-quote-prefix').value = biz.quotePrefix || "DEV-2026-";
+    if (document.getElementById('setting-biz-vat')) document.getElementById('setting-biz-vat').value = biz.defaultVatRate || 18;
+    if (document.getElementById('setting-stripe-key')) document.getElementById('setting-stripe-key').value = biz.stripeKey || "pk_test_51KivoMastiqueDemoStripeKey998";
+    if (document.getElementById('setting-biz-language')) document.getElementById('setting-biz-language').value = this.state.language || "fr";
 
-    // Update Subscription UI Badge & Card highlights
     const tier = biz.subscriptionTier || 'Pro';
     const badgeEl = document.getElementById('settings-current-plan-badge');
     if (badgeEl) {
@@ -1321,26 +1824,28 @@ window.KivoApp = {
     });
   },
 
-  /**
-   * Saves Settings back to state
-   */
   saveSettings: function () {
     const biz = this.state.business;
-    biz.name = document.getElementById('setting-biz-name').value;
-    biz.owner = document.getElementById('setting-biz-owner').value;
-    biz.phone = document.getElementById('setting-biz-phone').value;
-    biz.email = document.getElementById('setting-biz-email').value;
-    biz.currency = document.getElementById('setting-biz-currency').value;
-    biz.documentPrefix = document.getElementById('setting-biz-prefix').value;
+    if (document.getElementById('setting-biz-name')) biz.name = document.getElementById('setting-biz-name').value;
+    if (document.getElementById('setting-biz-owner')) biz.owner = document.getElementById('setting-biz-owner').value;
+    if (document.getElementById('setting-biz-phone')) biz.phone = document.getElementById('setting-biz-phone').value;
+    if (document.getElementById('setting-biz-email')) biz.email = document.getElementById('setting-biz-email').value;
+    if (document.getElementById('setting-biz-address')) biz.address = document.getElementById('setting-biz-address').value;
+    if (document.getElementById('setting-biz-taxid')) biz.taxId = document.getElementById('setting-biz-taxid').value;
+    if (document.getElementById('setting-biz-currency')) biz.currency = document.getElementById('setting-biz-currency').value;
+    if (document.getElementById('setting-biz-prefix')) biz.invoicePrefix = document.getElementById('setting-biz-prefix').value;
+    if (document.getElementById('setting-biz-quote-prefix')) biz.quotePrefix = document.getElementById('setting-biz-quote-prefix').value;
+    if (document.getElementById('setting-biz-vat')) biz.defaultVatRate = parseFloat(document.getElementById('setting-biz-vat').value) || 0;
+    if (document.getElementById('setting-stripe-key')) biz.stripeKey = document.getElementById('setting-stripe-key').value;
+
+    const langSelect = document.getElementById('setting-biz-language');
+    if (langSelect) this.state.language = langSelect.value;
 
     this.saveState();
-    this.showToast("Paramètres mis à jour avec succès !", "success");
+    this.showToast("Paramètres KIVO MATIQUE enregistrés !", "success");
     this.updateUserBrandingUI();
   },
 
-  /**
-   * Modals handling
-   */
   openModal: function (modalId) {
     const el = document.getElementById(modalId);
     if (el) el.classList.add('active');
@@ -1370,23 +1875,32 @@ window.KivoApp = {
   },
 
   saveNewClient: function () {
-    const name = document.getElementById('new-cli-name').value;
-    const contact = document.getElementById('new-cli-contact').value;
-    const phone = document.getElementById('new-cli-phone').value;
-    const email = document.getElementById('new-cli-email').value;
+    const name = document.getElementById('new-cli-name').value.trim();
+    const contact = document.getElementById('new-cli-contact').value.trim();
+    const phone = document.getElementById('new-cli-phone').value.trim();
+    const email = document.getElementById('new-cli-email').value.trim();
+    const taxId = document.getElementById('new-cli-taxid') ? document.getElementById('new-cli-taxid').value.trim() : '';
+    const address = document.getElementById('new-cli-address') ? document.getElementById('new-cli-address').value.trim() : '';
+    
+    let type = 'B2B';
+    const typeRadios = document.getElementsByName('new-cli-type');
+    typeRadios.forEach(r => { if (r.checked) type = r.value; });
 
     if (!name) {
-      this.showToast("Veuillez remplir le nom du client.", "error");
+      this.showToast("Veuillez saisir le nom du client.", "error");
       return;
     }
 
     const newClient = {
       id: 'cli_' + Date.now(),
       name: name,
-      company: name,
+      clientType: type,
+      company: type === 'B2B' ? name : '',
       contactName: contact,
+      taxId: taxId,
       email: email,
       phone: phone,
+      address: address,
       totalInvoiced: 0,
       totalPaid: 0,
       balanceDue: 0,
@@ -1396,13 +1910,23 @@ window.KivoApp = {
     this.state.clients.unshift(newClient);
     this.saveState();
     this.closeModal('modal-new-client');
-    this.showToast(`Client ${name} ajouté avec succès.`, "success");
-    this.renderClients();
+    this.showToast(`Client ${name} (${type}) enregistré avec succès.`, "success");
+
+    if (this.activeView === 'document-builder') {
+      const clientSelect = document.getElementById('builder-doc-client-select');
+      if (clientSelect) {
+        const opt = document.createElement('option');
+        opt.value = newClient.id;
+        opt.textContent = `${newClient.name} (${newClient.company || newClient.contactName || 'Particulier'})`;
+        clientSelect.appendChild(opt);
+        clientSelect.value = newClient.id;
+        this.updateLiveInvoicePreview();
+      }
+    } else {
+      this.renderClients();
+    }
   },
 
-  /**
-   * Toast notification display helper
-   */
   showToast: function (message, type = 'info') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -1422,7 +1946,7 @@ window.KivoApp = {
   }
 };
 
-// Initialize application on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
   window.KivoApp.init();
 });
+
