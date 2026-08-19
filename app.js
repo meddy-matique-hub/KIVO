@@ -130,15 +130,50 @@ window.KivoApp = {
 
   /**
    * Initializes application state and router
+   * Auth is checked FIRST — app waits for session before showing any data
    */
-  init: function () {
+  init: async function () {
     console.log("[KivoApp] Initializing KIVO MATIQUE application...");
-    this.loadState();
     this.setupRouting();
     this.setupEventListeners();
+
+    // 1. Check Supabase session first
+    const { data: { session } } = await KivoDb.supabase.auth.getSession();
+
+    if (!session) {
+      // No session: show login modal, block the rest
+      console.warn('[KivoApp] No session — showing login modal.');
+      document.getElementById('modal-login').style.display = 'flex';
+      return; // Don't load state or render anything
+    }
+
+    // 2. Session active: hide login modal, wipe any stale demo localStorage
+    document.getElementById('modal-login').style.display = 'none';
+    const stored = localStorage.getItem('kivo_app_state');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        // If old demo data detected (MD Creative Studio or no userEmail matching session)
+        const isDemoData = parsed.userEmail && parsed.userEmail !== session.user.email;
+        const isSeeded = (parsed.clients || []).some(c => c.id && c.id.startsWith('cli_demo'));
+        if (isDemoData || isSeeded) {
+          console.warn('[KivoApp] Old demo data detected in localStorage — clearing.');
+          localStorage.removeItem('kivo_app_state');
+        }
+      } catch(e) {}
+    }
+
+    // 3. Load local state then sync from Supabase
+    this.loadState();
     this.handleRoute();
-    // Connect to Supabase in background — non-blocking
-    this.initSupabase();
+
+    // Supabase sync
+    this.supabaseConnected = true;
+    try {
+      await this.syncFromSupabase();
+    } catch (e) {
+      console.error('[KivoApp] Supabase sync error:', e);
+    }
   },
 
   /**
