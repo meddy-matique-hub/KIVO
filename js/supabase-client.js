@@ -1,100 +1,68 @@
 /**
- * KIVO MATIQUE — Supabase Database Client
+ * KIVO MATIQUE — Supabase Database Client (Official SDK)
  * Project: KIVO MATIQUE (fzdtdfymvhydtoyqpdxd)
- * Region: eu-north-1
  */
 
 const SUPABASE_URL = 'https://fzdtdfymvhydtoyqpdxd.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6ZHRkZnltdmh5ZHRveXFwZHhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNjAyMTcsImV4cCI6MjEwMTkzNjIxN30.WK4pbZ1HYq5QDFasw3P3gKPz4KfMObGTfb721s5spdQ';
 
-/**
- * Supabase REST API helper — lightweight, no SDK required
- */
+// Initialize Supabase client
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 window.KivoDb = {
-  _headers: {
-    'Content-Type': 'application/json',
-    'apikey': SUPABASE_ANON_KEY,
-    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    'Prefer': 'return=representation'
-  },
+  // We keep the same interface methods to avoid breaking app.js right away
+  supabase,
 
-  _url: function(table, query = '') {
-    return `${SUPABASE_URL}/rest/v1/${table}${query}`;
-  },
+  // ─── Generic CRUD (Wrapped over SDK) ───────────────────────────────
 
-  // ─── Generic CRUD ──────────────────────────────────────────────────
-
-  /** SELECT - returns array of rows */
-  select: async function(table, query = '') {
+  select: async function(table, match = {}) {
     try {
-      const res = await fetch(this._url(table, query), {
-        method: 'GET',
-        headers: this._headers
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return await res.json();
+      const { data, error } = await supabase.from(table).select('*').match(match);
+      if (error) throw error;
+      return data;
     } catch (e) {
       console.error(`[KivoDb] select(${table}) error:`, e);
       return null;
     }
   },
 
-  /** INSERT - inserts one or more rows */
   insert: async function(table, data) {
     try {
-      const res = await fetch(this._url(table), {
-        method: 'POST',
-        headers: this._headers,
-        body: JSON.stringify(data)
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return await res.json();
+      const { data: inserted, error } = await supabase.from(table).insert(data).select();
+      if (error) throw error;
+      return inserted;
     } catch (e) {
       console.error(`[KivoDb] insert(${table}) error:`, e);
       return null;
     }
   },
 
-  /** UPSERT - insert or update on conflict */
-  upsert: async function(table, data, onConflict = 'id') {
+  upsert: async function(table, data) {
     try {
-      const res = await fetch(this._url(table, `?on_conflict=${onConflict}`), {
-        method: 'POST',
-        headers: { ...this._headers, 'Prefer': 'resolution=merge-duplicates,return=representation' },
-        body: JSON.stringify(data)
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return await res.json();
+      const { data: upserted, error } = await supabase.from(table).upsert(data).select();
+      if (error) throw error;
+      return upserted;
     } catch (e) {
       console.error(`[KivoDb] upsert(${table}) error:`, e);
       return null;
     }
   },
 
-  /** UPDATE - updates rows matching filter */
-  update: async function(table, data, filter) {
+  update: async function(table, data, match) {
     try {
-      const res = await fetch(this._url(table, `?${filter}`), {
-        method: 'PATCH',
-        headers: this._headers,
-        body: JSON.stringify(data)
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return await res.json();
+      const { data: updated, error } = await supabase.from(table).update(data).match(match).select();
+      if (error) throw error;
+      return updated;
     } catch (e) {
       console.error(`[KivoDb] update(${table}) error:`, e);
       return null;
     }
   },
 
-  /** DELETE - deletes rows matching filter */
-  delete: async function(table, filter) {
+  delete: async function(table, match) {
     try {
-      const res = await fetch(this._url(table, `?${filter}`), {
-        method: 'DELETE',
-        headers: this._headers
-      });
-      if (!res.ok) throw new Error(await res.text());
+      const { error } = await supabase.from(table).delete().match(match);
+      if (error) throw error;
       return true;
     } catch (e) {
       console.error(`[KivoDb] delete(${table}) error:`, e);
@@ -104,23 +72,26 @@ window.KivoDb = {
 
   // ─── Domain-specific helpers ───────────────────────────────────────
 
-  /** Load all app data from Supabase into KivoApp.state */
   loadAll: async function() {
-    console.log('[KivoDb] Loading all data from Supabase...');
-    const [settings, clients, catalog, documents, activities] = await Promise.all([
-      this.select('business_settings', '?id=eq.default'),
-      this.select('clients', '?order=created_at.desc'),
-      this.select('catalog', '?order=created_at.asc'),
-      this.select('documents', '?order=created_at.desc'),
-      this.select('activities', '?order=created_at.desc&limit=50')
-    ]);
+    console.log('[KivoDb] Loading all data from Supabase (SDK)...');
+    
+    // Fetching data for the authenticated user only (handled by RLS)
+    const { data: settings } = await supabase.from('business_settings').select('*');
+    const { data: clients } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
+    const { data: catalog } = await supabase.from('catalog').select('*').order('created_at', { ascending: true });
+    const { data: documents } = await supabase.from('documents').select('*').order('created_at', { ascending: false });
+    const { data: activities } = await supabase.from('activities').select('*').order('created_at', { ascending: false }).limit(50);
 
-    return { settings, clients, catalog, documents, activities };
+    return { 
+      settings: settings || [], 
+      clients: clients || [], 
+      catalog: catalog || [], 
+      documents: documents || [], 
+      activities: activities || [] 
+    };
   },
 
-  /** Save (upsert) a single document */
   saveDocument: async function(doc) {
-    // Convert items array to JSON string if needed
     const payload = { ...doc };
     if (Array.isArray(payload.items)) {
       payload.items = JSON.stringify(payload.items);
@@ -128,52 +99,33 @@ window.KivoDb = {
     return this.upsert('documents', payload);
   },
 
-  /** Save a client */
   saveClient: async function(client) {
     return this.upsert('clients', client);
   },
 
-  /** Save a catalog item */
   saveCatalogItem: async function(item) {
     return this.upsert('catalog', item);
   },
 
-  /** Save business settings */
   saveSettings: async function(settings) {
     return this.upsert('business_settings', settings);
   },
 
-  /** Log an activity */
   logActivity: async function(activity) {
     return this.insert('activities', activity);
   },
 
-  /** Delete a document by ID */
   deleteDocument: async function(id) {
-    return this.delete('documents', `id=eq.${id}`);
+    return this.delete('documents', { id });
   },
 
-  /** Delete a client by ID */
   deleteClient: async function(id) {
-    return this.delete('clients', `id=eq.${id}`);
+    return this.delete('clients', { id });
   },
 
-  /** Delete a catalog item by ID */
   deleteCatalogItem: async function(id) {
-    return this.delete('catalog', `id=eq.${id}`);
-  },
-
-  /** Test connectivity - returns true if connected */
-  ping: async function() {
-    try {
-      const res = await fetch(this._url('business_settings', '?id=eq.default&select=id'), {
-        headers: this._headers
-      });
-      return res.ok;
-    } catch {
-      return false;
-    }
+    return this.delete('catalog', { id });
   }
 };
 
-console.log('[KivoDb] Supabase client initialized for KIVO MATIQUE — fzdtdfymvhydtoyqpdxd');
+console.log('[KivoDb] SDK Supabase initialized.');

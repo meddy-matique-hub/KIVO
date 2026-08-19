@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -1280,7 +1280,7 @@
                 <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">Gérez la formule commerciale de votre entreprise.</p>
               </div>
               <span class="badge badge-accepted" id="settings-current-plan-badge" style="font-size: 0.85rem; padding: 0.35rem 0.85rem;">
-                ✓ Forfait Actif : PRO (2 600 FCFA / 4€ par mois)
+                ✓ Forfait Actif : PRO (2 590 FCFA / 4€ par mois)
               </span>
             </div>
 
@@ -1295,14 +1295,14 @@
               <div class="card" id="setting-plan-card-pro" style="padding: 1.25rem; text-align: center; border: 2px solid var(--primary); background: var(--primary-light);">
                 <span class="badge badge-accepted" style="font-size: 0.65rem; margin-bottom: 0.25rem;">Populaire</span>
                 <h4 style="margin-bottom: 0.25rem; color: var(--primary);">PRO</h4>
-                <div style="font-weight: 800; font-size: 1.35rem; color: var(--primary);">2 600 FCFA <span style="font-size: 0.75rem;">(4 €) /mois</span></div>
+                <div style="font-weight: 800; font-size: 1.35rem; color: var(--primary);">2 590 FCFA <span style="font-size: 0.75rem;">(4 €) /mois</span></div>
                 <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.35rem 0 1rem 0;">Illimité + IA + Stripe & Mobile Money</p>
                 <button class="btn btn-primary btn-sm" style="width: 100%;" onclick="KivoApp.switchSubscriptionTier('Pro')">Sélectionné ✓</button>
               </div>
 
               <div class="card" id="setting-plan-card-business" style="padding: 1.25rem; text-align: center; border: 1px solid var(--border-color);">
                 <h4 style="margin-bottom: 0.25rem;">BUSINESS</h4>
-                <div style="font-weight: 800; font-size: 1.35rem;">7 000 FCFA <span style="font-size: 0.75rem;">(11 €) /mois</span></div>
+                <div style="font-weight: 800; font-size: 1.35rem;">6 990 FCFA <span style="font-size: 0.75rem;">(11 €) /mois</span></div>
                 <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.35rem 0 1rem 0;">Multi-devises, Remboursements & API</p>
                 <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="KivoApp.switchSubscriptionTier('Business')">Activer Business</button>
               </div>
@@ -1506,6 +1506,52 @@
   </div>
 
 
+  <!-- Modal Login -->
+  <div class="modal-overlay" id="modal-login" style="display: none; z-index: 9999; background: var(--bg-color);">
+    <div class="modal-card" style="max-width: 400px; margin: auto; padding: 2rem;">
+      <h2 style="margin-bottom: 0.5rem; text-align: center;">KIVO MATIQUE</h2>
+      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem; text-align: center;">
+        Connectez-vous pour accéder à votre espace
+      </p>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="auth-email" class="form-input" placeholder="nom@entreprise.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mot de passe</label>
+        <input type="password" id="auth-password" class="form-input" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary" style="width: 100%; margin-bottom: 1rem;" onclick="handleLoginClick()">Se connecter</button>
+      <button class="btn btn-secondary" style="width: 100%;" onclick="handleSignupClick()">Créer un compte</button>
+      <p id="auth-error-msg" style="color: red; font-size: 0.85rem; text-align: center; margin-top: 1rem; display: none;"></p>
+    </div>
+  </div>
+
+  <script>
+    async function handleLoginClick() {
+      const email = document.getElementById('auth-email').value;
+      const pass = document.getElementById('auth-password').value;
+      const res = await KivoAuth.signIn(email, pass);
+      if (res.error) {
+        const msg = document.getElementById('auth-error-msg');
+        msg.textContent = res.error.message;
+        msg.style.display = 'block';
+      }
+    }
+    async function handleSignupClick() {
+      const email = document.getElementById('auth-email').value;
+      const pass = document.getElementById('auth-password').value;
+      const res = await KivoAuth.signUp(email, pass);
+      if (res.error) {
+        const msg = document.getElementById('auth-error-msg');
+        msg.textContent = res.error.message;
+        msg.style.display = 'block';
+      } else {
+        alert("Inscription réussie, veuillez vérifier votre email (si requis) ou vous connecter.");
+      }
+    }
+  </script>
+
   <!-- Modal 5: Confirmation Modal for Destructive Actions -->
   <div class="modal-overlay" id="modal-confirm-delete">
     <div class="modal-card modal-confirm-card">
@@ -1527,8 +1573,10 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- Scripts -->
-  <script src="js/demo-data.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/demo-data.js"></script>
   <script src="js/ai-assistant.js"></script>
   <script src="js/payment-provider.js"></script>
   <script src="js/whatsapp-helper.js"></script>

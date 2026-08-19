@@ -1,4 +1,4 @@
-﻿# KIVO MATIQUE - Directives et Règles du Projet
+# KIVO MATIQUE - Directives et Règles du Projet
 
 ## 1. Identité de Marque & Branding
 - **Nom officiel** : KIVO MATIQUE
@@ -16,8 +16,8 @@
 - **Devises supportées** : FCFA (XOF/XAF), EUR (€), USD ($), CAD ($), GBP (£).
 - **Forfaits KIVO MATIQUE** :
   - **Gratuit** : Limité (max 3 factures/mois, fonctionnalités de base).
-  - **Pro** : **2 600 FCFA / mois** (~4 € / mois) — Factures illimitées, export PDF, relances automatiques, paiement Mobile Money & Carte.
-  - **Business** : **7 000 FCFA / mois** (~11 € / mois) — Multi-devises, relances IA avancées, support Stripe complet, remboursements & rapports analytiques.
+  - **Pro** : **2 590 FCFA / mois** (~4 € / mois) — Factures illimitées, export PDF, relances automatiques, paiement Mobile Money & Carte.
+  - **Business** : **6 990 FCFA / mois** (~11 € / mois) — Multi-devises, relances IA avancées, support Stripe complet, remboursements & rapports analytiques.
 
 ## 4. Paiements & Stripe
 - Support pour Stripe (Carte bancaire Visa/Mastercard) et Mobile Money (Wave, Orange Money, MTN MoMo).
