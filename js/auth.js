@@ -24,7 +24,14 @@ window.KivoAuth = {
       this.session = session;
       this.user = session?.user || null;
       
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_IN') {
+        this.handleAuthRedirect();
+        // Sync Supabase data now that user is logged in
+        if (window.KivoApp) {
+          window.KivoApp.supabaseConnected = true;
+          window.KivoApp.syncFromSupabase().catch(e => console.error(e));
+        }
+      } else if (event === 'SIGNED_OUT') {
         this.handleAuthRedirect();
       }
     });

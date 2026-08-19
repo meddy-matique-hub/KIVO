@@ -28,6 +28,13 @@ window.KivoDb = {
 
   insert: async function(table, data) {
     try {
+      if (window.KivoAuth && window.KivoAuth.user) {
+        if (Array.isArray(data)) {
+          data = data.map(d => ({ ...d, user_id: window.KivoAuth.user.id }));
+        } else {
+          data.user_id = window.KivoAuth.user.id;
+        }
+      }
       const { data: inserted, error } = await supabase.from(table).insert(data).select();
       if (error) throw error;
       return inserted;
@@ -39,6 +46,13 @@ window.KivoDb = {
 
   upsert: async function(table, data) {
     try {
+      if (window.KivoAuth && window.KivoAuth.user) {
+        if (Array.isArray(data)) {
+          data = data.map(d => ({ ...d, user_id: window.KivoAuth.user.id }));
+        } else {
+          data.user_id = window.KivoAuth.user.id;
+        }
+      }
       const { data: upserted, error } = await supabase.from(table).upsert(data).select();
       if (error) throw error;
       return upserted;

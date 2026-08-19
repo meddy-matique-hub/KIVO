@@ -146,17 +146,18 @@ window.KivoApp = {
    */
   initSupabase: async function () {
     if (!window.KivoDb) return;
-    const connected = await window.KivoDb.ping();
-    if (!connected) {
-      console.warn('[KivoApp] Supabase not reachable — running offline.');
-      return;
-    }
-    this.supabaseConnected = true;
-    console.log('[KivoApp] ✅ Supabase connected — syncing cloud data...');
     try {
+      // Check auth session (faster than a real ping)
+      const { data: { session } } = await KivoDb.supabase.auth.getSession();
+      if (!session) {
+        console.warn('[KivoApp] No Supabase session — not loading cloud data yet.');
+        return;
+      }
+      this.supabaseConnected = true;
+      console.log('[KivoApp] ✅ Supabase session active — syncing cloud data...');
       await this.syncFromSupabase();
     } catch (e) {
-      console.error('[KivoApp] Supabase sync error:', e);
+      console.error('[KivoApp] Supabase init error:', e);
     }
   },
 
@@ -1174,6 +1175,29 @@ window.KivoApp = {
     });
 
     this.saveState();
+
+    // Sync to Supabase
+    if (window.KivoDb && this.supabaseConnected) {
+      window.KivoDb.saveDocument({
+        id: docObj.id,
+        number: docObj.number,
+        type: docObj.type,
+        status: docObj.status,
+        currency: docObj.currency,
+        client_id: docObj.clientId !== 'cli_anon' ? docObj.clientId : null,
+        issue_date: docObj.issueDate,
+        date_due: docObj.dueDate,
+        items: docObj.items,
+        subtotal: docObj.subtotal,
+        discount: docObj.discount,
+        tax_amount: docObj.tax,
+        total: docObj.total,
+        amount_paid: docObj.amountPaid || 0,
+        notes: docObj.notes,
+        conditions: docObj.terms
+      }).catch(e => console.error('[KivoApp] Supabase saveDocument error:', e));
+    }
+
     this.showToast(`Document ${num} enregistré avec succès !`, "success");
     this.viewPublicDoc(docId);
   },
@@ -1224,6 +1248,9 @@ window.KivoApp = {
       () => {
         this.state.documents = this.state.documents.filter(d => d.id !== docId);
         this.saveState();
+        if (window.KivoDb && this.supabaseConnected) {
+          window.KivoDb.deleteDocument(docId).catch(e => console.error(e));
+        }
         this.showToast(`Document ${num} supprimé.`, "info");
         this.renderCurrentView();
       }
@@ -1240,6 +1267,9 @@ window.KivoApp = {
       () => {
         this.state.clients = this.state.clients.filter(c => c.id !== clientId);
         this.saveState();
+        if (window.KivoDb && this.supabaseConnected) {
+          window.KivoDb.deleteClient(clientId).catch(e => console.error(e));
+        }
         this.showToast(`Client ${name} supprimé.`, "info");
         this.renderClients();
       }
@@ -1842,6 +1872,20 @@ window.KivoApp = {
     if (langSelect) this.state.language = langSelect.value;
 
     this.saveState();
+
+    // Sync to Supabase
+    if (window.KivoDb && this.supabaseConnected) {
+      window.KivoDb.saveSettings({
+        company_name: biz.name,
+        email: biz.email,
+        phone: biz.phone,
+        address: biz.address,
+        fiscal_id: biz.taxId,
+        currency: biz.currency,
+        current_plan: biz.subscriptionTier || 'Gratuit'
+      }).catch(e => console.error('[KivoApp] Supabase saveSettings error:', e));
+    }
+
     this.showToast("Paramètres KIVO MATIQUE enregistrés !", "success");
     this.updateUserBrandingUI();
   },
@@ -1909,6 +1953,24 @@ window.KivoApp = {
 
     this.state.clients.unshift(newClient);
     this.saveState();
+    
+    if (window.KivoDb && this.supabaseConnected) {
+      window.KivoDb.saveClient({
+        id: newClient.id,
+        name: newClient.name,
+        type: newClient.clientType,
+        company: newClient.company,
+        contact_name: newClient.contactName,
+        tax_id: newClient.taxId,
+        email: newClient.email,
+        phone: newClient.phone,
+        address: newClient.address,
+        total_invoiced: newClient.totalInvoiced,
+        total_paid: newClient.totalPaid,
+        balance_due: newClient.balanceDue
+      }).catch(e => console.error(e));
+    }
+
     this.closeModal('modal-new-client');
     this.showToast(`Client ${name} (${type}) enregistré avec succès.`, "success");
 
