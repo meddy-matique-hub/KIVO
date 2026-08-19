@@ -15,7 +15,7 @@ window.KivoDb = {
 
   // ─── Generic CRUD (Wrapped over SDK) ───────────────────────────────
 
-  select: async function(table, match = {}) {
+  select: async function (table, match = {}) {
     try {
       const { data, error } = await supabase.from(table).select('*').match(match);
       if (error) throw error;
@@ -26,7 +26,7 @@ window.KivoDb = {
     }
   },
 
-  insert: async function(table, data) {
+  insert: async function (table, data) {
     try {
       if (window.KivoAuth && window.KivoAuth.user) {
         if (Array.isArray(data)) {
@@ -44,7 +44,7 @@ window.KivoDb = {
     }
   },
 
-  upsert: async function(table, data) {
+  upsert: async function (table, data) {
     try {
       if (window.KivoAuth && window.KivoAuth.user) {
         if (Array.isArray(data)) {
@@ -62,7 +62,7 @@ window.KivoDb = {
     }
   },
 
-  update: async function(table, data, match) {
+  update: async function (table, data, match) {
     try {
       const { data: updated, error } = await supabase.from(table).update(data).match(match).select();
       if (error) throw error;
@@ -73,7 +73,7 @@ window.KivoDb = {
     }
   },
 
-  delete: async function(table, match) {
+  delete: async function (table, match) {
     try {
       const { error } = await supabase.from(table).delete().match(match);
       if (error) throw error;
@@ -86,9 +86,9 @@ window.KivoDb = {
 
   // ─── Domain-specific helpers ───────────────────────────────────────
 
-  loadAll: async function() {
+  loadAll: async function () {
     console.log('[KivoDb] Loading all data from Supabase (SDK)...');
-    
+
     // Fetching data for the authenticated user only (handled by RLS)
     const { data: settings } = await supabase.from('business_settings').select('*');
     const { data: clients } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
@@ -96,16 +96,16 @@ window.KivoDb = {
     const { data: documents } = await supabase.from('documents').select('*').order('created_at', { ascending: false });
     const { data: activities } = await supabase.from('activities').select('*').order('created_at', { ascending: false }).limit(50);
 
-    return { 
-      settings: settings || [], 
-      clients: clients || [], 
-      catalog: catalog || [], 
-      documents: documents || [], 
-      activities: activities || [] 
+    return {
+      settings: settings || [],
+      clients: clients || [],
+      catalog: catalog || [],
+      documents: documents || [],
+      activities: activities || []
     };
   },
 
-  saveDocument: async function(doc) {
+  saveDocument: async function (doc) {
     const payload = { ...doc };
     if (Array.isArray(payload.items)) {
       payload.items = JSON.stringify(payload.items);
@@ -113,31 +113,31 @@ window.KivoDb = {
     return this.upsert('documents', payload);
   },
 
-  saveClient: async function(client) {
+  saveClient: async function (client) {
     return this.upsert('clients', client);
   },
 
-  saveCatalogItem: async function(item) {
+  saveCatalogItem: async function (item) {
     return this.upsert('catalog', item);
   },
 
-  saveSettings: async function(settings) {
+  saveSettings: async function (settings) {
     return this.upsert('business_settings', settings);
   },
 
-  logActivity: async function(activity) {
+  logActivity: async function (activity) {
     return this.insert('activities', activity);
   },
 
-  deleteDocument: async function(id) {
+  deleteDocument: async function (id) {
     return this.delete('documents', { id });
   },
 
-  deleteClient: async function(id) {
+  deleteClient: async function (id) {
     return this.delete('clients', { id });
   },
 
-  deleteCatalogItem: async function(id) {
+  deleteCatalogItem: async function (id) {
     return this.delete('catalog', { id });
   }
 };
