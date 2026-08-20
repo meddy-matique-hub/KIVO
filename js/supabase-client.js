@@ -125,6 +125,26 @@ window.KivoDb = {
     return this.upsert('business_settings', settings);
   },
 
+  uploadLogo: async function (file, userId) {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}/${Date.now()}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage.from('logos').upload(fileName, file, {
+        upsert: true,
+        cacheControl: '3600'
+      });
+      
+      if (error) throw error;
+      
+      const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(fileName);
+      return publicUrl;
+    } catch (e) {
+      console.error('[KivoDb] uploadLogo error:', e);
+      return null;
+    }
+  },
+
   logActivity: async function (activity) {
     return this.insert('activities', activity);
   },

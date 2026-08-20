@@ -216,7 +216,7 @@
                     <div style="font-size: 2rem; font-weight: 800; font-family: var(--font-heading); margin: 0.5rem 0;">0 FCFA <span style="font-size: 0.85rem; color: var(--text-secondary);">/ mois</span></div>
                     <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">Pour démarrer son activité en toute sérénité.</p>
                     <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.9rem;">
-                      <li>✓ Jusqu'à 5 documents / mois</li>
+                      <li>✓ Jusqu'à 3 documents / mois</li>
                       <li>✓ Téléchargement PDF</li>
                       <li>✓ Partage WhatsApp</li>
                       <li>✓ Support email</li>
@@ -229,7 +229,7 @@
                   <span class="badge badge-accepted" style="position: absolute; top: -12px; right: 20px;">Recommandé</span>
                   <div>
                     <h3>PRO</h3>
-                    <div style="font-size: 2rem; font-weight: 800; font-family: var(--font-heading); margin: 0.5rem 0;">7 500 FCFA <span style="font-size: 0.85rem; color: var(--text-secondary);">/ mois</span></div>
+                    <div style="font-size: 2rem; font-weight: 800; font-family: var(--font-heading); margin: 0.5rem 0;">2 590 FCFA <span style="font-size: 0.85rem; color: var(--text-secondary);">/ mois</span></div>
                     <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">Pour les créateurs et indépendants actifs.</p>
                     <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.9rem;">
                       <li>✓ Documents illimités</li>
@@ -245,7 +245,7 @@
                 <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
                   <div>
                     <h3>BUSINESS</h3>
-                    <div style="font-size: 2rem; font-weight: 800; font-family: var(--font-heading); margin: 0.5rem 0;">19 500 FCFA <span style="font-size: 0.85rem; color: var(--text-secondary);">/ mois</span></div>
+                    <div style="font-size: 2rem; font-weight: 800; font-family: var(--font-heading); margin: 0.5rem 0;">6 990 FCFA <span style="font-size: 0.85rem; color: var(--text-secondary);">/ mois</span></div>
                     <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">Pour les petites entreprises en forte croissance.</p>
                     <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.9rem;">
                       <li>✓ Tout le plan PRO</li>
@@ -506,13 +506,13 @@
                   <div class="card onboard-plan-card selected-plan" id="onboard-plan-pro" style="cursor: pointer; padding: 1.25rem; text-align: center; border: 2px solid var(--primary); background: var(--primary-light);" onclick="KivoApp.selectOnboardingPlan('Pro')">
                     <span class="badge badge-accepted" style="font-size: 0.65rem; margin-bottom: 0.25rem;">Recommandé</span>
                     <h4 style="margin-bottom: 0.25rem; color: var(--primary);">PRO</h4>
-                    <div style="font-weight: 800; font-size: 1.35rem; color: var(--primary);">2 600 FCFA <span style="font-size: 0.75rem; font-weight: 400;">(4 €) /mois</span></div>
+                    <div style="font-weight: 800; font-size: 1.35rem; color: var(--primary);">2 590 FCFA <span style="font-size: 0.75rem; font-weight: 400;">(4 €) /mois</span></div>
                     <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.35rem;">Documents illimités, Stripe & Mobile Money.</p>
                   </div>
 
                   <div class="card onboard-plan-card" id="onboard-plan-business" style="cursor: pointer; padding: 1.25rem; text-align: center; border: 2px solid var(--border-color);" onclick="KivoApp.selectOnboardingPlan('Business')">
                     <h4 style="margin-bottom: 0.25rem;">BUSINESS</h4>
-                    <div style="font-weight: 800; font-size: 1.35rem; color: var(--text-primary);">7 000 FCFA <span style="font-size: 0.75rem; font-weight: 400;">(11 €) /mois</span></div>
+                    <div style="font-weight: 800; font-size: 1.35rem; color: var(--text-primary);">6 990 FCFA <span style="font-size: 0.75rem; font-weight: 400;">(11 €) /mois</span></div>
                     <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.35rem;">Multi-devises, Remboursements & API.</p>
                   </div>
 
@@ -1210,6 +1210,20 @@
 
             <div class="form-row">
               <div class="form-group">
+                <label class="form-label">Logo de l'entreprise</label>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                  <div class="paper-logo-badge" id="setting-logo-preview-badge" style="width: 50px; height: 50px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-family: var(--font-heading); font-weight: 800; font-size: 1.2rem; background: var(--primary-light); color: var(--primary); overflow: hidden;">KM</div>
+                  <input type="file" id="setting-biz-logo-file" class="form-input" accept="image/*" onchange="KivoApp.handleLogoUpload(this.files)" style="padding: 0.35rem;">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Site Web (Optionnel)</label>
+                <input type="text" id="setting-biz-website" class="form-input" placeholder="Ex: www.entreprise.com">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
                 <label class="form-label">Téléphone (WhatsApp)</label>
                 <input type="text" id="setting-biz-phone" class="form-input" value="+221 77 842 19 02">
               </div>
@@ -1569,8 +1583,58 @@
   </div>
 
 
+
+  <!-- ==================== CRM CLIENT DETAILS MODAL ==================== -->
+  <div class="modal-overlay" id="modal-client-details">
+    <div class="modal-card" style="max-width: 760px; width: 95%; max-height: 85vh; overflow-y: auto;">
+      <div class="modal-header" style="position: sticky; top: 0; background: var(--bg-card); z-index: 10; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div id="crm-client-avatar" style="width: 48px; height: 48px; border-radius: 50%; background: var(--primary-gradient); display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; font-size: 1.1rem; flex-shrink: 0;">AB</div>
+          <div>
+            <h2 id="crm-client-name" style="margin: 0; font-size: 1.25rem;">Nom du client</h2>
+            <p id="crm-client-meta" style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">Entreprise · 3 documents</p>
+          </div>
+        </div>
+        <button class="modal-close" onclick="KivoApp.closeModal('modal-client-details')">✕</button>
+      </div>
+
+      <!-- KPIs -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.5rem 0;">
+        <div style="background: var(--bg-subtle); border-radius: var(--radius-md); padding: 1rem; text-align: center;">
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Total facturé</div>
+          <div id="crm-total-invoiced" style="font-family: var(--font-heading); font-weight: 700; font-size: 1.2rem; color: var(--text-primary);">0 FCFA</div>
+        </div>
+        <div style="background: var(--bg-subtle); border-radius: var(--radius-md); padding: 1rem; text-align: center;">
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Total encaissé</div>
+          <div id="crm-total-paid" style="font-family: var(--font-heading); font-weight: 700; font-size: 1.2rem; color: var(--success-text);">0 FCFA</div>
+        </div>
+        <div style="background: var(--bg-subtle); border-radius: var(--radius-md); padding: 1rem; text-align: center;">
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Solde dû</div>
+          <div id="crm-balance-due" style="font-family: var(--font-heading); font-weight: 700; font-size: 1.2rem; color: var(--danger-text);">0 FCFA</div>
+        </div>
+      </div>
+
+      <!-- Contact info -->
+      <div id="crm-contact-info" style="background: var(--bg-subtle); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--text-secondary); display: flex; flex-wrap: wrap; gap: 1rem;"></div>
+
+      <!-- Document history -->
+      <h3 style="margin-bottom: 0.75rem; font-size: 1rem;">Historique des documents</h3>
+      <div id="crm-doc-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+        <p style="color: var(--text-muted); text-align: center; padding: 1rem;">Chargement…</p>
+      </div>
+
+      <div style="text-align: right; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <button class="btn btn-primary" onclick="KivoApp.startNewDocumentForClient(); KivoApp.closeModal('modal-client-details')">
+          + Nouvelle facture pour ce client
+        </button>
+        <button class="btn btn-secondary" onclick="KivoApp.closeModal('modal-client-details')" style="margin-left: 0.5rem;">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast notification container -->
   <div class="toast-container" id="toast-container"></div>
+
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
