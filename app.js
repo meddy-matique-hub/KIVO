@@ -1045,6 +1045,32 @@ window.KivoApp = {
    * Updates Live Paper Invoice Preview in Real-Time
    */
   updateLiveInvoicePreview: function () {
+    const tInput = document.getElementById('builder-visual-template');
+    const templateId = tInput ? tInput.value : 'classic';
+    const container = document.getElementById('live-paper-preview-container');
+
+    // Store the original CSS-based HTML structure
+    if (!this._originalPaperHtml && container) {
+      this._originalPaperHtml = container.innerHTML;
+    }
+
+    // Check if we use the new HTML-based template engine
+    if (window.KivoTemplates && window.KivoTemplates.isFullHtml(templateId)) {
+      if (container) {
+        const data = window.KivoTemplates.collectData(this.state);
+        container.innerHTML = window.KivoTemplates.render(templateId, data);
+        container.dataset.templateId = templateId;
+      }
+      this.updateDocumentPreviewVisuals(); // Update CSS vars just in case
+      return; // Skip standard manual DOM update
+    } else {
+      // Restore standard structure if we were previously using an HTML template
+      if (container && container.dataset.templateId && window.KivoTemplates && window.KivoTemplates.isFullHtml(container.dataset.templateId)) {
+        container.innerHTML = this._originalPaperHtml;
+        container.dataset.templateId = '';
+      }
+    }
+
     const biz = this.state.business;
     const docType = document.getElementById('builder-doc-type') ? document.getElementById('builder-doc-type').value : 'invoice';
     const docNum = document.getElementById('builder-doc-number') ? document.getElementById('builder-doc-number').value : 'FAC-2026-0001';
@@ -1189,6 +1215,8 @@ window.KivoApp = {
         watermarkEl.style.display = 'none';
       }
     }
+
+    this.updateDocumentPreviewVisuals(); // Apply themes
   },
 
   /**
@@ -1206,8 +1234,188 @@ window.KivoApp = {
     window.open(url, '_blank');
   },
 
+  // ── TEMPLATES GALLERY LOGIC ──────────────────────────────────────────
+
+  switchDocCreationTab: function (tabId) {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('active');
+      b.style.color = 'var(--text-secondary)';
+      b.style.borderBottomColor = 'transparent';
+    });
+    const activeBtn = document.getElementById('tab-btn-' + tabId);
+    if (activeBtn) {
+      activeBtn.classList.add('active');
+      activeBtn.style.color = 'var(--primary)';
+      activeBtn.style.borderBottomColor = 'var(--primary)';
+    }
+
+    document.getElementById('tab-content-templates').style.display = 'none';
+    document.getElementById('tab-content-free').style.display = 'none';
+    document.getElementById('tab-content-ai').style.display = 'none';
+    
+    document.getElementById('tab-content-' + tabId).style.display = 'block';
+
+    if (tabId === 'templates') {
+      this.renderTemplateGallery();
+    }
+  },
+
+  renderTemplateGallery: function () {
+    if (!window.KivoTemplates) return;
+    const gallery = document.getElementById('gallery-built-in');
+    const docType = document.getElementById('gallery-doc-type').value; // 'invoice' or 'quote'
+    
+    // Inject all templates in select options (for builder)
+    const selectEl = document.getElementById('builder-visual-template');
+    if (selectEl && selectEl.options.length <= 6) {
+      selectEl.innerHTML = window.KivoTemplates.builtIn.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    }
+
+    if (!gallery) return;
+    gallery.innerHTML = window.KivoTemplates.builtIn.map(t => `
+      <div class="card hover-fx" style="cursor:pointer; padding:0.75rem;" onclick="KivoApp.startTemplateDocument('${docType}', '${t.id}')">
+        ${window.KivoTemplates.miniPreview(t.id, this.state.business?.primaryColor)}
+        <div style="font-weight:600; font-size:0.9rem; margin-top:0.5rem;">${t.name}</div>
+        <div style="font-size:0.7rem; color:var(--text-secondary);">${t.desc}</div>
+      </div>
+    `).join('');
+
+    // Custom templates
+    const cGallery = document.getElementById('gallery-custom');
+    if (cGallery) {
+      const customs = this.state.business?.customTemplates || [];
+      if (customs.length === 0) {
+        cGallery.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem; padding:1rem; grid-column:1/-1;">Aucun modèle sauvegardé.</div>`;
+      } else {
+        cGallery.innerHTML = customs.map((t, idx) => `
+          <div class="card hover-fx" style="cursor:pointer; padding:0.75rem; position:relative;" onclick="KivoApp.startTemplateDocument('${docType}', '${t.id}', true)">
+            ${window.KivoTemplates.miniPreview(t.id, t.primaryColor)}
+            <div style="font-weight:600; font-size:0.9rem; margin-top:0.5rem;">${t.name}</div>
+            <button class="btn btn-sm" style="position:absolute; top:4px; right:4px; padding:2px 6px; background:rgba(0,0,0,0.5); color:white; border:none; border-radius:4px;" onclick="event.stopPropagation(); KivoApp.deleteCustomTemplate(${idx})">🗑️</button>
+          </div>
+        `).join('');
+      }
+    }
+  },
+
+  startTemplateDocument: function (type, templateId, isCustom = false) {
+    this.closeModal('modal-new-doc-choice');
+    this.startNewDocument(type); // Reset builder
+    
+    setTimeout(() => {
+      if (isCustom) {
+        const customs = this.state.business?.customTemplates || [];
+        const t = customs.find(c => c.id === templateId);
+        if (t) {
+           document.getElementById('builder-color-primary').value = t.primaryColor || '#4F46E5';
+           document.getElementById('builder-color-secondary').value = t.secondaryColor || '#6366F1';
+           document.getElementById('builder-visual-template').value = t.baseTemplateId || templateId;
+        }
+      } else {
+        const selectEl = document.getElementById('builder-visual-template');
+        if (selectEl) selectEl.value = templateId;
+      }
+      this.updateLiveInvoicePreview();
+    }, 100);
+  },
+
+  startFreeDocument: function (type) {
+    this.closeModal('modal-new-doc-choice');
+    this.startNewDocument(type);
+  },
+
+  startWithAI: async function () {
+    const prompt = document.getElementById('ai-mode-prompt').value;
+    const type = document.getElementById('ai-mode-doc-type').value;
+    if (!prompt.trim()) {
+      alert("Veuillez décrire votre document.");
+      return;
+    }
+    
+    const btn = document.querySelector('.btn-ai');
+    btn.disabled = true;
+    btn.innerHTML = `<div class="loading-spinner"></div> Génération en cours...`;
+
+    try {
+      this.closeModal('modal-new-doc-choice');
+      this.startNewDocument(type);
+      
+      // Pass the prompt directly to the AI Assistant logic if available
+      if (window.KivoAI) {
+         // Fake call or redirect to AI processor. KivoAI will handle DOM.
+         // KivoAI.generateDocument(prompt, type);
+         console.log("AI Generation called with:", prompt);
+         // Simulate typing in the actual AI modal for now to use existing system
+         setTimeout(() => {
+           this.openAIAssistantModal();
+           document.getElementById('ai-input-prompt').value = `Générer un ${type} : ${prompt}`;
+           if (window.KivoAI.parseTextToInvoice) window.KivoAI.parseTextToInvoice();
+         }, 500);
+      }
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `Générer la structure ✨`;
+      document.getElementById('ai-mode-prompt').value = '';
+    }
+  },
+
+  saveAsTemplate: async function () {
+    const templateId = document.getElementById('builder-visual-template').value;
+    const name = prompt("Nom du modèle personnalisé :");
+    if (!name) return;
+
+    const custom = {
+      id: 'custom-' + Date.now(),
+      name: name,
+      baseTemplateId: templateId,
+      primaryColor: document.getElementById('builder-color-primary').value,
+      secondaryColor: document.getElementById('builder-color-secondary').value
+    };
+
+    const biz = this.state.business;
+    if (!biz.customTemplates) biz.customTemplates = [];
+    biz.customTemplates.push(custom);
+
+    try {
+      if (window._kivoClient) {
+        const { error } = await window._kivoClient.from('business_settings').update({
+          custom_templates: biz.customTemplates
+        }).eq('id', biz.id);
+        
+        if (error) throw error;
+      }
+      this.showToast("Modèle sauvegardé avec succès !", "success");
+    } catch (e) {
+      console.error(e);
+      this.showToast("Erreur lors de la sauvegarde du modèle.", "error");
+    }
+  },
+
+  deleteCustomTemplate: async function (idx) {
+    if (!confirm("Supprimer ce modèle personnalisé ?")) return;
+    const biz = this.state.business;
+    if (!biz.customTemplates) return;
+    
+    biz.customTemplates.splice(idx, 1);
+    
+    try {
+      if (window._kivoClient) {
+        await window._kivoClient.from('business_settings').update({
+          custom_templates: biz.customTemplates
+        }).eq('id', biz.id);
+      }
+      this.renderTemplateGallery();
+      this.showToast("Modèle supprimé.", "success");
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────────────
+
   /**
    * Triggers KIVO AI Parser inside document builder
+
    */
   triggerBuilderAiParse: function () {
     const input = document.getElementById('builder-ai-input').value;

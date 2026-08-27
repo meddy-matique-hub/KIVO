@@ -691,6 +691,7 @@
             </div>
             <div style="display: flex; gap: 0.75rem; align-items: center;">
               <button class="btn btn-secondary" onclick="KivoApp.navigate('documents')">Annuler</button>
+              <button class="btn btn-secondary" onclick="KivoApp.saveAsTemplate()" title="Enregistrer ce design pour plus tard">⭐ Enregistrer modèle</button>
               <button class="btn btn-primary" onclick="KivoApp.saveDocumentFromBuilder()">💾 Enregistrer & Valider</button>
             </div>
           </div>
@@ -785,13 +786,19 @@
                     <div style="background: var(--bg-subtle); padding: 1rem; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 1rem; border: 1px solid var(--border-color);">
                       <div>
                         <label style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem; display: block;">Modèle</label>
-                        <select id="builder-visual-template" class="form-select" onchange="KivoApp.updateDocumentPreviewVisuals()">
+                        <select id="builder-visual-template" class="form-select" onchange="KivoApp.updateLiveInvoicePreview()">
+                          <!-- Injected from KivoTemplates dynamically in app.js -->
                           <option value="classic">Classic (Sobre & Pro)</option>
                           <option value="modern">Modern (Accents colorés)</option>
                           <option value="minimal">Minimal (Épuré)</option>
                           <option value="professional">Professional (Corporate)</option>
                           <option value="creative">Creative (Créatif)</option>
                           <option value="elegant">Elegant (Premium)</option>
+                          <option value="green-clean">Green Clean</option>
+                          <option value="corp-blue">Corporate Blue</option>
+                          <option value="corp-light">Corporate Light</option>
+                          <option value="bold-blue">Bold Blue</option>
+                          <option value="wave-french">Devis Pro Wave</option>
                         </select>
                       </div>
                       
@@ -807,11 +814,11 @@
                         </div>
                         <div style="display: flex; gap: 1rem; align-items: center;">
                           <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <input type="color" id="builder-color-primary" value="#0F172A" onchange="KivoApp.updateDocumentPreviewVisuals()" style="width: 32px; height: 32px; padding: 0; border: none; border-radius: 4px; cursor: pointer;">
+                            <input type="color" id="builder-color-primary" value="#0F172A" onchange="KivoApp.updateLiveInvoicePreview()" style="width: 32px; height: 32px; padding: 0; border: none; border-radius: 4px; cursor: pointer;">
                             <span style="font-size: 0.8rem;">Principale</span>
                           </div>
                           <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <input type="color" id="builder-color-secondary" value="#64748B" onchange="KivoApp.updateDocumentPreviewVisuals()" style="width: 32px; height: 32px; padding: 0; border: none; border-radius: 4px; cursor: pointer;">
+                            <input type="color" id="builder-color-secondary" value="#64748B" onchange="KivoApp.updateLiveInvoicePreview()" style="width: 32px; height: 32px; padding: 0; border: none; border-radius: 4px; cursor: pointer;">
                             <span style="font-size: 0.8rem;">Secondaire</span>
                           </div>
                         </div>
@@ -1424,28 +1431,72 @@
 
   <!-- ==================== MODALS ==================== -->
 
-  <!-- Modal 1: New Document Selector Modal -->
+  <!-- Modal 1: New Document Selector Modal (3 Modes) -->
   <div class="modal-overlay" id="modal-new-doc-choice">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 800px;">
       <div class="modal-header">
-        <h2>Que voulez-vous créer ?</h2>
+        <h2>Créer un document</h2>
         <button class="modal-close" onclick="KivoApp.closeModal('modal-new-doc-choice')">✕</button>
       </div>
-      <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Choisissez le type de document pour démarrer.</p>
       
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-        <div class="card" style="cursor: pointer; text-align: center; padding: 1.75rem;" onclick="KivoApp.startNewDocument('quote')">
-          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📜</div>
-          <h3 style="margin-bottom: 0.25rem;">Devis</h3>
-          <p style="font-size: 0.8rem; color: var(--text-secondary);">Proposer une offre chiffrée à faire valider par le client.</p>
+      <div class="tabs-container" style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; gap: 1.5rem;">
+        <button class="tab-btn active" id="tab-btn-templates" onclick="KivoApp.switchDocCreationTab('templates')" style="padding: 0.5rem 0; font-weight: 600; color: var(--primary); border-bottom: 2px solid var(--primary); background: transparent; border-top: none; border-left: none; border-right: none; cursor: pointer;">1. Modèles</button>
+        <button class="tab-btn" id="tab-btn-free" onclick="KivoApp.switchDocCreationTab('free')" style="padding: 0.5rem 0; font-weight: 600; color: var(--text-secondary); border-bottom: 2px solid transparent; background: transparent; border-top: none; border-left: none; border-right: none; cursor: pointer;">2. Créer librement</button>
+        <button class="tab-btn" id="tab-btn-ai" onclick="KivoApp.switchDocCreationTab('ai')" style="padding: 0.5rem 0; font-weight: 600; color: var(--text-secondary); border-bottom: 2px solid transparent; background: transparent; border-top: none; border-left: none; border-right: none; cursor: pointer;">3. Créer avec l'IA ✨</button>
+      </div>
+
+      <!-- Tab 1: Templates Gallery -->
+      <div id="tab-content-templates">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+          <h3 style="font-size: 1.1rem;">Modèles KIVO</h3>
+          <select id="gallery-doc-type" class="form-select" style="width: auto; padding: 0.2rem 1rem;" onchange="KivoApp.renderTemplateGallery()">
+            <option value="invoice">Facture</option>
+            <option value="quote">Devis</option>
+          </select>
+        </div>
+        
+        <div id="gallery-built-in" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; max-height: 350px; overflow-y: auto; padding-right: 0.5rem;">
+          <!-- Injected via JS -->
         </div>
 
-        <div class="card" style="cursor: pointer; text-align: center; padding: 1.75rem;" onclick="KivoApp.startNewDocument('invoice')">
-          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">💳</div>
-          <h3 style="margin-bottom: 0.25rem;">Facture</h3>
-          <p style="font-size: 0.8rem; color: var(--text-secondary);">Facturer une prestation accomplie et réclamer le paiement.</p>
+        <h3 style="font-size: 1.1rem; margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Mes Modèles Sauvegardés</h3>
+        <div id="gallery-custom" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
+          <!-- Injected via JS -->
         </div>
       </div>
+
+      <!-- Tab 2: Free Creation -->
+      <div id="tab-content-free" style="display: none;">
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Démarrez d'une page blanche et construisez votre document de zéro. Vous pourrez sauvegarder votre design à la fin.</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="card hover-fx" style="cursor: pointer; text-align: center; padding: 2rem;" onclick="KivoApp.startFreeDocument('quote')">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📜</div>
+            <h3>Devis Vierge</h3>
+          </div>
+          <div class="card hover-fx" style="cursor: pointer; text-align: center; padding: 2rem;" onclick="KivoApp.startFreeDocument('invoice')">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">💳</div>
+            <h3>Facture Vierge</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: AI Creation -->
+      <div id="tab-content-ai" style="display: none;">
+        <div style="background: var(--bg-subtle); padding: 1.5rem; border-radius: var(--radius-lg); text-align: center; margin-bottom: 1.5rem;">
+          <div style="font-size: 2.5rem; margin-bottom: 1rem;">✨</div>
+          <h3 style="margin-bottom: 0.5rem;">Décrivez la facture de vos rêves</h3>
+          <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">L'IA va générer la structure, les couleurs et pré-remplir les données.</p>
+          <textarea id="ai-mode-prompt" class="form-textarea" rows="4" placeholder="Ex: Crée-moi une facture très premium, bleu nuit et dorée, pour la création d'un site web à 500 000 FCFA pour le client Tech Corp..."></textarea>
+          <div style="margin-top: 1rem;">
+            <select id="ai-mode-doc-type" class="form-select" style="width: auto; display: inline-block; margin-right: 0.5rem;">
+              <option value="invoice">C'est une Facture</option>
+              <option value="quote">C'est un Devis</option>
+            </select>
+            <button class="btn btn-ai" onclick="KivoApp.startWithAI()">Générer la structure ✨</button>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -1694,6 +1745,7 @@
   <script src="js/ai-assistant.js"></script>
   <script src="js/payment-provider.js"></script>
   <script src="js/whatsapp-helper.js"></script>
+  <script src="js/doc-templates.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
