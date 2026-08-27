@@ -239,7 +239,23 @@ window.KivoApp = {
         nextInvoiceNumber: s.next_invoice_number || this.state.business.nextInvoiceNumber,
         nextQuoteNumber: s.next_quote_number || this.state.business.nextQuoteNumber,
         subscriptionTier: s.current_plan || this.state.business.subscriptionTier,
+        visualTemplate: s.visual_template || this.state.business.visualTemplate || 'classic',
+        primaryColor: s.primary_color || this.state.business.primaryColor || '#0F172A',
+        secondaryColor: s.secondary_color || this.state.business.secondaryColor || '#64748B',
       };
+      
+      // Update the visual UI elements with loaded settings
+      const tSelect = document.getElementById('builder-visual-template');
+      if (tSelect) tSelect.value = this.state.business.visualTemplate;
+      const pColor = document.getElementById('builder-color-primary');
+      if (pColor) pColor.value = this.state.business.primaryColor;
+      const sColor = document.getElementById('builder-color-secondary');
+      if (sColor) sColor.value = this.state.business.secondaryColor;
+      
+      // Apply them immediately
+      if (typeof this.updateDocumentPreviewVisuals === 'function') {
+        this.updateDocumentPreviewVisuals();
+      }
     }
 
     // Merge clients from Supabase
@@ -1002,7 +1018,8 @@ window.KivoApp = {
         logoEl.style.overflow = 'hidden';
         logoEl.innerHTML = `<img src="${biz.logoUrl}" style="width: 100%; height: 100%; object-fit: cover;">`;
       } else {
-        logoEl.innerHTML = biz.logoText || "KM";
+        const initiales = biz.name ? biz.name.substring(0, 2).toUpperCase() : "KM";
+        logoEl.innerHTML = biz.logoText || initiales;
       }
     }
 
@@ -1472,7 +1489,10 @@ window.KivoApp = {
               taxId: cloudBiz.fiscal_id || '',
               currency: cloudBiz.currency || 'FCFA',
               logoUrl: cloudBiz.logo_url || '',
-              logoText: cloudBiz.company_name ? cloudBiz.company_name.split(' ').filter(w => w.length > 0).slice(0,2).map(w=>w[0]).join('').toUpperCase() : 'KM'
+              logoText: cloudBiz.company_name ? cloudBiz.company_name.substring(0, 2).toUpperCase() : 'KM',
+              visualTemplate: cloudBiz.visual_template || 'classic',
+              primaryColor: cloudBiz.primary_color || '#0F172A',
+              secondaryColor: cloudBiz.secondary_color || '#64748B'
             };
           }
         }
@@ -1594,6 +1614,9 @@ window.KivoApp = {
         <button class="btn btn-whatsapp" onclick="KivoApp.shareOnWhatsApp('${doc.id}')">💬 WhatsApp</button>
       `;
     }
+
+    // Apply the configured template and colors
+    this.updateDocumentPreviewVisuals();
   },
 
   /**
@@ -2206,7 +2229,10 @@ window.KivoApp = {
         invoice_prefix: biz.invoicePrefix || 'FAC-2026-',
         quote_prefix: biz.quotePrefix || 'DEV-2026-',
         default_vat_rate: biz.defaultVatRate || 18,
-        logo_url: biz.logoUrl || ''
+        logo_url: biz.logoUrl || '',
+        visual_template: biz.visualTemplate || 'classic',
+        primary_color: biz.primaryColor || '#0F172A',
+        secondary_color: biz.secondaryColor || '#64748B'
       }).catch(e => console.error('[KivoApp] Supabase saveSettings error:', e));
     }
 
@@ -2362,6 +2388,144 @@ window.KivoApp = {
     setTimeout(() => {
       toast.remove();
     }, 4000);
+  },
+
+  // --- VISUAL IDENTITY & PERSONALIZATION ---
+  
+  updateDocumentPreviewVisuals: function () {
+    const biz = this.state.business || {};
+    const tInput = document.getElementById('builder-visual-template');
+    const template = tInput ? tInput.value : (biz.visualTemplate || 'classic');
+    
+    const pInput = document.getElementById('builder-color-primary');
+    const primary = pInput ? pInput.value : (biz.primaryColor || '#0F172A');
+    
+    const sInput = document.getElementById('builder-color-secondary');
+    const secondary = sInput ? sInput.value : (biz.secondaryColor || '#64748B');
+
+    // Apply classes to both the builder preview and the public view
+    const containers = [
+      document.getElementById('live-paper-preview-container'),
+      document.getElementById('public-doc-printable-area')
+    ];
+
+    containers.forEach(container => {
+      if (!container) return;
+      
+      // Remove existing template classes
+      container.className = container.className.replace(/\bdoc-template-\S+/g, '');
+      
+      // Add new template class
+      container.classList.add(`doc-template-${template}`);
+      
+      // Apply CSS variables
+      container.style.setProperty('--doc-primary', primary);
+      container.style.setProperty('--doc-secondary', secondary);
+      
+      // Auto-calculate text color for primary background
+      const hex = primary.replace('#', '');
+      const r = parseInt(hex.substring(0,2), 16) || 0;
+      const g = parseInt(hex.substring(2,4), 16) || 0;
+      const b = parseInt(hex.substring(4,6), 16) || 0;
+      const luminance = (0.299*r + 0.587*g + 0.114*b) / 255;
+      container.style.setProperty('--doc-text', luminance > 0.5 ? '#000000' : '#FFFFFF');
+    });
+
+    // Save to global state so it's persisted on saveSettings
+    if (this.state.business) {
+      this.state.business.visualTemplate = template;
+      this.state.business.primaryColor = primary;
+      this.state.business.secondaryColor = secondary;
+    }
+  },
+
+  applyPalette: function (primary, secondary) {
+    const primaryInput = document.getElementById('builder-color-primary');
+    const secondaryInput = document.getElementById('builder-color-secondary');
+    if (primaryInput) primaryInput.value = primary;
+    if (secondaryInput) secondaryInput.value = secondary;
+    this.updateDocumentPreviewVisuals();
+    this.showToast('Palette appliquée', 'success');
+  },
+
+  handleLogoUpload: function (input) {
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const preview = document.getElementById('builder-logo-preview-img');
+        if (preview) {
+           preview.src = e.target.result;
+           preview.style.display = 'block';
+           
+           // Show extract color button
+           const extractBtn = document.getElementById('btn-extract-colors');
+           if (extractBtn) extractBtn.style.display = 'inline-block';
+        }
+        
+        // Also upload to Supabase
+        if (window.KivoDb && window.KivoAuth && window.KivoAuth.user) {
+          this.showToast('Upload du logo en cours...', 'info');
+          window.KivoDb.uploadLogo(input.files[0], window.KivoAuth.user.id).then(url => {
+            if (url) {
+              if (!this.state.business) this.state.business = {};
+              this.state.business.logoUrl = url;
+              this.updateLiveInvoicePreview();
+              this.showToast('Logo enregistré !', 'success');
+            }
+          });
+        }
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+  },
+
+  extractColorsFromLogo: function () {
+    const img = document.getElementById('builder-logo-preview-img');
+    if (!img || !img.src) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    canvas.width = img.naturalWidth || img.width || 100;
+    canvas.height = img.naturalHeight || img.height || 100;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    
+    try {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      
+      // Simple extraction: average color excluding transparent pixels
+      let r = 0, g = 0, b = 0, count = 0;
+      for (let i = 0; i < imageData.length; i += 4) {
+        if (imageData[i+3] > 128) { // check alpha
+          // skip pure white and near white (often backgrounds)
+          if (imageData[i] > 240 && imageData[i+1] > 240 && imageData[i+2] > 240) continue;
+          
+          r += imageData[i];
+          g += imageData[i+1];
+          b += imageData[i+2];
+          count++;
+        }
+      }
+      
+      if (count > 0) {
+        r = Math.floor(r / count);
+        g = Math.floor(g / count);
+        b = Math.floor(b / count);
+        
+        const toHex = (c) => {
+          const hex = c.toString(16);
+          return hex.length === 1 ? "0" + hex : hex;
+        };
+        
+        const primaryHex = "#" + toHex(r) + toHex(g) + toHex(b);
+        this.applyPalette(primaryHex, '#64748B'); // use a neutral secondary
+        this.showToast('Palette générée avec succès !', 'success');
+      } else {
+        this.showToast('Couleur introuvable', 'error');
+      }
+    } catch(e) {
+      console.error(e);
+      this.showToast('Erreur lors de l\'analyse du logo', 'error');
+    }
   }
 };
 
