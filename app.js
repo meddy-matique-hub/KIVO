@@ -854,33 +854,53 @@ window.KivoApp = {
 
   /**
    * Opens New Document Choice Modal
+   * Guard: do not open if app state is not ready (user not fully loaded)
    */
   openNewDocModal: function () {
+    if (!this.state || !this.state.business) {
+      this.showToast("Chargement en cours... Veuillez patienter.", "info");
+      return;
+    }
+    if (!this.state.isOnboarded) {
+      this.showToast("Veuillez déabord vous connecter pour créer une facture.", "info");
+      return;
+    }
     this.openModal('modal-new-doc-choice');
   },
 
   /**
    * Generates auto sequential document number
+   * Guard: returns safe fallback if state or business is null
    */
   generateDocumentNumber: function (type = 'invoice') {
+    if (!this.state || !this.state.business) {
+      const year = new Date().getFullYear();
+      return type === 'quote' ? `DEV-${year}-0001` : `FAC-${year}-0001`;
+    }
     const biz = this.state.business;
     if (type === 'quote') {
-      const prefix = biz.quotePrefix || "DEV-2026-";
-      const num = biz.nextQuoteNumber || (1001 + this.state.documents.filter(d => d.type === 'quote').length);
+      const prefix = biz.quotePrefix || `DEV-${new Date().getFullYear()}-`;
+      const num = biz.nextQuoteNumber || (1001 + (this.state.documents || []).filter(d => d.type === 'quote').length);
       return `${prefix}${String(num).padStart(4, '0')}`;
     } else {
-      const prefix = biz.invoicePrefix || "FAC-2026-";
-      const num = biz.nextInvoiceNumber || (1001 + this.state.documents.filter(d => d.type === 'invoice').length);
+      const prefix = biz.invoicePrefix || `FAC-${new Date().getFullYear()}-`;
+      const num = biz.nextInvoiceNumber || (1001 + (this.state.documents || []).filter(d => d.type === 'invoice').length);
       return `${prefix}${String(num).padStart(4, '0')}`;
     }
   },
 
   /**
    * Starts Document Creation Flow
+   * Guard: abort with toast if state or business not loaded yet
    */
   startNewDocument: function (type = 'invoice') {
     this.closeModal('modal-new-doc-choice');
-    
+
+    if (!this.state || !this.state.business) {
+      this.showToast("Données non chargées. Veuillez patienter ou actualiser.", "error");
+      return;
+    }
+
     const nextNum = this.generateDocumentNumber(type);
     const today = new Date().toISOString().split('T')[0];
     const dueObj = new Date();
@@ -894,18 +914,19 @@ window.KivoApp = {
     document.getElementById('builder-issue-date').value = today;
     document.getElementById('builder-due-date').value = dueStr;
     document.getElementById('builder-doc-status').value = 'sent';
-    document.getElementById('builder-input-tax').value = this.state.business.defaultVatRate || 18;
+    document.getElementById('builder-input-tax').value = (this.state.business && this.state.business.defaultVatRate) || 18;
     document.getElementById('builder-input-discount').value = 0;
     document.getElementById('builder-notes').value = "Merci pour votre confiance.";
     document.getElementById('builder-terms').value = "Paiement à réception par Carte bancaire (Stripe) ou Mobile Money.";
 
     const clientSelect = document.getElementById('builder-doc-client-select');
-    if (this.state.clients.length === 0) {
+    const clients = (this.state && this.state.clients) || [];
+    if (clients.length === 0) {
       clientSelect.innerHTML = `<option value="">-- Aucun client (Créez un client) --</option>`;
     } else {
-      clientSelect.innerHTML = this.state.clients.map(c => `
-        <option value="${c.id}">${c.name} (${c.company || c.contactName || 'Particulier'})</option>
-      `).join('');
+      clientSelect.innerHTML = clients.map(c =>
+        `<option value="${c.id}">${c.name} (${c.company || c.contactName || 'Particulier'})</option>`
+      ).join('');
     }
 
     const tbody = document.getElementById('builder-items-tbody');
