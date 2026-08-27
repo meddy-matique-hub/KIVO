@@ -140,11 +140,21 @@ window.KivoApp = {
     // Check if we are on the public document route
     const isPublicRoute = window.location.hash.startsWith('#public-doc');
 
-    // 1. Check Supabase session first
+    // 1. Check Supabase session first (use getUser() for server-side validation)
     let session = null;
     try {
-      const { data } = await KivoDb.supabase.auth.getSession();
-      session = data?.session || null;
+      const { data: sessionData } = await KivoDb.supabase.auth.getSession();
+      const rawSession = sessionData?.session || null;
+      if (rawSession) {
+        // Validate the token is still real on the server (prevents ghost sessions)
+        const { data: userData, error: userError } = await KivoDb.supabase.auth.getUser();
+        if (userError || !userData?.user) {
+          console.warn('[KivoApp] Session token invalid or expired — signing out.');
+          await KivoDb.supabase.auth.signOut();
+        } else {
+          session = rawSession;
+        }
+      }
     } catch (e) {
       console.warn('[KivoApp] Error checking session:', e);
     }
@@ -396,15 +406,26 @@ window.KivoApp = {
   },
 
   /**
-   * Logs out and returns to landing
+   * Logs out: signs out of Supabase AND clears local state
+   * FIX: Must call supabase.auth.signOut() to clear the session token from localStorage.
+   * Without this, getSession() finds the old token and auto-logs in the user.
    */
-  logout: function () {
+  logout: async function () {
     if (confirm("Voulez-vous vraiment vous déconnecter de KIVO MATIQUE ?")) {
+      try {
+        // Critical: sign out from Supabase to destroy the token in localStorage
+        if (window.KivoDb && window.KivoDb.supabase) {
+          await KivoDb.supabase.auth.signOut();
+        }
+      } catch (e) {
+        console.error('[KivoApp] Error during Supabase signOut:', e);
+      }
+      // Clear local app state
       localStorage.removeItem('kivo_app_state');
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
-      this.saveState();
-      this.navigate('landing');
-      this.showToast("Vous avez été déconnecté.", "info");
+      this.supabaseConnected = false;
+      // Force page reload to get a fresh, clean session check
+      window.location.href = window.location.pathname;
     }
   },
 

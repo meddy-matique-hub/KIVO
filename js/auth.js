@@ -19,24 +19,23 @@ window.KivoAuth = {
     this.user = session?.user || null;
 
     // Listen for auth state changes
+    // NOTE: Do NOT call KivoApp.init() here — KivoApp handles its own session check on load.
+    // This listener only updates KivoAuth state for sign-in/out events that happen AFTER load.
     KivoDb.supabase.auth.onAuthStateChange((event, session) => {
       console.log(`[KivoAuth] Auth event: ${event}`);
       this.session = session;
       this.user = session?.user || null;
       
-      if (event === 'SIGNED_IN') {
-        this.handleAuthRedirect();
-        // Re-init the full app now that user is logged in
-        if (window.KivoApp) {
-          window.KivoApp.init();
-        }
-      } else if (event === 'SIGNED_OUT') {
-        this.handleAuthRedirect();
+      if (event === 'SIGNED_OUT') {
+        // Session was cleared — ensure login modal is shown
+        const loginModal = document.getElementById('modal-login');
+        if (loginModal) loginModal.style.display = 'flex';
       }
+      // SIGNED_IN is handled by KivoApp.init() directly on page load.
+      // Calling KivoApp.init() here again would cause double initialization.
     });
-
-    this.handleAuthRedirect();
   },
+
 
   handleAuthRedirect: function() {
     if (!this.session) {
