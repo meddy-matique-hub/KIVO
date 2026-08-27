@@ -19,23 +19,55 @@ window.KivoAuth = {
     this.user = session?.user || null;
 
     // Listen for auth state changes
-    // NOTE: Do NOT call KivoApp.init() here — KivoApp handles its own session check on load.
-    // This listener only updates KivoAuth state for sign-in/out events that happen AFTER load.
-    KivoDb.supabase.auth.onAuthStateChange((event, session) => {
+    KivoDb.supabase.auth.onAuthStateChange(async (event, session) => {
       console.log(`[KivoAuth] Auth event: ${event}`);
       this.session = session;
       this.user = session?.user || null;
       
-      if (event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_IN' && session) {
+        // User just signed in (from modal-login or view-auth or OAuth redirect)
+        await this.handlePostLogin(session);
+      } else if (event === 'SIGNED_OUT') {
         // Session was cleared — ensure login modal is shown
         const loginModal = document.getElementById('modal-login');
         if (loginModal) loginModal.style.display = 'flex';
       }
-      // SIGNED_IN is handled by KivoApp.init() directly on page load.
-      // Calling KivoApp.init() here again would cause double initialization.
     });
   },
 
+  /**
+   * Called after any successful sign-in.
+   * Closes login modal, loads data from Supabase, routes user to dashboard or onboarding.
+   */
+  handlePostLogin: async function(session) {
+    console.log('[KivoAuth] handlePostLogin — user:', session.user.email);
+
+    // 1. Close login modal
+    const loginModal = document.getElementById('modal-login');
+    if (loginModal) loginModal.style.display = 'none';
+
+    // 2. Store user email in app state
+    if (window.KivoApp) {
+      KivoApp.state.userEmail = session.user.email;
+      KivoApp.supabaseConnected = true;
+
+      // 3. Load data from Supabase (this also sets isOnboarded if business_settings exist)
+      try {
+        await KivoApp.syncFromSupabase();
+      } catch(e) {
+        console.error('[KivoAuth] syncFromSupabase error after login:', e);
+      }
+
+      // 4. Route: if onboarded → dashboard, else → onboarding
+      if (KivoApp.state.isOnboarded) {
+        KivoApp.showToast(`Bienvenue sur KIVO MATIQUE, ${KivoApp.state.business.owner || session.user.email} ! 👋`, 'success');
+        KivoApp.navigate('dashboard');
+      } else {
+        KivoApp.showToast('Connexion réussie ! Configurons votre espace.', 'info');
+        KivoApp.navigate('onboarding');
+      }
+    }
+  },
 
   handleAuthRedirect: function() {
     if (!this.session) {

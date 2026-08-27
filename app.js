@@ -98,7 +98,7 @@ window.KivoApp = {
     isOnboarded: false,
     language: 'fr',
     userEmail: null,
-    userPassword: null,
+    // NOTE: passwords are NEVER stored — auth is handled by Supabase
     business: {
       name: "Mon Entreprise",
       owner: "",
@@ -226,6 +226,11 @@ window.KivoApp = {
     if (!window.KivoDb || !this.supabaseConnected) return;
     const data = await window.KivoDb.loadAll();
     if (!data) return;
+
+    // If Supabase has business settings for this user → they have completed onboarding
+    if (data.settings && data.settings.length > 0) {
+      this.state.isOnboarded = true;
+    }
 
     // Merge Supabase settings into local business object
     if (data.settings && data.settings.length > 0) {
@@ -2007,12 +2012,35 @@ window.KivoApp = {
     }
   },
 
-  simulateGoogleAuth: function () {
-    this.showToast("Connexion Google réussie ! Bienvenue sur KIVO MATIQUE 👋", "success");
-    this.navigate('dashboard');
+  /**
+   * Google OAuth via Supabase — redirects to Google login page
+   */
+  simulateGoogleAuth: async function () {
+    if (!window.KivoDb || !window.KivoDb.supabase) {
+      this.showToast("Erreur : Supabase non initialisé.", "error");
+      return;
+    }
+    try {
+      const { error } = await KivoDb.supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + window.location.pathname
+        }
+      });
+      if (error) {
+        console.error('[KivoApp] Google OAuth error:', error);
+        this.showToast("Connexion Google impossible : " + error.message, "error");
+      }
+    } catch(e) {
+      this.showToast("Connexion Google non disponible.", "error");
+      console.error('[KivoApp] Google OAuth exception:', e);
+    }
   },
 
-  submitLogin: function () {
+  /**
+   * Login via view-auth form — now uses real Supabase auth (not localStorage comparison)
+   */
+  submitLogin: async function () {
     const email = document.getElementById('auth-login-email').value.trim();
     const pwd = document.getElementById('auth-login-password').value;
 
@@ -2021,43 +2049,63 @@ window.KivoApp = {
       return;
     }
 
-    if (!this.state.userEmail) {
-      this.showToast("Aucun compte trouvé. Veuillez vous inscrire.", "error");
-      return;
-    }
+    const btn = document.querySelector('#auth-form-login button[type=submit]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Connexion...'; }
 
-    if (this.state.userEmail === email && this.state.userPassword === pwd) {
-      if (this.state.isOnboarded) {
-        this.showToast(`Bienvenue sur KIVO MATIQUE ${this.state.business.owner} ! 👋`, "success");
-        this.navigate('dashboard');
-      } else {
-        this.showToast("Compte vérifié ! Finalisons l'installation.", "info");
-        this.navigate('onboarding');
-      }
-    } else {
-      this.showToast("Email ou mot de passe incorrect.", "error");
+    const result = await KivoAuth.signIn(email, pwd);
+
+    if (btn) { btn.disabled = false; btn.textContent = 'Se connecter'; }
+
+    if (result.error) {
+      this.showToast(result.error.message || "Email ou mot de passe incorrect.", "error");
     }
+    // On success, onAuthStateChange fires and handlePostLogin() is called automatically
   },
 
-  submitRegister: function () {
+  /**
+   * Register via view-auth form — uses real Supabase signUp
+   */
+  submitRegister: async function () {
     const name = document.getElementById('auth-reg-name').value.trim();
     const email = document.getElementById('auth-reg-email').value.trim();
     const pwd = document.getElementById('auth-reg-password').value;
+    const pwd2 = document.getElementById('auth-reg-password2') ? document.getElementById('auth-reg-password2').value : pwd;
 
     if (!name || !email || !pwd) {
       this.showToast("Veuillez remplir tous les champs obligatoires.", "error");
       return;
     }
 
-    this.state.userEmail = email;
-    this.state.userPassword = pwd;
-    this.state.userName = name;
-    this.state.business.owner = name;
-    this.state.business.email = email;
-    this.saveState();
+    if (pwd !== pwd2) {
+      this.showToast("Les mots de passe ne correspondent pas.", "error");
+      return;
+    }
 
-    this.showToast(`🎉 Compte créé ! Configurons votre entreprise KIVO MATIQUE...`, "success");
-    setTimeout(() => this.navigate('onboarding'), 800);
+    const btn = document.querySelector('#auth-form-register button[type=submit]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Création...'; }
+
+    const result = await KivoAuth.signUp(email, pwd);
+
+    if (btn) { btn.disabled = false; btn.textContent = 'Créer mon compte ➔'; }
+
+    if (result.error) {
+      this.showToast(result.error.message || "Erreur lors de l'inscription.", "error");
+    } else {
+      // Store the display name locally for onboarding
+      this.state.userEmail = email;
+      this.state.business.owner = name;
+      this.state.business.email = email;
+      // NOTE: password is NOT stored — Supabase handles it securely
+      this.saveState();
+
+      const needsConfirmation = !result.data?.session; // Supabase email confirmation
+      if (needsConfirmation) {
+        this.showToast("Compte créé ! Vérifiez votre email pour confirmer votre inscription.", "success");
+      } else {
+        this.showToast(`🎉 Compte créé ! Configurons votre entreprise...`, "success");
+        setTimeout(() => this.navigate('onboarding'), 800);
+      }
+    }
   },
 
   onCountrySelectChange: function () {
