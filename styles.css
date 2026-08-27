@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    KIVO SaaS - Business, simplified.
    Modern Minimalist Fintech Design System
    ========================================================================== */
@@ -1123,4 +1123,169 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   margin: 0 auto 1.25rem auto;
 }
 
+/* ==========================================================================
+   INVOICE TEMPLATES & VISUAL SYSTEM
+   ========================================================================== */
 
+.paper-invoice-preview, .public-doc-wrapper {
+  /* Default variables */
+  --doc-primary: #0F172A;
+  --doc-secondary: #64748B;
+  --doc-text: #FFFFFF;
+}
+
+/* 1. CLASSIC TEMPLATE */
+.doc-template-classic .paper-header {
+  border-bottom: 3px solid var(--doc-primary);
+}
+.doc-template-classic .doc-num {
+  color: var(--doc-primary);
+  font-weight: 700;
+}
+.doc-template-classic th {
+  background-color: var(--doc-primary) !important;
+  color: var(--doc-text) !important;
+  border-bottom: none;
+}
+.doc-template-classic .paper-logo-badge {
+  background-color: var(--doc-primary);
+  color: var(--doc-text);
+  border: none;
+}
+
+/* 2. MODERN TEMPLATE */
+.doc-template-modern .paper-header {
+  border-bottom: none;
+  background: linear-gradient(135deg, var(--doc-primary) 0%, var(--doc-secondary) 100%);
+  color: var(--doc-text);
+  padding: 2rem;
+  margin: -2.5rem -2.5rem 1.5rem -2.5rem;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.doc-template-modern .paper-header h3, 
+.doc-template-modern .paper-header p,
+.doc-template-modern .paper-header .doc-num,
+.doc-template-modern .paper-header .doc-type-tag {
+  color: var(--doc-text) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+.doc-template-modern .paper-logo-badge {
+  background-color: #FFFFFF;
+  color: var(--doc-primary);
+  border: none;
+}
+.doc-template-modern th {
+  border-bottom: 2px solid var(--doc-primary);
+  color: var(--doc-primary) !important;
+}
+.doc-template-modern .builder-calc-total-box,
+.doc-template-modern .public-doc-totals {
+  border-left: 4px solid var(--doc-secondary);
+}
+
+/* 3. MINIMAL TEMPLATE */
+.doc-template-minimal .paper-header {
+  border-bottom: 1px solid #E2E8F0;
+  padding-bottom: 1rem;
+}
+.doc-template-minimal .doc-num {
+  color: var(--doc-secondary);
+  font-weight: 400;
+}
+.doc-template-minimal th {
+  border-top: 1px solid var(--doc-primary);
+  border-bottom: 1px solid var(--doc-primary);
+  color: var(--doc-primary) !important;
+  background: transparent !important;
+}
+.doc-template-minimal .builder-calc-total-box,
+.doc-template-minimal .public-doc-totals {
+  background: transparent !important;
+  border-top: 2px solid var(--doc-primary);
+  border-bottom: 2px solid var(--doc-primary);
+  border-radius: 0;
+}
+
+/* 4. PROFESSIONAL TEMPLATE */
+.doc-template-professional .paper-header {
+  border-bottom: 4px solid var(--doc-secondary);
+}
+.doc-template-professional .doc-type-tag {
+  background-color: var(--doc-primary);
+  color: var(--doc-text);
+  border: none;
+}
+.doc-template-professional th {
+  background-color: var(--doc-secondary) !important;
+  color: var(--doc-text) !important;
+}
+
+/* 5. CREATIVE TEMPLATE */
+.doc-template-creative {
+  border-left: 8px solid var(--doc-primary);
+}
+.doc-template-creative .paper-header {
+  border-bottom: 2px dashed var(--doc-secondary);
+}
+.doc-template-creative .doc-num {
+  color: var(--doc-primary);
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+}
+.doc-template-creative th {
+  background-color: rgba(0,0,0,0.03) !important;
+  color: var(--doc-primary) !important;
+  border-bottom: 2px solid var(--doc-secondary);
+}
+
+/* 6. ELEGANT TEMPLATE */
+.doc-template-elegant {
+  font-family: 'Times New Roman', serif;
+}
+.doc-template-elegant .paper-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-bottom: 1px solid var(--doc-primary);
+}
+.doc-template-elegant .paper-logo-badge {
+  background-color: transparent;
+  color: var(--doc-primary);
+  border: 1px solid var(--doc-primary);
+  border-radius: 50%;
+  margin-bottom: 1rem;
+}
+.doc-template-elegant .doc-type-tag {
+  margin: 1rem auto;
+  border-color: var(--doc-primary);
+  color: var(--doc-primary);
+  background: transparent;
+}
+.doc-template-elegant th {
+  border-bottom: 1px solid var(--doc-primary);
+  color: var(--doc-primary) !important;
+  background: transparent !important;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+/* Print Overrides */
+@media print {
+  .doc-template-modern .paper-header {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  th {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .doc-type-tag {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .paper-logo-badge {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
