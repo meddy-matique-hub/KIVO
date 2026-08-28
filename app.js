@@ -833,16 +833,26 @@ window.KivoApp = {
           </div>
         `;
       } else {
-        const linesHtml = (lastInvoice.items || []).slice(0,3).map(i => `
-          <tr>
-            <td>${i.description}</td>
-            <td style="text-align: center;">${i.quantity}</td>
-            <td style="text-align: right;">${formatCurrency(i.amount)}</td>
-          </tr>
-        `).join('');
+        const linesHtml = (lastInvoice.items || []).slice(0,3).map(i => {
+          const name = i.name || i.description || 'Item';
+          const qty = i.quantity || i.qty || 1;
+          const total = i.total || i.amount || (i.price ? i.price * qty : 0);
+          return `
+            <tr>
+              <td style="padding-top: 0.5rem; font-size: 0.85rem;">${name}</td>
+              <td style="text-align: center; padding-top: 0.5rem; font-size: 0.85rem;">${qty}</td>
+              <td style="text-align: right; padding-top: 0.5rem; font-size: 0.85rem;">${formatCurrency(total)}</td>
+            </tr>
+          `;
+        }).join('');
+
+        let docDate = lastInvoice.date;
+        if (!docDate || docDate === 'undefined') {
+          docDate = lastInvoice.createdAt ? new Date(lastInvoice.createdAt).toLocaleDateString('fr-FR') : 'N/A';
+        }
 
         widget.innerHTML = `
-          <div class="kivo-dash-mock-paper">
+          <div style="background: #FFF; border-radius: 12px; padding: 2rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); width: 100%; border: 1px solid #E5E7EB; transform: scale(0.95); transform-origin: top center;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
               <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <div style="color: #111827; font-weight: 800; font-size: 1.25rem; font-family: var(--font-heading);">
@@ -862,20 +872,20 @@ window.KivoApp = {
             <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;">
               <div>
                 <div style="color: #6B7280; font-size: 0.7rem; font-weight: 600;">Client</div>
-                <div style="font-weight: 600;">${lastInvoice.clientName}</div>
+                <div style="font-weight: 600; font-size: 0.85rem;">${lastInvoice.clientName}</div>
               </div>
               <div style="text-align: right;">
                 <div style="color: #6B7280; font-size: 0.7rem; font-weight: 600;">Date</div>
-                <div style="font-weight: 600;">${lastInvoice.date}</div>
+                <div style="font-weight: 600; font-size: 0.85rem;">${docDate}</div>
               </div>
             </div>
 
-            <table>
+            <table style="width: 100%; border-collapse: collapse;">
               <thead>
                 <tr>
-                  <th>Item</th>
-                  <th style="text-align: center;">Qty</th>
-                  <th style="text-align: right;">Montant</th>
+                  <th style="text-align: left; font-size: 0.8rem; color: #6B7280; font-weight: 600; border-bottom: 1px solid #E5E7EB; padding-bottom: 0.5rem;">Item</th>
+                  <th style="text-align: center; font-size: 0.8rem; color: #6B7280; font-weight: 600; border-bottom: 1px solid #E5E7EB; padding-bottom: 0.5rem;">Qty</th>
+                  <th style="text-align: right; font-size: 0.8rem; color: #6B7280; font-weight: 600; border-bottom: 1px solid #E5E7EB; padding-bottom: 0.5rem;">Montant</th>
                 </tr>
               </thead>
               <tbody>
