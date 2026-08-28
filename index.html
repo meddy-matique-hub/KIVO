@@ -1290,20 +1290,63 @@
         </section>
 
 
-        <!-- ==================== CATALOG VIEW ==================== -->
+        <!-- ==================== CATALOG (MODÈLES) VIEW ==================== -->
         <section id="view-catalog" class="view-section" style="display: none;">
-          <div class="page-header">
-            <div>
-              <h1>Services & Produits</h1>
-              <p class="page-subtitle">Bibliothèque de prestations pré-enregistrées pour vos devis.</p>
+          
+          <div class="kivo-templates-header">
+            <div class="kivo-templates-breadcrumb">Accueil &gt; <span>Modèles</span></div>
+            
+            <div class="kivo-templates-title-row">
+              <div>
+                <h1>Modèles</h1>
+                <p>Choisissez un style pour vos documents</p>
+              </div>
+              <div class="kivo-templates-actions">
+                <button class="btn btn-outline" onclick="KivoApp.openTemplateEditor()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Créer mon modèle
+                </button>
+                <button class="btn btn-ai" onclick="KivoApp.openAiModal()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                  Créer avec IA
+                </button>
+              </div>
             </div>
-            <button class="btn btn-primary" onclick="KivoApp.openNewCatalogModal()">
-              + Ajouter un service
-            </button>
+            
+            <div class="kivo-templates-tabs">
+              <button class="kivo-tab active" data-tab="kivo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                Modèles KIVO
+              </button>
+              <button class="kivo-tab" data-tab="my-templates">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                Mes modèles
+              </button>
+              <button class="kivo-tab" data-tab="ai">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                Créés avec IA
+              </button>
+            </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem;" id="catalog-grid">
-            <!-- Dynamically populated -->
+          <div class="kivo-templates-grid" id="templates-grid-kivo">
+            <!-- Dynamically populated by renderTemplateGallery() -->
+          </div>
+          
+          <div class="kivo-templates-grid" id="templates-grid-my-templates" style="display: none;">
+            <div style="text-align: center; padding: 4rem; color: #64748b; grid-column: 1 / -1;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="margin-bottom: 1rem; opacity: 0.5;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+              <p>Vous n'avez pas encore de modèles personnalisés.</p>
+              <button class="btn btn-outline" style="margin-top: 1rem;" onclick="KivoApp.openTemplateEditor()">Créer mon modèle</button>
+            </div>
+          </div>
+          
+          <div class="kivo-templates-grid" id="templates-grid-ai" style="display: none;">
+            <div style="text-align: center; padding: 4rem; color: #64748b; grid-column: 1 / -1;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="margin-bottom: 1rem; opacity: 0.5;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              <p>Vous n'avez pas encore généré de modèles avec l'IA.</p>
+              <button class="btn btn-ai" style="margin-top: 1rem;" onclick="KivoApp.openAiModal()">Créer avec IA</button>
+            </div>
           </div>
         </section>
 

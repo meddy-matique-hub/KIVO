@@ -2444,26 +2444,79 @@ window.KivoApp = {
   },
 
   renderCatalog: function () {
-    const container = document.getElementById('catalog-grid');
+    const container = document.getElementById('templates-grid-kivo');
     if (!container) return;
 
-    const biz = this.state.business;
-
-    container.innerHTML = this.state.catalog.map(cat => `
-      <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
-        <div>
-          <span class="badge badge-accepted">${cat.unit}</span>
-          <h3 style="margin: 0.5rem 0 0.25rem 0;">${cat.name}</h3>
-          <p style="color: var(--text-secondary); font-size: 0.85rem;">${cat.description}</p>
-        </div>
-        <div style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
-          <div style="font-family: var(--font-heading); font-weight: 700; font-size: 1.2rem; color: var(--primary);">
-            ${cat.price.toLocaleString('fr-FR')} ${biz.currency}
+    if (window.KivoTemplates && KivoTemplates.builtIn) {
+      container.innerHTML = KivoTemplates.builtIn.map(tmpl => `
+        <div class="kivo-template-card" data-template="${tmpl.id}">
+          <div class="kivo-template-card-preview">
+            ${KivoTemplates.miniPreview(tmpl.id)}
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="KivoApp.startNewDocument('invoice')">Utiliser</button>
+          <div class="kivo-template-card-body">
+            <h3 class="kivo-template-card-title">${tmpl.name}</h3>
+            <p class="kivo-template-card-desc">${tmpl.desc}</p>
+            <button class="kivo-template-card-btn" onclick="KivoApp.useTemplate('${tmpl.id}')">Utiliser ce modèle</button>
+          </div>
         </div>
-      </div>
-    `).join('');
+      `).join('');
+    }
+    
+    // Setup tabs logic if not already setup
+    if (!this._templatesTabsSetup) {
+      document.querySelectorAll('.kivo-tab').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+          document.querySelectorAll('.kivo-tab').forEach(t => t.classList.remove('active'));
+          e.currentTarget.classList.add('active');
+          
+          const tabId = e.currentTarget.getAttribute('data-tab');
+          document.querySelectorAll('.kivo-templates-grid').forEach(grid => grid.style.display = 'none');
+          
+          const activeGrid = document.getElementById(`templates-grid-${tabId}`);
+          if (activeGrid) activeGrid.style.display = 'grid';
+        });
+      });
+      this._templatesTabsSetup = true;
+    }
+  },
+
+  useTemplate: function (templateId) {
+    // 1. Update business template in state
+    this.state.business = this.state.business || {};
+    this.state.business.visualTemplate = templateId;
+    
+    // Set appropriate colors based on template selection
+    switch(templateId) {
+      case 'minimalist':
+        this.state.business.primaryColor = '#cbd5e1';
+        break;
+      case 'corporate':
+        this.state.business.primaryColor = '#3b82f6';
+        break;
+      case 'elegant':
+        this.state.business.primaryColor = '#d4af37';
+        break;
+      case 'modern':
+        this.state.business.primaryColor = '#8b5cf6';
+        break;
+      case 'editorial':
+        this.state.business.primaryColor = '#ef4444';
+        break;
+      case 'premium':
+        this.state.business.primaryColor = '#b45309';
+        break;
+    }
+    
+    // 2. Save implicitly to localStorage (and Supabase if connected)
+    this.saveState();
+    
+    // 3. Open a new invoice document
+    this.startNewDocument('invoice');
+  },
+
+  openTemplateEditor: function () {
+    // Basic interaction for "Créer mon modèle"
+    this.showToast('L\\'éditeur de modèles personnalisés sera bientôt disponible.', 'info');
   },
 
   renderReminders: function () {

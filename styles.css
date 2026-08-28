@@ -2131,3 +2131,183 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
     top: auto !important;
   }
 }
+
+/* ==========================================================================
+   KIVO MATIQUE - Modèles Page (Templates)
+   ========================================================================== */
+
+.kivo-templates-header {
+  margin-bottom: 2rem;
+}
+
+.kivo-templates-breadcrumb {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.kivo-templates-breadcrumb span {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.kivo-templates-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.kivo-templates-title-row h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.kivo-templates-title-row p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.kivo-templates-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.kivo-templates-tabs {
+  display: flex;
+  gap: 2rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0;
+}
+
+.kivo-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.75rem 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  margin-bottom: -1px;
+}
+
+.kivo-tab:hover {
+  color: var(--text-primary);
+}
+
+.kivo-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--text-primary);
+}
+
+.kivo-templates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.kivo-template-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.kivo-template-card:hover {
+  box-shadow: 0 12px 24px -8px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+}
+
+.kivo-template-card-preview {
+  height: 220px;
+  background: #f8fafc;
+  padding: 1rem 1.5rem 0 1.5rem;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.kivo-template-card-preview > div {
+  width: 100%;
+  height: 200px;
+  border-radius: 6px 6px 0 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* Custom gradients for the background of the preview based on template */
+.kivo-template-card[data-template="minimalist"] .kivo-template-card-preview { background: linear-gradient(180deg, #f1f5f9 0%, #ffffff 100%); }
+.kivo-template-card[data-template="corporate"] .kivo-template-card-preview { background: linear-gradient(180deg, #e0e7ff 0%, #ffffff 100%); }
+.kivo-template-card[data-template="elegant"] .kivo-template-card-preview { background: linear-gradient(180deg, #fef3c7 0%, #ffffff 100%); }
+.kivo-template-card[data-template="modern"] .kivo-template-card-preview { background: linear-gradient(180deg, #fce7f3 0%, #ede9fe 100%); }
+.kivo-template-card[data-template="editorial"] .kivo-template-card-preview { background: linear-gradient(180deg, #e2e8f0 0%, #ffffff 100%); }
+.kivo-template-card[data-template="premium"] .kivo-template-card-preview { background: linear-gradient(180deg, #fcd34d 0%, #ffffff 100%); }
+
+.kivo-template-card-body {
+  padding: 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.kivo-template-card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.kivo-template-card-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.kivo-template-card-btn {
+  width: 100%;
+  background: #111827;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.kivo-template-card-btn:hover {
+  background: #1f2937;
+}
+
+@media (max-width: 768px) {
+  .kivo-templates-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .kivo-templates-tabs {
+    overflow-x: auto;
+    padding-bottom: 1px;
+  }
+  
+  .kivo-tab {
+    white-space: nowrap;
+  }
+}
+
