@@ -539,6 +539,22 @@ window.KivoApp = {
   },
 
   /**
+   * Toggles the sidebar visibility
+   */
+  toggleSidebar: function () {
+    const sidebar = document.getElementById('sidebar');
+    const reopenBtn = document.getElementById('sidebar-reopen-btn');
+    if (sidebar) {
+      sidebar.classList.toggle('collapsed');
+      if (sidebar.classList.contains('collapsed')) {
+        if (reopenBtn) reopenBtn.style.display = 'block';
+      } else {
+        if (reopenBtn) reopenBtn.style.display = 'none';
+      }
+    }
+  },
+
+  /**
    * Setup event listeners
    */
   setupEventListeners: function () {
