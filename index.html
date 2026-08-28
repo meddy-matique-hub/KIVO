@@ -114,150 +114,328 @@
       <!-- Main Dynamic Content Container -->
       <main class="main-content" id="main-content">
 
-        <!-- ==================== LANDING PAGE VIEW ==================== -->
+        <!-- ==================== LANDING PAGE VIEW (2026 FINTECH ART DIRECTION) ==================== -->
         <section id="view-landing" class="view-section" style="display: none;">
-          <div class="landing-hero">
-            <span class="landing-tagline">🚀 L'Assistant Commercial Tout-en-Un</span>
-            <h1 class="landing-title">Gérez votre business.<br>Pas votre paperasse.</h1>
-            <p class="landing-subtitle">
-              Créez des devis et factures professionnels, envoyez-les directement à vos clients par WhatsApp et Email, recevez vos paiements Mobile Money ou Carte et relancez les impayés en un clic.
-            </p>
-            <div class="landing-cta-group">
-              <a href="#auth" class="btn btn-primary btn-lg">Commencer gratuitement ✨</a>
-              <button onclick="KivoApp.loadDemoData()" class="btn btn-secondary btn-lg">Voir la démonstration ➔</button>
-            </div>
-
-            <!-- Visual Product Demo Preview Card -->
-            <div class="landing-demo-preview">
-              <div style="background: #1E293B; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                <div style="width: 12px; height: 12px; border-radius: 50%; background: #EF4444;"></div>
-                <div style="width: 12px; height: 12px; border-radius: 50%; background: #F59E0B;"></div>
-                <div style="width: 12px; height: 12px; border-radius: 50%; background: #10B981;"></div>
-                <span style="color: #94A3B8; font-size: 0.8rem; margin-left: 0.5rem;">app.kivo.africa / invoice / KVO-1024</span>
-              </div>
-              <div style="padding: 2rem; text-align: left;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                  <div>
-                    <h3 style="font-size: 1.25rem;">MD Creative Studio</h3>
-                    <p style="color: var(--text-secondary); font-size: 0.85rem;">Facture N° KVO-1024 • Reçu le 03/08/2026</p>
+          <div class="kivo-landing-wrap">
+            <div class="kivo-landing-container">
+              
+              <!-- 1. Top Navbar -->
+              <nav class="kivo-landing-nav">
+                <a href="#landing" class="kivo-landing-brand">
+                  <div class="kivo-landing-brand-logo">
+                    <svg width="30" height="30" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M7 6L14 16L7 26" stroke="#0F172A" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M16 6L23 16L16 26" stroke="#2563EB" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
                   </div>
-                  <span class="badge badge-paid">✓ Payée (350 000 FCFA)</span>
+                  <span class="kivo-landing-brand-text">KIVO</span>
+                </a>
+
+                <div class="kivo-landing-links">
+                  <a href="#landing">Accueil</a>
+                  <a href="#landing-features">Fonctionnalités</a>
+                  <a href="#landing-templates">Modèles</a>
+                  <a href="#landing-pricing">Tarifs</a>
                 </div>
-                <div style="background: var(--bg-subtle); padding: 1rem; border-radius: var(--radius-md); font-size: 0.9rem; margin-bottom: 1rem;">
-                  <strong>Client :</strong> Maison Event & Wedding (Awa Ndiaye)<br>
-                  <strong>Moyen de paiement :</strong> Wave Mobile Money (Paiement instantané)
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <!-- Feature Grid -->
-          <div style="max-width: 1100px; margin: 4rem auto 0 auto;">
-            <h2 style="text-align: center; margin-bottom: 0.5rem;">Tout ce dont vous avez besoin pour transformer une vente en paiement</h2>
-            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 2.5rem;">Pensé d'abord pour le téléphone et WhatsApp, prêt pour l'international.</p>
-
-            <div class="feature-grid">
-              <div class="feature-card">
-                <div class="feature-icon">✨</div>
-                <h3>KIVO AI Assistant</h3>
-                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Écrivez en français naturel: « Logo resto 85 000 F », l'IA génère les lignes structurées instantanément.</p>
-              </div>
-
-              <div class="feature-card">
-                <div class="feature-icon">⚡</div>
-                <h3>Lien Public & Paiement</h3>
-                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Votre client ouvre la facture sur son téléphone et paie en un clic par Mobile Money ou Carte.</p>
-              </div>
-
-              <div class="feature-card">
-                <div class="feature-icon">💬</div>
-                <h3>Partage WhatsApp Direct</h3>
-                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Messages préremplis et personnalisables pour envoyer devis et relances sans quitter WhatsApp.</p>
-              </div>
-
-              <div class="feature-card">
-                <div class="feature-icon">🔔</div>
-                <h3>Relances Intelligentes</h3>
-                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">L'application détecte les impayés et vous propose des messages courtois ou fermes prêts à envoyer.</p>
-              </div>
-            </div>
-
-            <!-- How it Works -->
-            <div style="background: var(--bg-card); border-radius: var(--radius-xl); border: 1px solid var(--border-color); padding: 3rem; margin: 4rem 0;">
-              <h2 style="text-align: center; margin-bottom: 2rem;">Comment ça marche ?</h2>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 2rem; text-align: center;">
                 <div>
-                  <div style="width: 42px; height: 42px; border-radius: 50%; background: var(--primary); color: #FFF; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">1</div>
-                  <h4>1. Créez</h4>
-                  <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.35rem;">En moins de 60 secondes avec vos prix, services et logo.</p>
+                  <a href="#auth" class="btn btn-landing-login">Connexion</a>
                 </div>
-                <div>
-                  <div style="width: 42px; height: 42px; border-radius: 50%; background: var(--primary); color: #FFF; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">2</div>
-                  <h4>2. Envoyez</h4>
-                  <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.35rem;">Par WhatsApp, Email ou PDF imprimable élégant.</p>
+              </nav>
+
+              <!-- 2. Hero Section -->
+              <div class="kivo-hero-section">
+                
+                <!-- Left: Headline & CTA -->
+                <div class="kivo-hero-text">
+                  <h1>Créez des factures professionnelles en toute simplicité</h1>
+                  <p>Gagnez du temps et soyez payé plus rapidement avec KIVO.</p>
+                  <a href="#auth" class="btn btn-hero-cta">
+                    <span>Créer ma première facture</span>
+                  </a>
                 </div>
-                <div>
-                  <div style="width: 42px; height: 42px; border-radius: 50%; background: var(--primary); color: #FFF; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">3</div>
-                  <h4>3. Soyez payé</h4>
-                  <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.35rem;">Le client valide ou paie, vos métriques se mettent à jour automatiquement.</p>
+
+                <!-- Right: Layered 3D Visual Composition -->
+                <div class="kivo-hero-visual">
+                  
+                  <!-- Base Tablet / App Window -->
+                  <div class="kivo-mock-window">
+                    
+                    <!-- Mock Dark Sidebar -->
+                    <div class="kivo-mock-sidebar">
+                      <div class="mock-sidebar-brand">
+                        <svg width="14" height="14" viewBox="0 0 32 32" fill="none">
+                          <path d="M7 6L14 16L7 26" stroke="#FFF" stroke-width="5" stroke-linecap="round"/>
+                          <path d="M16 6L23 16L16 26" stroke="#3B82F6" stroke-width="5" stroke-linecap="round"/>
+                        </svg>
+                        <span>KIVO</span>
+                      </div>
+                      <div class="mock-nav-item active">
+                        <span>•</span> Accueil
+                      </div>
+                      <div class="mock-nav-item">
+                        <span>•</span> Factures
+                      </div>
+                      <div class="mock-nav-item">
+                        <span>•</span> Modèles
+                      </div>
+                      <div class="mock-nav-item">
+                        <span>•</span> Paramètres
+                      </div>
+                      <div class="mock-nav-item">
+                        <span>•</span> Tarifs
+                      </div>
+                    </div>
+
+                    <!-- Mock Main Workspace -->
+                    <div class="kivo-mock-main">
+                      <div class="mock-main-top">
+                        <span>facture</span>
+                      </div>
+
+                      <div class="mock-invoice-card">
+                        <div class="mock-invoice-header">
+                          <div>
+                            <div class="mock-invoice-title">Invoice</div>
+                            <div style="font-size: 0.6rem; color: #64748B;">Client: Studio Graphic Dakar</div>
+                          </div>
+                          <span class="mock-badge">Validée ✓</span>
+                        </div>
+
+                        <table class="mock-table">
+                          <thead>
+                            <tr>
+                              <th>Description</th>
+                              <th>Qté</th>
+                              <th style="text-align: right;">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td>Prestation Interface</td>
+                              <td>1</td>
+                              <td style="text-align: right;">150 000 F</td>
+                            </tr>
+                            <tr>
+                              <td>Rédaction contenu</td>
+                              <td>2</td>
+                              <td style="text-align: right;">45 000 F</td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        <div class="mock-total-row">
+                          <span style="color: #64748B;">Total TTC :</span>
+                          <span>195 000 FCFA</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Floating Layer 1: Tilted Top-Right Invoice Sheet -->
+                  <div class="kivo-mock-floating-invoice">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                      <div>
+                        <strong style="font-size: 0.85rem; color: #0F172A; display: block;">Invoice</strong>
+                        <span style="font-size: 0.55rem; color: #64748B;">#FAC-2026-0042</span>
+                      </div>
+                      <span style="font-size: 0.55rem; background: #EEF2FF; color: #2563EB; padding: 1px 4px; border-radius: 4px; font-weight: 600;">En attente</span>
+                    </div>
+
+                    <div style="font-size: 0.58rem; color: #475569; margin-bottom: 0.5rem; line-height: 1.3;">
+                      Client: Maison Event<br>
+                      Échéance: 15/09/2026
+                    </div>
+
+                    <div style="border-top: 1px dashed #CBD5E1; padding-top: 0.4rem; display: flex; justify-content: space-between; font-size: 0.65rem; font-weight: 700; color: #0F172A;">
+                      <span>Total :</span>
+                      <span>350 000 F</span>
+                    </div>
+
+                    <span class="mock-float-btn">Créer une facture</span>
+                  </div>
+
+                  <!-- Floating Layer 2: Frosted Glass 3D Card Bottom-Left -->
+                  <div class="kivo-mock-glass-card">
+                    <div class="glass-3d-badge">3D</div>
+                    <div class="glass-card-text">
+                      <strong>Modèles intelligents</strong>
+                      <span>30 modèles prêts</span>
+                    </div>
+                  </div>
+
+                  <!-- Floating Layer 3: Mini Client Badge Bottom-Right -->
+                  <div class="kivo-mock-client-badge">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <span>Gestion des clients</span>
+                  </div>
+
+                </div>
+
+              </div>
+
+              <!-- 3. Bottom 4-Card Bento Strip (Matching Mockup Exactly) -->
+              <div class="kivo-features-strip" id="landing-features">
+                
+                <!-- Card 1: Dark Navy Active Card -->
+                <a href="#auth" class="kivo-feature-card card-dark">
+                  <div class="kivo-feature-icon-box">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  </div>
+                  <h3>Créer une facture</h3>
+                  <p>Créez des factures et devis conformes en toute simplicité avec KIVO.</p>
+                </a>
+
+                <!-- Card 2: Modèles professionnels -->
+                <a href="#landing-templates" class="kivo-feature-card">
+                  <div class="kivo-feature-icon-box">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                  </div>
+                  <h3>Modèles professionnels</h3>
+                  <p>Gagnez du temps et soyez payé plus rapidement avec KIVO.</p>
+                </a>
+
+                <!-- Card 3: Création avec IA -->
+                <a href="#auth" class="kivo-feature-card">
+                  <div class="kivo-feature-icon-box">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                  </div>
+                  <h3>Création avec IA</h3>
+                  <p>Génération instantanée de la structure de vos factures par intelligence artificielle.</p>
+                </a>
+
+                <!-- Card 4: Gestion des clients -->
+                <a href="#auth" class="kivo-feature-card">
+                  <div class="kivo-feature-icon-box">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  </div>
+                  <h3>Gestion des clients</h3>
+                  <p>Centralisez vos contacts, suivez les encaissements et relancez les impayés.</p>
+                </a>
+
+              </div>
+
+              <!-- 4. Modèles & Design Showcase Section -->
+              <div id="landing-templates" style="padding: 4rem 0; border-top: 1px solid #E2E8F0;">
+                <div style="text-align: center; max-width: 650px; margin: 0 auto 3rem auto;">
+                  <h2 style="font-family: var(--font-heading); font-size: 2.2rem; font-weight: 800; color: #0F172A; margin-bottom: 0.75rem;">Des modèles prêts pour votre activité</h2>
+                  <p style="color: #475569; font-size: 1rem;">Exportez en PDF haute définition, personnalisez vos couleurs et intégrez votre logo en un instant.</p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem;">
+                  <div class="card hover-fx" style="padding: 1.25rem; border-radius: 16px; text-align: center; cursor: pointer;" onclick="window.location.hash='#auth'">
+                    <div style="height: 180px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+                      <div style="position: absolute; top: 0; left: 0; right: 0; height: 12px; background: #059669;"></div>
+                      <span style="font-size: 0.85rem; font-weight: 700; color: #059669;">Green Clean</span>
+                    </div>
+                    <strong style="display: block; font-size: 0.95rem; color: #0F172A;">Green Clean</strong>
+                    <span style="font-size: 0.75rem; color: #64748B;">Épuré avec bande d'en-tête verte</span>
+                  </div>
+
+                  <div class="card hover-fx" style="padding: 1.25rem; border-radius: 16px; text-align: center; cursor: pointer;" onclick="window.location.hash='#auth'">
+                    <div style="height: 180px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+                      <div style="position: absolute; top: 0; left: 0; right: 0; height: 28px; background: #1E3A8A;"></div>
+                      <span style="font-size: 0.85rem; font-weight: 700; color: #1E3A8A;">Corporate Blue</span>
+                    </div>
+                    <strong style="display: block; font-size: 0.95rem; color: #0F172A;">Corporate Blue</strong>
+                    <span style="font-size: 0.75rem; color: #64748B;">Bandeau bleu profond et mise en page moderne</span>
+                  </div>
+
+                  <div class="card hover-fx" style="padding: 1.25rem; border-radius: 16px; text-align: center; cursor: pointer;" onclick="window.location.hash='#auth'">
+                    <div style="height: 180px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+                      <div style="position: absolute; top: 0; left: 0; right: 0; height: 8px; background: #0284C7;"></div>
+                      <span style="font-size: 0.85rem; font-weight: 700; color: #0284C7;">Corporate Light</span>
+                    </div>
+                    <strong style="display: block; font-size: 0.95rem; color: #0F172A;">Corporate Light</strong>
+                    <span style="font-size: 0.75rem; color: #64748B;">En-tête aéré et tableau élégant</span>
+                  </div>
+
+                  <div class="card hover-fx" style="padding: 1.25rem; border-radius: 16px; text-align: center; cursor: pointer;" onclick="window.location.hash='#auth'">
+                    <div style="height: 180px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+                      <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 8px; background: #2563EB;"></div>
+                      <span style="font-size: 0.85rem; font-weight: 700; color: #2563EB;">Bold Blue</span>
+                    </div>
+                    <strong style="display: block; font-size: 0.95rem; color: #0F172A;">Bold Blue</strong>
+                    <span style="font-size: 0.75rem; color: #64748B;">Lignes fortes et contrastes marqués</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Pricing Grid -->
-            <div style="margin: 4rem 0;">
-              <h2 style="text-align: center; margin-bottom: 0.5rem;">Tarifs transparents</h2>
-              <p style="text-align: center; color: var(--text-secondary); margin-bottom: 2rem;">Aucun frais caché. Choisissez la formule qui convient à votre activité.</p>
-
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
-                <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
-                  <div>
-                    <h3>FREE</h3>
-                    <div style="font-size: 2rem; font-weight: 800; font-family: var(--font-heading); margin: 0.5rem 0;">0 FCFA <span style="font-size: 0.85rem; color: var(--text-secondary);">/ mois</span></div>
-                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">Pour démarrer son activité en toute sérénité.</p>
-                    <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.9rem;">
-                      <li>✓ Jusqu'à 3 documents / mois</li>
-                      <li>✓ Téléchargement PDF</li>
-                      <li>✓ Partage WhatsApp</li>
-                      <li>✓ Support email</li>
-                    </ul>
-                  </div>
-                  <a href="#onboarding" class="btn btn-secondary" style="margin-top: 2rem; width: 100%;">Commencer gratuitement</a>
+              <!-- 5. Tarifs Section -->
+              <div id="landing-pricing" style="padding: 4rem 0; border-top: 1px solid #E2E8F0;">
+                <div style="text-align: center; max-width: 600px; margin: 0 auto 3rem auto;">
+                  <h2 style="font-family: var(--font-heading); font-size: 2.2rem; font-weight: 800; color: #0F172A; margin-bottom: 0.75rem;">Tarifs simples & transparents</h2>
+                  <p style="color: #475569; font-size: 1rem;">Choisissez la formule adaptée à la taille de votre entreprise.</p>
                 </div>
 
-                <div class="card" style="border: 2px solid var(--primary); position: relative; display: flex; flex-direction: column; justify-content: space-between;">
-                  <span class="badge badge-accepted" style="position: absolute; top: -12px; right: 20px;">Recommandé</span>
-                  <div>
-                    <h3>PRO</h3>
-                    <div style="font-size: 2rem; font-weight: 800; font-family: var(--font-heading); margin: 0.5rem 0;">2 590 FCFA <span style="font-size: 0.85rem; color: var(--text-secondary);">/ mois</span></div>
-                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">Pour les créateurs et indépendants actifs.</p>
-                    <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.9rem;">
-                      <li>✓ Documents illimités</li>
-                      <li>✓ Clients & Catalogue illimités</li>
-                      <li>✓ KIVO AI Assistant inclus</li>
-                      <li>✓ Paiements Mobile Money en ligne</li>
-                      <li>✓ Relances intelligentes</li>
-                    </ul>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem;">
+                  
+                  <!-- Free Plan -->
+                  <div class="card hover-fx" style="padding: 2.25rem; border-radius: 20px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                      <h3 style="font-size: 1.25rem; font-weight: 700; color: #0F172A;">Gratuit</h3>
+                      <div style="font-size: 2.25rem; font-weight: 800; font-family: var(--font-heading); color: #0F172A; margin: 0.75rem 0;">0 FCFA <span style="font-size: 0.9rem; font-weight: 500; color: #64748B;">/ mois</span></div>
+                      <p style="color: #64748B; font-size: 0.9rem; margin-bottom: 1.5rem;">Pour tester l'application et démarrer sans engagement.</p>
+                      <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem; color: #334155;">
+                        <li>✓ Jusqu'à 3 factures par mois</li>
+                        <li>✓ Export PDF haute définition</li>
+                        <li>✓ Partage WhatsApp & Email</li>
+                      </ul>
+                    </div>
+                    <a href="#auth" class="btn btn-secondary" style="margin-top: 2rem; width: 100%; border-radius: var(--radius-full);">Commencer gratuitement</a>
                   </div>
-                  <a href="#onboarding" class="btn btn-primary" style="margin-top: 2rem; width: 100%;">Essai gratuit (14 jours)</a>
-                </div>
 
-                <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
-                  <div>
-                    <h3>BUSINESS</h3>
-                    <div style="font-size: 2rem; font-weight: 800; font-family: var(--font-heading); margin: 0.5rem 0;">6 990 FCFA <span style="font-size: 0.85rem; color: var(--text-secondary);">/ mois</span></div>
-                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">Pour les petites entreprises en forte croissance.</p>
-                    <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.9rem;">
-                      <li>✓ Tout le plan PRO</li>
-                      <li>✓ Multi-utilisateurs & Rôles</li>
-                      <li>✓ Modèles de documents sur-mesure</li>
-                      <li>✓ API WhatsApp Meta automatisée</li>
-                      <li>✓ Manager dédié</li>
-                    </ul>
+                  <!-- Pro Plan -->
+                  <div class="card hover-fx" style="padding: 2.25rem; border-radius: 20px; border: 2px solid #2563EB; position: relative; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 12px 30px -8px rgba(37, 99, 235, 0.25);">
+                    <span class="badge" style="position: absolute; top: -12px; right: 24px; background: #2563EB; color: #FFF; font-weight: 700; font-size: 0.75rem; padding: 4px 10px;">Recommandé</span>
+                    <div>
+                      <h3 style="font-size: 1.25rem; font-weight: 700; color: #0F172A;">Pro</h3>
+                      <div style="font-size: 2.25rem; font-weight: 800; font-family: var(--font-heading); color: #2563EB; margin: 0.75rem 0;">2 590 FCFA <span style="font-size: 0.9rem; font-weight: 500; color: #64748B;">/ mois</span></div>
+                      <p style="color: #64748B; font-size: 0.9rem; margin-bottom: 1.5rem;">Pour les créateurs, freelances et professionnels actifs.</p>
+                      <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem; color: #334155;">
+                        <li>✓ Factures & devis illimités</li>
+                        <li>✓ Clients & catalogue illimités</li>
+                        <li>✓ Assistant IA & modèles complets</li>
+                        <li>✓ Paiement Mobile Money & Carte</li>
+                        <li>✓ Relances automatiques</li>
+                      </ul>
+                    </div>
+                    <a href="#auth" class="btn btn-primary" style="margin-top: 2rem; width: 100%; border-radius: var(--radius-full);">Choisir la formule Pro</a>
                   </div>
-                  <a href="#onboarding" class="btn btn-secondary" style="margin-top: 2rem; width: 100%;">Contacter l'équipe</a>
+
+                  <!-- Business Plan -->
+                  <div class="card hover-fx" style="padding: 2.25rem; border-radius: 20px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                      <h3 style="font-size: 1.25rem; font-weight: 700; color: #0F172A;">Business</h3>
+                      <div style="font-size: 2.25rem; font-weight: 800; font-family: var(--font-heading); color: #0F172A; margin: 0.75rem 0;">6 990 FCFA <span style="font-size: 0.9rem; font-weight: 500; color: #64748B;">/ mois</span></div>
+                      <p style="color: #64748B; font-size: 0.9rem; margin-bottom: 1.5rem;">Pour les entreprises et équipes en développement.</p>
+                      <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem; color: #334155;">
+                        <li>✓ Tout le forfait Pro</li>
+                        <li>✓ Multi-utilisateurs & permissions</li>
+                        <li>✓ Modèles personnalisés sur-mesure</li>
+                        <li>✓ Intégration Stripe & support prioritaire</li>
+                      </ul>
+                    </div>
+                    <a href="#auth" class="btn btn-secondary" style="margin-top: 2rem; width: 100%; border-radius: var(--radius-full);">Choisir Business</a>
+                  </div>
+
                 </div>
               </div>
+
+              <!-- 6. Clean Footer -->
+              <footer style="padding: 3rem 0; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; color: #64748B; font-size: 0.85rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+                    <path d="M7 6L14 16L7 26" stroke="#0F172A" stroke-width="4.5" stroke-linecap="round"/>
+                    <path d="M16 6L23 16L16 26" stroke="#2563EB" stroke-width="4.5" stroke-linecap="round"/>
+                  </svg>
+                  <strong style="color: #0F172A;">KIVO MATIQUE</strong> — Business, simplified.
+                </div>
+                <div>
+                  © 2026 KIVO MATIQUE. Tous droits réservés.
+                </div>
+              </footer>
+
             </div>
           </div>
         </section>

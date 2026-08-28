@@ -457,7 +457,15 @@ window.KivoApp = {
    */
   handleRoute: function () {
     const hash = window.location.hash || '';
-    let viewName = hash.split('?')[0].replace('#', '');
+    let rawView = hash.split('?')[0].replace('#', '');
+    let viewName = rawView;
+    let anchorTarget = null;
+
+    if (rawView.startsWith('landing-')) {
+      viewName = 'landing';
+      anchorTarget = rawView;
+    }
+
     if (!viewName) viewName = '';
 
     const publicViews = ['landing', 'auth', 'onboarding', 'public-doc'];
@@ -518,7 +526,14 @@ window.KivoApp = {
     });
 
     this.renderCurrentView();
-    window.scrollTo(0, 0);
+    if (anchorTarget) {
+      setTimeout(() => {
+        const el = document.getElementById(anchorTarget);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 50);
+    } else {
+      window.scrollTo(0, 0);
+    }
   },
 
   /**

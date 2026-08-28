@@ -798,82 +798,507 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   to { transform: translateX(0); opacity: 1; }
 }
 
-/* Landing Page Styles */
-.landing-hero {
-  padding: 4rem 1.5rem;
-  text-align: center;
-  max-width: 900px;
+/* ==========================================================================
+   LANDING PAGE — 2026 FINTECH ART DIRECTION (MATCHING REFERENCE MOCKUP)
+   ========================================================================== */
+
+.kivo-landing-wrap {
+  width: 100%;
+  min-height: 100vh;
+  background: #FFFFFF;
+  color: var(--text-primary);
+  position: relative;
+  overflow-x: hidden;
+}
+
+.kivo-landing-container {
+  max-width: 1280px;
   margin: 0 auto;
+  padding: 0 2rem;
 }
 
-.landing-tagline {
-  display: inline-block;
-  padding: 0.35rem 1rem;
-  background-color: var(--primary-light);
-  color: var(--primary);
-  font-weight: 600;
-  font-size: 0.85rem;
+/* 1. Header & Navigation */
+.kivo-landing-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.75rem 0;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+.kivo-landing-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+.kivo-landing-brand-logo {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kivo-landing-brand-text {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.35rem;
+  letter-spacing: -0.03em;
+  color: #0F172A;
+}
+
+.kivo-landing-links {
+  display: flex;
+  align-items: center;
+  gap: 2.25rem;
+  list-style: none;
+}
+
+.kivo-landing-links a {
+  color: #475569;
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: color 0.15s ease;
+}
+
+.kivo-landing-links a:hover {
+  color: #0F172A;
+}
+
+.btn-landing-login {
+  background: #FFFFFF;
+  color: #0F172A;
+  border: 1px solid #CBD5E1;
+  padding: 0.55rem 1.4rem;
   border-radius: var(--radius-full);
-  margin-bottom: 1.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.landing-title {
+.btn-landing-login:hover {
+  background: #F8FAFC;
+  border-color: #94A3B8;
+  color: #0F172A;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* 2. Hero Section */
+.kivo-hero-section {
+  display: grid;
+  grid-template-columns: 1.05fr 1.15fr;
+  gap: 3.5rem;
+  align-items: center;
+  padding: 4.5rem 0 4.5rem;
+}
+
+.kivo-hero-text h1 {
+  font-family: var(--font-heading);
   font-size: 3.25rem;
   font-weight: 800;
-  line-height: 1.15;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: #0F172A;
   margin-bottom: 1.25rem;
 }
 
-.landing-subtitle {
-  font-size: 1.2rem;
-  color: var(--text-secondary);
-  margin-bottom: 2rem;
-  max-width: 700px;
-  margin-left: auto;
-  margin-right: auto;
+.kivo-hero-text p {
+  font-size: 1.1rem;
+  color: #475569;
+  line-height: 1.55;
+  margin-bottom: 2.25rem;
+  max-width: 480px;
 }
 
-.landing-cta-group {
-  display: flex;
+.btn-hero-cta {
+  background: #0F172A;
+  color: #FFFFFF;
+  padding: 0.9rem 1.85rem;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+  gap: 0.6rem;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.landing-demo-preview {
-  margin-top: 3rem;
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-xl);
+.btn-hero-cta:hover {
+  background: #1E293B;
+  color: #FFFFFF;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.3);
+}
+
+/* 3. Layered 3D Composition */
+.kivo-hero-visual {
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  perspective: 1000px;
+}
+
+/* Base App Window */
+.kivo-mock-window {
+  background: #FFFFFF;
+  border-radius: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.12), 0 10px 25px -5px rgba(15, 23, 42, 0.05);
+  display: flex;
   overflow: hidden;
-  background-color: var(--bg-card);
+  height: 350px;
+  position: relative;
+  transition: transform 0.3s ease;
 }
 
-.feature-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1.5rem;
-  margin: 4rem 0;
+.kivo-mock-window:hover {
+  transform: translateY(-2px);
 }
 
-.feature-card {
-  padding: 1.75rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-card);
+/* Mock Sidebar */
+.kivo-mock-sidebar {
+  width: 125px;
+  background: #0F172A;
+  color: #FFFFFF;
+  padding: 1.25rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  flex-shrink: 0;
 }
 
-.feature-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
-  background-color: var(--primary-light);
-  color: var(--primary);
+.mock-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.5rem;
+}
+
+.mock-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.68rem;
+  color: #94A3B8;
+  padding: 0.35rem 0.45rem;
+  border-radius: 6px;
+}
+
+.mock-nav-item.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+/* Mock Main Area */
+.kivo-mock-main {
+  flex: 1;
+  background: #F8FAFC;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  overflow: hidden;
+}
+
+.mock-main-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mock-main-top span {
+  font-size: 0.75rem;
+  color: #64748B;
+  font-weight: 600;
+}
+
+.mock-invoice-card {
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 1rem;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.mock-invoice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.mock-invoice-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.mock-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: #ECFDF5;
+  color: #059669;
+  padding: 2px 6px;
+  border-radius: 9999px;
+}
+
+.mock-table {
+  width: 100%;
+  font-size: 0.68rem;
+  border-collapse: collapse;
+}
+
+.mock-table th {
+  text-align: left;
+  color: #64748B;
+  padding: 0.25rem 0;
+  font-weight: 500;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.mock-table td {
+  padding: 0.35rem 0;
+  color: #0F172A;
+}
+
+.mock-total-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  color: #0F172A;
+}
+
+/* Floating Layer 1 — Tilted Invoice Sheet Top-Right */
+.kivo-mock-floating-invoice {
+  position: absolute;
+  top: -24px;
+  right: -24px;
+  width: 230px;
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  padding: 1.15rem;
+  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.2), 0 0 1px rgba(0, 0, 0, 0.08);
+  transform: rotate(5deg);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+}
+
+.kivo-mock-floating-invoice:hover {
+  transform: rotate(2deg) scale(1.03);
+  box-shadow: 0 25px 50px -10px rgba(15, 23, 42, 0.25);
+}
+
+.mock-float-btn {
+  background: #0F172A;
+  color: #FFFFFF;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 0.4rem;
+  border-radius: 6px;
+  margin-top: 0.6rem;
+  display: block;
+}
+
+/* Floating Layer 2 — Frosted Glass 3D Badge Bottom-Left */
+.kivo-mock-glass-card {
+  position: absolute;
+  bottom: -20px;
+  left: 35px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 14px;
+  padding: 0.85rem 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.03);
+  z-index: 20;
+  transition: all 0.3s ease;
+}
+
+.kivo-mock-glass-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px -8px rgba(15, 23, 42, 0.2);
+}
+
+.glass-3d-badge {
+  width: 32px;
+  height: 32px;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+.glass-card-text strong {
+  display: block;
+  font-size: 0.78rem;
+  color: #0F172A;
+  font-weight: 700;
+}
+
+.glass-card-text span {
+  font-size: 0.68rem;
+  color: #64748B;
+}
+
+/* Floating Layer 3 — Mini Client Badge Bottom-Right */
+.kivo-mock-client-badge {
+  position: absolute;
+  bottom: 25px;
+  right: 20px;
+  background: #FFFFFF;
+  border-radius: 10px;
+  padding: 0.5rem 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 8px 16px -4px rgba(15, 23, 42, 0.08);
+  z-index: 15;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #0F172A;
+}
+
+/* 4. Bottom Features Strip (4 Cards in a row) */
+.kivo-features-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  padding: 2rem 0 5rem;
+}
+
+.kivo-feature-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 20px;
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  color: inherit;
+}
+
+.kivo-feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px -6px rgba(15, 23, 42, 0.08);
+  border-color: #CBD5E1;
+}
+
+.kivo-feature-card.card-dark {
+  background: #0F172A;
+  color: #FFFFFF;
+  border-color: #0F172A;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
+}
+
+.kivo-feature-card.card-dark:hover {
+  background: #1E293B;
+  box-shadow: 0 18px 36px -6px rgba(15, 23, 42, 0.3);
+}
+
+.kivo-feature-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #F1F5F9;
+  color: #0F172A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.card-dark .kivo-feature-icon-box {
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+}
+
+.kivo-feature-card h3 {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #0F172A;
+  letter-spacing: -0.01em;
+}
+
+.card-dark h3 {
+  color: #FFFFFF;
+}
+
+.kivo-feature-card p {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #64748B;
+}
+
+.card-dark p {
+  color: #94A3B8;
+}
+
+/* Responsive Rules for Landing Page */
+@media (max-width: 1024px) {
+  .kivo-hero-section {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    padding: 3rem 0;
+    text-align: center;
+  }
+  .kivo-hero-text p {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .kivo-features-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .kivo-landing-links {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .kivo-hero-text h1 {
+    font-size: 2.25rem;
+  }
+  .kivo-features-strip {
+    grid-template-columns: 1fr;
+  }
+  .kivo-mock-floating-invoice {
+    display: none;
+  }
+  .kivo-mock-glass-card {
+    left: 10px;
+    bottom: -10px;
+  }
 }
 
 /* Public Document View Styling */
