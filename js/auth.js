@@ -28,9 +28,12 @@ window.KivoAuth = {
         // User just signed in (from modal-login or view-auth or OAuth redirect)
         await this.handlePostLogin(session);
       } else if (event === 'SIGNED_OUT') {
-        // Session was cleared — ensure login modal is shown
+        // Session was cleared — close modal and return to landing page
         const loginModal = document.getElementById('modal-login');
-        if (loginModal) loginModal.style.display = 'flex';
+        if (loginModal) loginModal.style.display = 'none';
+        if (window.KivoApp) {
+          KivoApp.navigate('landing');
+        }
       }
     });
   },

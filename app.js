@@ -137,33 +137,24 @@ window.KivoApp = {
     this.setupRouting();
     this.setupEventListeners();
 
-    // Check if we are on the public document route
-    const isPublicRoute = window.location.hash.startsWith('#public-doc');
-
-    // 1. Check Supabase session first (use getUser() for server-side validation)
+    // 1. Check Supabase session first
     let session = null;
     try {
-      const { data: sessionData } = await KivoDb.supabase.auth.getSession();
-      const rawSession = sessionData?.session || null;
-      if (rawSession) {
-        // Validate the token is still real on the server (prevents ghost sessions)
-        const { data: userData, error: userError } = await KivoDb.supabase.auth.getUser();
-        if (userError || !userData?.user) {
-          console.warn('[KivoApp] Session token invalid or expired — signing out.');
-          await KivoDb.supabase.auth.signOut();
-        } else {
-          session = rawSession;
+      if (window.KivoDb && window.KivoDb.supabase) {
+        const { data: sessionData } = await KivoDb.supabase.auth.getSession();
+        const rawSession = sessionData?.session || null;
+        if (rawSession) {
+          const { data: userData, error: userError } = await KivoDb.supabase.auth.getUser();
+          if (userError || !userData?.user) {
+            console.warn('[KivoApp] Session token invalid or expired — signing out.');
+            await KivoDb.supabase.auth.signOut();
+          } else {
+            session = rawSession;
+          }
         }
       }
     } catch (e) {
       console.warn('[KivoApp] Error checking session:', e);
-    }
-
-    if (!session && !isPublicRoute) {
-      // No session and not a public route: show login modal, block the rest
-      console.warn('[KivoApp] No session — showing login modal.');
-      document.getElementById('modal-login').style.display = 'flex';
-      return;
     }
 
     if (session) {
@@ -175,25 +166,24 @@ window.KivoApp = {
           const isDemoData = parsed.userEmail && parsed.userEmail !== session.user.email;
           const isSeeded = (parsed.clients || []).some(c => c.id && c.id.startsWith('cli_demo'));
           if (isDemoData || isSeeded) {
-            console.warn('[KivoApp] Old demo data detected in localStorage — clearing.');
             localStorage.removeItem('kivo_app_state');
           }
         } catch(e) {}
       }
       
       this.loadState();
-      this.handleRoute();
       this.supabaseConnected = true;
+      this.handleRoute();
       try {
         await this.syncFromSupabase();
       } catch (e) {
         console.error('[KivoApp] Supabase sync error:', e);
       }
     } else {
-      // Unauthenticated client viewing public document
-      console.log('[KivoApp] Unauthenticated guest - loading public document view.');
+      // Unauthenticated visitor: load landing page cleanly without blocking modal
+      console.log('[KivoApp] Unauthenticated visitor — rendering clean landing page.');
       document.getElementById('modal-login').style.display = 'none';
-      this.supabaseConnected = true; // Still allow DB queries for public tables
+      this.supabaseConnected = true;
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.handleRoute();
     }
@@ -494,6 +484,11 @@ window.KivoApp = {
     const targetSection = document.getElementById(`view-${viewName}`);
     if (targetSection) {
       targetSection.style.display = 'block';
+    }
+
+    const loginModal = document.getElementById('modal-login');
+    if (loginModal) {
+      loginModal.style.display = viewName === 'auth' ? 'flex' : 'none';
     }
 
     const isFullWidthView = publicViews.includes(viewName);
