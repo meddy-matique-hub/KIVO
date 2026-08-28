@@ -79,8 +79,12 @@ window.KivoAuth = {
     }
   },
 
-  signUp: async function(email, password) {
-    const { data, error } = await KivoDb.supabase.auth.signUp({ email, password });
+  signUp: async function(email, password, displayName) {
+    const { data, error } = await KivoDb.supabase.auth.signUp({
+      email,
+      password,
+      options: displayName ? { data: { full_name: displayName } } : {}
+    });
     if (error) {
       console.error('[KivoAuth] signUp error:', error.message);
       return { error };
@@ -92,6 +96,21 @@ window.KivoAuth = {
     const { data, error } = await KivoDb.supabase.auth.signInWithPassword({ email, password });
     if (error) {
       console.error('[KivoAuth] signIn error:', error.message);
+      return { error };
+    }
+    return { data };
+  },
+
+  signInWithGoogle: async function() {
+    console.log('[KivoAuth] Initiating Google OAuth...');
+    const { data, error } = await KivoDb.supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + window.location.pathname
+      }
+    });
+    if (error) {
+      console.error('[KivoAuth] Google OAuth error:', error.message);
       return { error };
     }
     return { data };

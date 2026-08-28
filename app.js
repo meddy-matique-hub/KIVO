@@ -605,7 +605,8 @@ window.KivoApp = {
     if (avatarEl) {
       if (biz.logoUrl) {
         avatarEl.style.overflow = 'hidden';
-        avatarEl.innerHTML = `<img src="${biz.logoUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        avatarEl.style.background = '#FFFFFF';
+        avatarEl.innerHTML = `<img src="${biz.logoUrl}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;">`;
       } else {
         avatarEl.innerHTML = biz.logoText || "KM";
       }
@@ -614,11 +615,37 @@ window.KivoApp = {
     const previewBadge = document.getElementById('setting-logo-preview-badge');
     if (previewBadge) {
       if (biz.logoUrl) {
-        previewBadge.innerHTML = `<img src="${biz.logoUrl}" style="width: 100%; height: 100%; object-fit: cover;">`;
+        previewBadge.innerHTML = `<img src="${biz.logoUrl}" style="width: 100%; height: 100%; object-fit: contain;">`;
       } else {
         previewBadge.innerHTML = biz.logoText || "KM";
       }
     }
+
+    // Update builder logo UI
+    const promptEl = document.getElementById('builder-logo-upload-prompt');
+    const boxEl = document.getElementById('builder-logo-preview-box');
+    const imgEl = document.getElementById('builder-logo-preview-img');
+    if (promptEl && boxEl && imgEl) {
+      if (biz.logoUrl) {
+        imgEl.src = biz.logoUrl;
+        boxEl.style.display = 'flex';
+        promptEl.style.display = 'none';
+      } else {
+        boxEl.style.display = 'none';
+        promptEl.style.display = 'block';
+      }
+    }
+  },
+
+  removeBusinessLogo: function () {
+    this.state.business.logoUrl = '';
+    this.saveState();
+    this.updateUserBrandingUI();
+    this.updateLiveInvoicePreview();
+    if (window.KivoDb && this.supabaseConnected) {
+      this.saveSettings();
+    }
+    this.showToast("Logo supprimé.", "info");
   },
 
   /**
@@ -687,23 +714,43 @@ window.KivoApp = {
 
     const activityFeed = document.getElementById('activity-feed-list');
     if (activityFeed) {
-      activityFeed.innerHTML = (this.state.activities || []).slice(0, 4).map(act => `
-        <div style="display: flex; gap: 0.75rem; align-items: flex-start; font-size: 0.85rem;">
-          <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 0.75rem;">
-            ⚡
+      const acts = this.state.activities || [];
+      if (acts.length === 0) {
+        activityFeed.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 1.5rem 0; text-align: center;">Aucune activité récente.</div>`;
+      } else {
+        activityFeed.innerHTML = acts.slice(0, 4).map(act => `
+          <div style="display: flex; gap: 0.75rem; align-items: flex-start; font-size: 0.85rem;">
+            <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 0.75rem;">
+              ⚡
+            </div>
+            <div>
+              <strong style="display: block; color: var(--text-primary);">${act.title}</strong>
+              <span style="color: var(--text-secondary); font-size: 0.75rem;">${act.details} • ${act.timestamp}</span>
+            </div>
           </div>
-          <div>
-            <strong style="display: block; color: var(--text-primary);">${act.title}</strong>
-            <span style="color: var(--text-secondary); font-size: 0.75rem;">${act.details} • ${act.timestamp}</span>
-          </div>
-        </div>
-      `).join('');
+        `).join('');
+      }
     }
 
     const tbody = document.getElementById('dashboard-recent-docs-tbody');
     if (tbody) {
-      const recentDocs = docs.slice(0, 5);
-      tbody.innerHTML = recentDocs.map(doc => this.createDocTableRowHtml(doc)).join('');
+      if (docs.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 3rem 1.5rem; background: var(--bg-card);">
+              <div style="max-width: 380px; margin: 0 auto;">
+                <div style="width: 48px; height: 48px; border-radius: var(--radius-full); background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 1rem auto;">📄</div>
+                <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.35rem; color: var(--text-primary);">Votre espace est prêt</h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">Créez votre première facture ou devis professionnel en quelques clics.</p>
+                <button class="btn btn-primary" onclick="KivoApp.openNewDocModal()">+ Créer ma première facture</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      } else {
+        const recentDocs = docs.slice(0, 5);
+        tbody.innerHTML = recentDocs.map(doc => this.createDocTableRowHtml(doc)).join('');
+      }
     }
   },
 
@@ -754,17 +801,17 @@ window.KivoApp = {
       <svg viewBox="0 0 ${width} ${height}" style="width: 100%; height: 100%; overflow: visible;">
         <defs>
           <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#4F46E5" stop-opacity="0.35"/>
-            <stop offset="100%" stop-color="#4F46E5" stop-opacity="0.0"/>
+            <stop offset="0%" stop-color="#2563EB" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#2563EB" stop-opacity="0.0"/>
           </linearGradient>
         </defs>
         <polygon points="${areaPoints}" fill="url(#chartGradient)"/>
-        <polyline points="${points}" fill="none" stroke="#4F46E5" stroke-width="3" stroke-linecap="round"/>
+        <polyline points="${points}" fill="none" stroke="#2563EB" stroke-width="3" stroke-linecap="round"/>
         ${dataPoints.map((val, idx) => {
           const x = (idx / (dataPoints.length - 1)) * width;
           const y = height - (val / max) * (height - 30);
           const label = val > 0 ? `<title>${monthLabels[idx]}: ${val.toLocaleString('fr-FR')} FCFA</title>` : '';
-          return `<circle cx="${x}" cy="${y}" r="4" fill="#FFFFFF" stroke="#4F46E5" stroke-width="2">${label}</circle>`;
+          return `<circle cx="${x}" cy="${y}" r="4" fill="#FFFFFF" stroke="#2563EB" stroke-width="2">${label}</circle>`;
         }).join('')}
       </svg>
     `;
@@ -1089,7 +1136,8 @@ window.KivoApp = {
     if (logoEl) {
       if (biz.logoUrl) {
         logoEl.style.overflow = 'hidden';
-        logoEl.innerHTML = `<img src="${biz.logoUrl}" style="width: 100%; height: 100%; object-fit: cover;">`;
+        logoEl.style.background = '#FFFFFF';
+        logoEl.innerHTML = `<img src="${biz.logoUrl}" alt="Logo" style="max-height: 100%; max-width: 100%; object-fit: contain;">`;
       } else {
         const initiales = biz.name ? biz.name.substring(0, 2).toUpperCase() : "KM";
         logoEl.innerHTML = biz.logoText || initiales;
