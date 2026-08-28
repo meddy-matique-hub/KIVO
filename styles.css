@@ -1836,90 +1836,113 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.kivo-dash-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  line-height: 1.2;
+  font-family: var(--font-heading);
+}
+
+.kivo-dash-header p {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.2;
+  font-family: var(--font-heading);
 }
 
 .kivo-dash-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 1.25rem;
-  border-radius: 9999px;
-  font-size: 0.9rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
   font-family: var(--font-body);
+  letter-spacing: 0;
 }
 
 .kivo-dash-btn-dark {
   background-color: #111827;
   color: #FFF;
   border: 1px solid #111827;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 .kivo-dash-btn-dark:hover {
   background-color: #1F2937;
-  transform: translateY(-1px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .kivo-dash-btn-outline {
   background-color: #FFF;
-  color: #111827;
-  border: 1px solid #E5E7EB;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  color: #374151;
+  border: 1px solid #D1D5DB;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 .kivo-dash-btn-outline:hover {
   background-color: #F9FAFB;
-  border-color: #D1D5DB;
+  border-color: #9CA3AF;
 }
 
 /* Analytics Cards */
 .kivo-dash-metrics {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1.25rem;
+  gap: 1rem;
   margin-bottom: 2rem;
 }
 
 .kivo-dash-card {
   background: #FFF;
-  border-radius: 16px;
-  padding: 1.25rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  border: 1px solid rgba(229, 231, 235, 0.5);
+  border-radius: 14px;
+  padding: 1.25rem 1.25rem 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  border: 1px solid #E5E7EB;
   display: flex;
   flex-direction: column;
+  min-height: 180px;
 }
 
 .kivo-dash-card-title {
-  font-size: 0.85rem;
-  color: #111827;
+  font-size: 0.82rem;
+  color: #6B7280;
   font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 0.4rem;
 }
 
 .kivo-dash-card-value {
-  font-size: 1.75rem;
+  font-size: 1.65rem;
   font-weight: 800;
   color: #111827;
   font-family: var(--font-heading);
-  letter-spacing: -0.025em;
-  margin-top: 0.25rem;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin: 0;
 }
 
 .kivo-dash-card-sub {
-  font-size: 0.75rem;
-  color: #10B981; /* Green for positive */
-  font-weight: 500;
+  font-size: 0.72rem;
+  color: #10B981;
+  font-weight: 600;
   margin-top: 0.25rem;
 }
 
 .kivo-dash-chart {
   margin-top: auto;
-  padding-top: 1rem;
+  padding-top: 0.75rem;
   width: 100%;
-  height: 60px;
+  height: 55px;
 }
 
 /* Recent Invoices Table */
@@ -1969,48 +1992,57 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 .kivo-dash-badge.pending { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
 .kivo-dash-badge.overdue { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
 
-/* Right Widget (Invoice Preview) */
+/* Right Widget (Invoice Preview) — Floating A4 paper effect */
 .kivo-dash-invoice-widget {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  border-radius: 20px;
-  padding: 1.5rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
   width: 100%;
   min-height: 400px;
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 1);
+  box-shadow: none;
   position: relative;
+  display: flex;
+  justify-content: center;
 }
 
-/* Inner mock paper */
+/* Inner mock paper — exact A4 floating card */
 .kivo-dash-mock-paper {
   background: #FFF;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  padding: 1.75rem 1.5rem;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0,0,0,0.08);
   font-family: 'Inter', sans-serif;
   color: #111827;
   font-size: 0.75rem;
+  width: 100%;
+  transform: rotate(0deg);
+  position: relative;
 }
 
 .kivo-dash-mock-paper table {
   width: 100%;
-  margin: 1rem 0;
+  margin: 0.75rem 0;
   border-collapse: collapse;
 }
 
 .kivo-dash-mock-paper th {
   background: #111827;
   color: #FFF;
-  padding: 0.4rem 0.5rem;
+  padding: 0.45rem 0.6rem;
   text-align: left;
   font-weight: 600;
+  font-size: 0.7rem;
 }
 
 .kivo-dash-mock-paper td {
-  padding: 0.4rem 0.5rem;
-  border-bottom: 1px solid #E5E7EB;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid #F3F4F6;
+  font-size: 0.72rem;
+}
+
+.kivo-dash-mock-paper tr:last-child td {
+  border-bottom: none;
 }
 
 /* Responsive */
