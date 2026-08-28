@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=2.6">
+  <link rel="stylesheet" href="styles.css?v=2.7">
 </head>
 <body>
 
@@ -683,112 +683,105 @@
 
         <!-- ==================== DASHBOARD VIEW ==================== -->
         <section id="view-dashboard" class="view-section" style="display:none;">
-          <div style="display:flex; flex-direction:row; gap:2.5rem; background:#F4F6F8; padding:3rem; margin:-2rem; min-height:calc(100vh + 4rem); width:calc(100% + 4rem);">
+          <div style="background:#F4F6F8; padding:3.5rem; margin:-2rem; min-height:calc(100vh + 4rem); width:calc(100% + 4rem);">
             
-            <!-- LEFT: Main Content (70%) -->
-            <div style="flex:0 0 68%; max-width:68%; display:flex; flex-direction:column;">
+            <!-- Main Content (100%) -->
+            <div style="max-width: 1200px; display:flex; flex-direction:column; gap: 2rem;">
               
               <!-- Greeting -->
-              <div style="margin-bottom:2.5rem;">
-                <h1 id="dash-greeting" style="font-family:'Outfit',sans-serif; font-size:2.2rem; font-weight:700; color:#111827; margin:0; line-height:1.15;">Bonjour,</h1>
-                <p style="font-family:'Outfit',sans-serif; font-size:2.2rem; font-weight:700; color:#111827; margin:0 0 1.5rem 0; line-height:1.15;">Bienvenue sur votre dashboard KIVO.</p>
-                <div style="display:flex; gap:0.75rem;">
-                  <button onclick="KivoApp.openNewDocModal('invoice')" style="display:inline-flex; align-items:center; gap:0.5rem; padding:0.65rem 1.25rem; border-radius:8px; background:#111827; color:#FFF; border:1px solid #111827; font-size:0.875rem; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <div style="margin-bottom:1rem;">
+                <h1 id="dash-greeting" style="font-family:'Outfit',sans-serif; font-size:2.5rem; font-weight:700; color:#111827; margin:0 0 0.5rem 0; line-height:1.15;">Bonjour,</h1>
+                <p style="font-family:'Outfit',sans-serif; font-size:2.5rem; font-weight:700; color:#111827; margin:0 0 2rem 0; line-height:1.15;">Bienvenue sur votre dashboard KIVO.</p>
+                <div style="display:flex; gap:1rem;">
+                  <button onclick="KivoApp.openNewDocModal('invoice')" style="display:inline-flex; align-items:center; gap:0.5rem; padding:0.75rem 1.5rem; border-radius:8px; background:#111827; color:#FFF; border:1px solid #111827; font-size:0.95rem; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     Créer une facture
                   </button>
-                  <button onclick="KivoApp.openNewDocModal('quote')" style="display:inline-flex; align-items:center; gap:0.5rem; padding:0.65rem 1.25rem; border-radius:8px; background:#FFF; color:#374151; border:1px solid #D1D5DB; font-size:0.875rem; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <button onclick="KivoApp.openNewDocModal('quote')" style="display:inline-flex; align-items:center; gap:0.5rem; padding:0.75rem 1.5rem; border-radius:8px; background:#FFF; color:#374151; border:1px solid #D1D5DB; font-size:0.95rem; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     Créer un devis
                   </button>
                 </div>
               </div>
 
               <!-- Analytics Title -->
-              <h2 style="font-size:1rem; font-weight:700; color:#111827; margin:0 0 1.25rem 0;">Analytics (Vue d'ensemble)</h2>
+              <div>
+                <h2 style="font-size:1.1rem; font-weight:700; color:#111827; margin:0 0 1.5rem 0;">Analytics (Vue d'ensemble)</h2>
 
-              <!-- 4 Analytics Cards Grid -->
-              <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1.25rem; margin-bottom:2.5rem;">
-                
-                <!-- Card 1: Chiffre d'affaires -->
-                <div style="background:#FFF; border-radius:14px; padding:1.25rem; border:1px solid #E5E7EB; box-shadow:0 1px 3px rgba(0,0,0,0.06); display:flex; flex-direction:column; min-height:175px;">
-                  <div style="font-size:0.8rem; color:#6B7280; font-weight:600; margin-bottom:0.5rem;">Chiffre d'affaires</div>
-                  <div id="kpi-paid" style="font-family:'Outfit',sans-serif; font-size:1.5rem; font-weight:800; color:#111827; letter-spacing:-0.02em; line-height:1.1;">0</div>
-                  <div id="kpi-paid-sub" style="font-size:0.72rem; color:#10B981; font-weight:600; margin-top:0.25rem;">vs. dernier mois</div>
-                  <div id="chart-revenue" style="margin-top:auto; padding-top:0.75rem; height:55px;"></div>
-                </div>
+                <!-- 4 Analytics Cards Grid -->
+                <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1.5rem;">
+                  
+                  <!-- Card 1: Chiffre d'affaires -->
+                  <div style="background:#FFF; border-radius:14px; padding:1.5rem; border:1px solid #E5E7EB; box-shadow:0 2px 4px rgba(0,0,0,0.04); display:flex; flex-direction:column; min-height:190px;">
+                    <div style="font-size:0.85rem; color:#6B7280; font-weight:600; margin-bottom:0.75rem;">Chiffre d'affaires</div>
+                    <div id="kpi-paid" style="font-family:'Outfit',sans-serif; font-size:1.75rem; font-weight:800; color:#111827; letter-spacing:-0.02em; line-height:1.1;">0</div>
+                    <div id="kpi-paid-sub" style="font-size:0.75rem; color:#10B981; font-weight:600; margin-top:0.35rem;">vs. dernier mois</div>
+                    <div id="chart-revenue" style="margin-top:auto; padding-top:1rem; height:60px;"></div>
+                  </div>
 
-                <!-- Card 2: Factures -->
-                <div style="background:#FFF; border-radius:14px; padding:1.25rem; border:1px solid #E5E7EB; box-shadow:0 1px 3px rgba(0,0,0,0.06); display:flex; flex-direction:column; min-height:175px;">
-                  <div style="font-size:0.8rem; color:#6B7280; font-weight:600; margin-bottom:0.5rem;">Factures</div>
-                  <div style="display:flex; gap:1.5rem; align-items:flex-end; margin-top:0.25rem;">
-                    <div>
-                      <div id="kpi-total-invoices" style="font-family:'Outfit',sans-serif; font-size:2rem; font-weight:800; color:#111827; letter-spacing:-0.02em; line-height:1;">0</div>
-                      <div style="font-size:0.72rem; color:#6B7280; font-weight:500; margin-top:0.2rem;">Total</div>
+                  <!-- Card 2: Factures -->
+                  <div style="background:#FFF; border-radius:14px; padding:1.5rem; border:1px solid #E5E7EB; box-shadow:0 2px 4px rgba(0,0,0,0.04); display:flex; flex-direction:column; min-height:190px;">
+                    <div style="font-size:0.85rem; color:#6B7280; font-weight:600; margin-bottom:0.75rem;">Factures</div>
+                    <div style="display:flex; gap:2rem; align-items:flex-end; margin-top:0.35rem;">
+                      <div>
+                        <div id="kpi-total-invoices" style="font-family:'Outfit',sans-serif; font-size:2.25rem; font-weight:800; color:#111827; letter-spacing:-0.02em; line-height:1;">0</div>
+                        <div style="font-size:0.75rem; color:#6B7280; font-weight:500; margin-top:0.3rem;">Total</div>
+                      </div>
+                      <div>
+                        <div id="kpi-paid-invoices" style="font-family:'Outfit',sans-serif; font-size:2.25rem; font-weight:800; color:#111827; letter-spacing:-0.02em; line-height:1;">0</div>
+                        <div style="font-size:0.75rem; color:#6B7280; font-weight:500; margin-top:0.3rem;">Payées</div>
+                      </div>
                     </div>
-                    <div>
-                      <div id="kpi-paid-invoices" style="font-family:'Outfit',sans-serif; font-size:2rem; font-weight:800; color:#111827; letter-spacing:-0.02em; line-height:1;">0</div>
-                      <div style="font-size:0.72rem; color:#6B7280; font-weight:500; margin-top:0.2rem;">Payées</div>
+                    <div id="chart-invoices" style="margin-top:auto; padding-top:1rem; height:60px; display:flex; align-items:flex-end; gap:6px;"></div>
+                  </div>
+
+                  <!-- Card 3: En attente -->
+                  <div style="background:#FFF; border-radius:14px; padding:1.5rem; border:1px solid #E5E7EB; box-shadow:0 2px 4px rgba(0,0,0,0.04); display:flex; flex-direction:column; min-height:190px;">
+                    <div style="font-size:0.85rem; color:#6B7280; font-weight:600; margin-bottom:0.75rem;">En attente</div>
+                    <div style="display:flex; align-items:baseline; gap:0.4rem;">
+                      <div id="kpi-pending-count" style="font-family:'Outfit',sans-serif; font-size:2.25rem; font-weight:800; color:#111827; letter-spacing:-0.02em; line-height:1;">0</div>
+                      <div style="font-size:0.85rem; color:#6B7280; font-weight:500;">Factures</div>
                     </div>
+                    <div id="kpi-pending-amount" style="font-size:0.95rem; color:#6B7280; font-weight:500; margin-top:0.35rem;">0</div>
+                    <div id="chart-pending" style="margin-top:auto; padding-top:1rem; height:60px; display:flex; align-items:center; justify-content:center;"></div>
                   </div>
-                  <div id="chart-invoices" style="margin-top:auto; padding-top:0.75rem; height:55px; display:flex; align-items:flex-end; gap:4px;"></div>
-                </div>
 
-                <!-- Card 3: En attente -->
-                <div style="background:#FFF; border-radius:14px; padding:1.25rem; border:1px solid #E5E7EB; box-shadow:0 1px 3px rgba(0,0,0,0.06); display:flex; flex-direction:column; min-height:175px;">
-                  <div style="font-size:0.8rem; color:#6B7280; font-weight:600; margin-bottom:0.5rem;">En attente</div>
-                  <div style="display:flex; align-items:baseline; gap:0.3rem;">
-                    <div id="kpi-pending-count" style="font-family:'Outfit',sans-serif; font-size:2rem; font-weight:800; color:#111827; letter-spacing:-0.02em; line-height:1;">0</div>
-                    <div style="font-size:0.8rem; color:#6B7280; font-weight:500;">Factures</div>
+                  <!-- Card 4: En retard -->
+                  <div style="background:#FFF; border-radius:14px; padding:1.5rem; border:1px solid #E5E7EB; box-shadow:0 2px 4px rgba(0,0,0,0.04); display:flex; flex-direction:column; min-height:190px;">
+                    <div style="font-size:0.85rem; color:#6B7280; font-weight:600; margin-bottom:0.75rem;">En retard</div>
+                    <div style="display:flex; align-items:baseline; gap:0.4rem;">
+                      <div id="kpi-overdue-count" style="font-family:'Outfit',sans-serif; font-size:2.25rem; font-weight:800; color:#111827; letter-spacing:-0.02em; line-height:1;">0</div>
+                      <div style="font-size:0.85rem; color:#6B7280; font-weight:500;">Factures</div>
+                    </div>
+                    <div id="kpi-overdue-amount" style="font-size:0.95rem; color:#6B7280; font-weight:500; margin-top:0.35rem;">0</div>
+                    <div id="chart-overdue" style="margin-top:auto; padding-top:1rem; height:60px;"></div>
                   </div>
-                  <div id="kpi-pending-amount" style="font-size:0.85rem; color:#6B7280; font-weight:500; margin-top:0.2rem;">0</div>
-                  <div id="chart-pending" style="margin-top:auto; padding-top:0.75rem; height:55px; display:flex; align-items:center; justify-content:center;"></div>
-                </div>
 
-                <!-- Card 4: En retard -->
-                <div style="background:#FFF; border-radius:14px; padding:1.25rem; border:1px solid #E5E7EB; box-shadow:0 1px 3px rgba(0,0,0,0.06); display:flex; flex-direction:column; min-height:175px;">
-                  <div style="font-size:0.8rem; color:#6B7280; font-weight:600; margin-bottom:0.5rem;">En retard</div>
-                  <div style="display:flex; align-items:baseline; gap:0.3rem;">
-                    <div id="kpi-overdue-count" style="font-family:'Outfit',sans-serif; font-size:2rem; font-weight:800; color:#111827; letter-spacing:-0.02em; line-height:1;">0</div>
-                    <div style="font-size:0.8rem; color:#6B7280; font-weight:500;">Factures</div>
-                  </div>
-                  <div id="kpi-overdue-amount" style="font-size:0.85rem; color:#6B7280; font-weight:500; margin-top:0.2rem;">0</div>
-                  <div id="chart-overdue" style="margin-top:auto; padding-top:0.75rem; height:55px;"></div>
                 </div>
-
               </div>
 
               <!-- Recent Invoices -->
-              <h2 style="font-size:1rem; font-weight:700; color:#111827; margin:0 0 1.25rem 0;">Factures récentes</h2>
-              <div style="background:#FFF; border-radius:14px; border:1px solid #E5E7EB; box-shadow:0 1px 3px rgba(0,0,0,0.06); overflow:hidden; padding: 0.5rem;">
-                <table class="kivo-dash-table" style="width:100%; border-collapse:collapse;">
-                  <thead>
-                    <tr>
-                      <th style="text-align:left; padding:1rem; font-size:0.8rem; font-weight:600; color:#6B7280; border-bottom:1px solid #F3F4F6;">Numéro</th>
-                      <th style="text-align:left; padding:1rem; font-size:0.8rem; font-weight:600; color:#6B7280; border-bottom:1px solid #F3F4F6;">Client</th>
-                      <th style="text-align:left; padding:1rem; font-size:0.8rem; font-weight:600; color:#6B7280; border-bottom:1px solid #F3F4F6;">Date</th>
-                      <th style="text-align:left; padding:1rem; font-size:0.8rem; font-weight:600; color:#6B7280; border-bottom:1px solid #F3F4F6;">Montant</th>
-                      <th style="text-align:right; padding:1rem; font-size:0.8rem; font-weight:600; color:#6B7280; border-bottom:1px solid #F3F4F6;">Statut</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dashboard-recent-docs-tbody">
-                    <!-- Dynamically populated -->
-                  </tbody>
-                </table>
-              </div>
-
-            </div>
-
-            <!-- RIGHT: Invoice Widget (30%) -->
-            <div style="flex:0 0 32%; max-width:32%; display:flex; flex-direction:column; align-items:center; padding-top:1rem;">
-              <div id="dash-invoice-widget" style="width:100%;">
-                <div style="text-align:center; color:#9CA3AF; padding:2rem; margin-top:40%;">
-                  <div style="font-size:2rem; margin-bottom:0.5rem;">📄</div>
-                  <div>Aucune facture disponible</div>
+              <div>
+                <h2 style="font-size:1.1rem; font-weight:700; color:#111827; margin:0 0 1.5rem 0;">Factures récentes</h2>
+                <div style="background:#FFF; border-radius:14px; border:1px solid #E5E7EB; box-shadow:0 2px 4px rgba(0,0,0,0.04); overflow:hidden; padding: 0.5rem;">
+                  <table class="kivo-dash-table" style="width:100%; border-collapse:collapse;">
+                    <thead>
+                      <tr>
+                        <th style="text-align:left; padding:1.25rem; font-size:0.85rem; font-weight:600; color:#6B7280; border-bottom:1px solid #F3F4F6;">Numéro</th>
+                        <th style="text-align:left; padding:1.25rem; font-size:0.85rem; font-weight:600; color:#6B7280; border-bottom:1px solid #F3F4F6;">Client</th>
+                        <th style="text-align:left; padding:1.25rem; font-size:0.85rem; font-weight:600; color:#6B7280; border-bottom:1px solid #F3F4F6;">Date</th>
+                        <th style="text-align:left; padding:1.25rem; font-size:0.85rem; font-weight:600; color:#6B7280; border-bottom:1px solid #F3F4F6;">Montant</th>
+                        <th style="text-align:right; padding:1.25rem; font-size:0.85rem; font-weight:600; color:#6B7280; border-bottom:1px solid #F3F4F6;">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody id="dashboard-recent-docs-tbody">
+                      <!-- Dynamically populated -->
+                    </tbody>
+                  </table>
                 </div>
               </div>
+
             </div>
-            
           </div>
         </section>
 
@@ -1984,13 +1977,13 @@
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-client.js?v=2.6"></script>
-  <script src="js/auth.js?v=2.6"></script>
-  <script src="js/ai-assistant.js?v=2.6"></script>
-  <script src="js/payment-provider.js?v=2.6"></script>
-  <script src="js/whatsapp-helper.js?v=2.6"></script>
-  <script src="js/doc-templates.js?v=2.6"></script>
-  <script src="app.js?v=2.6"></script>
+  <script src="js/supabase-client.js?v=2.7"></script>
+  <script src="js/auth.js?v=2.7"></script>
+  <script src="js/ai-assistant.js?v=2.7"></script>
+  <script src="js/payment-provider.js?v=2.7"></script>
+  <script src="js/whatsapp-helper.js?v=2.7"></script>
+  <script src="js/doc-templates.js?v=2.7"></script>
+  <script src="app.js?v=2.7"></script>
 </body>
 </html>
 
