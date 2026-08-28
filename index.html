@@ -451,7 +451,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Mot de passe</label>
-                <input type="password" id="auth-login-password" class="form-input" placeholder="Votre mot de passe" required>
+                <input type="password" id="auth-login-password" class="form-input" placeholder="Votre mot de passe" required autocomplete="current-password">
               </div>
               <div style="text-align: right; margin-top: -0.5rem; margin-bottom: 1rem;">
                 <a href="#" style="font-size: 0.82rem; color: var(--primary);">Mot de passe oublié ?</a>
@@ -476,11 +476,11 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Mot de passe <span style="color: var(--danger-text);">*</span></label>
-                <input type="password" id="auth-reg-password" class="form-input" placeholder="Au moins 6 caractères" required minlength="6">
+                <input type="password" id="auth-reg-password" class="form-input" placeholder="Au moins 6 caractères" required minlength="6" autocomplete="new-password">
               </div>
               <div class="form-group">
                 <label class="form-label">Confirmer le mot de passe <span style="color: var(--danger-text);">*</span></label>
-                <input type="password" id="auth-reg-password2" class="form-input" placeholder="Répétez votre mot de passe" required minlength="6">
+                <input type="password" id="auth-reg-password2" class="form-input" placeholder="Répétez votre mot de passe" required minlength="6" autocomplete="new-password">
               </div>
               <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem;">
                 Créer mon compte ➔
@@ -1818,7 +1818,7 @@
               <a href="#" style="font-size: 0.8rem; font-weight: 500;" onclick="alert('Fonctionnalité de récupération à venir'); return false;" id="auth-forgot-link">Mot de passe oublié ?</a>
             </div>
             <div style="position: relative;">
-              <input type="password" id="auth-password" class="form-input" placeholder="••••••••" required style="padding: 0.85rem 1rem; border-radius: var(--radius-md);">
+              <input type="password" id="auth-password" class="form-input" placeholder="••••••••" required autocomplete="current-password" style="padding: 0.85rem 1rem; border-radius: var(--radius-md);">
               <button type="button" style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); padding: 0.2rem;" onclick="togglePasswordVisibility()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>

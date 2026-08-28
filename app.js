@@ -711,7 +711,21 @@ window.KivoApp = {
     });
 
     const formatCurrency = (val) => {
-      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: biz.currency || 'XOF' }).format(val);
+      // Map display labels to valid ISO 4217 codes for Intl.NumberFormat
+      const currencyMap = {
+        'FCFA': 'XOF', 'XOF': 'XOF', 'XAF': 'XAF',
+        'EUR': 'EUR', 'USD': 'USD', 'GBP': 'GBP', 'CAD': 'CAD',
+        'CDF': 'CDF', 'GNF': 'GNF', 'MAD': 'MAD', 'TND': 'TND',
+      };
+      const rawCurrency = biz.currency || 'FCFA';
+      const isoCurrency = currencyMap[rawCurrency] || null;
+      if (isoCurrency) {
+        try {
+          return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: isoCurrency }).format(val);
+        } catch (e) { /* fall through */ }
+      }
+      // Fallback: format number and append the label
+      return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val) + ' ' + rawCurrency;
     };
 
     const greetingEl = document.getElementById('dash-greeting');
