@@ -51,19 +51,24 @@ window.KivoAuth = {
 
     // 2. Store user email in app state
     if (window.KivoApp) {
-      KivoApp.state.userEmail = session.user.email;
+      // Ensure app state is initialized
+      if (!KivoApp.state) {
+        KivoApp.state = JSON.parse(JSON.stringify(KivoApp.BLANK_STATE));
+      }
+      // Safely set user email
+      KivoApp.state.userEmail = session.user?.email || '';
       KivoApp.supabaseConnected = true;
 
-      // 3. Load data from Supabase (this also sets isOnboarded if business_settings exist)
+      // Load data from Supabase (this also sets isOnboarded if business_settings exist)
       try {
         await KivoApp.syncFromSupabase();
       } catch(e) {
         console.error('[KivoAuth] syncFromSupabase error after login:', e);
       }
 
-      // 4. Route: if onboarded → dashboard, else → onboarding
+      // Route: if onboarded → dashboard, else → onboarding
       if (KivoApp.state.isOnboarded) {
-        KivoApp.showToast(`Bienvenue sur KIVO MATIQUE, ${KivoApp.state.business.owner || session.user.email} ! 👋`, 'success');
+        KivoApp.showToast(`Bienvenue sur KIVO MATIQUE, ${KivoApp.state.business?.owner || session.user?.email} ! 👋`, 'success');
         KivoApp.navigate('dashboard');
       } else {
         KivoApp.showToast('Connexion réussie ! Configurons votre espace.', 'info');

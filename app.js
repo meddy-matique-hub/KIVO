@@ -620,7 +620,7 @@ window.KivoApp = {
    * Updates sidebar and header branding elements
    */
   updateUserBrandingUI: function () {
-    const biz = this.state.business;
+    const biz = (this.state && this.state.business) || {};
     const nameEl = document.getElementById('sidebar-user-name');
     const bizEl = document.getElementById('sidebar-business-name');
     const emailEl = document.getElementById('sidebar-user-email');
