@@ -607,10 +607,12 @@ window.KivoApp = {
     const biz = this.state.business;
     const nameEl = document.getElementById('sidebar-user-name');
     const bizEl = document.getElementById('sidebar-business-name');
+    const emailEl = document.getElementById('sidebar-user-email');
     const avatarEl = document.getElementById('sidebar-avatar');
     
     if (nameEl) nameEl.textContent = biz.owner || "Mon Compte";
     if (bizEl) bizEl.textContent = biz.name || "KIVO MATIQUE";
+    if (emailEl) emailEl.textContent = biz.email || "contact@entreprise.com";
     
     if (avatarEl) {
       if (biz.logoUrl) {
@@ -685,81 +687,204 @@ window.KivoApp = {
     let paidTotal = 0;
     let pendingTotal = 0;
     let overdueTotal = 0;
-    let pendingQuotesCount = 0;
+    
+    let totalInvoices = 0;
+    let paidInvoicesCount = 0;
+    let pendingInvoicesCount = 0;
+    let overdueInvoicesCount = 0;
 
     docs.forEach(doc => {
       const docTotal = doc.total || 0;
       if (doc.type === 'invoice') {
+        totalInvoices++;
         if (doc.status === 'paid') {
           paidTotal += docTotal;
+          paidInvoicesCount++;
         } else if (doc.status === 'overdue') {
           overdueTotal += docTotal;
+          overdueInvoicesCount++;
         } else if (doc.status === 'sent' || doc.status === 'viewed') {
           pendingTotal += docTotal;
-        }
-      } else if (doc.type === 'quote') {
-        if (doc.status === 'sent' || doc.status === 'viewed' || doc.status === 'draft') {
-          pendingQuotesCount++;
+          pendingInvoicesCount++;
         }
       }
     });
 
-    const formatCurrency = (val) => val.toLocaleString('fr-FR') + ' ' + (biz.currency || 'FCFA');
+    const formatCurrency = (val) => {
+      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: biz.currency || 'XOF' }).format(val);
+    };
 
     const greetingEl = document.getElementById('dash-greeting');
     if (greetingEl) {
-      greetingEl.textContent = `Bonjour, ${(biz.owner || 'Marc').split(' ')[0]} 👋`;
+      greetingEl.textContent = `Bonjour ${(biz.owner || 'Marc').split(' ')[0]},`;
     }
     
     const paidEl = document.getElementById('kpi-paid');
     if (paidEl) paidEl.textContent = formatCurrency(paidTotal);
-    const pendEl = document.getElementById('kpi-pending');
-    if (pendEl) pendEl.textContent = formatCurrency(pendingTotal);
-    const overEl = document.getElementById('kpi-overdue');
-    if (overEl) overEl.textContent = formatCurrency(overdueTotal);
-    const quotEl = document.getElementById('kpi-quotes-count');
-    if (quotEl) quotEl.textContent = pendingQuotesCount;
+    
+    const totalInvEl = document.getElementById('kpi-total-invoices');
+    if (totalInvEl) totalInvEl.textContent = totalInvoices;
+    const paidInvEl = document.getElementById('kpi-paid-invoices');
+    if (paidInvEl) paidInvEl.textContent = paidInvoicesCount;
+    
+    const pendCountEl = document.getElementById('kpi-pending-count');
+    if (pendCountEl) pendCountEl.textContent = pendingInvoicesCount;
+    const pendAmountEl = document.getElementById('kpi-pending-amount');
+    if (pendAmountEl) pendAmountEl.textContent = formatCurrency(pendingTotal);
+    
+    const overCountEl = document.getElementById('kpi-overdue-count');
+    if (overCountEl) overCountEl.textContent = overdueInvoicesCount;
+    const overAmountEl = document.getElementById('kpi-overdue-amount');
+    if (overAmountEl) overAmountEl.textContent = formatCurrency(overdueTotal);
 
-    this.renderRevenueChart();
-
-    const activityFeed = document.getElementById('activity-feed-list');
-    if (activityFeed) {
-      const acts = this.state.activities || [];
-      if (acts.length === 0) {
-        activityFeed.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 1.5rem 0; text-align: center;">Aucune activité récente.</div>`;
-      } else {
-        activityFeed.innerHTML = acts.slice(0, 4).map(act => `
-          <div style="display: flex; gap: 0.75rem; align-items: flex-start; font-size: 0.85rem;">
-            <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 0.75rem;">
-              ⚡
-            </div>
-            <div>
-              <strong style="display: block; color: var(--text-primary);">${act.title}</strong>
-              <span style="color: var(--text-secondary); font-size: 0.75rem;">${act.details} • ${act.timestamp}</span>
-            </div>
-          </div>
-        `).join('');
-      }
+    // Mini charts
+    const chartRev = document.getElementById('chart-revenue');
+    if (chartRev) chartRev.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M0,35 Q10,25 25,30 T50,20 T75,10 T100,5" fill="none" stroke="#60A5FA" stroke-width="3" stroke-linecap="round"/><path d="M0,35 Q10,25 25,30 T50,20 T75,10 T100,5 L100,40 L0,40 Z" fill="url(#gradRev)" opacity="0.2"/><defs><linearGradient id="gradRev" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#60A5FA"/><stop offset="100%" stop-color="#EFF6FF"/></linearGradient></defs></svg>`;
+    
+    const chartInv = document.getElementById('chart-invoices');
+    if (chartInv) {
+      chartInv.style.display = 'flex';
+      chartInv.style.alignItems = 'flex-end';
+      chartInv.style.justifyContent = 'space-between';
+      chartInv.style.gap = '4px';
+      chartInv.innerHTML = `
+        <div style="width: 15%; height: 40%; background: #1E3A8A; border-radius: 4px 4px 0 0;"></div>
+        <div style="width: 15%; height: 60%; background: #9CA3AF; border-radius: 4px 4px 0 0;"></div>
+        <div style="width: 15%; height: 80%; background: #92400E; border-radius: 4px 4px 0 0;"></div>
+        <div style="width: 15%; height: 100%; background: #1E3A8A; border-radius: 4px 4px 0 0;"></div>
+        <div style="width: 15%; height: 50%; background: #E5E7EB; border-radius: 4px 4px 0 0;"></div>
+        <div style="width: 15%; height: 30%; background: #E5E7EB; border-radius: 4px 4px 0 0;"></div>
+      `;
     }
+
+    const chartPend = document.getElementById('chart-pending');
+    if (chartPend) {
+      chartPend.style.display = 'flex';
+      chartPend.style.alignItems = 'center';
+      chartPend.style.justifyContent = 'center';
+      chartPend.innerHTML = `
+        <div style="width: 50px; height: 50px; border-radius: 50%; background: conic-gradient(#1E3A8A 0% 70%, #E5E7EB 70% 100%); position: relative;">
+          <div style="position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; background: #FFF; border-radius: 50%;"></div>
+        </div>
+      `;
+    }
+
+    const chartOver = document.getElementById('chart-overdue');
+    if (chartOver) chartOver.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M0,35 Q20,30 40,35 T80,15 T100,5" fill="none" stroke="#92400E" stroke-width="3" stroke-linecap="round"/><path d="M0,35 Q20,30 40,35 T80,15 T100,5 L100,40 L0,40 Z" fill="url(#gradOver)" opacity="0.2"/><defs><linearGradient id="gradOver" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#92400E"/><stop offset="100%" stop-color="#FFFBEB"/></linearGradient></defs></svg>`;
+
 
     const tbody = document.getElementById('dashboard-recent-docs-tbody');
     if (tbody) {
-      if (docs.length === 0) {
+      const recentInvoices = docs.filter(d => d.type === 'invoice').slice(0, 5);
+      if (recentInvoices.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="7" style="text-align: center; padding: 3rem 1.5rem; background: var(--bg-card);">
-              <div style="max-width: 380px; margin: 0 auto;">
-                <div style="width: 48px; height: 48px; border-radius: var(--radius-full); background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 1rem auto;">📄</div>
-                <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.35rem; color: var(--text-primary);">Votre espace est prêt</h3>
-                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">Créez votre première facture ou devis professionnel en quelques clics.</p>
-                <button class="btn btn-primary" onclick="KivoApp.openNewDocModal()">+ Créer ma première facture</button>
-              </div>
-            </td>
+            <td colspan="5" style="text-align: center; padding: 2rem;">Aucune facture récente</td>
           </tr>
         `;
       } else {
-        const recentDocs = docs.slice(0, 5);
-        tbody.innerHTML = recentDocs.map(doc => this.createDocTableRowHtml(doc)).join('');
+        tbody.innerHTML = recentInvoices.map(doc => {
+          let badgeClass = 'pending';
+          let badgeText = 'En attente';
+          if(doc.status === 'paid') { badgeClass = 'paid'; badgeText = 'Payée'; }
+          else if(doc.status === 'overdue') { badgeClass = 'overdue'; badgeText = 'En retard'; }
+          
+          return `
+            <tr>
+              <td>${doc.number}</td>
+              <td>${doc.clientName}</td>
+              <td>${doc.date}</td>
+              <td>${formatCurrency(doc.total || 0)}</td>
+              <td style="text-align: right;"><span class="kivo-dash-badge ${badgeClass}">${badgeText}</span></td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    // Invoice Preview Widget
+    const widget = document.getElementById('dash-invoice-widget');
+    if (widget) {
+      const lastInvoice = docs.find(d => d.type === 'invoice');
+      if (!lastInvoice) {
+        widget.innerHTML = `
+          <div style="text-align: center; color: #9CA3AF; padding: 2rem; margin-top: 50%;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">📄</div>
+            <div>Aucune facture disponible</div>
+          </div>
+        `;
+      } else {
+        const linesHtml = (lastInvoice.items || []).slice(0,3).map(i => `
+          <tr>
+            <td>${i.description}</td>
+            <td style="text-align: center;">${i.quantity}</td>
+            <td style="text-align: right;">${formatCurrency(i.amount)}</td>
+          </tr>
+        `).join('');
+
+        widget.innerHTML = `
+          <div class="kivo-dash-mock-paper">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div style="color: #111827; font-weight: 800; font-size: 1.25rem; font-family: var(--font-heading);">
+                  <svg width="20" height="20" viewBox="0 0 32 32" fill="none" style="vertical-align: middle; margin-right: 4px;">
+                    <path d="M7 6L14 16L7 26" stroke="#111827" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M16 6L23 16L16 26" stroke="#D1D5DB" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  KIVO
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-weight: 700; font-size: 0.9rem;">FACTURE</div>
+                <div style="color: #6B7280; font-size: 0.7rem;">${lastInvoice.number}</div>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;">
+              <div>
+                <div style="color: #6B7280; font-size: 0.7rem; font-weight: 600;">Client</div>
+                <div style="font-weight: 600;">${lastInvoice.clientName}</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="color: #6B7280; font-size: 0.7rem; font-weight: 600;">Date</div>
+                <div style="font-weight: 600;">${lastInvoice.date}</div>
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th style="text-align: center;">Qty</th>
+                  <th style="text-align: right;">Montant</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${linesHtml}
+              </tbody>
+            </table>
+
+            <div style="margin-top: 1.5rem; border-top: 1px solid #E5E7EB; padding-top: 1rem;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                <span style="font-weight: 600;">Total</span>
+                <span style="font-weight: 700;">${formatCurrency(lastInvoice.total || 0)}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem; color: #6B7280;">
+                <span>Payment deals</span>
+                <span>${formatCurrency(0)}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; color: #6B7280;">
+                <span>Status</span>
+                <span>${lastInvoice.status === 'paid' ? 'Payée' : (lastInvoice.status === 'overdue' ? 'En retard' : 'En attente')}</span>
+              </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 2rem;">
+              <div style="color: #6B7280; font-size: 0.65rem; margin-bottom: 0.5rem;">Facture info@kivo.com</div>
+              ${lastInvoice.status === 'paid' ? `<div style="background: linear-gradient(to right, #92400E, #D97706); color: #FFF; padding: 0.5rem; border-radius: 6px; font-weight: 600; font-size: 0.75rem;">PAYÉE</div>` : `<div style="background: #111827; color: #FFF; padding: 0.5rem; border-radius: 6px; font-weight: 600; font-size: 0.75rem;">A PAYER</div>`}
+            </div>
+          </div>
+        `;
       }
     }
   },

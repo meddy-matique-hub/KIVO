@@ -1774,5 +1774,260 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   .paper-logo-badge {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+}
+
+/* =========================================
+   KIVO MATIQUE - NOUVEAU DASHBOARD (2026)
+   ========================================= */
+
+/* Dark Sidebar Overrides */
+.kivo-dark-nav .nav-item {
+  color: #9CA3AF !important;
+  border-radius: 8px;
+}
+.kivo-dark-nav .nav-item:hover {
+  color: #FFF !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  transform: none !important;
+}
+.kivo-dark-nav .nav-item.active {
+  background-color: #1F2937 !important;
+  color: #FFF !important;
+  box-shadow: none !important;
+}
+
+.kivo-dark-profile-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* Dashboard Layout */
+.kivo-dash-layout {
+  display: flex !important;
+  flex-direction: row;
+  gap: 2rem;
+  background-color: #F9FAFB !important; /* Soft light background matching reference */
+  min-height: 100vh;
+  padding: 2.5rem !important;
+}
+
+.kivo-dash-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.kivo-dash-right {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Header & Buttons */
+.kivo-dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.kivo-dash-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-body);
+}
+
+.kivo-dash-btn-dark {
+  background-color: #111827;
+  color: #FFF;
+  border: 1px solid #111827;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+.kivo-dash-btn-dark:hover {
+  background-color: #1F2937;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.kivo-dash-btn-outline {
+  background-color: #FFF;
+  color: #111827;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+.kivo-dash-btn-outline:hover {
+  background-color: #F9FAFB;
+  border-color: #D1D5DB;
+}
+
+/* Analytics Cards */
+.kivo-dash-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.kivo-dash-card {
+  background: #FFF;
+  border-radius: 16px;
+  padding: 1.25rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+.kivo-dash-card-title {
+  font-size: 0.85rem;
+  color: #111827;
+  font-weight: 600;
+}
+
+.kivo-dash-card-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #111827;
+  font-family: var(--font-heading);
+  letter-spacing: -0.025em;
+  margin-top: 0.25rem;
+}
+
+.kivo-dash-card-sub {
+  font-size: 0.75rem;
+  color: #10B981; /* Green for positive */
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+.kivo-dash-chart {
+  margin-top: auto;
+  padding-top: 1rem;
+  width: 100%;
+  height: 60px;
+}
+
+/* Recent Invoices Table */
+.kivo-dash-table-container {
+  background: #FFF;
+  border-radius: 16px;
+  padding: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+}
+
+.kivo-dash-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.kivo-dash-table th {
+  text-align: left;
+  padding: 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6B7280;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.kivo-dash-table td {
+  padding: 1rem;
+  font-size: 0.9rem;
+  color: #111827;
+  border-bottom: 1px solid #F3F4F6;
+  font-weight: 500;
+}
+
+.kivo-dash-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Badges for table */
+.kivo-dash-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.kivo-dash-badge.paid { background: #DCFCE7; color: #166534; border: 1px solid #BBF7D0; }
+.kivo-dash-badge.pending { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+.kivo-dash-badge.overdue { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
+
+/* Right Widget (Invoice Preview) */
+.kivo-dash-invoice-widget {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 20px;
+  padding: 1.5rem;
+  width: 100%;
+  min-height: 400px;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 1);
+  position: relative;
+}
+
+/* Inner mock paper */
+.kivo-dash-mock-paper {
+  background: #FFF;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+  font-family: 'Inter', sans-serif;
+  color: #111827;
+  font-size: 0.75rem;
+}
+
+.kivo-dash-mock-paper table {
+  width: 100%;
+  margin: 1rem 0;
+  border-collapse: collapse;
+}
+
+.kivo-dash-mock-paper th {
+  background: #111827;
+  color: #FFF;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+.kivo-dash-mock-paper td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .kivo-dash-layout {
+    flex-direction: column;
+  }
+  .kivo-dash-right {
+    width: 100%;
+  }
+  .kivo-dash-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .kivo-dash-metrics {
+    grid-template-columns: 1fr;
+  }
+  .kivo-dash-layout {
+    padding: 1rem !important;
   }
 }
