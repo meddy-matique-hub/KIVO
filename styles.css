@@ -1809,19 +1809,22 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   display: flex !important;
   flex-direction: row;
   gap: 2rem;
-  background-color: #F9FAFB !important; /* Soft light background matching reference */
+  background-color: #F4F6F8 !important; /* Soft light background matching reference */
   min-height: 100vh;
   padding: 2.5rem !important;
+  width: 100%;
 }
 
 .kivo-dash-main {
-  flex: 1;
+  flex: 0 0 70%;
+  max-width: 70%;
   display: flex;
   flex-direction: column;
 }
 
 .kivo-dash-right {
-  width: 320px;
+  flex: 0 0 calc(30% - 2rem);
+  max-width: calc(30% - 2rem);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;

@@ -21,26 +21,6 @@
 
   <div id="app-container">
 
-    <!-- Mobile Header -->
-    <header class="mobile-header no-print">
-      <div style="display: flex; align-items: center; gap: 0.75rem;">
-        <button id="mobile-menu-toggle" aria-label="Toggle menu">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-        </button>
-        <div class="brand-logo-icon" style="width: 30px; height: 30px; font-size: 0.95rem;">KM</div>
-        <span style="font-family: var(--font-heading); font-weight: 800; font-size: 1.15rem; color: var(--text-primary);">KIVO MATIQUE</span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 0.5rem;">
-        <select class="form-select" id="header-lang-select-mobile" onchange="KivoApp.setLanguage(this.value)" style="padding: 2px 6px; font-size: 0.75rem;">
-          <option value="fr">🇫🇷 FR</option>
-          <option value="en">🇬🇧 EN</option>
-          <option value="es">🇪🇸 ES</option>
-        </select>
-        <button class="btn btn-secondary btn-sm" onclick="KivoApp.openNotificationCenter()">
-          🔔 <span id="notif-badge-mobile" class="badge badge-paid" style="padding: 2px 6px; font-size: 0.65rem;">2</span>
-        </button>
-      </div>
-    </header>
 
     <div class="app-wrapper">
 
@@ -1588,28 +1568,6 @@
 
     </div>
 
-    <!-- Mobile Bottom Navigation Bar -->
-    <nav class="mobile-bottom-nav no-print">
-      <a href="#dashboard" class="mobile-nav-item active" data-view="dashboard">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        Accueil
-      </a>
-      <a href="#documents" class="mobile-nav-item" data-view="documents">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        Documents
-      </a>
-
-      <button class="mobile-fab-btn" onclick="KivoApp.openNewDocModal()" aria-label="Nouveau document">+</button>
-
-      <a href="#clients" class="mobile-nav-item" data-view="clients">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-        Clients
-      </a>
-      <a href="#settings" class="mobile-nav-item" data-view="settings">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Options
-      </a>
-    </nav>
 
   </div>
 
