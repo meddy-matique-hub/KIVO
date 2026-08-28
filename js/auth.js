@@ -55,7 +55,9 @@ window.KivoAuth = {
       if (!KivoApp.state) {
         KivoApp.state = JSON.parse(JSON.stringify(KivoApp.BLANK_STATE));
       }
-      // Safely set user email
+      // Load any previously saved local state
+      KivoApp.loadState();
+      // Safely set user email (override if needed)
       KivoApp.state.userEmail = session.user?.email || '';
       KivoApp.supabaseConnected = true;
 
