@@ -1115,34 +1115,65 @@ window.KivoApp = {
     const nextNum = this.generateDocumentNumber(type);
     const today = new Date().toISOString().split('T')[0];
     const dueObj = new Date();
-    dueObj.setDate(dueObj.getDate() + 7);
+    dueObj.setDate(dueObj.getDate() + 30);
     const dueStr = dueObj.toISOString().split('T')[0];
 
-    document.getElementById('builder-title').textContent = type === 'quote' ? 'Nouveau Devis' : 'Nouvelle Facture';
-    document.getElementById('builder-doc-id').value = '';
-    document.getElementById('builder-doc-type').value = type;
-    document.getElementById('builder-doc-number').value = nextNum;
-    document.getElementById('builder-issue-date').value = today;
-    document.getElementById('builder-due-date').value = dueStr;
-    document.getElementById('builder-doc-status').value = 'sent';
-    document.getElementById('builder-input-tax').value = (this.state.business && this.state.business.defaultVatRate) || 18;
-    document.getElementById('builder-input-discount').value = 0;
-    document.getElementById('builder-notes').value = "Merci pour votre confiance.";
-    document.getElementById('builder-terms').value = "Paiement à réception par Carte bancaire (Stripe) ou Mobile Money.";
+    // Core fields
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    setVal('builder-doc-id', '');
+    setVal('builder-doc-type', type);
+    setVal('builder-doc-number', nextNum);
+    setVal('builder-issue-date', today);
+    setVal('builder-due-date', dueStr);
+    setVal('builder-doc-status', 'draft');
+    setVal('builder-notes', '');
+    setVal('builder-terms', 'Net 30 days');
+    setVal('builder-payment-method', 'Virement bancaire');
+    setVal('builder-doc-currency', this.state.business.currency || 'FCFA');
 
+    // Enterprise fields from business settings
+    const biz = this.state.business;
+    setVal('builder-biz-name', biz.name || '');
+    setVal('builder-biz-address', biz.address || '');
+    setVal('builder-biz-phone', biz.phone || '');
+    setVal('builder-biz-email', biz.email || '');
+
+    // Client select
     const clientSelect = document.getElementById('builder-doc-client-select');
     const clients = (this.state && this.state.clients) || [];
-    if (clients.length === 0) {
-      clientSelect.innerHTML = `<option value="">-- Aucun client (Créez un client) --</option>`;
-    } else {
-      clientSelect.innerHTML = clients.map(c =>
-        `<option value="${c.id}">${c.name} (${c.company || c.contactName || 'Particulier'})</option>`
-      ).join('');
+    if (clientSelect) {
+      if (clients.length === 0) {
+        clientSelect.innerHTML = `<option value="">-- Aucun client (Créez un client) --</option>`;
+      } else {
+        clientSelect.innerHTML = `<option value="">-- Sélectionner un client --</option>` + clients.map(c =>
+          `<option value="${c.id}">${c.name} (${c.company || c.contactName || 'Particulier'})</option>`
+        ).join('');
+      }
     }
 
+    // Clear client overrides
+    setVal('builder-client-address', '');
+    setVal('builder-client-phone', '');
+
+    // Logo from business settings
+    if (biz.logoUrl) {
+      const logoImg = document.getElementById('builder-logo-preview-img');
+      const previewBox = document.getElementById('builder-logo-preview-box');
+      const uploadPrompt = document.getElementById('builder-logo-upload-prompt');
+      if (logoImg) logoImg.src = biz.logoUrl;
+      if (previewBox) previewBox.style.display = 'flex';
+      if (uploadPrompt) uploadPrompt.style.display = 'none';
+    } else {
+      const previewBox = document.getElementById('builder-logo-preview-box');
+      const uploadPrompt = document.getElementById('builder-logo-upload-prompt');
+      if (previewBox) previewBox.style.display = 'none';
+      if (uploadPrompt) uploadPrompt.style.display = 'block';
+    }
+
+    // Items
     const tbody = document.getElementById('builder-items-tbody');
-    tbody.innerHTML = '';
-    this.addBuilderLineItem('Prestation de service / Design & Développement', 1, 150000);
+    if (tbody) tbody.innerHTML = '';
+    this.addBuilderLineItem('Prestation de service', 1, 0);
 
     this.recalculateBuilderTotals();
     this.updateLiveInvoicePreview();
@@ -1156,30 +1187,43 @@ window.KivoApp = {
     const doc = this.state.documents.find(d => d.id === docId);
     if (!doc) return;
 
-    document.getElementById('builder-title').textContent = `Modifier ${doc.type === 'quote' ? 'le Devis' : 'la Facture'} #${doc.number}`;
-    document.getElementById('builder-doc-id').value = doc.id;
-    document.getElementById('builder-doc-type').value = doc.type || 'invoice';
-    document.getElementById('builder-doc-number').value = doc.number;
-    document.getElementById('builder-doc-currency').value = doc.currency || this.state.business.currency || 'FCFA';
-    document.getElementById('builder-issue-date').value = doc.issueDate || new Date().toISOString().split('T')[0];
-    document.getElementById('builder-due-date').value = doc.dueDate || new Date().toISOString().split('T')[0];
-    document.getElementById('builder-doc-status').value = doc.status || 'sent';
-    document.getElementById('builder-input-tax').value = doc.taxRate !== undefined ? doc.taxRate : (this.state.business.defaultVatRate || 18);
-    document.getElementById('builder-input-discount').value = doc.discount || 0;
-    document.getElementById('builder-notes').value = doc.notes || '';
-    document.getElementById('builder-terms').value = doc.terms || '';
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    setVal('builder-doc-id', doc.id);
+    setVal('builder-doc-type', doc.type || 'invoice');
+    setVal('builder-doc-number', doc.number);
+    setVal('builder-doc-currency', doc.currency || this.state.business.currency || 'FCFA');
+    setVal('builder-issue-date', doc.issueDate || new Date().toISOString().split('T')[0]);
+    setVal('builder-due-date', doc.dueDate || new Date().toISOString().split('T')[0]);
+    setVal('builder-doc-status', doc.status || 'sent');
+    setVal('builder-notes', doc.notes || '');
+    setVal('builder-terms', doc.terms || '');
+    setVal('builder-payment-method', doc.paymentMethod || 'Virement bancaire');
 
+    // Enterprise fields from business settings
+    const biz = this.state.business;
+    setVal('builder-biz-name', biz.name || '');
+    setVal('builder-biz-address', biz.address || '');
+    setVal('builder-biz-phone', biz.phone || '');
+    setVal('builder-biz-email', biz.email || '');
+
+    // Client select
     const clientSelect = document.getElementById('builder-doc-client-select');
-    clientSelect.innerHTML = this.state.clients.map(c => `
-      <option value="${c.id}" ${c.id === doc.clientId ? 'selected' : ''}>${c.name} (${c.company || c.contactName || 'Particulier'})</option>
-    `).join('');
+    if (clientSelect) {
+      clientSelect.innerHTML = `<option value="">-- Sélectionner un client --</option>` + this.state.clients.map(c => `
+        <option value="${c.id}" ${c.id === doc.clientId ? 'selected' : ''}>${c.name} (${c.company || c.contactName || 'Particulier'})</option>
+      `).join('');
+    }
+
+    // Client override fields
+    setVal('builder-client-address', doc.clientAddress || '');
+    setVal('builder-client-phone', doc.clientPhone || '');
 
     const tbody = document.getElementById('builder-items-tbody');
-    tbody.innerHTML = '';
+    if (tbody) tbody.innerHTML = '';
 
     if (doc.items && doc.items.length > 0) {
       doc.items.forEach(it => {
-        this.addBuilderLineItem(it.name, it.quantity, it.price);
+        this.addBuilderLineItem(it.name, it.quantity, it.price, it.taxRate || 18);
       });
     } else {
       this.addBuilderLineItem('Prestation de service', 1, doc.subtotal || doc.total || 50000);
