@@ -322,7 +322,7 @@ window.KivoApp = {
 
     this.saveState();
     this.renderCurrentView();
-    this.showToast('☁️ Données synchronisées depuis Supabase.', 'success');
+    // this.showToast('☁️ Données synchronisées depuis Supabase.', 'success'); // Supprimer notification Supabase
     console.log('[KivoApp] Supabase sync complete.');
   },
 
@@ -620,6 +620,10 @@ window.KivoApp = {
    * Updates sidebar and header branding elements
    */
   updateUserBrandingUI: function () {
+    // Ensure state exists before accessing business data
+    if (!this.state) {
+      this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
+    }
     const biz = (this.state && this.state.business) || {};
     const nameEl = document.getElementById('sidebar-user-name');
     const bizEl = document.getElementById('sidebar-business-name');
@@ -2516,7 +2520,7 @@ window.KivoApp = {
 
   openTemplateEditor: function () {
     // Basic interaction for "Créer mon modèle"
-    this.showToast('L\\'éditeur de modèles personnalisés sera bientôt disponible.', 'info');
+    this.showToast("L'éditeur de modèles personnalisés sera bientôt disponible.", 'info');
   },
 
   renderReminders: function () {
