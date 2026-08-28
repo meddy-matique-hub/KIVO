@@ -1193,7 +1193,7 @@ window.KivoApp = {
   /**
    * Adds a line item row in builder
    */
-  addBuilderLineItem: function (name = '', qty = 1, price = 0) {
+  addBuilderLineItem: function (name = '', qty = 1, price = 0, tax = 18) {
     const tbody = document.getElementById('builder-items-tbody');
     if (!tbody) return;
 
@@ -1202,20 +1202,29 @@ window.KivoApp = {
     tr.id = rowId;
 
     tr.innerHTML = `
-      <td>
-        <input type="text" class="form-input item-name" value="${name}" placeholder="Description de l'article ou service" oninput="KivoApp.updateLiveInvoicePreview()">
+      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem;">
+        <input type="text" class="form-input item-name" value="${name}" placeholder="Description" oninput="KivoApp.updateLiveInvoicePreview()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;">
       </td>
-      <td>
-        <input type="number" class="form-input item-qty" value="${qty}" min="1" oninput="KivoApp.recalculateBuilderTotals()">
+      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem;">
+        <input type="number" class="form-input item-qty" value="${qty}" min="1" oninput="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: center;">
       </td>
-      <td>
-        <input type="number" class="form-input item-price" value="${price}" min="0" oninput="KivoApp.recalculateBuilderTotals()">
+      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem;">
+        <input type="number" class="form-input item-price" value="${price}" min="0" oninput="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: right;">
       </td>
-      <td>
-        <strong class="item-total-display">${(qty * price).toLocaleString('fr-FR')} FCFA</strong>
+      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem;">
+        <select class="form-select item-tax" onchange="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;">
+          <option value="18" ${tax == 18 ? 'selected' : ''}>18%</option>
+          <option value="20" ${tax == 20 ? 'selected' : ''}>20%</option>
+          <option value="10" ${tax == 10 ? 'selected' : ''}>10%</option>
+          <option value="5" ${tax == 5 ? 'selected' : ''}>5%</option>
+          <option value="0" ${tax == 0 ? 'selected' : ''}>0%</option>
+        </select>
       </td>
-      <td style="text-align: center;">
-        <button class="btn btn-danger btn-sm" onclick="this.closest('tr').remove(); KivoApp.recalculateBuilderTotals();">✕</button>
+      <td style="text-align: right; vertical-align: middle; padding-bottom: 0.5rem;">
+        <strong class="item-total-display" style="font-size: 0.85rem; color: #0F172A;">${(qty * price).toLocaleString('fr-FR')} FCFA</strong>
+      </td>
+      <td style="text-align: center; vertical-align: middle; padding-bottom: 0.5rem;">
+        <button class="btn btn-danger btn-sm" onclick="this.closest('tr').remove(); KivoApp.recalculateBuilderTotals();" style="background: transparent; border: none; color: #EF4444; font-size: 1rem; cursor: pointer;">✕</button>
       </td>
     `;
 
@@ -1228,26 +1237,33 @@ window.KivoApp = {
    */
   recalculateBuilderTotals: function () {
     let subtotal = 0;
+    let totalTaxAmount = 0;
     const currency = document.getElementById('builder-doc-currency') ? document.getElementById('builder-doc-currency').value : (this.state.business.currency || 'FCFA');
 
     document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
       const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
       const price = parseFloat(tr.querySelector('.item-price').value) || 0;
-      const rowTotal = qty * price;
-      tr.querySelector('.item-total-display').textContent = rowTotal.toLocaleString('fr-FR') + ' ' + currency;
-      subtotal += rowTotal;
+      const taxRate = parseFloat(tr.querySelector('.item-tax').value) || 0;
+      
+      const rowTotalHT = qty * price;
+      const rowTaxAmount = rowTotalHT * (taxRate / 100);
+      
+      tr.querySelector('.item-total-display').textContent = rowTotalHT.toLocaleString('fr-FR') + ' ' + currency;
+      
+      subtotal += rowTotalHT;
+      totalTaxAmount += rowTaxAmount;
     });
 
-    const discount = parseFloat(document.getElementById('builder-input-discount').value) || 0;
-    const taxRate = parseFloat(document.getElementById('builder-input-tax').value) || 0;
+    const grandTotal = Math.max(0, subtotal + totalTaxAmount);
 
-    const taxableAmount = Math.max(0, subtotal - discount);
-    const taxAmount = taxableAmount * (taxRate / 100);
-    const grandTotal = Math.max(0, taxableAmount + taxAmount);
-
-    document.getElementById('builder-calc-subtotal').textContent = subtotal.toLocaleString('fr-FR') + ' ' + currency;
-    document.getElementById('builder-calc-tax-amount').textContent = taxAmount.toLocaleString('fr-FR') + ' ' + currency;
-    document.getElementById('builder-calc-total').textContent = grandTotal.toLocaleString('fr-FR') + ' ' + currency;
+    const subtotalEl = document.getElementById('builder-calc-subtotal');
+    if (subtotalEl) subtotalEl.textContent = subtotal.toLocaleString('fr-FR') + ' ' + currency;
+    
+    const taxAmtEl = document.getElementById('builder-calc-tax-amount');
+    if (taxAmtEl) taxAmtEl.textContent = totalTaxAmount.toLocaleString('fr-FR') + ' ' + currency;
+    
+    const totalEl = document.getElementById('builder-calc-total');
+    if (totalEl) totalEl.textContent = grandTotal.toLocaleString('fr-FR') + ' ' + currency;
 
     this.updateLiveInvoicePreview();
   },
@@ -1256,33 +1272,8 @@ window.KivoApp = {
    * Updates Live Paper Invoice Preview in Real-Time
    */
   updateLiveInvoicePreview: function () {
-    const tInput = document.getElementById('builder-visual-template');
-    const templateId = tInput ? tInput.value : 'classic';
-    const container = document.getElementById('live-paper-preview-container');
-
-    // Store the original CSS-based HTML structure
-    if (!this._originalPaperHtml && container) {
-      this._originalPaperHtml = container.innerHTML;
-    }
-
-    // Check if we use the new HTML-based template engine
-    if (window.KivoTemplates && window.KivoTemplates.isFullHtml(templateId)) {
-      if (container) {
-        const data = window.KivoTemplates.collectData(this.state);
-        container.innerHTML = window.KivoTemplates.render(templateId, data);
-        container.dataset.templateId = templateId;
-      }
-      this.updateDocumentPreviewVisuals(); // Update CSS vars just in case
-      return; // Skip standard manual DOM update
-    } else {
-      // Restore standard structure if we were previously using an HTML template
-      if (container && container.dataset.templateId && window.KivoTemplates && window.KivoTemplates.isFullHtml(container.dataset.templateId)) {
-        container.innerHTML = this._originalPaperHtml;
-        container.dataset.templateId = '';
-      }
-    }
-
     const biz = this.state.business;
+    
     const docType = document.getElementById('builder-doc-type') ? document.getElementById('builder-doc-type').value : 'invoice';
     const docNum = document.getElementById('builder-doc-number') ? document.getElementById('builder-doc-number').value : 'FAC-2026-0001';
     const currency = document.getElementById('builder-doc-currency') ? document.getElementById('builder-doc-currency').value : (biz.currency || 'FCFA');
@@ -1291,31 +1282,53 @@ window.KivoApp = {
     const status = document.getElementById('builder-doc-status') ? document.getElementById('builder-doc-status').value : 'sent';
     const notes = document.getElementById('builder-notes') ? document.getElementById('builder-notes').value : '';
     const terms = document.getElementById('builder-terms') ? document.getElementById('builder-terms').value : '';
+    const paymentMethod = document.getElementById('builder-payment-method') ? document.getElementById('builder-payment-method').value : '';
+    
+    // Enterprise overwrites
+    const bizName = document.getElementById('builder-biz-name') ? document.getElementById('builder-biz-name').value : biz.name;
+    const bizAddress = document.getElementById('builder-biz-address') ? document.getElementById('builder-biz-address').value : biz.address;
+    const bizPhone = document.getElementById('builder-biz-phone') ? document.getElementById('builder-biz-phone').value : biz.phone;
+    const bizEmail = document.getElementById('builder-biz-email') ? document.getElementById('builder-biz-email').value : biz.email;
 
+    // Client overwrites
     const clientId = document.getElementById('builder-doc-client-select') ? document.getElementById('builder-doc-client-select').value : '';
-    const client = this.state.clients.find(c => c.id === clientId) || { name: 'Client Destinataire', company: '', contactName: '', phone: '', address: '' };
+    const client = this.state.clients.find(c => c.id === clientId) || { name: 'Client Destinataire' };
+    
+    const clientAddress = document.getElementById('builder-client-address') && document.getElementById('builder-client-address').value 
+      ? document.getElementById('builder-client-address').value 
+      : (client.address || '');
+    const clientPhone = document.getElementById('builder-client-phone') && document.getElementById('builder-client-phone').value 
+      ? document.getElementById('builder-client-phone').value 
+      : (client.phone || '');
 
-    // Update Paper Header
+    // 1. HEADER
     const logoEl = document.getElementById('paper-logo-display');
-    if (logoEl) {
-      if (biz.logoUrl) {
-        logoEl.style.overflow = 'hidden';
-        logoEl.style.background = '#FFFFFF';
-        logoEl.innerHTML = `<img src="${biz.logoUrl}" alt="Logo" style="max-height: 100%; max-width: 100%; object-fit: contain;">`;
-      } else {
-        const initiales = biz.name ? biz.name.substring(0, 2).toUpperCase() : "KM";
-        logoEl.innerHTML = biz.logoText || initiales;
+    const logoText = document.getElementById('paper-logo-text');
+    if (biz.logoUrl) {
+      if(logoEl) {
+        logoEl.src = biz.logoUrl;
+        logoEl.style.display = 'block';
+      }
+      if(logoText) logoText.style.display = 'none';
+    } else {
+      if(logoEl) logoEl.style.display = 'none';
+      if(logoText) {
+        logoText.style.display = 'block';
+        logoText.textContent = bizName ? bizName.substring(0, 8) : 'KIVO';
       }
     }
 
     const bizNameEl = document.getElementById('paper-biz-name');
-    if (bizNameEl) bizNameEl.textContent = biz.name || "KIVO MATIQUE";
+    if (bizNameEl) bizNameEl.textContent = bizName || "KIVO MATIQUE";
 
     const bizAddrEl = document.getElementById('paper-biz-address');
-    if (bizAddrEl) bizAddrEl.textContent = biz.address || "Avenue Cheikh Anta Diop, Dakar";
-
-    const bizTaxEl = document.getElementById('paper-biz-taxid');
-    if (bizTaxEl) bizTaxEl.textContent = biz.taxId ? `Tax ID: ${biz.taxId}` : '';
+    if (bizAddrEl) bizAddrEl.textContent = bizAddress || "";
+    
+    const bizPhoneEl = document.getElementById('paper-biz-phone');
+    if (bizPhoneEl) bizPhoneEl.textContent = bizPhone || "";
+    
+    const bizEmailEl = document.getElementById('paper-biz-email');
+    if (bizEmailEl) bizEmailEl.textContent = bizEmail || "";
 
     const paperDocTypeEl = document.getElementById('paper-doc-type');
     if (paperDocTypeEl) paperDocTypeEl.textContent = docType === 'quote' ? 'DEVIS' : 'FACTURE';
@@ -1329,88 +1342,86 @@ window.KivoApp = {
     const paperDueEl = document.getElementById('paper-date-due');
     if (paperDueEl) paperDueEl.textContent = dueDate || '--/--/----';
 
-    // Update Sender & Client Details
-    const senderDetailsEl = document.getElementById('paper-sender-details');
-    if (senderDetailsEl) {
-      senderDetailsEl.innerHTML = `
-        <strong>${biz.name || 'KIVO MATIQUE'}</strong><br>
-        ${biz.phone ? `Tél: ${biz.phone}<br>` : ''}
-        ${biz.email ? `Email: ${biz.email}` : ''}
-      `;
-    }
+    // 2. CLIENT
+    const clientNameEl = document.getElementById('paper-client-name');
+    if (clientNameEl) clientNameEl.textContent = client.name || "Client Destinataire";
+    
+    const clientAddrEl = document.getElementById('paper-client-address');
+    if (clientAddrEl) clientAddrEl.textContent = clientAddress;
+    
+    const clientPhoneEl = document.getElementById('paper-client-phone');
+    if (clientPhoneEl) clientPhoneEl.textContent = clientPhone;
 
-    const clientDetailsEl = document.getElementById('paper-client-details');
-    if (clientDetailsEl) {
-      clientDetailsEl.innerHTML = `
-        <strong>${client.name}</strong> ${client.clientType ? `(${client.clientType})` : ''}<br>
-        ${client.company ? `${client.company}<br>` : ''}
-        ${client.contactName ? `Attn: ${client.contactName}<br>` : ''}
-        ${client.taxId ? `SIRET/NINEA: ${client.taxId}<br>` : ''}
-        ${client.phone ? `Tél: ${client.phone}` : ''}
-      `;
-    }
-
-    // Render Items Table
+    // 3. TABLE ITEMS
     const paperItemsTbody = document.getElementById('paper-items-tbody');
     if (paperItemsTbody) {
       const rows = [];
       let subtotal = 0;
+      let totalTax = 0;
 
       document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
         const nameInput = tr.querySelector('.item-name');
         const qtyInput = tr.querySelector('.item-qty');
         const priceInput = tr.querySelector('.item-price');
+        const taxSelect = tr.querySelector('.item-tax');
 
         const name = nameInput ? nameInput.value : '';
         const qty = parseFloat(qtyInput ? qtyInput.value : 1) || 1;
         const price = parseFloat(priceInput ? priceInput.value : 0) || 0;
-        const total = qty * price;
+        const taxRate = parseFloat(taxSelect ? taxSelect.value : 0) || 0;
+        
+        const totalHT = qty * price;
+        const taxAmount = totalHT * (taxRate / 100);
 
         if (name) {
-          subtotal += total;
+          subtotal += totalHT;
+          totalTax += taxAmount;
           rows.push(`
             <tr>
-              <td><strong>${name}</strong></td>
-              <td style="text-align: center;">${qty}</td>
-              <td style="text-align: right;">${price.toLocaleString('fr-FR')} ${currency}</td>
-              <td style="text-align: right;"><strong>${total.toLocaleString('fr-FR')} ${currency}</strong></td>
+              <td style="padding: 0.75rem 0; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #E2E8F0;">${name}</td>
+              <td style="text-align: center; padding: 0.75rem 0; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #E2E8F0;">${qty}</td>
+              <td style="text-align: right; padding: 0.75rem 0; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #E2E8F0;">${price.toLocaleString('fr-FR')} ${currency}</td>
+              <td style="text-align: center; padding: 0.75rem 0; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #E2E8F0;">${taxRate}%</td>
+              <td style="text-align: right; padding: 0.75rem 0; font-size: 0.85rem; color: #0F172A; font-weight: 600; border-bottom: 1px solid #E2E8F0;">${totalHT.toLocaleString('fr-FR')} ${currency}</td>
             </tr>
           `);
         }
       });
 
       if (rows.length === 0) {
-        paperItemsTbody.innerHTML = `<tr><td colspan="4" style="color: var(--text-muted); text-align: center;">Saisissez au moins un article...</td></tr>`;
+        paperItemsTbody.innerHTML = `<tr><td colspan="5" style="color: var(--text-muted); text-align: center; padding: 1rem;">Saisissez au moins un article...</td></tr>`;
       } else {
         paperItemsTbody.innerHTML = rows.join('');
       }
 
-      const discount = parseFloat(document.getElementById('builder-input-discount') ? document.getElementById('builder-input-discount').value : 0) || 0;
-      const taxRate = parseFloat(document.getElementById('builder-input-tax') ? document.getElementById('builder-input-tax').value : 18) || 0;
+      const grandTotal = Math.max(0, subtotal + totalTax);
 
-      const taxable = Math.max(0, subtotal - discount);
-      const taxAmount = taxable * (taxRate / 100);
-      const grandTotal = Math.max(0, taxable + taxAmount);
-
-      document.getElementById('paper-subtotal').textContent = subtotal.toLocaleString('fr-FR') + ' ' + currency;
-      document.getElementById('paper-tax-rate').textContent = taxRate;
-      document.getElementById('paper-tax-amount').textContent = taxAmount.toLocaleString('fr-FR') + ' ' + currency;
-      document.getElementById('paper-grand-total').textContent = grandTotal.toLocaleString('fr-FR') + ' ' + currency;
-
-      const discRow = document.getElementById('paper-discount-row');
-      if (discRow) {
-        if (discount > 0) {
-          discRow.style.display = 'flex';
-          document.getElementById('paper-discount-amount').textContent = '-' + discount.toLocaleString('fr-FR') + ' ' + currency;
-        } else {
-          discRow.style.display = 'none';
-        }
-      }
+      const subtotalEl = document.getElementById('paper-subtotal');
+      if (subtotalEl) subtotalEl.textContent = subtotal.toLocaleString('fr-FR') + ' ' + currency;
+      
+      const taxAmtEl = document.getElementById('paper-tax-amount');
+      if (taxAmtEl) taxAmtEl.textContent = totalTax.toLocaleString('fr-FR') + ' ' + currency;
+      
+      const totalEl = document.getElementById('paper-grand-total');
+      if (totalEl) totalEl.textContent = grandTotal.toLocaleString('fr-FR') + ' ' + currency;
     }
 
-    // Terms text
+    // 4. BOTTOM NOTES & TERMS
+    const methodEl = document.getElementById('paper-payment-method');
+    if (methodEl) methodEl.textContent = paymentMethod || "Virement bancaire";
+    
     const termsEl = document.getElementById('paper-terms-text');
-    if (termsEl) termsEl.textContent = terms || notes || "Paiement à réception par Carte bancaire (Stripe) ou Mobile Money.";
+    if (termsEl) termsEl.textContent = terms || "Net 30 days";
+    
+    const notesEl = document.getElementById('paper-notes-text');
+    if (notesEl) {
+      if (notes) {
+        notesEl.style.display = 'block';
+        notesEl.textContent = notes;
+      } else {
+        notesEl.style.display = 'none';
+      }
+    }
 
     // Stamp watermark
     const watermarkEl = document.getElementById('paper-watermark-stamp');
@@ -1419,16 +1430,23 @@ window.KivoApp = {
         watermarkEl.style.display = 'block';
         watermarkEl.textContent = 'PAYÉE';
         watermarkEl.style.color = '#10B981';
+        watermarkEl.style.borderColor = '#10B981';
       } else if (status === 'refunded') {
         watermarkEl.style.display = 'block';
         watermarkEl.textContent = 'REMBOURSÉE';
         watermarkEl.style.color = '#EF4444';
+        watermarkEl.style.borderColor = '#EF4444';
       } else {
         watermarkEl.style.display = 'none';
       }
     }
 
-    this.updateDocumentPreviewVisuals(); // Apply themes
+    // Update visuals if template is selected (if functionality exists)
+    if (typeof this.updateDocumentPreviewVisuals === 'function') {
+      try {
+        this.updateDocumentPreviewVisuals();
+      } catch(e) {}
+    }
   },
 
   /**
@@ -1699,22 +1717,24 @@ window.KivoApp = {
 
     const items = [];
     let subtotal = 0;
+    let totalTaxAmount = 0;
     document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
       const name = tr.querySelector('.item-name').value;
       const qty = parseFloat(tr.querySelector('.item-qty').value) || 1;
       const price = parseFloat(tr.querySelector('.item-price').value) || 0;
-      const total = qty * price;
+      const taxRate = parseFloat(tr.querySelector('.item-tax') ? tr.querySelector('.item-tax').value : 18) || 0;
+      const totalHT = qty * price;
+      const taxAmount = totalHT * (taxRate / 100);
       if (name) {
-        items.push({ name, quantity: qty, price, total });
-        subtotal += total;
+        items.push({ name, quantity: qty, price, taxRate, total: totalHT + taxAmount, totalHT });
+        subtotal += totalHT;
+        totalTaxAmount += taxAmount;
       }
     });
 
-    const discount = parseFloat(document.getElementById('builder-input-discount').value) || 0;
-    const taxRate = parseFloat(document.getElementById('builder-input-tax').value) || 0;
-    const taxable = Math.max(0, subtotal - discount);
-    const taxAmount = taxable * (taxRate / 100);
-    const grandTotal = Math.max(0, taxable + taxAmount);
+    const grandTotal = Math.max(0, subtotal + totalTaxAmount);
+    const discount = 0;
+    const taxRate = 0; // Per-line taxes used instead
 
     const docId = existingDocId || ('doc_' + Math.random().toString(36).substring(2, 8));
 
@@ -1736,7 +1756,7 @@ window.KivoApp = {
       subtotal: subtotal,
       discount: discount,
       taxRate: taxRate,
-      tax: taxAmount,
+      tax: totalTaxAmount,
       total: grandTotal,
       amountPaid: status === 'paid' ? grandTotal : 0,
       notes: notes,

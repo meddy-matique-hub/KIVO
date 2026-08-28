@@ -840,344 +840,317 @@
 
 
         <!-- ==================== UNIFIED DOCUMENT BUILDER (SPLIT PREVIEW) ==================== -->
-        <section id="view-document-builder" class="view-section" style="display: none;">
-          <div class="page-header">
-            <div>
-              <h1 id="builder-title">Nouveau document</h1>
-              <p class="page-subtitle">Remplissez les informations et prévisualisez la facture en temps réel à droite.</p>
+        <!-- ==================== DASHBOARD VIEW ==================== -->
+        <section id="view-document-builder" class="view-section" style="display: none; background: #F8FAFC; min-height: 100vh; padding: 2rem; margin: -2rem; width: calc(100% + 4rem);">
+          
+          <!-- TOP HEADER ACTIONS -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; max-width: 1600px;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <button class="btn btn-secondary" style="border: none; background: transparent; padding: 0.5rem; font-size: 1.25rem; color: #475569;" onclick="KivoApp.navigate('documents')">←</button>
+              <h1 style="font-family: var(--font-heading); font-size: 1.5rem; font-weight: 700; color: #0F172A; margin: 0;">Créer une facture</h1>
             </div>
             <div style="display: flex; gap: 0.75rem; align-items: center;">
-              <button class="btn btn-secondary" onclick="KivoApp.navigate('documents')">Annuler</button>
-              <button class="btn btn-secondary" onclick="KivoApp.saveAsTemplate()" title="Enregistrer ce design pour plus tard">⭐ Enregistrer modèle</button>
-              <button class="btn btn-primary" onclick="KivoApp.saveDocumentFromBuilder()">💾 Enregistrer & Valider</button>
+              <button class="btn btn-secondary" onclick="KivoApp.saveAsTemplate()" title="Enregistrer ce design pour plus tard" style="background: #FFF; border: 1px solid #CBD5E1; color: #475569;">⭐ Sauvegarder modèle</button>
+              <button class="btn btn-whatsapp" onclick="KivoApp.shareCurrentBuilderWhatsApp()" style="background: #25D366; color: #FFF; border: none;">💬 Partager</button>
+              <button class="btn btn-secondary" onclick="window.print()" style="background: #FFF; border: 1px solid #CBD5E1; color: #475569;">🖨️ Télécharger PDF</button>
+              <button class="btn btn-primary" onclick="KivoApp.saveDocumentFromBuilder()" style="background: #0F172A; color: #FFF; border: none;">💾 Enregistrer</button>
             </div>
           </div>
 
-          <!-- KIVO MATIQUE AI Banner Input -->
-          <div class="ai-banner" style="margin-bottom: 1.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <span style="font-size: 1.25rem;">✨</span>
-              <strong style="font-family: var(--font-heading); font-size: 1.1rem;">KIVO MATIQUE AI - Assistant de création rapide</strong>
-            </div>
-            <p style="font-size: 0.85rem; opacity: 0.9; margin-top: 0.25rem;">
-              Décrivez votre besoin en français : « Logo et site pour Restaurant La Paix, 150 000 FCFA, livraison vendredi, TVA 18% »
-            </p>
-            <div class="ai-input-wrapper">
-              <input type="text" id="builder-ai-input" class="ai-input" placeholder="Tapez votre prestation et tarif ici...">
-              <button class="btn btn-ai" onclick="KivoApp.triggerBuilderAiParse()">Générer ✨</button>
-            </div>
+          <!-- TABS (Choisir un modèle / Créer librement / Créer avec IA) -->
+          <div style="display: flex; gap: 0.5rem; background: #E2E8F0; padding: 0.35rem; border-radius: 10px; margin-bottom: 2.5rem; width: fit-content;">
+            <button style="padding: 0.65rem 1.25rem; border-radius: 6px; border: none; background: transparent; color: #475569; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" onclick="alert('Choix de modèles à venir')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              Choisir un modèle
+            </button>
+            <button style="padding: 0.65rem 1.25rem; border-radius: 6px; border: none; background: #FFF; color: #0F172A; font-weight: 600; font-size: 0.85rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: default; display: flex; align-items: center; gap: 0.5rem;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              Créer librement
+            </button>
+            <button style="padding: 0.65rem 1.25rem; border-radius: 6px; border: none; background: transparent; color: #475569; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" onclick="KivoApp.navigate('ai')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              Créer avec IA
+            </button>
           </div>
 
-          <!-- Split-Screen Grid Layout -->
-          <div class="builder-split-grid">
-
-            <!-- LEFT COLUMN: Form Inputs -->
-            <div class="builder-form-col">
-              <div class="card">
-                <input type="hidden" id="builder-doc-id" value="">
-
-                <div class="form-row" style="margin-bottom: 1.25rem;">
-                  <div class="form-group">
-                    <label class="form-label">Type de document</label>
-                    <select id="builder-doc-type" class="form-select" onchange="KivoApp.updateBuilderTypeState()">
+          <!-- SPLIT GRID (Form Left / Preview Right) -->
+          <div style="display: flex; gap: 4rem; max-width: 1600px;">
+            
+            <!-- LEFT: EDITOR -->
+            <div style="flex: 0 0 45%; max-width: 45%; display: flex; flex-direction: column; gap: 2rem;">
+              <input type="hidden" id="builder-doc-id" value="">
+              
+              <!-- 1. Document -->
+              <div>
+                <h3 style="font-size: 1rem; font-weight: 700; color: #0F172A; margin: 0 0 1rem 0;">Document</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                  <div>
+                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Type de document</label>
+                    <select id="builder-doc-type" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; background: #FFF; font-family: 'Inter', sans-serif;" onchange="KivoApp.updateBuilderTypeState()">
                       <option value="invoice">Facture</option>
                       <option value="quote">Devis</option>
                     </select>
                   </div>
-
-                  <div class="form-group">
-                    <label class="form-label">Numéro de document</label>
-                    <input type="text" id="builder-doc-number" class="form-input" value="FAC-2026-0028" oninput="KivoApp.updateLiveInvoicePreview()">
+                  <div>
+                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Numéro</label>
+                    <input type="text" id="builder-doc-number" value="FAC-2026-0028" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;" oninput="KivoApp.updateLiveInvoicePreview()">
                   </div>
-
-                  <div class="form-group">
-                    <label class="form-label">Devise</label>
-                    <select id="builder-doc-currency" class="form-select" onchange="KivoApp.recalculateBuilderTotals()">
-                      <option value="FCFA">FCFA (XOF/XAF)</option>
-                      <option value="EUR">EUR (€)</option>
-                      <option value="USD">USD ($)</option>
-                    </select>
+                  <div>
+                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Date d'émission</label>
+                    <div style="position: relative;">
+                      <input type="date" id="builder-issue-date" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;" onchange="KivoApp.updateLiveInvoicePreview()">
+                    </div>
                   </div>
-                </div>
-
-                <div class="form-row" style="margin-bottom: 1.25rem;">
-                  <div class="form-group" style="flex: 2;">
-                    <label class="form-label" style="display: flex; justify-content: space-between;">
-                      <span>Client destinataire</span>
-                      <a href="javascript:void(0)" onclick="KivoApp.openNewClientModal()" style="font-size: 0.8rem;">+ Nouveau client</a>
-                    </label>
-                    <select id="builder-doc-client-select" class="form-select" onchange="KivoApp.updateLiveInvoicePreview()">
-                      <!-- Options populated -->
-                    </select>
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label">Statut</label>
-                    <select id="builder-doc-status" class="form-select" onchange="KivoApp.updateLiveInvoicePreview()">
-                      <option value="sent">Envoyée / Active</option>
-                      <option value="draft">Brouillon</option>
-                      <option value="paid">Payée ✓</option>
-                      <option value="overdue">En retard ⚠️</option>
-                      <option value="cancelled">Annulée</option>
-                      <option value="refunded">Remboursée ↩️</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="form-row" style="margin-bottom: 1.5rem;">
-                  <div class="form-group">
-                    <label class="form-label">Date d'émission</label>
-                    <input type="date" id="builder-issue-date" class="form-input" onchange="KivoApp.updateLiveInvoicePreview()">
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label">Date d'échéance</label>
-                    <input type="date" id="builder-due-date" class="form-input" onchange="KivoApp.updateLiveInvoicePreview()">
-                  </div>
-                </div>
-
-                <!-- Visual Personalization -->
-                <div class="form-row" style="margin-bottom: 1.5rem;">
-                  <div class="form-group" style="flex: 1;">
-                    <label class="form-label">🎨 Identité Visuelle</label>
-                    <div style="background: var(--bg-subtle); padding: 1rem; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 1rem; border: 1px solid var(--border-color);">
-                      <div>
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem; display: block;">Modèle</label>
-                        <select id="builder-visual-template" class="form-select" onchange="KivoApp.updateLiveInvoicePreview()">
-                          <!-- Injected from KivoTemplates dynamically in app.js -->
-                          <option value="classic">Classic (Sobre & Pro)</option>
-                          <option value="modern">Modern (Accents colorés)</option>
-                          <option value="minimal">Minimal (Épuré)</option>
-                          <option value="professional">Professional (Corporate)</option>
-                          <option value="creative">Creative (Créatif)</option>
-                          <option value="elegant">Elegant (Premium)</option>
-                          <option value="green-clean">Green Clean</option>
-                          <option value="corp-blue">Corporate Blue</option>
-                          <option value="corp-light">Corporate Light</option>
-                          <option value="bold-blue">Bold Blue</option>
-                          <option value="wave-french">Devis Pro Wave</option>
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem; display: block;">Couleurs</label>
-                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
-                          <button class="btn btn-secondary btn-sm" onclick="KivoApp.applyPalette('#0F172A', '#475569')">Noir/Gris</button>
-                          <button class="btn btn-secondary btn-sm" onclick="KivoApp.applyPalette('#2563EB', '#60A5FA')">Bleu Pro</button>
-                          <button class="btn btn-secondary btn-sm" onclick="KivoApp.applyPalette('#059669', '#34D399')">Vert Nature</button>
-                          <button class="btn btn-secondary btn-sm" onclick="KivoApp.applyPalette('#D97706', '#FBBF24')">Ambre</button>
-                          <button class="btn btn-secondary btn-sm" onclick="KivoApp.applyPalette('#7C3AED', '#A78BFA')">Créatif Violet</button>
-                          <button class="btn btn-secondary btn-sm" onclick="KivoApp.applyPalette('#BE123C', '#FB7185')">Bourgogne</button>
-                        </div>
-                        <div style="display: flex; gap: 1rem; align-items: center;">
-                          <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <input type="color" id="builder-color-primary" value="#0F172A" onchange="KivoApp.updateLiveInvoicePreview()" style="width: 32px; height: 32px; padding: 0; border: none; border-radius: 4px; cursor: pointer;">
-                            <span style="font-size: 0.8rem;">Principale</span>
-                          </div>
-                          <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <input type="color" id="builder-color-secondary" value="#64748B" onchange="KivoApp.updateLiveInvoicePreview()" style="width: 32px; height: 32px; padding: 0; border: none; border-radius: 4px; cursor: pointer;">
-                            <span style="font-size: 0.8rem;">Secondaire</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div style="border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; display: block;">Logo d'entreprise</label>
-                        <div id="builder-logo-dropzone" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 1rem; text-align: center; background: var(--bg-card); cursor: pointer; transition: all 0.2s;" onclick="document.getElementById('builder-logo-upload').click()">
-                          <input type="file" id="builder-logo-upload" accept="image/*" style="display: none;" onchange="KivoApp.handleLogoUpload(this.files)">
-                          <div id="builder-logo-upload-prompt" style="font-size: 0.825rem; color: var(--text-secondary);">
-                            <span style="display: block; font-weight: 600; color: var(--primary); margin-bottom: 2px;">+ Ajouter votre logo</span>
-                            <span style="font-size: 0.75rem; color: var(--text-muted);">PNG, JPG ou SVG (Drag & drop ou cliquer)</span>
-                          </div>
-                          <div id="builder-logo-preview-box" style="display: none; align-items: center; justify-content: space-between; gap: 0.75rem;">
-                            <img id="builder-logo-preview-img" style="max-height: 44px; max-width: 120px; object-fit: contain;">
-                            <div style="display: flex; gap: 0.35rem;">
-                              <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); document.getElementById('builder-logo-upload').click();">Remplacer</button>
-                              <button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation(); KivoApp.removeBusinessLogo();">Supprimer</button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                  <div>
+                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Date d'échéance</label>
+                    <div style="position: relative;">
+                      <input type="date" id="builder-due-date" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;" onchange="KivoApp.updateLiveInvoicePreview()">
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <!-- Line Items Table -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin: 1rem 0 0.75rem 0;">
-                  <h3 style="margin: 0; font-size: 1.05rem;">Articles & Prestations</h3>
-                  <button class="btn btn-secondary btn-sm" onclick="KivoApp.addBuilderLineItem()">+ Ajouter une ligne</button>
+              <!-- 2. Entreprise -->
+              <div>
+                <h3 style="font-size: 1rem; font-weight: 700; color: #0F172A; margin: 0 0 1rem 0;">Entreprise</h3>
+                <div style="background: #FFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1.5rem;">
+                  <!-- Logo Upload -->
+                  <div id="builder-logo-dropzone" style="background: #F8FAFC; border: 2px dashed #E2E8F0; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; margin-bottom: 1.5rem; transition: background 0.2s;" onclick="document.getElementById('builder-logo-upload').click()">
+                    <input type="file" id="builder-logo-upload" accept="image/*" style="display: none;" onchange="KivoApp.handleLogoUpload(this.files)">
+                    
+                    <div id="builder-logo-upload-prompt">
+                      <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🏢</div>
+                      <div style="font-size: 0.85rem; font-weight: 600; color: #475569;">Uploader logo</div>
+                    </div>
+                    
+                    <div id="builder-logo-preview-box" style="display: none; align-items: center; justify-content: center; flex-direction: column; gap: 1rem;">
+                      <img id="builder-logo-preview-img" style="max-height: 60px; max-width: 200px; object-fit: contain;">
+                      <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); document.getElementById('builder-logo-upload').click();" style="font-size: 0.75rem; padding: 0.35rem 0.75rem; background: #FFF; border: 1px solid #CBD5E1;">Remplacer</button>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation(); KivoApp.removeBusinessLogo();" style="font-size: 0.75rem; padding: 0.35rem 0.75rem; background: #FFF; border: 1px solid #EF4444; color: #EF4444;">Supprimer</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Enterprise details -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div style="grid-column: span 2;">
+                      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Nom de l'entreprise</label>
+                      <input type="text" id="builder-biz-name" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;" value="KIVO Inc." oninput="KivoApp.updateLiveInvoicePreview()">
+                    </div>
+                    <div style="grid-column: span 2;">
+                      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Adresse</label>
+                      <input type="text" id="builder-biz-address" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;" value="Adresse" oninput="KivoApp.updateLiveInvoicePreview()">
+                    </div>
+                    <div>
+                      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Téléphone</label>
+                      <input type="text" id="builder-biz-phone" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;" value="" oninput="KivoApp.updateLiveInvoicePreview()">
+                    </div>
+                    <div>
+                      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Email</label>
+                      <input type="email" id="builder-biz-email" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;" value="" oninput="KivoApp.updateLiveInvoicePreview()">
+                    </div>
+                  </div>
                 </div>
-                
-                <div class="table-container" style="margin-bottom: 1rem;">
-                  <table class="table" style="font-size: 0.85rem;">
+              </div>
+
+              <!-- 3. Client -->
+              <div>
+                <h3 style="font-size: 1rem; font-weight: 700; color: #0F172A; margin: 0 0 1rem 0;">Client</h3>
+                <div style="background: #FFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1.5rem;">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div style="grid-column: span 2;">
+                      <label style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                        <span style="font-size: 0.75rem; font-weight: 600; color: #475569;">Client / Entreprise</span>
+                        <a href="javascript:void(0)" onclick="KivoApp.openNewClientModal()" style="font-size: 0.75rem; color: #3B82F6; text-decoration: none; font-weight: 600;">+ Ajouter</a>
+                      </label>
+                      <select id="builder-doc-client-select" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; background: #FFF; font-family: 'Inter', sans-serif;" onchange="KivoApp.updateLiveInvoicePreview()">
+                        <!-- Options populated -->
+                      </select>
+                    </div>
+                    <div>
+                      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Adresse</label>
+                      <input type="text" id="builder-client-address" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;" oninput="KivoApp.updateLiveInvoicePreview()">
+                    </div>
+                    <div>
+                      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Téléphone</label>
+                      <input type="text" id="builder-client-phone" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;" oninput="KivoApp.updateLiveInvoicePreview()">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. Articles -->
+              <div>
+                <h3 style="font-size: 1rem; font-weight: 700; color: #0F172A; margin: 0 0 1rem 0;">Articles</h3>
+                <div style="background: #FFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1.5rem; overflow: hidden;">
+                  <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;">
                     <thead>
                       <tr>
-                        <th style="width: 42%;">Description</th>
-                        <th style="width: 15%;">Qté</th>
-                        <th style="width: 25%;">Prix unitaire</th>
-                        <th style="width: 18%;">Total</th>
-                        <th style="width: 5%;"></th>
+                        <th style="text-align: left; font-size: 0.75rem; color: #475569; font-weight: 600; padding-bottom: 0.5rem; border-bottom: 1px solid #E2E8F0;">Description</th>
+                        <th style="text-align: center; font-size: 0.75rem; color: #475569; font-weight: 600; padding-bottom: 0.5rem; border-bottom: 1px solid #E2E8F0; width: 12%;">Quantité</th>
+                        <th style="text-align: right; font-size: 0.75rem; color: #475569; font-weight: 600; padding-bottom: 0.5rem; border-bottom: 1px solid #E2E8F0; width: 22%;">Prix Unitaire</th>
+                        <th style="text-align: center; font-size: 0.75rem; color: #475569; font-weight: 600; padding-bottom: 0.5rem; border-bottom: 1px solid #E2E8F0; width: 12%;">TVA (%)</th>
+                        <th style="text-align: right; font-size: 0.75rem; color: #475569; font-weight: 600; padding-bottom: 0.5rem; border-bottom: 1px solid #E2E8F0; width: 15%;">Total HT</th>
+                        <th style="width: 5%; border-bottom: 1px solid #E2E8F0;"></th>
                       </tr>
                     </thead>
                     <tbody id="builder-items-tbody">
-                      <!-- Rows added here -->
+                      <!-- Rows added here via JS -->
                     </tbody>
                   </table>
+                  
+                  <button class="btn btn-secondary btn-sm" onclick="KivoApp.addBuilderLineItem()" style="background: transparent; border: 1px dashed #CBD5E1; color: #0F172A; font-weight: 600; width: 100%; padding: 0.75rem; border-radius: 8px;">+ Ajouter une ligne</button>
                 </div>
+              </div>
 
-                <!-- Financial Totals Box -->
-                <div style="display: flex; justify-content: flex-end; margin-bottom: 1.5rem;">
-                  <div style="width: 300px; background: var(--bg-subtle); padding: 1rem; border-radius: var(--radius-md);">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem; font-size: 0.85rem;">
-                      <span>Sous-total HT :</span>
-                      <strong id="builder-calc-subtotal">0 FCFA</strong>
+              <!-- 5. Paiement -->
+              <div>
+                <h3 style="font-size: 1rem; font-weight: 700; color: #0F172A; margin: 0 0 1rem 0;">Paiement</h3>
+                <div style="background: #FFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1.5rem;">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Mode de paiement</label>
+                      <select id="builder-payment-method" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; background: #FFF; font-family: 'Inter', sans-serif;" onchange="KivoApp.updateLiveInvoicePreview()">
+                        <option value="Virement bancaire">Virement bancaire</option>
+                        <option value="Mobile Money">Mobile Money (Wave, Orange, etc.)</option>
+                        <option value="Carte bancaire">Carte bancaire (Stripe)</option>
+                        <option value="Espèces">Espèces</option>
+                        <option value="Chèque">Chèque</option>
+                      </select>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; font-size: 0.85rem;">
-                      <span>TVA / Taxe (%) :</span>
-                      <input type="number" id="builder-input-tax" value="18" min="0" max="100" class="form-input" style="width: 70px; padding: 0.2rem 0.4rem; text-align: right;" oninput="KivoApp.recalculateBuilderTotals()">
+                    <div>
+                      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Conditions de paiement</label>
+                      <input type="text" id="builder-terms" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;" value="Net 30 days" oninput="KivoApp.updateLiveInvoicePreview()">
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; font-size: 0.85rem;">
-                      <span>Montant TVA :</span>
-                      <span id="builder-calc-tax-amount" style="color: var(--text-secondary);">0 FCFA</span>
+                    <div>
+                      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Devise</label>
+                      <select id="builder-doc-currency" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; background: #FFF; font-family: 'Inter', sans-serif;" onchange="KivoApp.recalculateBuilderTotals()">
+                        <option value="FCFA">FCFA</option>
+                        <option value="XOF">XOF</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="USD">USD ($)</option>
+                        <option value="CAD">CAD ($)</option>
+                        <option value="GBP">GBP (£)</option>
+                      </select>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.85rem;">
-                      <span>Réduction :</span>
-                      <input type="number" id="builder-input-discount" value="0" min="0" class="form-input" style="width: 90px; padding: 0.2rem 0.4rem; text-align: right;" oninput="KivoApp.recalculateBuilderTotals()">
+                    <div>
+                      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Statut de la facture</label>
+                      <select id="builder-doc-status" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; background: #FFF; font-family: 'Inter', sans-serif;" onchange="KivoApp.updateLiveInvoicePreview()">
+                        <option value="draft">Brouillon</option>
+                        <option value="sent">Envoyée / En attente</option>
+                        <option value="paid">Payée ✓</option>
+                        <option value="overdue">En retard ⚠️</option>
+                      </select>
                     </div>
-                    <div style="border-top: 1px solid var(--border-color); padding-top: 0.5rem; display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 800;">
-                      <span>TOTAL TTC :</span>
-                      <strong id="builder-calc-total" style="color: var(--primary);">0 FCFA</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Conditions and Notes -->
-                <div class="form-row">
-                  <div class="form-group">
-                    <label class="form-label">Notes client</label>
-                    <textarea id="builder-notes" class="form-textarea" rows="2" placeholder="Ex: Merci pour votre confiance." oninput="KivoApp.updateLiveInvoicePreview()"></textarea>
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label">Conditions de règlement</label>
-                    <textarea id="builder-terms" class="form-textarea" rows="2" placeholder="Ex: Paiement par Stripe, Wave ou Virement." oninput="KivoApp.updateLiveInvoicePreview()"></textarea>
                   </div>
                 </div>
               </div>
+
+              <!-- 6. Notes -->
+              <div style="margin-bottom: 4rem;">
+                <h3 style="font-size: 1rem; font-weight: 700; color: #0F172A; margin: 0 0 1rem 0;">Notes</h3>
+                <div style="background: #FFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1.5rem;">
+                  <textarea id="builder-notes" rows="3" style="width: 100%; padding: 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; resize: vertical; font-family: inherit;" placeholder="Notes / Mentions légales" oninput="KivoApp.updateLiveInvoicePreview()"></textarea>
+                </div>
+              </div>
+
             </div>
 
-            <!-- RIGHT COLUMN: Real-Time Paper Invoice Preview -->
-            <div class="builder-preview-col">
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.25rem;">
-                <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 0.35rem;">
-                  👁️ Aperçu en temps réel
-                </span>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button class="btn btn-secondary btn-sm" onclick="window.print()" title="Imprimer ou Sauvegarder en PDF">🖨️ PDF</button>
-                  <button class="btn btn-whatsapp btn-sm" onclick="KivoApp.shareCurrentBuilderWhatsApp()" title="Partager par WhatsApp">💬 WhatsApp</button>
-                </div>
-              </div>
-
-              <!-- Realistic A4 Paper Element -->
-              <div class="paper-invoice-preview" id="live-paper-preview-container">
-                <div>
-                  <!-- Paper Header -->
-                  <div class="paper-header">
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
-                      <div class="paper-logo-badge" id="paper-logo-display">MD</div>
-                      <div>
-                        <h3 id="paper-biz-name" style="margin: 0; font-size: 1.1rem; color: #0F172A;">MD Creative Studio</h3>
-                        <p id="paper-biz-address" style="margin: 0; font-size: 0.75rem; color: #64748B;">Avenue Cheikh Anta Diop, Dakar</p>
-                        <p id="paper-biz-taxid" style="margin: 0; font-size: 0.7rem; color: #94A3B8;">NINEA: SN-NINEA-849204812</p>
+            <!-- RIGHT: A4 PREVIEW -->
+            <div style="flex: 0 0 52%; max-width: 52%; display: flex; justify-content: center; position: sticky; top: 2rem; align-self: flex-start; margin-left: auto;">
+              
+              <!-- Stacked paper effect wrapper -->
+              <div class="mock-paper-stack" style="width: 100%; max-width: 794px; position: relative;">
+                
+                <!-- Background papers -->
+                <div style="position: absolute; top: 10px; left: 10px; right: -10px; bottom: -10px; background: #FFF; border-radius: 4px; border: 1px solid #E2E8F0; z-index: 1;"></div>
+                <div style="position: absolute; top: 5px; left: 5px; right: -5px; bottom: -5px; background: #FFF; border-radius: 4px; border: 1px solid #E2E8F0; z-index: 2;"></div>
+                
+                <!-- Main Paper -->
+                <div id="live-paper-preview-container" style="position: relative; z-index: 3; width: 100%; aspect-ratio: 1 / 1.414; background: #FFF; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid #E2E8F0; border-radius: 2px; padding: 4rem; display: flex; flex-direction: column;">
+                  
+                  <!-- A4 CONTENT -->
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4rem;">
+                    <div>
+                      <h2 id="paper-doc-type" style="font-family: var(--font-heading); font-size: 2.25rem; font-weight: 800; color: #0F172A; margin: 0; letter-spacing: -0.02em;">FACTURE</h2>
+                      
+                      <div style="margin-top: 2rem;">
+                        <div id="paper-biz-name" style="font-size: 0.85rem; font-weight: 700; color: #0F172A; margin-bottom: 0.25rem;">KIVO Inc.</div>
+                        <div id="paper-biz-address" style="font-size: 0.85rem; color: #475569;">Adresse</div>
+                        <div id="paper-biz-phone" style="font-size: 0.85rem; color: #475569;">Téléphone</div>
+                        <div id="paper-biz-email" style="font-size: 0.85rem; color: #475569;">Email</div>
                       </div>
                     </div>
-
-                    <div class="paper-doc-meta">
-                      <div class="doc-type-tag" id="paper-doc-type">FACTURE</div>
-                      <div class="doc-num" id="paper-doc-number">FAC-2026-0028</div>
-                      <div style="font-size: 0.75rem; color: #64748B; margin-top: 0.25rem;">
-                        Date: <span id="paper-date-issue">--/--/----</span><br>
-                        Échéance: <span id="paper-date-due">--/--/----</span>
+                    
+                    <div style="text-align: right;">
+                      <div style="display: flex; justify-content: flex-end; margin-bottom: 2rem; height: 50px;">
+                        <img id="paper-logo-display" src="" style="max-height: 50px; max-width: 180px; object-fit: contain; display: none;">
+                        <div id="paper-logo-text" style="font-family: var(--font-heading); font-size: 2rem; font-weight: 800; color: #0F172A;">KIVO</div>
                       </div>
+                      
+                      <div id="paper-doc-number" style="font-size: 1.2rem; font-weight: 700; color: #0F172A; margin-bottom: 0.25rem;">K-2026-0001</div>
+                      <div style="font-size: 0.85rem; color: #475569;">Date d'émission <span id="paper-date-issue" style="color: #0F172A; font-weight: 500; margin-left: 0.5rem;">22/06/2026</span></div>
+                      <div style="font-size: 0.85rem; color: #475569;">Date d'échéance <span id="paper-date-due" style="color: #0F172A; font-weight: 500; margin-left: 0.5rem;">25/06/2026</span></div>
                     </div>
                   </div>
 
-                  <!-- Paper Addresses Grid -->
-                  <div class="paper-addresses">
-                    <div class="paper-address-block">
-                      <strong>ÉMETTEUR</strong>
-                      <p id="paper-sender-details">
-                        MD Creative Studio<br>
-                        Tél: +221 77 842 19 02<br>
-                        Email: marc.koffi@mdcreative.design
-                      </p>
-                    </div>
-
-                    <div class="paper-address-block">
-                      <strong>DESTINATAIRE (CLIENT)</strong>
-                      <p id="paper-client-details">
-                        Restaurant La Paix<br>
-                        Contact: Jean-Paul Diop<br>
-                        Tél: +221 77 500 12 34
-                      </p>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 4rem;">
+                    <div>
+                      <div style="font-size: 0.85rem; font-weight: 700; color: #0F172A; margin-bottom: 0.5rem;">Client</div>
+                      <div id="paper-client-name" style="font-size: 0.95rem; font-weight: 700; color: #0F172A; margin-bottom: 0.25rem;">CLIENT PRO SOLUTIONS</div>
+                      <div id="paper-client-address" style="font-size: 0.85rem; color: #475569;">3223 Nimmakst</div>
+                      <div id="paper-client-phone" style="font-size: 0.85rem; color: #475569;">email@trustprosolution.com</div>
                     </div>
                   </div>
 
-                  <!-- Paper Table -->
-                  <table class="paper-table">
+                  <!-- A4 Items Table -->
+                  <table style="width: 100%; border-collapse: collapse; margin-bottom: 2rem;">
                     <thead>
                       <tr>
-                        <th style="width: 45%;">Description</th>
-                        <th style="text-align: center; width: 15%;">Qté</th>
-                        <th style="text-align: right; width: 20%;">P.U</th>
-                        <th style="text-align: right; width: 20%;">Total</th>
+                        <th style="text-align: left; font-size: 0.85rem; font-weight: 700; color: #0F172A; border-bottom: 2px solid #0F172A; padding-bottom: 0.75rem; width: 45%;">Description</th>
+                        <th style="text-align: center; font-size: 0.85rem; font-weight: 700; color: #0F172A; border-bottom: 2px solid #0F172A; padding-bottom: 0.75rem; width: 10%;">Quantité</th>
+                        <th style="text-align: right; font-size: 0.85rem; font-weight: 700; color: #0F172A; border-bottom: 2px solid #0F172A; padding-bottom: 0.75rem; width: 20%;">Prix Unitaire</th>
+                        <th style="text-align: center; font-size: 0.85rem; font-weight: 700; color: #0F172A; border-bottom: 2px solid #0F172A; padding-bottom: 0.75rem; width: 10%;">TVA</th>
+                        <th style="text-align: right; font-size: 0.85rem; font-weight: 700; color: #0F172A; border-bottom: 2px solid #0F172A; padding-bottom: 0.75rem; width: 15%;">Total</th>
                       </tr>
                     </thead>
                     <tbody id="paper-items-tbody">
-                      <!-- Live rendered rows -->
+                      <!-- Live injected rows -->
                     </tbody>
                   </table>
-                </div>
 
-                <div>
-                  <!-- Paper Totals Box -->
-                  <div class="paper-totals-container">
-                    <div class="paper-totals-box">
-                      <div class="paper-total-row">
-                        <span>Sous-total HT :</span>
-                        <span id="paper-subtotal">0 FCFA</span>
+                  <div style="display: flex; justify-content: flex-end; margin-bottom: 4rem;">
+                    <div style="width: 250px;">
+                      <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #0F172A; margin-bottom: 0.5rem;">
+                        <span style="font-weight: 600;">Sous-total HT</span>
+                        <span id="paper-subtotal">$258,00</span>
                       </div>
-                      <div class="paper-total-row" id="paper-tva-row">
-                        <span>TVA (<span id="paper-tax-rate">18</span>%) :</span>
-                        <span id="paper-tax-amount">0 FCFA</span>
+                      <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #0F172A; margin-bottom: 0.75rem; border-bottom: 1px solid #E2E8F0; padding-bottom: 0.75rem;">
+                        <span>Total TVA</span>
+                        <span id="paper-tax-amount">$25,50</span>
                       </div>
-                      <div class="paper-total-row" id="paper-discount-row" style="display: none;">
-                        <span>Réduction :</span>
-                        <span id="paper-discount-amount">-0 FCFA</span>
-                      </div>
-                      <div class="paper-total-row grand-total">
-                        <span>TOTAL TTC :</span>
-                        <span id="paper-grand-total">0 FCFA</span>
+                      <div style="display: flex; justify-content: space-between; font-size: 1.15rem; color: #0F172A; font-weight: 700;">
+                        <span>Total TTC</span>
+                        <span id="paper-grand-total">$328,00</span>
                       </div>
                     </div>
                   </div>
 
-                  <!-- Paper Terms & Watermark -->
-                  <div class="paper-footer">
-                    <div>
-                      <strong style="color: #475569; display: block;">Conditions de règlement :</strong>
-                      <span id="paper-terms-text" style="font-size: 0.75rem; color: #64748B;">Paiement à réception par Carte bancaire (Stripe) ou Mobile Money.</span>
-                    </div>
-                    <div style="font-family: var(--font-heading); font-weight: 700; font-size: 0.8rem; color: var(--primary);">
-                      KIVO MATIQUE
-                    </div>
+                  <div style="margin-top: auto; font-size: 0.85rem; color: #0F172A;">
+                    <div style="font-weight: 700; margin-bottom: 0.25rem;">Paiement</div>
+                    <div style="color: #475569;">Mode de règlement: <span id="paper-payment-method" style="color: #0F172A;">Virement bancaire</span></div>
+                    <div style="color: #475569; margin-bottom: 1.5rem;">Conditions: <span id="paper-terms-text" style="color: #0F172A;">Net 30 days</span></div>
+                    
+                    <div id="paper-notes-text" style="color: #475569; margin-top: 2rem; border-top: 1px solid #E2E8F0; padding-top: 1rem;">Notes / Mentions légales</div>
                   </div>
-
-                  <div class="paper-watermark" id="paper-watermark-stamp" style="display: none;">PAYÉE</div>
+                  
+                  <!-- Watermark -->
+                  <div class="paper-watermark" id="paper-watermark-stamp" style="display: none; position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); font-size: 5rem; font-weight: 800; border: 4px solid; padding: 1rem; border-radius: 12px; opacity: 0.15; pointer-events: none;">PAYÉE</div>
+                  
                 </div>
               </div>
             </div>
-
           </div>
         </section>
 
