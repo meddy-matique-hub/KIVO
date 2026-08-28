@@ -803,11 +803,16 @@ window.KivoApp = {
           if(doc.status === 'paid') { badgeClass = 'paid'; badgeText = 'Payée'; }
           else if(doc.status === 'overdue') { badgeClass = 'overdue'; badgeText = 'En retard'; }
           
+          let docDate = doc.date;
+          if (!docDate || docDate === 'undefined') {
+            docDate = doc.createdAt ? new Date(doc.createdAt).toLocaleDateString('fr-FR') : 'N/A';
+          }
+          
           return `
             <tr>
               <td>${doc.number}</td>
               <td>${doc.clientName}</td>
-              <td>${doc.date}</td>
+              <td>${docDate}</td>
               <td>${formatCurrency(doc.total || 0)}</td>
               <td style="text-align: right;"><span class="kivo-dash-badge ${badgeClass}">${badgeText}</span></td>
             </tr>
