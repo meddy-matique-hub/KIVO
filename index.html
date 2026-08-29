@@ -861,7 +861,8 @@
             <div style="display: flex; gap: 0.75rem; align-items: center;">
               <button class="btn btn-secondary" onclick="KivoApp.saveAsTemplate()" title="Enregistrer ce design pour plus tard" style="background: #FFF; border: 1px solid #CBD5E1; color: #475569;">⭐ Sauvegarder modèle</button>
               <button class="btn btn-whatsapp" onclick="KivoApp.shareCurrentBuilderWhatsApp()" style="background: #25D366; color: #FFF; border: none;">💬 Partager</button>
-              <button class="btn btn-secondary" onclick="window.print()" style="background: #FFF; border: 1px solid #CBD5E1; color: #475569;">🖨️ Télécharger PDF</button>
+              <button class="btn btn-secondary" onclick="KivoApp.downloadPdf()" style="background: #FFF; border: 1px solid #CBD5E1; color: #475569;">⬇️ Télécharger PDF</button>
+              <button class="btn btn-secondary" onclick="KivoApp.printPdf()" style="background: #FFF; border: 1px solid #CBD5E1; color: #475569;">🖨️ Imprimer</button>
               <button class="btn btn-primary" onclick="KivoApp.saveDocumentFromBuilder()" style="background: #0F172A; color: #FFF; border: none;">💾 Enregistrer</button>
             </div>
           </div>
@@ -938,6 +939,27 @@
                         <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); document.getElementById('builder-logo-upload').click();" style="font-size: 0.75rem; padding: 0.35rem 0.75rem; background: #FFF; border: 1px solid #CBD5E1;">Remplacer</button>
                         <button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation(); KivoApp.removeBusinessLogo();" style="font-size: 0.75rem; padding: 0.35rem 0.75rem; background: #FFF; border: 1px solid #EF4444; color: #EF4444;">Supprimer</button>
                       </div>
+                    </div>
+                  </div>
+
+                  <!-- Logo Size & Position -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;" id="logo-controls" style="display:none;">
+                    <div>
+                      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.4rem;">Taille du logo</label>
+                      <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <span style="font-size:0.75rem; color:#64748B;">S</span>
+                        <input type="range" id="builder-logo-size" min="30" max="200" value="100" style="flex:1; accent-color: #4F46E5;" oninput="KivoApp.onLogoSizeChange(this.value)">
+                        <span style="font-size:0.75rem; color:#64748B;">XL</span>
+                        <span id="logo-size-display" style="font-size:0.75rem; font-weight:600; color:#0F172A; min-width:32px;">100px</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.4rem;">Position du logo</label>
+                      <select id="builder-logo-position" style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid #CBD5E1; font-size:0.85rem; outline:none;" onchange="KivoApp.onLogoPositionChange(this.value)">
+                        <option value="right">Droite ▶</option>
+                        <option value="left">Gauche ◀</option>
+                        <option value="center">Centre ▲</option>
+                      </select>
                     </div>
                   </div>
 
@@ -2001,6 +2023,7 @@
 
 
   <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js?v=2.7"></script>
   <script src="js/auth.js?v=2.7"></script>

@@ -245,8 +245,11 @@ window.KivoApp = {
         nextQuoteNumber: s.next_quote_number || this.state.business.nextQuoteNumber,
         subscriptionTier: s.current_plan || this.state.business.subscriptionTier,
         visualTemplate: s.visual_template || this.state.business.visualTemplate || 'classic',
-        primaryColor: s.primary_color || this.state.business.primaryColor || '#0F172A',
-        secondaryColor: s.secondary_color || this.state.business.secondaryColor || '#64748B',
+        primaryColor: s.primary_color || this.state.business.primaryColor || '#4F46E5',
+        secondaryColor: s.secondary_color || this.state.business.secondaryColor || '#7C3AED',
+        logoSize: s.logo_size !== undefined ? s.logo_size : (this.state.business.logoSize || 100),
+        logoPosition: s.logo_position || this.state.business.logoPosition || 'right',
+        invoicePageSize: s.invoice_page_size || this.state.business.invoicePageSize || 'a4',
       };
       
       // Update the visual UI elements with loaded settings
@@ -1372,8 +1375,17 @@ window.KivoApp = {
       if(logoEl) {
         logoEl.src = biz.logoUrl;
         logoEl.style.display = 'block';
+        logoEl.style.maxHeight = (biz.logoSize || 100) + 'px';
       }
       if(logoText) logoText.style.display = 'none';
+      
+      const headerRight = document.querySelector('#live-paper-preview-container div[style*="text-align: right"]');
+      if (headerRight) {
+        const pos = biz.logoPosition || 'right';
+        if (pos === 'left') headerRight.style.textAlign = 'left';
+        else if (pos === 'center') headerRight.style.textAlign = 'center';
+        else headerRight.style.textAlign = 'right';
+      }
     } else {
       if(logoEl) logoEl.style.display = 'none';
       if(logoText) {
@@ -2149,19 +2161,21 @@ window.KivoApp = {
         <button class="btn btn-success" onclick="KivoApp.clientAcceptQuote('${doc.id}')">
           ✓ Accepter le devis
         </button>
-        <button class="btn btn-secondary" onclick="window.print()">Télécharger PDF</button>
+        <button class="btn btn-secondary" onclick="KivoApp.downloadPdf()">⬇️ Télécharger PDF</button>
       `;
     } else if (doc.type === 'invoice' && doc.status !== 'paid' && doc.status !== 'refunded') {
       btnContainer.innerHTML = `
         <button class="btn btn-primary" onclick="KivoApp.openPaymentModal('${doc.id}')">
           🔒 Payer en ligne (${(doc.total).toLocaleString('fr-FR')} ${currencyStr})
         </button>
-        <button class="btn btn-secondary" onclick="window.print()">Télécharger PDF</button>
+        <button class="btn btn-secondary" onclick="KivoApp.downloadPdf()">⬇️ Télécharger PDF</button>
+        <button class="btn btn-secondary" onclick="KivoApp.printPdf()">🖨️ Imprimer</button>
         <button class="btn btn-whatsapp" onclick="KivoApp.shareOnWhatsApp('${doc.id}')">💬 WhatsApp</button>
       `;
     } else {
       btnContainer.innerHTML = `
-        <button class="btn btn-secondary" onclick="window.print()">Télécharger / Imprimer PDF</button>
+        <button class="btn btn-secondary" onclick="KivoApp.downloadPdf()">⬇️ Télécharger PDF</button>
+        <button class="btn btn-secondary" onclick="KivoApp.printPdf()">🖨️ Imprimer</button>
         <button class="btn btn-whatsapp" onclick="KivoApp.shareOnWhatsApp('${doc.id}')">💬 WhatsApp</button>
       `;
     }
@@ -2792,6 +2806,29 @@ window.KivoApp = {
 
     this.saveState();
     this.updateUserBrandingUI();
+
+    // Sync to Supabase immediately after onboarding
+    if (window.KivoDb && this.supabaseConnected) {
+      window.KivoDb.saveSettings({
+        company_name: bizName,
+        owner: bizOwner,
+        email: bizEmail,
+        phone: fullPhone,
+        industry: bizIndustry,
+        country: bizCountry,
+        currency: bizCurrency,
+        fiscal_id: bizTaxId,
+        current_plan: this.selectedOnboardPlan || 'Gratuit',
+        invoice_prefix: biz.invoicePrefix || 'FAC-2026-',
+        quote_prefix: biz.quotePrefix || 'DEV-2026-',
+        default_vat_rate: biz.defaultVatRate || 18,
+        logo_url: biz.logoUrl || '',
+        visual_template: biz.visualTemplate || 'classic',
+        primary_color: biz.primaryColor || '#4F46E5',
+        secondary_color: biz.secondaryColor || '#7C3AED'
+      }).catch(e => console.error('[KivoApp] Supabase onboarding saveSettings error:', e));
+    }
+
     this.showToast(`🎉 Bienvenue sur KIVO MATIQUE, ${bizOwner} ! Espace prêt.`, "success");
     this.navigate('dashboard');
   },
@@ -2878,8 +2915,11 @@ window.KivoApp = {
         default_vat_rate: biz.defaultVatRate || 18,
         logo_url: biz.logoUrl || '',
         visual_template: biz.visualTemplate || 'classic',
-        primary_color: biz.primaryColor || '#0F172A',
-        secondary_color: biz.secondaryColor || '#64748B'
+        primary_color: biz.primaryColor || '#4F46E5',
+        secondary_color: biz.secondaryColor || '#7C3AED',
+        logo_size: biz.logoSize || 100,
+        logo_position: biz.logoPosition || 'right',
+        invoice_page_size: biz.invoicePageSize || 'a4'
       }).catch(e => console.error('[KivoApp] Supabase saveSettings error:', e));
     }
 
@@ -3138,33 +3178,18 @@ window.KivoApp = {
     
     try {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-      
-      // Simple extraction: average color excluding transparent pixels
       let r = 0, g = 0, b = 0, count = 0;
       for (let i = 0; i < imageData.length; i += 4) {
-        if (imageData[i+3] > 128) { // check alpha
-          // skip pure white and near white (often backgrounds)
+        if (imageData[i+3] > 128) {
           if (imageData[i] > 240 && imageData[i+1] > 240 && imageData[i+2] > 240) continue;
-          
-          r += imageData[i];
-          g += imageData[i+1];
-          b += imageData[i+2];
-          count++;
+          r += imageData[i]; g += imageData[i+1]; b += imageData[i+2]; count++;
         }
       }
-      
       if (count > 0) {
-        r = Math.floor(r / count);
-        g = Math.floor(g / count);
-        b = Math.floor(b / count);
-        
-        const toHex = (c) => {
-          const hex = c.toString(16);
-          return hex.length === 1 ? "0" + hex : hex;
-        };
-        
-        const primaryHex = "#" + toHex(r) + toHex(g) + toHex(b);
-        this.applyPalette(primaryHex, '#64748B'); // use a neutral secondary
+        r = Math.floor(r/count); g = Math.floor(g/count); b = Math.floor(b/count);
+        const toHex = (c) => { const h = c.toString(16); return h.length === 1 ? '0'+h : h; };
+        const primaryHex = '#' + toHex(r) + toHex(g) + toHex(b);
+        this.applyPalette(primaryHex, '#64748B');
         this.showToast('Palette générée avec succès !', 'success');
       } else {
         this.showToast('Couleur introuvable', 'error');
@@ -3173,6 +3198,89 @@ window.KivoApp = {
       console.error(e);
       this.showToast('Erreur lors de l\'analyse du logo', 'error');
     }
+  },
+
+  /**
+   * Slider taille du logo
+   */
+  onLogoSizeChange: function (val) {
+    const size = parseInt(val) || 100;
+    const displayEl = document.getElementById('logo-size-display');
+    if (displayEl) displayEl.textContent = size + 'px';
+    if (!this.state.business) return;
+    this.state.business.logoSize = size;
+    // Appliquer immediatement dans l'apercu
+    const logoEl = document.getElementById('paper-logo-display');
+    if (logoEl) logoEl.style.maxHeight = size + 'px';
+    this.saveState();
+  },
+
+  /**
+   * Selecteur position du logo
+   */
+  onLogoPositionChange: function (pos) {
+    if (!this.state.business) return;
+    this.state.business.logoPosition = pos;
+    const headerRight = document.querySelector('#live-paper-preview-container div[style*="text-align: right"]');
+    if (headerRight) {
+      if (pos === 'left') { headerRight.style.textAlign = 'left'; }
+      else if (pos === 'center') { headerRight.style.textAlign = 'center'; }
+      else { headerRight.style.textAlign = 'right'; }
+    }
+    this.saveState();
+  },
+
+  /**
+   * Telechargement PDF reel via html2pdf.js
+   */
+  downloadPdf: function () {
+    const biz = (this.state && this.state.business) || {};
+    const docNum = (document.getElementById('builder-doc-number') || document.getElementById('pub-doc-number'));
+    const filename = (docNum ? docNum.textContent || docNum.value : 'document') + '.pdf';
+
+    // Determiner la zone a capturer
+    let element = document.getElementById('live-paper-preview-container');
+    if (!element || element.offsetParent === null) {
+      element = document.getElementById('public-doc-printable-area');
+    }
+    if (!element) {
+      this.showToast('Aucun document à télécharger.', 'error');
+      return;
+    }
+
+    if (typeof html2pdf === 'undefined') {
+      this.showToast('Bibliothèque PDF non chargée — réessayez dans quelques secondes.', 'error');
+      return;
+    }
+
+    const format = (biz.invoicePageSize || 'a4').toLowerCase();
+    this.showToast('⏳ Génération du PDF en cours...', 'info');
+
+    // Injecter les variables CSS dans l'element pour que html2pdf les capte
+    const primary = biz.primaryColor || '#0F172A';
+    const secondary = biz.secondaryColor || '#64748B';
+    element.style.setProperty('--doc-primary', primary);
+    element.style.setProperty('--doc-secondary', secondary);
+
+    html2pdf()
+      .set({
+        margin: 0,
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
+        jsPDF: { unit: 'mm', format: format, orientation: 'portrait' }
+      })
+      .from(element)
+      .save()
+      .then(() => this.showToast('✅ PDF téléchargé avec succès !', 'success'))
+      .catch(e => { console.error(e); this.showToast('Erreur PDF : ' + e.message, 'error'); });
+  },
+
+  /**
+   * Impression via fenetre du navigateur
+   */
+  printPdf: function () {
+    window.print();
   }
 };
 
