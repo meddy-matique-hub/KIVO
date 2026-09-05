@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=2.9">
+  <link rel="stylesheet" href="styles.css?v=3.0">
 </head>
 <body>
 
@@ -899,6 +899,18 @@
                     <select id="builder-doc-type" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; background: #FFF; font-family: 'Inter', sans-serif;" onchange="KivoApp.updateBuilderTypeState()">
                       <option value="invoice">Facture</option>
                       <option value="quote">Devis</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Modèle visuel</label>
+                    <select id="builder-visual-template" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; background: #FFF; font-family: 'Inter', sans-serif;" onchange="KivoApp.onBuilderTemplateChange(this.value)">
+                      <option value="minimalist">Minimalist</option>
+                      <option value="corporate">Corporate</option>
+                      <option value="elegant">Elegant</option>
+                      <option value="modern">Modern</option>
+                      <option value="clean">Modern Clean</option>
+                      <option value="editorial">Editorial</option>
+                      <option value="premium">Premium</option>
                     </select>
                   </div>
                   <div>
@@ -2025,13 +2037,13 @@
   <!-- Scripts -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-client.js?v=2.9"></script>
-  <script src="js/auth.js?v=2.9"></script>
-  <script src="js/ai-assistant.js?v=2.9"></script>
-  <script src="js/payment-provider.js?v=2.9"></script>
-  <script src="js/whatsapp-helper.js?v=2.9"></script>
-  <script src="js/doc-templates.js?v=2.9"></script>
-  <script src="app.js?v=2.9"></script>
+  <script src="js/supabase-client.js?v=3.0"></script>
+  <script src="js/auth.js?v=3.0"></script>
+  <script src="js/ai-assistant.js?v=3.0"></script>
+  <script src="js/payment-provider.js?v=3.0"></script>
+  <script src="js/whatsapp-helper.js?v=3.0"></script>
+  <script src="js/doc-templates.js?v=3.0"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>
 

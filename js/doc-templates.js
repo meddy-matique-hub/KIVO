@@ -1,24 +1,24 @@
 /**
  * KIVO MATIQUE — Document Templates Engine
- * 5 professional templates based on reference designs + gallery system
+ * 7 professional templates based on reference designs + gallery system
  * Does NOT create a second Supabase instance.
  */
 
 window.KivoTemplates = {
 
-  // ── Template Registry ────────────────────────────────────────────────
+  // ── Template Registry (7 models matching reference design) ───────────
   builtIn: [
-    { id: 'minimalist', name: 'Minimalist', desc: 'Clair et concis pour vos factures.' },
-    { id: 'corporate',  name: 'Corporate',  desc: 'Formal, accent pour vos factures.' },
-    { id: 'elegant',    name: 'Elegant',    desc: 'Refined, fonts pour vos factures.' },
-    { id: 'modern',     name: 'Modern',     desc: 'Vibrant, modern pour vos factures.' },
-    { id: 'editorial',  name: 'Editorial',  desc: 'Dynamic, striking header typography.' },
-    { id: 'premium',    name: 'Premium',    desc: 'Exclusive look, deep copper and gre...' }
+    { id: 'minimalist', name: 'Minimalist',   desc: 'Clair et concis pour vos factures.' },
+    { id: 'corporate',  name: 'Corporate',    desc: 'Formal, accent pour vos factures.' },
+    { id: 'elegant',    name: 'Elegant',      desc: 'Refined, fonts pour vos factures.' },
+    { id: 'modern',     name: 'Modern',       desc: 'Vibrant, modern pour vos factures.' },
+    { id: 'clean',      name: 'Modern Clean', desc: 'Clair et précis pour vos factures.' },
+    { id: 'editorial',  name: 'Editorial',    desc: 'Dynamic, striking header typography.' },
+    { id: 'premium',    name: 'Premium',      desc: 'Exclusive look, deep copper and dark tones.' }
   ],
 
-  /** Returns true if this template replaces the entire paper HTML */
   isFullHtml: function (id) {
-    return true; // We will handle all these as full HTML templates for maximum control
+    return true;
   },
 
   // ── Helpers ──────────────────────────────────────────────────────────
@@ -27,26 +27,26 @@ window.KivoTemplates = {
     return (n || 0).toLocaleString('fr-FR') + ' ' + (currency || 'FCFA');
   },
 
-  logoHtml: function (biz, size, shape) {
+  logoHtml: function (biz, size, shape, fallbackDark = false) {
     const sz = size || '60px';
     const br = shape === 'circle' ? '50%' : (shape === 'none' ? '0' : '6px');
     if (biz && biz.logoUrl) {
       return `<img src="${biz.logoUrl}" style="width:${sz};height:${sz};object-fit:contain;border-radius:${br};" alt="Logo">`;
     }
     const txt = (biz && biz.logoText) || (biz && biz.name ? biz.name.substring(0, 2).toUpperCase() : 'KM');
-    const bg  = (biz && biz.logoBg)  || 'linear-gradient(135deg,#4F46E5,#7C3AED)';
+    const bg  = fallbackDark ? 'linear-gradient(135deg,#D49B7A,#B87352)' : ((biz && biz.logoBg) || 'linear-gradient(135deg,#4F46E5,#7C3AED)');
     return `<div style="width:${sz};height:${sz};border-radius:${br};background:${bg};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:calc(${sz} * 0.36);flex-shrink:0;">${txt}</div>`;
   },
 
-  rows: function (items, currency, accBg) {
+  rows: function (items, currency, accBg, isDark = false) {
     if (!items || items.length === 0)
-      return `<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:14px;font-size:11px;">Aucun article saisi</td></tr>`;
+      return `<tr><td colspan="4" style="text-align:center;color:${isDark ? '#64748B' : '#94a3b8'};padding:14px;font-size:11px;">Aucun article saisi</td></tr>`;
     return items.map((it, i) => `
-      <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
-        <td style="padding:8px 10px;font-size:11px;border-bottom:1px solid #f1f5f9;">${it.name}</td>
-        <td style="padding:8px 10px;font-size:11px;text-align:center;border-bottom:1px solid #f1f5f9;">${it.quantity}</td>
-        <td style="padding:8px 10px;font-size:11px;text-align:right;border-bottom:1px solid #f1f5f9;">${this.fmt(it.price, currency)}</td>
-        <td style="padding:8px 10px;font-size:11px;text-align:right;font-weight:600;border-bottom:1px solid #f1f5f9;${accBg ? 'background:' + accBg + ';' : ''}">${this.fmt(it.total, currency)}</td>
+      <tr style="background:${isDark ? (i % 2 === 0 ? '#1E222B' : '#181A20') : (i % 2 === 0 ? '#fff' : '#f8fafc')};">
+        <td style="padding:10px 12px;font-size:11px;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#E2E8F0' : '#1E293B'};">${it.name}</td>
+        <td style="padding:10px 12px;font-size:11px;text-align:center;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#94A3B8' : '#64748B'};">${it.quantity}</td>
+        <td style="padding:10px 12px;font-size:11px;text-align:right;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#E2E8F0' : '#1E293B'};">${this.fmt(it.price, currency)}</td>
+        <td style="padding:10px 12px;font-size:11px;text-align:right;font-weight:600;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};${accBg ? 'background:' + accBg + ';' : ''}color:${isDark ? '#F5D0B5' : '#0F172A'};">${this.fmt(it.total, currency)}</td>
       </tr>`).join('');
   },
 
@@ -57,13 +57,23 @@ window.KivoTemplates = {
     const clientId = get('builder-doc-client-select');
     const client = (state && state.clients) ? (state.clients.find(c => c.id === clientId) || {}) : {};
 
-    const items = []; let subtotal = 0;
+    const items = [];
+    let subtotal = 0;
     document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
       const name  = (tr.querySelector('.item-name')  || {}).value || '';
       const qty   = parseFloat((tr.querySelector('.item-qty')   || {}).value) || 1;
       const price = parseFloat((tr.querySelector('.item-price') || {}).value) || 0;
-      if (name) { subtotal += qty * price; items.push({ name, quantity: qty, price, total: qty * price }); }
+      if (name) {
+        const itemTotal = qty * price;
+        subtotal += itemTotal;
+        items.push({ name, quantity: qty, price, total: itemTotal });
+      }
     });
+
+    if (items.length === 0) {
+      items.push({ name: 'Prestation de service & Développement', quantity: 1, price: 150000, total: 150000 });
+      subtotal = 150000;
+    }
 
     const discount   = parseFloat(get('builder-input-discount')) || 0;
     const taxRate    = parseFloat(get('builder-input-tax'))      || 18;
@@ -76,24 +86,29 @@ window.KivoTemplates = {
       biz,
       docType:   get('builder-doc-type')    || 'invoice',
       docNum:    get('builder-doc-number')   || 'FAC-2026-0001',
-      issueDate: get('builder-issue-date')   || '',
+      issueDate: get('builder-issue-date')   || new Date().toISOString().split('T')[0],
       dueDate:   get('builder-due-date')     || '',
       status:    get('builder-doc-status')   || 'sent',
       notes:     get('builder-notes')        || '',
       terms:     get('builder-terms')        || 'Paiement à réception.',
-      client:    { name: client.name || 'Client', company: client.company || '', phone: client.phone || '', email: client.email || '', address: client.address || '', taxId: client.taxId || '' },
+      client: {
+        name:    client.name || get('builder-client-name') || 'Client Destinataire',
+        company: client.company || '',
+        phone:   client.phone || get('builder-client-phone') || '',
+        email:   client.email || get('builder-client-email') || '',
+        address: client.address || get('builder-client-address') || '',
+        taxId:   client.taxId || ''
+      },
       items, subtotal, discount, taxRate, taxAmount, grandTotal, currency,
-      primaryColor:   (document.getElementById('builder-color-primary')   || {}).value || biz.primaryColor   || '#4F46E5',
-      secondaryColor: (document.getElementById('builder-color-secondary') || {}).value || biz.secondaryColor || '#6366F1',
+      primaryColor:   (document.getElementById('builder-color-primary')   || {}).value || biz.primaryColor   || '#0F172A',
+      secondaryColor: (document.getElementById('builder-color-secondary') || {}).value || biz.secondaryColor || '#64748B',
     };
   },
 
-  // ── Gallery Mini-Previews ─────────────────────────────────────────────
-  miniPreview: function (id, c) {
-    c = c || '#4F46E5';
-
+  // ── Gallery Mini-Previews (Realistic A4 Thumbnails Matching Image 2) ──
+  miniPreview: function (id) {
     const wrap = (inner, bg) =>
-      `<div class="tmpl-mini-wrap" style="background:${bg || '#fff'};width:100%;height:100%;font-size:0;line-height:0;">
+      `<div class="tmpl-mini-wrap" style="background:${bg || '#fff'};width:155px;height:195px;font-size:0;line-height:0;position:relative;display:flex;flex-direction:column;box-shadow:0 12px 26px -4px rgba(0,0,0,0.22);">
         ${inner}
       </div>`;
 
@@ -101,66 +116,66 @@ window.KivoTemplates = {
       `<div style="width:${w};height:${h}px;background:${bg};margin-bottom:${mb || 2}px;border-radius:2px;${extra || ''}"></div>`;
 
     const tableRows = (accentBg, textBg, n) => {
-      let rows = '';
+      let r = '';
       for (let i = 0; i < (n || 4); i++) {
-        rows += `<div style="display:flex;gap:3px;margin-bottom:2px;padding:2px 0;border-bottom:1px solid rgba(0,0,0,0.05);">
-          <div style="flex:3;height:5px;background:${i%2===0?textBg:'rgba(0,0,0,0.06)'};border-radius:1px;"></div>
+        r += `<div style="display:flex;gap:3px;margin-bottom:2px;padding:2px 0;border-bottom:1px solid rgba(0,0,0,0.05);">
+          <div style="flex:3;height:5px;background:${i % 2 === 0 ? textBg : 'rgba(0,0,0,0.06)'};border-radius:1px;"></div>
           <div style="flex:1;height:5px;background:${accentBg};border-radius:1px;"></div>
           <div style="flex:1;height:5px;background:${accentBg};border-radius:1px;"></div>
         </div>`;
       }
-      return rows;
+      return r;
     };
 
     const templates = {
 
-      // ── MINIMALIST: white background, top logo left + INVOICE right, table with grey header
+      // ── MINIMALIST: crisp white sheet, logo left, serif INVOICE right, elegant dividers
       minimalist: () => wrap(`
-        <div style="padding:10px;background:#fff;height:100%;display:flex;flex-direction:column;">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div style="padding:10px;background:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
             <div>
-              <div style="width:28px;height:28px;background:#CBD5E1;border-radius:4px;margin-bottom:4px;"></div>
-              ${lineBlock('55%', 5, '#94A3B8', 2)}
-              ${lineBlock('40%', 3, '#CBD5E1', 0)}
+              <div style="width:24px;height:24px;background:#CBD5E1;border-radius:4px;margin-bottom:4px;"></div>
+              ${lineBlock('55px', 4, '#94A3B8', 2)}
+              ${lineBlock('40px', 3, '#CBD5E1', 0)}
             </div>
             <div style="text-align:right;">
-              <div style="font-family:serif;font-size:10px;font-weight:700;color:#1E293B;line-height:1.2;margin-bottom:4px;">INVOICE</div>
-              ${lineBlock('60px', 3, '#E2E8F0', 2)}
-              ${lineBlock('48px', 3, '#E2E8F0', 2)}
-              ${lineBlock('52px', 3, '#E2E8F0', 0)}
+              <div style="font-family:serif;font-size:9px;font-weight:700;color:#1E293B;line-height:1.2;margin-bottom:3px;">INVOICE</div>
+              ${lineBlock('50px', 3, '#E2E8F0', 2)}
+              ${lineBlock('42px', 3, '#E2E8F0', 0)}
             </div>
           </div>
-          <div style="border-top:1.5px solid #CBD5E1;padding-top:5px;margin-bottom:5px;">
-            ${lineBlock('45%', 4, '#0F172A', 3)}
-            ${lineBlock('60%', 3, '#94A3B8', 2)}
-            ${lineBlock('50%', 3, '#CBD5E1', 0)}
+          <div style="border-top:1.5px solid #E2E8F0;padding-top:4px;margin-bottom:6px;">
+            ${lineBlock('45%', 4, '#0F172A', 2)}
+            ${lineBlock('60%', 3, '#94A3B8', 0)}
           </div>
-          <div style="background:#F1F5F9;border-radius:3px;padding:4px 5px;margin-bottom:3px;display:flex;gap:3px;">
+          <div style="background:#F1F5F9;border-radius:2px;padding:3px 4px;margin-bottom:3px;display:flex;gap:3px;">
             <div style="flex:3;height:4px;background:#64748B;border-radius:1px;"></div>
             <div style="flex:1;height:4px;background:#64748B;border-radius:1px;"></div>
             <div style="flex:1;height:4px;background:#64748B;border-radius:1px;"></div>
           </div>
           ${tableRows('rgba(0,0,0,0.08)', 'rgba(0,0,0,0.07)', 4)}
           <div style="margin-top:auto;display:flex;justify-content:flex-end;">
-            <div style="text-align:right;">${lineBlock('60px', 3, '#0F172A', 2)}${lineBlock('70px', 3, '#64748B', 2)}${lineBlock('80px', 5, '#0F172A', 0)}</div>
+            <div style="text-align:right;">
+              ${lineBlock('50px', 3, '#94A3B8', 2)}
+              ${lineBlock('70px', 5, '#0F172A', 0)}
+            </div>
           </div>
         </div>`, '#fff'),
 
-      // ── CORPORATE: navy/blue header band, company name + INVOICE in header
+      // ── CORPORATE: navy blue header band, white text & logo, clean professional table
       corporate: () => wrap(`
-        <div style="background:#fff;height:100%;display:flex;flex-direction:column;">
+        <div style="background:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box;">
           <div style="background:#1E3A5F;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;">
             <div>
-              <div style="width:22px;height:22px;background:rgba(255,255,255,0.2);border-radius:3px;margin-bottom:3px;"></div>
-              ${lineBlock('55px', 4, 'rgba(255,255,255,0.7)', 2)}
-              ${lineBlock('38px', 3, 'rgba(255,255,255,0.35)', 0)}
+              <div style="width:20px;height:20px;background:rgba(255,255,255,0.25);border-radius:3px;margin-bottom:2px;"></div>
+              ${lineBlock('48px', 3, 'rgba(255,255,255,0.7)', 0)}
             </div>
             <div style="color:#fff;font-size:9px;font-weight:800;font-family:sans-serif;letter-spacing:0.5px;">INVOICE</div>
           </div>
-          <div style="padding:7px 10px;flex:1;display:flex;flex-direction:column;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-              <div>${lineBlock('50px', 3, '#94A3B8', 2)}${lineBlock('65px', 4, '#1E3A5F', 2)}${lineBlock('42px', 3, '#94A3B8', 0)}</div>
-              <div style="text-align:right;">${lineBlock('45px', 3, '#94A3B8', 2)}${lineBlock('50px', 4, '#0F172A', 2)}${lineBlock('55px', 3, '#94A3B8', 0)}</div>
+          <div style="padding:6px 10px;flex:1;display:flex;flex-direction:column;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+              <div>${lineBlock('45px', 3, '#94A3B8', 2)}${lineBlock('60px', 4, '#1E3A5F', 0)}</div>
+              <div style="text-align:right;">${lineBlock('40px', 3, '#94A3B8', 2)}${lineBlock('50px', 4, '#0F172A', 0)}</div>
             </div>
             <div style="background:#EFF6FF;border-radius:2px;padding:3px 4px;display:flex;gap:3px;margin-bottom:3px;">
               <div style="flex:3;height:4px;background:#1E3A5F;border-radius:1px;"></div>
@@ -169,135 +184,165 @@ window.KivoTemplates = {
             </div>
             ${tableRows('rgba(30,58,95,0.15)', 'rgba(0,0,0,0.06)', 4)}
             <div style="margin-top:auto;border-top:1px solid #E2E8F0;padding-top:4px;display:flex;justify-content:flex-end;">
-              <div>${lineBlock('50px', 3, '#94A3B8', 2)}${lineBlock('60px', 3, '#94A3B8', 2)}<div style="background:#1E3A5F;height:16px;border-radius:3px;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;">${lineBlock('45px', 3, 'rgba(255,255,255,0.8)', 0)}</div></div>
+              <div style="background:#1E3A5F;height:14px;width:75px;border-radius:2px;display:flex;align-items:center;justify-content:center;">
+                ${lineBlock('55px', 3, 'rgba(255,255,255,0.9)', 0)}
+              </div>
             </div>
           </div>
         </div>`, '#fff'),
 
-      // ── ELEGANT: centered top, gold accent bar, serif italic title
+      // ── ELEGANT: warm champagne paper, gold border, refined serif italic "Invoice"
       elegant: () => wrap(`
-        <div style="background:#FFFDF7;height:100%;display:flex;flex-direction:column;">
-          <div style="padding:10px 12px 6px;border-bottom:2px solid #C9A84C;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <div>
-                <div style="width:24px;height:24px;border:2px solid #C9A84C;border-radius:3px;margin-bottom:4px;"></div>
-                ${lineBlock('50px', 4, '#6B5C2A', 2)}
-                ${lineBlock('35px', 3, '#C9A84C', 0)}
-              </div>
-              <div style="text-align:right;">
-                <div style="font-size:11px;color:#C9A84C;font-style:italic;font-family:serif;font-weight:600;margin-bottom:3px;">Invoice</div>
-                ${lineBlock('48px', 3, '#C9A84C', 2)}
-                ${lineBlock('38px', 3, '#E8D5A0', 0)}
-              </div>
+        <div style="background:#FFFDF7;height:100%;display:flex;flex-direction:column;border:1.5px solid #E8D5A0;box-sizing:border-box;">
+          <div style="padding:8px 10px 4px;border-bottom:1.5px solid #C9A84C;text-align:center;">
+            <div style="font-size:11px;color:#C9A84C;font-style:italic;font-family:serif;font-weight:600;margin-bottom:2px;">Invoice</div>
+            <div style="display:flex;justify-content:center;gap:4px;">
+              ${lineBlock('45px', 2, '#C9A84C', 0)}
+              ${lineBlock('30px', 2, '#E8D5A0', 0)}
             </div>
           </div>
-          <div style="padding:6px 12px;flex:1;display:flex;flex-direction:column;">
-            <div style="margin-bottom:5px;">${lineBlock('40%', 3, '#C9A84C', 2)}${lineBlock('55%', 4, '#3D2B00', 2)}${lineBlock('50%', 3, '#A68B3A', 0)}</div>
-            <div style="border:1px solid #E8D5A0;border-radius:2px;overflow:hidden;margin-bottom:4px;">
-              <div style="background:#F7EAC8;padding:3px 5px;display:flex;gap:3px;">
+          <div style="padding:6px 10px;flex:1;display:flex;flex-direction:column;">
+            <div style="margin-bottom:5px;">${lineBlock('40%', 3, '#C9A84C', 2)}${lineBlock('55%', 3, '#6B5C2A', 0)}</div>
+            <div style="border:1px solid #E8D5A0;border-radius:2px;overflow:hidden;margin-bottom:3px;">
+              <div style="background:#F7EAC8;padding:3px 4px;display:flex;gap:3px;">
                 <div style="flex:3;height:4px;background:#A68B3A;border-radius:1px;"></div>
                 <div style="flex:1;height:4px;background:#C9A84C;border-radius:1px;"></div>
                 <div style="flex:1;height:4px;background:#C9A84C;border-radius:1px;"></div>
               </div>
-              <div style="padding:2px 5px;">${tableRows('#C9A84C', 'rgba(0,0,0,0.05)', 3)}</div>
+              <div style="padding:2px 4px;">${tableRows('#C9A84C', 'rgba(0,0,0,0.05)', 3)}</div>
             </div>
-            <div style="margin-top:auto;text-align:center;">${lineBlock('70%', 1, '#C9A84C', 4, 'margin:0 auto;')}${lineBlock('50%', 3, '#A68B3A', 0, 'margin:0 auto;')}</div>
+            <div style="margin-top:auto;text-align:center;border-top:1px solid #E8D5A0;padding-top:4px;">
+              ${lineBlock('60%', 2, '#C9A84C', 0, 'margin:0 auto;')}
+            </div>
           </div>
         </div>`, '#FFFDF7'),
 
-      // ── MODERN: bold purple/pink gradient strip, two-column layout
+      // ── MODERN: vibrant crimson/purple gradient top bar, modern table & pill badge
       modern: () => wrap(`
-        <div style="background:#fff;height:100%;display:flex;flex-direction:column;">
-          <div style="height:8px;background:linear-gradient(90deg,#7C3AED,#EC4899,#F59E0B);"></div>
-          <div style="padding:8px 10px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+        <div style="background:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box;">
+          <div style="height:6px;background:linear-gradient(90deg,#7C3AED,#EC4899,#F59E0B);"></div>
+          <div style="padding:7px 10px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px;">
             <div>
-              <div style="width:26px;height:26px;background:linear-gradient(135deg,#7C3AED,#EC4899);border-radius:5px;margin-bottom:4px;"></div>
-              ${lineBlock('48px', 4, '#1E1B4B', 2)}
-              ${lineBlock('36px', 3, '#7C3AED', 0)}
+              <div style="width:20px;height:20px;background:linear-gradient(135deg,#7C3AED,#EC4899);border-radius:4px;margin-bottom:3px;"></div>
+              ${lineBlock('45px', 3, '#1E1B4B', 0)}
             </div>
             <div style="text-align:right;">
-              <div style="font-size:9px;font-weight:900;color:#7C3AED;font-family:sans-serif;letter-spacing:1px;margin-bottom:4px;">INVOICE</div>
-              ${lineBlock('40px', 3, '#A78BFA', 2)}
-              ${lineBlock('50px', 3, '#DDD6FE', 0)}
+              <div style="font-size:8px;font-weight:900;color:#7C3AED;font-family:sans-serif;letter-spacing:1px;margin-bottom:2px;">INVOICE</div>
+              <div style="background:#EDE9FE;color:#7C3AED;padding:1px 5px;border-radius:10px;font-size:6px;font-weight:700;display:inline-block;">EN ATTENTE</div>
             </div>
           </div>
-          <div style="padding:0 10px;flex:1;display:flex;flex-direction:column;">
-            <div style="background:#F5F3FF;border-radius:3px;padding:3px 5px;display:flex;gap:3px;margin-bottom:3px;">
+          <div style="padding:0 10px 6px;flex:1;display:flex;flex-direction:column;">
+            <div style="background:#F5F3FF;border-radius:2px;padding:3px 4px;display:flex;gap:3px;margin-bottom:3px;">
               <div style="flex:3;height:4px;background:#7C3AED;border-radius:1px;"></div>
               <div style="flex:1;height:4px;background:#EC4899;border-radius:1px;"></div>
               <div style="flex:1;height:4px;background:#7C3AED;border-radius:1px;"></div>
             </div>
             ${tableRows('#A78BFA', 'rgba(124,58,237,0.07)', 4)}
-            <div style="margin-top:auto;background:linear-gradient(90deg,#7C3AED,#EC4899);height:18px;border-radius:3px;display:flex;align-items:center;justify-content:space-between;padding:0 6px;">
-              ${lineBlock('35px', 3, 'rgba(255,255,255,0.6)', 0)}${lineBlock('40px', 3, 'rgba(255,255,255,0.9)', 0)}
+            <div style="margin-top:auto;background:linear-gradient(90deg,#7C3AED,#EC4899);height:15px;border-radius:2px;display:flex;align-items:center;justify-content:space-between;padding:0 6px;">
+              ${lineBlock('30px', 2, 'rgba(255,255,255,0.7)', 0)}${lineBlock('38px', 3, 'rgba(255,255,255,0.95)', 0)}
             </div>
           </div>
         </div>`, '#fff'),
 
-      // ── EDITORIAL: bold full-width black header with red accent, striking typography
-      editorial: () => wrap(`
-        <div style="background:#fff;height:100%;display:flex;flex-direction:column;">
-          <div style="background:#111;padding:8px 10px;">
+      // ── CLEAN: dark teal top line, clean structured corporate lines
+      clean: () => wrap(`
+        <div style="background:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box;">
+          <div style="border-top:3.5px solid #0E7490;padding:7px 10px 4px;">
             <div style="display:flex;justify-content:space-between;align-items:center;">
               <div>
-                <div style="display:flex;gap:2px;margin-bottom:3px;">
-                  <div style="width:16px;height:16px;background:#EF4444;border-radius:2px;"></div>
-                  <div style="width:16px;height:16px;background:rgba(255,255,255,0.15);border-radius:2px;"></div>
-                </div>
-                ${lineBlock('52px', 4, 'rgba(255,255,255,0.85)', 2)}
-                ${lineBlock('38px', 3, 'rgba(255,255,255,0.4)', 0)}
+                <div style="width:18px;height:18px;background:#0E7490;border-radius:3px;margin-bottom:2px;"></div>
+                ${lineBlock('45px', 3, '#0E7490', 0)}
               </div>
               <div style="text-align:right;">
-                <div style="font-size:8px;font-weight:900;color:#EF4444;font-family:sans-serif;letter-spacing:2px;">INVOICE</div>
-                ${lineBlock('36px', 3, 'rgba(255,255,255,0.4)', 1)}
-                ${lineBlock('45px', 3, 'rgba(255,255,255,0.6)', 0)}
+                <div style="font-size:8px;font-weight:800;color:#0E7490;font-family:sans-serif;">INVOICE</div>
+                ${lineBlock('38px', 2, '#94A3B8', 0)}
               </div>
             </div>
           </div>
-          <div style="padding:7px 10px;flex:1;display:flex;flex-direction:column;">
-            ${lineBlock('75%', 5, '#111', 2)}
-            ${lineBlock('55%', 3, '#6B7280', 5)}
-            <div style="background:#111;padding:3px 5px;display:flex;gap:3px;margin-bottom:3px;border-radius:2px;">
+          <div style="padding:4px 10px 6px;flex:1;display:flex;flex-direction:column;">
+            <div style="margin-bottom:4px;">${lineBlock('55%', 3, '#0F172A', 1)}${lineBlock('35%', 2, '#94A3B8', 0)}</div>
+            <div style="background:#F0FDFA;border-radius:2px;padding:3px 4px;display:flex;gap:3px;margin-bottom:3px;">
+              <div style="flex:3;height:4px;background:#0E7490;border-radius:1px;"></div>
+              <div style="flex:1;height:4px;background:#0E7490;border-radius:1px;"></div>
+              <div style="flex:1;height:4px;background:#0E7490;border-radius:1px;"></div>
+            </div>
+            ${tableRows('rgba(14,116,144,0.15)', 'rgba(0,0,0,0.06)', 4)}
+            <div style="margin-top:auto;border-top:1px solid #CCFBF1;padding-top:3px;display:flex;justify-content:flex-end;">
+              <div style="background:#0E7490;color:#fff;padding:1px 6px;border-radius:2px;font-size:6px;font-weight:700;">TOTAL</div>
+            </div>
+          </div>
+        </div>`, '#fff'),
+
+      // ── EDITORIAL: bold black header with red accent, high-impact typography
+      editorial: () => wrap(`
+        <div style="background:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box;">
+          <div style="background:#111;padding:7px 10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="display:flex;gap:2px;margin-bottom:2px;">
+                  <div style="width:14px;height:14px;background:#EF4444;border-radius:2px;"></div>
+                  <div style="width:14px;height:14px;background:rgba(255,255,255,0.2);border-radius:2px;"></div>
+                </div>
+                ${lineBlock('45px', 3, 'rgba(255,255,255,0.85)', 0)}
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:8px;font-weight:900;color:#EF4444;font-family:sans-serif;letter-spacing:1px;">INVOICE</div>
+                ${lineBlock('38px', 2, 'rgba(255,255,255,0.5)', 0)}
+              </div>
+            </div>
+          </div>
+          <div style="padding:6px 10px;flex:1;display:flex;flex-direction:column;">
+            ${lineBlock('70%', 4, '#111', 2)}
+            ${lineBlock('50%', 3, '#6B7280', 4)}
+            <div style="background:#111;padding:3px 4px;display:flex;gap:3px;margin-bottom:3px;border-radius:2px;">
               <div style="flex:3;height:4px;background:rgba(255,255,255,0.7);border-radius:1px;"></div>
               <div style="flex:1;height:4px;background:#EF4444;border-radius:1px;"></div>
               <div style="flex:1;height:4px;background:rgba(255,255,255,0.7);border-radius:1px;"></div>
             </div>
             ${tableRows('rgba(239,68,68,0.2)', 'rgba(0,0,0,0.06)', 4)}
+            <div style="margin-top:auto;border-top:1.5px solid #111;padding-top:3px;display:flex;justify-content:flex-end;">
+              ${lineBlock('60px', 4, '#EF4444', 0)}
+            </div>
           </div>
         </div>`, '#fff'),
 
-      // ── PREMIUM: dark background, copper/gold accents, luxury look
+      // ── PREMIUM: dark charcoal matte sheet with glowing metallic copper foil band
       premium: () => wrap(`
-        <div style="background:#1A1A2E;height:100%;display:flex;flex-direction:column;">
-          <div style="padding:10px 12px;border-bottom:1px solid rgba(184,134,11,0.4);">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="background:#181A20;height:100%;display:flex;flex-direction:column;box-sizing:border-box;">
+          <div style="padding:8px 10px 6px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
               <div>
-                <div style="width:24px;height:24px;background:linear-gradient(135deg,#B8860B,#FFD700);border-radius:3px;margin-bottom:4px;"></div>
-                ${lineBlock('50px', 4, 'rgba(255,215,0,0.7)', 2)}
-                ${lineBlock('36px', 3, 'rgba(255,215,0,0.35)', 0)}
+                <div style="width:18px;height:18px;background:linear-gradient(135deg,#D49B7A,#B87352);border-radius:3px;margin-bottom:2px;"></div>
+                ${lineBlock('45px', 3, '#94A3B8', 0)}
               </div>
               <div style="text-align:right;">
-                <div style="font-size:8px;font-weight:800;color:#FFD700;font-family:sans-serif;letter-spacing:1.5px;margin-bottom:4px;">INVOICE</div>
-                ${lineBlock('42px', 3, 'rgba(255,215,0,0.4)', 2)}
-                ${lineBlock('35px', 3, 'rgba(255,255,255,0.2)', 0)}
+                <div style="font-size:8px;font-weight:800;color:#F5D0B5;font-family:serif;letter-spacing:1.5px;">INVOICE</div>
+                ${lineBlock('35px', 2, '#64748B', 0)}
               </div>
             </div>
           </div>
-          <div style="padding:6px 12px;flex:1;display:flex;flex-direction:column;">
-            <div style="margin-bottom:5px;">${lineBlock('38%', 3, 'rgba(255,215,0,0.5)', 2)}${lineBlock('55%', 4, 'rgba(255,255,255,0.8)', 2)}${lineBlock('45%', 3, 'rgba(255,255,255,0.35)', 0)}</div>
-            <div style="border:1px solid rgba(184,134,11,0.3);border-radius:2px;overflow:hidden;margin-bottom:3px;">
-              <div style="background:rgba(184,134,11,0.25);padding:3px 5px;display:flex;gap:3px;">
-                <div style="flex:3;height:4px;background:rgba(255,215,0,0.7);border-radius:1px;"></div>
-                <div style="flex:1;height:4px;background:rgba(255,215,0,0.5);border-radius:1px;"></div>
-                <div style="flex:1;height:4px;background:rgba(255,215,0,0.5);border-radius:1px;"></div>
+          <!-- Metallic copper/rose gold band matching Image 2 reference -->
+          <div style="height:12px;background:linear-gradient(90deg,#D49B7A 0%,#F5D0B5 50%,#B87352 100%);margin-bottom:6px;display:flex;align-items:center;padding:0 6px;">
+            ${lineBlock('40px', 2, 'rgba(0,0,0,0.4)', 0)}
+          </div>
+          <div style="padding:0 10px 6px;flex:1;display:flex;flex-direction:column;">
+            <div style="margin-bottom:4px;">${lineBlock('45%', 3, '#94A3B8', 1)}${lineBlock('60%', 3, '#E2E8F0', 0)}</div>
+            <div style="border:1px solid #2D323F;border-radius:2px;overflow:hidden;margin-bottom:3px;">
+              <div style="background:#222631;padding:3px 4px;display:flex;gap:3px;">
+                <div style="flex:3;height:4px;background:#F5D0B5;border-radius:1px;"></div>
+                <div style="flex:1;height:4px;background:#D49B7A;border-radius:1px;"></div>
+                <div style="flex:1;height:4px;background:#D49B7A;border-radius:1px;"></div>
               </div>
-              <div style="padding:2px 5px;">${tableRows('rgba(184,134,11,0.3)', 'rgba(255,255,255,0.1)', 3)}</div>
+              <div style="padding:2px 4px;">
+                <div style="display:flex;gap:3px;margin-bottom:2px;"><div style="flex:3;height:4px;background:rgba(255,255,255,0.15);"></div><div style="flex:1;height:4px;background:rgba(212,155,122,0.3);"></div><div style="flex:1;height:4px;background:rgba(212,155,122,0.3);"></div></div>
+                <div style="display:flex;gap:3px;margin-bottom:2px;"><div style="flex:3;height:4px;background:rgba(255,255,255,0.1);"></div><div style="flex:1;height:4px;background:rgba(212,155,122,0.2);"></div><div style="flex:1;height:4px;background:rgba(212,155,122,0.2);"></div></div>
+              </div>
             </div>
-            <div style="margin-top:auto;background:linear-gradient(90deg,#B8860B,#FFD700);height:16px;border-radius:3px;display:flex;align-items:center;justify-content:flex-end;padding-right:5px;">
-              ${lineBlock('40px', 3, 'rgba(0,0,0,0.5)', 0)}
+            <div style="margin-top:auto;background:#222631;border:1px solid #D49B7A;height:16px;border-radius:2px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;">
+              ${lineBlock('42px', 3, '#F5D0B5', 0)}
             </div>
           </div>
-        </div>`, '#1A1A2E'),
+        </div>`, '#181A20'),
     };
 
     const fn = templates[id] || templates['minimalist'];
@@ -305,240 +350,437 @@ window.KivoTemplates = {
   },
 
   // ══════════════════════════════════════════════════════════════
-  // TEMPLATE 1: GREEN CLEAN (Image 1 — vert, tableau header coloré)
+  // FULL INVOICE RENDERERS FOR LIVE PREVIEW & EXPORT
   // ══════════════════════════════════════════════════════════════
-  renderGreenClean: function (d) {
-    const ac = d.primaryColor || '#16a34a';
+
+  // 1. MINIMALIST
+  renderMinimalist: function (d) {
     const lbl = d.docType === 'quote' ? 'DEVIS' : 'FACTURE';
-    return `<div style="background:#fff;font-family:Inter,Arial,sans-serif;padding:32px;min-height:1050px;position:relative;color:#1e293b;">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">
-    <div>${this.logoHtml(d.biz,'70px','square')}</div>
-    <div style="text-align:right;"><div style="font-size:28px;font-weight:900;color:${ac};letter-spacing:2px;">${lbl}</div><div style="color:#64748b;font-size:10px;margin-top:2px;">${d.biz.name||'KIVO MATIQUE'}</div></div>
-  </div>
-  <div style="border-top:2px solid #e2e8f0;border-bottom:2px solid #e2e8f0;padding:9px 0;margin-bottom:16px;display:flex;gap:20px;font-size:10px;color:#64748b;">
-    <div><strong style="color:#1e293b;display:block;font-size:9px;text-transform:uppercase;letter-spacing:1px;">N° Document</strong>${d.docNum}</div>
-    <div><strong style="color:#1e293b;display:block;font-size:9px;text-transform:uppercase;letter-spacing:1px;">Émission</strong>${d.issueDate||'--'}</div>
-    <div><strong style="color:#1e293b;display:block;font-size:9px;text-transform:uppercase;letter-spacing:1px;">Échéance</strong>${d.dueDate||'--'}</div>
-    <div style="margin-left:auto;text-align:right;"><strong style="color:#1e293b;display:block;font-size:9px;text-transform:uppercase;letter-spacing:1px;">Facturé à</strong><span style="font-weight:700;font-size:12px;">${d.client.name}</span></div>
-  </div>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">
-    <div><div style="font-size:9px;text-transform:uppercase;color:#64748b;letter-spacing:1px;margin-bottom:2px;">Total à payer</div><div style="font-size:26px;font-weight:900;color:${ac};">${this.fmt(d.grandTotal,d.currency)}</div></div>
-    <div style="text-align:right;font-size:10px;color:#64748b;line-height:1.7;">${d.client.phone?`📞 ${d.client.phone}<br>`:''} ${d.client.email?`✉ ${d.client.email}<br>`:''} ${d.client.address||''}</div>
-  </div>
-  <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:11px;">
-    <thead><tr style="background:${ac};color:#fff;">
-      <th style="padding:9px 10px;text-align:left;">Description</th>
-      <th style="padding:9px 10px;text-align:center;width:12%;">Qté</th>
-      <th style="padding:9px 10px;text-align:right;width:20%;">Prix U.</th>
-      <th style="padding:9px 10px;text-align:right;width:20%;">Total</th>
-    </tr></thead>
-    <tbody>${this.rows(d.items,d.currency)}</tbody>
-  </table>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:10px;">
-    <div style="font-size:10px;color:#64748b;max-width:48%;"><strong style="display:block;margin-bottom:3px;color:#1e293b;">Conditions de règlement</strong>${d.terms||d.notes||'Paiement à réception.'}</div>
-    <div style="min-width:210px;">
-      <div style="display:flex;justify-content:space-between;font-size:10px;padding:3px 0;"><span>Sous-total HT</span><span>${this.fmt(d.subtotal,d.currency)}</span></div>
-      ${d.taxRate>0?`<div style="display:flex;justify-content:space-between;font-size:10px;padding:3px 0;"><span>TVA (${d.taxRate}%)</span><span>${this.fmt(d.taxAmount,d.currency)}</span></div>`:''}
-      ${d.discount>0?`<div style="display:flex;justify-content:space-between;font-size:10px;padding:3px 0;color:#ef4444;"><span>Réduction</span><span>-${this.fmt(d.discount,d.currency)}</span></div>`:''}
-      <div style="background:${ac};color:#fff;display:flex;justify-content:space-between;font-size:11px;font-weight:700;padding:7px 10px;border-radius:4px;margin-top:4px;"><span>Total TTC</span><span>${this.fmt(d.grandTotal,d.currency)}</span></div>
-    </div>
-  </div>
-  <div style="margin-top:22px;text-align:right;font-size:10px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:10px;"><div style="font-style:italic;font-size:14px;font-family:Georgia,serif;color:#1e293b;margin-bottom:2px;">${d.biz.owner||d.biz.name||''}</div><div>Signature autorisée</div></div>
-  <div style="position:absolute;bottom:18px;left:32px;right:32px;border-top:1px solid #e2e8f0;padding-top:6px;display:flex;justify-content:space-between;font-size:9px;color:#94a3b8;">
-    <div>${d.biz.address||''} ${d.biz.phone?'· '+d.biz.phone:''} ${d.biz.email?'· '+d.biz.email:''}</div>
-    <div style="font-weight:700;color:${ac};">${d.biz.name||'KIVO MATIQUE'}</div>
-  </div>
-</div>`;
-  },
+    return `
+      <div style="background:#fff;font-family:Inter,Arial,sans-serif;padding:40px;min-height:950px;position:relative;color:#1e293b;box-sizing:border-box;display:flex;flex-direction:column;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;">
+          <div>
+            ${this.logoHtml(d.biz, '52px', 'square')}
+            <div style="font-weight:800;font-size:16px;color:#0F172A;margin-top:8px;">${d.biz.name || 'KIVO MATIQUE'}</div>
+            <div style="font-size:11px;color:#64748b;line-height:1.6;margin-top:4px;">
+              ${d.biz.address || ''}<br>
+              ${d.biz.phone ? '📞 ' + d.biz.phone : ''} ${d.biz.email ? '✉ ' + d.biz.email : ''}
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-family:serif;font-size:32px;font-weight:800;color:#0F172A;letter-spacing:1px;line-height:1;">${lbl}</div>
+            <div style="font-size:13px;font-weight:700;color:#334155;margin-top:6px;">N° ${d.docNum}</div>
+            <div style="font-size:11px;color:#64748b;margin-top:4px;">Émission : ${d.issueDate || '--/--/----'}</div>
+            ${d.dueDate ? `<div style="font-size:11px;color:#64748b;">Échéance : ${d.dueDate}</div>` : ''}
+          </div>
+        </div>
 
-  // ══════════════════════════════════════════════════════════════
-  // TEMPLATE 2: CORPORATE BLUE (Image 2 — bandeau navy pleine largeur)
-  // ══════════════════════════════════════════════════════════════
-  renderCorpBlue: function (d) {
-    const ac = d.primaryColor || '#1e3a5f';
-    const lbl = d.docType === 'quote' ? 'DEVIS' : 'INVOICE';
-    return `<div style="background:#fff;font-family:Inter,Arial,sans-serif;min-height:1050px;position:relative;color:#1e293b;">
-  <div style="background:${ac};padding:22px 28px;display:flex;justify-content:space-between;align-items:flex-start;">
-    <div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">${this.logoHtml(d.biz,'38px','square')}<div><div style="color:#fff;font-weight:800;font-size:14px;">${d.biz.name||'KIVO MATIQUE'}</div><div style="color:rgba(255,255,255,0.5);font-size:9px;">${d.biz.address||''}</div></div></div>
-      <div style="color:#fff;font-size:19px;font-weight:900;letter-spacing:1px;line-height:1.2;">${d.docType==='quote'?'PROPOSITION COMMERCIALE':'DIGITAL MARKETING &amp; BUSINESS'}</div>
-    </div>
-    <div style="text-align:right;">
-      <div style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:700;margin-bottom:6px;">${d.client.name}</div>
-      <div style="color:rgba(255,255,255,0.5);font-size:9px;line-height:1.6;">${d.client.phone||''}<br>${d.client.email||''}</div>
-      <div style="color:#fff;font-weight:900;font-size:22px;margin-top:8px;">${lbl}</div>
-    </div>
-  </div>
-  <div style="padding:20px 28px;">
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:14px;"><div>PROJET : ${d.notes?d.notes.substring(0,60):(d.docType==='quote'?'PROPOSITION COMMERCIALE':'PRESTATION DE SERVICE')}</div><div style="font-weight:700;color:#1e293b;">N° ${d.docNum} · ${d.issueDate||'--'}</div></div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10px;">
-      <thead><tr style="background:${ac};color:#fff;">
-        <th style="padding:8px 10px;text-align:left;width:6%;">N°</th>
-        <th style="padding:8px 10px;text-align:left;">Description</th>
-        <th style="padding:8px 10px;text-align:right;width:18%;">Prix</th>
-        <th style="padding:8px 10px;text-align:center;width:12%;">Qté</th>
-        <th style="padding:8px 10px;text-align:right;width:18%;">Total</th>
-      </tr></thead>
-      <tbody>${d.items.length===0?`<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:14px;">Aucun article</td></tr>`:d.items.map((it,i)=>`<tr style="background:${i%2===0?'#fff':'#f8fafc'};"><td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;">${i+1}.</td><td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;">${it.name}</td><td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f1f5f9;">${this.fmt(it.price,d.currency)}</td><td style="padding:7px 10px;text-align:center;border-bottom:1px solid #f1f5f9;">${it.quantity}</td><td style="padding:7px 10px;text-align:right;font-weight:600;border-bottom:1px solid #f1f5f9;">${this.fmt(it.total,d.currency)}</td></tr>`).join('')}</tbody>
-    </table>
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:8px;">
-      <div><div style="font-size:9px;text-transform:uppercase;color:#64748b;letter-spacing:1px;">Total à régler</div><div style="font-size:24px;font-weight:900;color:${ac};">${this.fmt(d.grandTotal,d.currency)}</div></div>
-      <div style="min-width:190px;font-size:10px;">
-        <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>Sous-total :</span><span>${this.fmt(d.subtotal,d.currency)}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>TVA (${d.taxRate}%) :</span><span>${this.fmt(d.taxAmount,d.currency)}</span></div>
-        <div style="display:flex;justify-content:space-between;font-weight:700;padding:5px 0;border-top:1px solid #e2e8f0;margin-top:3px;"><span>Total TTC :</span><span>${this.fmt(d.grandTotal,d.currency)}</span></div>
+        <div style="border-top:1.5px solid #E2E8F0;border-bottom:1.5px solid #E2E8F0;padding:14px 0;margin-bottom:24px;display:flex;justify-content:space-between;">
+          <div>
+            <div style="font-size:10px;text-transform:uppercase;color:#94A3B8;letter-spacing:1px;font-weight:700;margin-bottom:4px;">Facturé à</div>
+            <div style="font-size:15px;font-weight:700;color:#0F172A;">${d.client.name}</div>
+            <div style="font-size:11px;color:#64748b;line-height:1.6;margin-top:2px;">
+              ${d.client.company ? d.client.company + '<br>' : ''}
+              ${d.client.address ? d.client.address + '<br>' : ''}
+              ${d.client.phone ? '📞 ' + d.client.phone : ''} ${d.client.email ? '✉ ' + d.client.email : ''}
+            </div>
+          </div>
+          <div style="text-align:right;align-self:flex-end;">
+            <div style="font-size:10px;text-transform:uppercase;color:#94A3B8;letter-spacing:1px;font-weight:700;">Total à régler</div>
+            <div style="font-size:26px;font-weight:900;color:#0F172A;margin-top:2px;">${this.fmt(d.grandTotal, d.currency)}</div>
+          </div>
+        </div>
+
+        <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:12px;">
+          <thead>
+            <tr style="border-bottom:2px solid #0F172A;">
+              <th style="padding:10px 12px;text-align:left;color:#0F172A;">Description</th>
+              <th style="padding:10px 12px;text-align:center;width:12%;color:#0F172A;">Qté</th>
+              <th style="padding:10px 12px;text-align:right;width:20%;color:#0F172A;">Prix U.</th>
+              <th style="padding:10px 12px;text-align:right;width:20%;color:#0F172A;">Total</th>
+            </tr>
+          </thead>
+          <tbody>${this.rows(d.items, d.currency)}</tbody>
+        </table>
+
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:auto;padding-top:20px;border-top:1px solid #E2E8F0;">
+          <div style="max-width:50%;font-size:11px;color:#64748b;">
+            <div style="font-weight:700;color:#0F172A;margin-bottom:4px;">Modalités & Règlement</div>
+            <div>${d.terms || 'Paiement à réception.'}</div>
+            ${d.notes ? `<div style="margin-top:6px;"><strong>Note :</strong> ${d.notes}</div>` : ''}
+          </div>
+          <div style="min-width:230px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:#64748b;">
+              <span>Sous-total HT :</span><span style="font-weight:600;color:#0F172A;">${this.fmt(d.subtotal, d.currency)}</span>
+            </div>
+            ${d.taxRate > 0 ? `
+              <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:#64748b;">
+                <span>TVA (${d.taxRate}%) :</span><span style="color:#0F172A;">${this.fmt(d.taxAmount, d.currency)}</span>
+              </div>` : ''}
+            ${d.discount > 0 ? `
+              <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:#EF4444;">
+                <span>Réduction :</span><span>-${this.fmt(d.discount, d.currency)}</span>
+              </div>` : ''}
+            <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:800;color:#0F172A;border-top:2px solid #0F172A;padding-top:8px;margin-top:6px;">
+              <span>Total TTC :</span><span>${this.fmt(d.grandTotal, d.currency)}</span>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:20px;padding-top:14px;border-top:1px solid #e2e8f0;font-size:9px;color:#64748b;">
-      <div><strong style="color:#1e293b;display:block;margin-bottom:3px;font-size:10px;">Informations de paiement</strong>${d.terms||'Paiement à réception.'}</div>
-      <div><strong style="color:#1e293b;display:block;margin-bottom:3px;font-size:10px;">Conditions</strong>${d.notes||'Merci pour votre confiance.'}</div>
-      <div style="text-align:right;"><strong style="color:#1e293b;display:block;margin-bottom:3px;font-size:10px;">Responsable compte</strong><div style="font-style:italic;font-family:Georgia,serif;font-size:13px;color:#1e293b;">${d.biz.owner||d.biz.name||''}</div><div>${d.biz.email||''}</div></div>
-    </div>
-    ${d.biz.phone||d.biz.email?`<div style="margin-top:14px;background:${ac};padding:7px 14px;border-radius:4px;display:flex;gap:14px;font-size:9px;color:#fff;">${d.biz.phone?`<span>📞 ${d.biz.phone}</span>`:''} ${d.biz.email?`<span>✉ ${d.biz.email}</span>`:''} ${d.biz.address?`<span>📍 ${d.biz.address}</span>`:''}</div>`:''}
-  </div>
-</div>`;
+    `;
   },
 
-  // ══════════════════════════════════════════════════════════════
-  // TEMPLATE 3: CORPORATE LIGHT (Image 3 — logo cercle, accent teal)
-  // ══════════════════════════════════════════════════════════════
-  renderCorpLight: function (d) {
-    const ac = d.primaryColor || '#0e7490';
-    const lbl = d.docType === 'quote' ? 'DEVIS' : 'INVOICE';
-    return `<div style="background:#fff;font-family:Inter,Arial,sans-serif;padding:28px;min-height:1050px;position:relative;color:#1e293b;">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">
-    <div style="display:flex;gap:10px;align-items:flex-start;">${this.logoHtml(d.biz,'46px','circle')}<div><div style="font-weight:800;font-size:14px;">${d.biz.name||'KIVO MATIQUE'}</div><div style="font-size:9px;color:#64748b;line-height:1.6;">${d.biz.address||''}<br>${d.biz.phone||''}<br>${d.biz.email||''}</div></div></div>
-    <div style="text-align:right;"><div style="font-size:21px;font-weight:900;letter-spacing:2px;">${lbl}</div><div style="font-size:9px;color:#64748b;margin-top:3px;">DATE : ${d.issueDate||'--'}</div></div>
-  </div>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">
-    <div><div style="font-size:9px;text-transform:uppercase;color:#64748b;letter-spacing:1px;margin-bottom:3px;">Projet</div><div style="font-size:18px;font-weight:900;line-height:1.2;">${d.docType==='quote'?'PROPOSITION<br>COMMERCIALE':'PRESTATION<br>DE SERVICE'}</div></div>
-    <div style="text-align:right;font-size:10px;"><div style="font-size:9px;text-transform:uppercase;color:#64748b;letter-spacing:1px;margin-bottom:3px;">Facturé à</div><div style="font-weight:700;font-size:13px;">${d.client.name}</div><div style="color:#64748b;line-height:1.6;">${d.client.address||''}<br>${d.client.phone||''}</div></div>
-  </div>
-  <div style="border-top:2px solid ${ac};border-bottom:1px solid #e2e8f0;padding:5px 0;margin-bottom:10px;display:flex;justify-content:space-between;font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:1px;"><span>Détail des prestations</span><span style="font-weight:700;color:#0f172a;">N° ${d.docNum}</span></div>
-  <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10px;">
-    <thead><tr style="border-bottom:1px solid #e2e8f0;">
-      <th style="padding:7px 0;text-align:left;color:#64748b;font-weight:600;width:6%;">N°</th>
-      <th style="padding:7px 0;text-align:left;color:#64748b;font-weight:600;">Description</th>
-      <th style="padding:7px 0;text-align:right;color:#64748b;font-weight:600;width:18%;">Prix</th>
-      <th style="padding:7px 0;text-align:center;color:#64748b;font-weight:600;width:12%;">Qté</th>
-      <th style="padding:7px 0;text-align:right;background:${ac};color:#fff;padding-left:8px;padding-right:8px;width:18%;">Total</th>
-    </tr></thead>
-    <tbody>${d.items.length===0?`<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:14px;">Aucun article</td></tr>`:d.items.map((it,i)=>`<tr><td style="padding:6px 0;border-bottom:1px solid #f1f5f9;">${i+1}.</td><td style="padding:6px 0;border-bottom:1px solid #f1f5f9;">${it.name}</td><td style="padding:6px 0;text-align:right;border-bottom:1px solid #f1f5f9;">${this.fmt(it.price,d.currency)}</td><td style="padding:6px 0;text-align:center;border-bottom:1px solid #f1f5f9;">${it.quantity}</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #f1f5f9;background:#f0fdfa;">${this.fmt(it.total,d.currency)}</td></tr>`).join('')}</tbody>
-  </table>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">
-    <div><div style="font-size:9px;text-transform:uppercase;color:#64748b;">Total à régler</div><div style="font-size:22px;font-weight:900;font-style:italic;">${this.fmt(d.grandTotal,d.currency)}</div></div>
-    <div style="min-width:195px;font-size:10px;">
-      <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>Sous-total :</span><span>${this.fmt(d.subtotal,d.currency)}</span></div>
-      <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>TVA (${d.taxRate}%) :</span><span>${d.taxRate>0?this.fmt(d.taxAmount,d.currency):'0'}</span></div>
-      <div style="display:flex;justify-content:space-between;font-weight:700;padding:5px 0;border-top:2px solid ${ac};margin-top:3px;"><span>Total TTC :</span><span style="color:${ac};">${this.fmt(d.grandTotal,d.currency)}</span></div>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;padding-top:14px;border-top:1px solid #e2e8f0;font-size:9px;color:#64748b;">
-    <div><strong style="color:#1e293b;display:block;margin-bottom:3px;font-size:10px;">Informations de paiement</strong>${d.terms||'Paiement à réception.'}</div>
-    <div><strong style="color:#1e293b;display:block;margin-bottom:3px;font-size:10px;">Conditions</strong>${d.notes||'Merci pour votre confiance.'}</div>
-    <div style="text-align:right;"><strong style="color:#1e293b;display:block;margin-bottom:3px;font-size:10px;">Responsable compte</strong><div style="font-style:italic;font-family:Georgia,serif;font-size:14px;color:#1e293b;">${d.biz.owner||d.biz.name||''}</div><div>${d.biz.owner||''}</div></div>
-  </div>
-  <div style="text-align:center;font-size:9px;color:#94a3b8;margin-top:18px;border-top:1px solid #f1f5f9;padding-top:7px;">${d.biz.address||''} ${d.biz.phone?'· '+d.biz.phone:''} ${d.biz.email?'· '+d.biz.email:''}</div>
-</div>`;
+  // 2. CORPORATE
+  renderCorporate: function (d) {
+    const ac = d.primaryColor || '#1E3A5F';
+    const lbl = d.docType === 'quote' ? 'DEVIS' : 'FACTURE';
+    return `
+      <div style="background:#fff;font-family:Inter,Arial,sans-serif;min-height:950px;position:relative;color:#1e293b;box-sizing:border-box;display:flex;flex-direction:column;">
+        <div style="background:${ac};padding:24px 36px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:14px;">
+            ${this.logoHtml(d.biz, '48px', 'square')}
+            <div>
+              <div style="color:#fff;font-weight:800;font-size:18px;">${d.biz.name || 'KIVO MATIQUE'}</div>
+              <div style="color:rgba(255,255,255,0.7);font-size:10px;">${d.biz.address || ''}</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="color:#fff;font-weight:900;font-size:24px;letter-spacing:1px;">${lbl}</div>
+            <div style="color:rgba(255,255,255,0.8);font-size:12px;font-weight:600;">N° ${d.docNum}</div>
+          </div>
+        </div>
+
+        <div style="padding:28px 36px;flex:1;display:flex;flex-direction:column;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:24px;background:#F8FAFC;padding:16px;border-radius:6px;border:1px solid #E2E8F0;">
+            <div>
+              <div style="font-size:10px;text-transform:uppercase;color:#64748B;font-weight:700;">Destinataire</div>
+              <div style="font-size:14px;font-weight:700;color:#0F172A;margin-top:2px;">${d.client.name}</div>
+              <div style="font-size:11px;color:#64748B;">${d.client.phone || ''} · ${d.client.email || ''}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:11px;color:#64748B;">Date d'émission : <strong style="color:#0F172A;">${d.issueDate || '--'}</strong></div>
+              <div style="font-size:11px;color:#64748B;margin-top:2px;">Échéance : <strong style="color:#0F172A;">${d.dueDate || '--'}</strong></div>
+            </div>
+          </div>
+
+          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:12px;">
+            <thead>
+              <tr style="background:${ac};color:#fff;">
+                <th style="padding:10px 12px;text-align:left;">Description</th>
+                <th style="padding:10px 12px;text-align:center;width:12%;">Qté</th>
+                <th style="padding:10px 12px;text-align:right;width:20%;">Prix</th>
+                <th style="padding:10px 12px;text-align:right;width:20%;">Total</th>
+              </tr>
+            </thead>
+            <tbody>${this.rows(d.items, d.currency)}</tbody>
+          </table>
+
+          <div style="display:flex;justify-content:flex-end;margin-top:auto;margin-bottom:20px;">
+            <div style="width:240px;">
+              <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;color:#64748B;"><span>Sous-total HT :</span><span>${this.fmt(d.subtotal, d.currency)}</span></div>
+              <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;color:#64748B;"><span>TVA (${d.taxRate}%) :</span><span>${this.fmt(d.taxAmount, d.currency)}</span></div>
+              <div style="background:${ac};color:#fff;display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding:8px 12px;border-radius:4px;margin-top:6px;">
+                <span>Total TTC :</span><span>${this.fmt(d.grandTotal, d.currency)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid #E2E8F0;padding-top:12px;font-size:10px;color:#64748B;display:flex;justify-content:space-between;">
+            <div>Conditions : ${d.terms || 'Paiement à réception.'}</div>
+            <div>${d.biz.phone ? '📞 ' + d.biz.phone : ''} ${d.biz.email ? '✉ ' + d.biz.email : ''}</div>
+          </div>
+        </div>
+      </div>
+    `;
   },
 
-  // ══════════════════════════════════════════════════════════════
-  // TEMPLATE 4: BOLD BLUE (Image 4 — table colorée, footer bleu)
-  // ══════════════════════════════════════════════════════════════
-  renderBoldBlue: function (d) {
-    const ac = d.primaryColor || '#2563eb';
-    const lbl = d.docType === 'quote' ? 'DEVIS' : 'INVOICE';
-    return `<div style="background:#fff;font-family:Inter,Arial,sans-serif;padding:26px 26px 0;min-height:1050px;position:relative;color:#1e293b;">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
-    <div style="display:flex;gap:8px;align-items:center;">${this.logoHtml(d.biz,'42px','square')}</div>
-    <div style="text-align:right;"><div style="font-size:24px;font-weight:900;color:${ac};">${lbl}</div><div style="font-size:9px;color:#64748b;line-height:1.8;">N° : ${d.docNum}<br>Échéance : ${d.dueDate||'--'}<br>Émission : ${d.issueDate||'--'}</div></div>
-  </div>
-  <div style="margin-bottom:14px;"><div style="font-size:10px;color:#64748b;">Facturé à :</div><div style="font-size:15px;font-weight:800;color:${ac};">${d.client.name}</div><div style="font-size:10px;color:#64748b;line-height:1.6;">${d.client.phone?`Tél : ${d.client.phone}<br>`:''} ${d.client.email?`Email : ${d.client.email}<br>`:''} ${d.client.address?`Adresse : ${d.client.address}`:''}</div></div>
-  <table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:10px;">
-    <thead><tr style="background:${ac};color:#fff;">
-      <th style="padding:8px 10px;text-align:left;width:6%;">N°</th>
-      <th style="padding:8px 10px;text-align:left;">Description</th>
-      <th style="padding:8px 10px;text-align:right;width:18%;">Prix U.</th>
-      <th style="padding:8px 10px;text-align:center;width:12%;">Qté</th>
-      <th style="padding:8px 10px;text-align:right;width:18%;">Total</th>
-    </tr></thead>
-    <tbody>${d.items.length===0?`<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:14px;">Aucun article</td></tr>`:d.items.map((it,i)=>`<tr style="border-bottom:1px solid #e2e8f0;background:${i%2===0?'#fff':'#eff6ff'};"><td style="padding:7px 10px;">${i+1}</td><td style="padding:7px 10px;">${it.name}</td><td style="padding:7px 10px;text-align:right;">${this.fmt(it.price,d.currency)}</td><td style="padding:7px 10px;text-align:center;">${it.quantity}</td><td style="padding:7px 10px;text-align:right;font-weight:600;">${this.fmt(it.total,d.currency)}</td></tr>`).join('')}</tbody>
-  </table>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
-    <div style="max-width:46%;">
-      <div style="font-size:11px;font-weight:700;color:${ac};margin-bottom:3px;">Informations de paiement :</div>
-      <div style="font-size:10px;color:#64748b;line-height:1.6;">${d.terms||'Paiement à réception.'}</div>
-      <div style="font-size:11px;font-weight:700;color:${ac};margin-top:8px;margin-bottom:3px;">Conditions :</div>
-      <div style="font-size:10px;color:#64748b;">${d.notes||'Merci pour votre confiance.'}</div>
-    </div>
-    <div style="min-width:200px;">
-      <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Sous-total : <span style="color:#0f172a;font-weight:600;">${this.fmt(d.subtotal,d.currency)}</span></div>
-      ${d.discount>0?`<div style="font-size:10px;color:#ef4444;margin-bottom:3px;">Réduction : -${this.fmt(d.discount,d.currency)}</div>`:''}
-      <div style="font-size:10px;color:#64748b;margin-bottom:8px;">TVA (${d.taxRate}%) : <span style="color:#0f172a;font-weight:600;">${this.fmt(d.taxAmount,d.currency)}</span></div>
-      <div style="background:#0f172a;color:#fff;padding:8px 12px;border-radius:4px;font-size:11px;font-weight:700;">Total TTC : ${this.fmt(d.grandTotal,d.currency)}</div>
-      <div style="font-size:9px;color:#64748b;text-align:right;margin-top:5px;"><span style="font-style:italic;font-family:Georgia,serif;font-size:12px;color:#1e293b;">${d.biz.owner||''}</span><br>Signature autorisée</div>
-    </div>
-  </div>
-  <div style="background:${ac};padding:9px 14px;display:flex;flex-wrap:wrap;gap:12px;font-size:9px;color:#fff;margin:0 -26px;border-radius:0 0 6px 6px;">
-    ${d.biz.phone?`<span>📞 ${d.biz.phone}</span>`:''}
-    ${d.biz.email?`<span>✉ ${d.biz.email}</span>`:''}
-    ${d.biz.address?`<span>📍 ${d.biz.address}</span>`:''}
-    ${d.biz.taxId?`<span>N° Fiscal: ${d.biz.taxId}</span>`:''}
-  </div>
-</div>`;
-  },
-
-  // ══════════════════════════════════════════════════════════════
-  // TEMPLATE 5: WAVE FRENCH (Image 5 — vague déco, format devis FR)
-  // ══════════════════════════════════════════════════════════════
-  renderWaveFrench: function (d) {
+  // 3. ELEGANT
+  renderElegant: function (d) {
     const lbl = d.docType === 'quote' ? 'Devis' : 'Facture';
-    return `<div style="background:#fff;font-family:Inter,Arial,sans-serif;padding:26px;min-height:1050px;position:relative;color:#1e293b;">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
-    <div style="border:2px solid #1e293b;padding:5px;">${this.logoHtml(d.biz,'46px','none')}</div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-      <svg width="150" height="36" viewBox="0 0 150 36" fill="none"><path d="M0 18 Q18 4 36 18 Q54 32 72 18 Q90 4 108 18 Q126 32 144 18" stroke="#7dd3fc" stroke-width="2.5" fill="none" opacity="0.8"/><path d="M0 26 Q18 12 36 26 Q54 40 72 26 Q90 12 108 26 Q126 40 144 26" stroke="#bae6fd" stroke-width="1.5" fill="none" opacity="0.5"/></svg>
-      <div style="font-size:24px;font-weight:900;">${lbl}</div>
-    </div>
-  </div>
-  <div style="font-size:11px;font-weight:700;margin-bottom:2px;">${d.biz.name||'KIVO MATIQUE'}</div>
-  <div style="font-size:9px;color:#64748b;line-height:1.7;margin-bottom:10px;">${d.biz.address||''}<br>${d.biz.phone||''}<br>${d.biz.email||''}<br>${d.biz.taxId?`N° SIRET/NINEA : ${d.biz.taxId}`:''}</div>
-  <div style="border-top:1px solid #1e293b;border-bottom:1px solid #e2e8f0;padding:8px 0;margin-bottom:12px;display:flex;justify-content:space-between;">
-    <div style="font-size:9px;color:#64748b;"><strong style="color:#1e293b;text-transform:uppercase;font-size:8px;letter-spacing:1px;display:block;margin-bottom:3px;">Informations additionnelles</strong>N° ${d.docType==='quote'?'du devis':'de facture'} : ${d.docNum}<br>Date : ${d.issueDate||'--'}<br>${d.dueDate?`Validité / Échéance : ${d.dueDate}`:''}</div>
-    <div style="text-align:right;font-size:9px;color:#64748b;"><strong style="color:#1e293b;display:block;margin-bottom:3px;">${d.client.name}</strong>${d.client.address||''}<br>${d.client.email||''}<br>${d.client.phone||''}</div>
-  </div>
-  ${d.notes?`<div style="font-size:10px;color:#1e293b;margin-bottom:10px;"><strong>Objet</strong> : ${d.notes}</div>`:''}
-  <table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:10px;">
-    <thead><tr style="background:#93c5fd;color:#1e293b;">
-      <th style="padding:7px 10px;text-align:left;font-weight:600;">Description</th>
-      <th style="padding:7px 10px;text-align:center;font-weight:600;width:14%;">Quantité</th>
-      <th style="padding:7px 10px;text-align:right;font-weight:600;width:18%;">Prix HT</th>
-      <th style="padding:7px 10px;text-align:right;font-weight:600;width:18%;">Total HT</th>
-    </tr></thead>
-    <tbody>${d.items.length===0?`<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:14px;">Aucun article</td></tr>`:d.items.map(it=>`<tr style="border:1px solid #e2e8f0;"><td style="padding:7px 10px;">${it.name}</td><td style="padding:7px 10px;text-align:center;">${it.quantity}</td><td style="padding:7px 10px;text-align:right;">${this.fmt(it.price,d.currency)}</td><td style="padding:7px 10px;text-align:right;font-weight:600;">${this.fmt(it.total,d.currency)}</td></tr>`).join('')}</tbody>
-  </table>
-  <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-    <table style="border-collapse:collapse;font-size:10px;min-width:230px;">
-      <tr style="border-top:1px solid #e2e8f0;"><td style="padding:4px 10px;color:#64748b;">Total Hors Taxe</td><td style="padding:4px 10px;text-align:right;font-weight:600;">${this.fmt(d.subtotal,d.currency)}</td></tr>
-      <tr><td style="padding:4px 10px;color:#64748b;">TVA (${d.taxRate}%)</td><td style="padding:4px 10px;text-align:right;">${this.fmt(d.taxAmount,d.currency)}</td></tr>
-      ${d.discount>0?`<tr><td style="padding:4px 10px;color:#ef4444;">Réduction</td><td style="padding:4px 10px;text-align:right;color:#ef4444;">-${this.fmt(d.discount,d.currency)}</td></tr>`:''}
-      <tr style="background:#dbeafe;font-weight:700;"><td style="padding:6px 10px;border-top:2px solid #93c5fd;">Total TTC</td><td style="padding:6px 10px;text-align:right;border-top:2px solid #93c5fd;">${this.fmt(d.grandTotal,d.currency)}</td></tr>
-    </table>
-  </div>
-  <div style="font-size:9px;color:#1e293b;line-height:1.7;margin-bottom:18px;">${d.terms||'Je reste à votre disposition pour toute information complémentaire. Cordialement.'}<br>${d.docType==='quote'?'Si ce devis vous convient, veuillez le retourner signé précédé de la mention : « BON POUR ACCORD ET EXÉCUTION »':''}<div style="margin-top:10px;display:flex;justify-content:space-between;"><div>Date : ___________</div><div>Signature : ___________</div></div></div>
-  <div style="position:absolute;bottom:14px;left:26px;right:26px;border-top:1px solid #e2e8f0;padding-top:6px;font-size:8px;color:#94a3b8;text-align:center;">${d.biz.taxId?`N° SIRET/NINEA : ${d.biz.taxId}`:''} ${d.biz.name?'· '+d.biz.name:''}</div>
-</div>`;
+    return `
+      <div style="background:#FFFDF7;font-family:Georgia,serif;padding:40px;min-height:950px;position:relative;color:#2D241E;border:12px solid #F6F1E5;box-sizing:border-box;display:flex;flex-direction:column;">
+        <div style="text-align:center;border-bottom:2px solid #C9A84C;padding-bottom:18px;margin-bottom:24px;">
+          <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#A68B3A;margin-bottom:4px;">MAISON &amp; COMMERCE</div>
+          <div style="font-size:32px;font-weight:700;color:#C9A84C;font-style:italic;">${lbl}</div>
+          <div style="font-size:12px;color:#6B5C2A;margin-top:4px;">N° ${d.docNum} · Émise le ${d.issueDate || '--'}</div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-bottom:28px;font-size:12px;line-height:1.6;">
+          <div>
+            <strong style="color:#C9A84C;text-transform:uppercase;font-size:10px;letter-spacing:1px;display:block;">Émetteur</strong>
+            <div style="font-size:14px;font-weight:700;color:#1E1B18;">${d.biz.name || 'KIVO MATIQUE'}</div>
+            <div style="color:#6B5C2A;">${d.biz.address || ''}<br>${d.biz.phone || ''}</div>
+          </div>
+          <div style="text-align:right;">
+            <strong style="color:#C9A84C;text-transform:uppercase;font-size:10px;letter-spacing:1px;display:block;">Client Destinataire</strong>
+            <div style="font-size:14px;font-weight:700;color:#1E1B18;">${d.client.name}</div>
+            <div style="color:#6B5C2A;">${d.client.address || ''}<br>${d.client.phone || ''}</div>
+          </div>
+        </div>
+
+        <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:12px;">
+          <thead>
+            <tr style="border-bottom:2px solid #C9A84C;color:#C9A84C;">
+              <th style="padding:8px 10px;text-align:left;font-weight:600;">Description</th>
+              <th style="padding:8px 10px;text-align:center;width:12%;font-weight:600;">Qté</th>
+              <th style="padding:8px 10px;text-align:right;width:20%;font-weight:600;">Prix U.</th>
+              <th style="padding:8px 10px;text-align:right;width:20%;font-weight:600;">Montant</th>
+            </tr>
+          </thead>
+          <tbody>${this.rows(d.items, d.currency, '#FDF9EF')}</tbody>
+        </table>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:auto;border-top:1px solid #E8D5A0;padding-top:14px;">
+          <div style="width:240px;font-size:12px;">
+            <div style="display:flex;justify-content:space-between;padding:2px 0;color:#6B5C2A;"><span>Sous-total :</span><span>${this.fmt(d.subtotal, d.currency)}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:2px 0;color:#6B5C2A;"><span>TVA (${d.taxRate}%) :</span><span>${this.fmt(d.taxAmount, d.currency)}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#C9A84C;border-top:2px solid #C9A84C;padding-top:6px;margin-top:4px;">
+              <span>Total TTC :</span><span>${this.fmt(d.grandTotal, d.currency)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:24px;text-align:center;font-size:10px;color:#A68B3A;border-top:1px solid #E8D5A0;padding-top:10px;font-style:italic;">
+          Merci infiniment pour votre confiance.
+        </div>
+      </div>
+    `;
+  },
+
+  // 4. MODERN
+  renderModern: function (d) {
+    const lbl = d.docType === 'quote' ? 'DEVIS' : 'FACTURE';
+    return `
+      <div style="background:#fff;font-family:Inter,sans-serif;padding:36px;min-height:950px;position:relative;box-sizing:border-box;display:flex;flex-direction:column;">
+        <div style="height:6px;background:linear-gradient(90deg,#6366F1,#8B5CF6,#EC4899);border-radius:3px;margin-bottom:24px;"></div>
+        
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;">
+          <div>
+            ${this.logoHtml(d.biz, '48px', 'square')}
+            <div style="font-size:18px;font-weight:800;color:#1E1B4B;margin-top:8px;">${d.biz.name || 'KIVO MATIQUE'}</div>
+            <div style="font-size:11px;color:#64748B;">${d.biz.address || ''}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:28px;font-weight:900;background:linear-gradient(135deg,#6366F1,#8B5CF6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">${lbl}</div>
+            <div style="font-size:13px;font-weight:700;color:#475569;margin-top:2px;">N° ${d.docNum}</div>
+            <div style="background:#EDE9FE;color:#7C3AED;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;display:inline-block;margin-top:6px;">
+              ${d.status === 'paid' ? 'PAYÉE' : 'EN ATTENTE'}
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#F5F3FF;border-radius:8px;padding:16px 20px;margin-bottom:24px;display:flex;justify-content:space-between;">
+          <div>
+            <div style="font-size:10px;color:#7C3AED;font-weight:700;text-transform:uppercase;">Facturé à</div>
+            <div style="font-size:14px;font-weight:700;color:#1E1B4B;margin-top:2px;">${d.client.name}</div>
+            <div style="font-size:11px;color:#64748B;">${d.client.email || ''} ${d.client.phone ? '· ' + d.client.phone : ''}</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:#64748B;">
+            <div>Émission : <strong style="color:#1E1B4B;">${d.issueDate || '--'}</strong></div>
+            <div>Échéance : <strong style="color:#1E1B4B;">${d.dueDate || '--'}</strong></div>
+          </div>
+        </div>
+
+        <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:12px;">
+          <thead>
+            <tr style="background:#8B5CF6;color:#fff;">
+              <th style="padding:10px 12px;text-align:left;border-radius:4px 0 0 4px;">Description</th>
+              <th style="padding:10px 12px;text-align:center;width:12%;">Qté</th>
+              <th style="padding:10px 12px;text-align:right;width:20%;">Prix U.</th>
+              <th style="padding:10px 12px;text-align:right;width:20%;border-radius:0 4px 4px 0;">Total</th>
+            </tr>
+          </thead>
+          <tbody>${this.rows(d.items, d.currency, '#FDF2F8')}</tbody>
+        </table>
+
+        <div style="margin-top:auto;display:flex;justify-content:flex-end;">
+          <div style="background:linear-gradient(135deg,#6366F1,#8B5CF6);color:#fff;padding:16px 24px;border-radius:8px;width:250px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;opacity:0.85;"><span>Sous-total :</span><span>${this.fmt(d.subtotal, d.currency)}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;opacity:0.85;margin-top:2px;"><span>TVA (${d.taxRate}%) :</span><span>${this.fmt(d.taxAmount, d.currency)}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;border-top:1px solid rgba(255,255,255,0.25);padding-top:8px;margin-top:8px;">
+              <span>Total :</span><span>${this.fmt(d.grandTotal, d.currency)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  // 5. CLEAN (Modern Clean)
+  renderClean: function (d) {
+    const lbl = d.docType === 'quote' ? 'DEVIS' : 'FACTURE';
+    return `
+      <div style="background:#fff;font-family:Inter,sans-serif;padding:36px;min-height:950px;position:relative;color:#1E293B;border-top:8px solid #0E7490;box-sizing:border-box;display:flex;flex-direction:column;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;">
+          <div>
+            <div style="font-size:22px;font-weight:800;color:#0E7490;">${d.biz.name || 'KIVO MATIQUE'}</div>
+            <div style="font-size:11px;color:#64748B;margin-top:3px;">${d.biz.address || ''}<br>${d.biz.phone || ''}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:26px;font-weight:900;color:#0E7490;">${lbl}</div>
+            <div style="font-size:12px;font-weight:700;color:#334155;">N° ${d.docNum}</div>
+            <div style="font-size:11px;color:#64748B;">Date : ${d.issueDate || '--'}</div>
+          </div>
+        </div>
+
+        <div style="background:#F0FDFA;border-left:4px solid #0E7490;padding:12px 16px;margin-bottom:24px;">
+          <div style="font-size:10px;text-transform:uppercase;color:#0E7490;font-weight:700;">Client Facturé</div>
+          <div style="font-size:14px;font-weight:700;color:#0F172A;margin-top:2px;">${d.client.name}</div>
+          <div style="font-size:11px;color:#64748B;">${d.client.address || ''} · ${d.client.phone || ''}</div>
+        </div>
+
+        <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:12px;">
+          <thead>
+            <tr style="background:#0E7490;color:#fff;">
+              <th style="padding:9px 12px;text-align:left;">Description</th>
+              <th style="padding:9px 12px;text-align:center;width:12%;">Qté</th>
+              <th style="padding:9px 12px;text-align:right;width:20%;">P.U</th>
+              <th style="padding:9px 12px;text-align:right;width:20%;">Total</th>
+            </tr>
+          </thead>
+          <tbody>${this.rows(d.items, d.currency, '#F0FDFA')}</tbody>
+        </table>
+
+        <div style="margin-top:auto;display:flex;justify-content:flex-end;">
+          <div style="width:230px;font-size:12px;">
+            <div style="display:flex;justify-content:space-between;padding:3px 0;color:#64748B;"><span>Sous-total :</span><span>${this.fmt(d.subtotal, d.currency)}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0;color:#64748B;"><span>TVA (${d.taxRate}%) :</span><span>${this.fmt(d.taxAmount, d.currency)}</span></div>
+            <div style="background:#0E7490;color:#fff;display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding:8px 12px;border-radius:4px;margin-top:6px;">
+              <span>Total TTC :</span><span>${this.fmt(d.grandTotal, d.currency)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  // 6. EDITORIAL
+  renderEditorial: function (d) {
+    const lbl = d.docType === 'quote' ? 'DEVIS' : 'FACTURE';
+    return `
+      <div style="background:#fff;font-family:Inter,sans-serif;min-height:950px;position:relative;color:#111;box-sizing:border-box;display:flex;flex-direction:column;">
+        <div style="background:#111;padding:24px 36px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:20px;height:20px;background:#EF4444;border-radius:3px;"></div>
+              <div style="color:#fff;font-size:18px;font-weight:900;letter-spacing:1px;">${d.biz.name || 'KIVO MATIQUE'}</div>
+            </div>
+            <div style="color:#9CA3AF;font-size:10px;margin-top:3px;">${d.biz.address || ''}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:26px;font-weight:900;color:#EF4444;letter-spacing:2px;">${lbl}</div>
+            <div style="color:#fff;font-size:12px;font-weight:700;">N° ${d.docNum}</div>
+          </div>
+        </div>
+
+        <div style="padding:28px 36px;flex:1;display:flex;flex-direction:column;">
+          <div style="border-bottom:3px solid #111;padding-bottom:14px;margin-bottom:24px;display:flex;justify-content:space-between;">
+            <div>
+              <div style="font-size:9px;text-transform:uppercase;color:#EF4444;font-weight:900;letter-spacing:1px;">CLIENT</div>
+              <div style="font-size:18px;font-weight:900;color:#111;margin-top:2px;">${d.client.name}</div>
+              <div style="font-size:11px;color:#4B5563;">${d.client.phone || ''} ${d.client.email ? '· ' + d.client.email : ''}</div>
+            </div>
+            <div style="text-align:right;font-size:11px;color:#4B5563;">
+              <div>Date d'émission : <strong style="color:#111;">${d.issueDate || '--'}</strong></div>
+              <div>Échéance : <strong style="color:#111;">${d.dueDate || '--'}</strong></div>
+            </div>
+          </div>
+
+          <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:12px;">
+            <thead>
+              <tr style="background:#111;color:#fff;">
+                <th style="padding:10px 12px;text-align:left;">DESCRIPTION</th>
+                <th style="padding:10px 12px;text-align:center;width:12%;">QTÉ</th>
+                <th style="padding:10px 12px;text-align:right;width:20%;">P.U</th>
+                <th style="padding:10px 12px;text-align:right;width:20%;background:#EF4444;">TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>${this.rows(d.items, d.currency, '#FEE2E2')}</tbody>
+          </table>
+
+          <div style="margin-top:auto;display:flex;justify-content:flex-end;">
+            <div style="width:250px;border:2px solid #111;padding:12px 16px;">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#4B5563;"><span>Sous-total HT :</span><span>${this.fmt(d.subtotal, d.currency)}</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#4B5563;margin-top:2px;"><span>TVA (${d.taxRate}%) :</span><span>${this.fmt(d.taxAmount, d.currency)}</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:900;color:#111;border-top:2px solid #111;padding-top:6px;margin-top:6px;">
+                <span>Total TTC :</span><span style="color:#EF4444;">${this.fmt(d.grandTotal, d.currency)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  // 7. PREMIUM (Copper Metallic & Dark Matte)
+  renderPremium: function (d) {
+    const lbl = d.docType === 'quote' ? 'DEVIS' : 'FACTURE';
+    return `
+      <div style="background:#181A20;font-family:Inter,sans-serif;min-height:950px;position:relative;color:#F1F5F9;padding:36px;box-sizing:border-box;display:flex;flex-direction:column;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
+          <div>
+            ${this.logoHtml(d.biz, '48px', 'square', true)}
+            <div style="font-size:20px;font-weight:800;color:#F8FAFC;margin-top:8px;letter-spacing:0.5px;">${d.biz.name || 'KIVO MATIQUE'}</div>
+            <div style="font-size:11px;color:#94A3B8;margin-top:2px;">${d.biz.address || ''}<br>${d.biz.phone || ''}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:28px;font-weight:800;color:#F5D0B5;letter-spacing:2px;font-family:serif;">${lbl}</div>
+            <div style="font-size:13px;font-weight:700;color:#D49B7A;margin-top:2px;">N° ${d.docNum}</div>
+            <div style="font-size:11px;color:#94A3B8;margin-top:4px;">Date : ${d.issueDate || '--'}</div>
+          </div>
+        </div>
+
+        <!-- Glowing metallic copper/rose gold band matching Image 2 -->
+        <div style="height:18px;background:linear-gradient(90deg,#D49B7A 0%,#F5D0B5 50%,#B87352 100%);border-radius:4px;margin-bottom:24px;box-shadow:0 4px 14px rgba(212,155,122,0.35);"></div>
+
+        <div style="background:#222631;border:1px solid #2D323F;border-radius:8px;padding:16px 20px;margin-bottom:24px;display:flex;justify-content:space-between;">
+          <div>
+            <div style="font-size:10px;text-transform:uppercase;color:#D49B7A;font-weight:700;letter-spacing:1px;">Client Destinataire</div>
+            <div style="font-size:15px;font-weight:700;color:#FFFFFF;margin-top:2px;">${d.client.name}</div>
+            <div style="font-size:11px;color:#94A3B8;">${d.client.address || ''} · ${d.client.phone || ''}</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:#94A3B8;">
+            <div>Échéance de règlement : <strong style="color:#F5D0B5;">${d.dueDate || 'Paiement immédiat'}</strong></div>
+          </div>
+        </div>
+
+        <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:12px;">
+          <thead>
+            <tr style="background:#222631;color:#F5D0B5;border-bottom:1.5px solid #D49B7A;">
+              <th style="padding:10px 12px;text-align:left;">Description</th>
+              <th style="padding:10px 12px;text-align:center;width:12%;">Qté</th>
+              <th style="padding:10px 12px;text-align:right;width:20%;">Prix U.</th>
+              <th style="padding:10px 12px;text-align:right;width:20%;">Total</th>
+            </tr>
+          </thead>
+          <tbody>${this.rows(d.items, d.currency, '#2A221E', true)}</tbody>
+        </table>
+
+        <div style="margin-top:auto;display:flex;justify-content:flex-end;">
+          <div style="background:#222631;border:1px solid #D49B7A;border-radius:8px;padding:16px 24px;width:260px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#94A3B8;"><span>Sous-total HT :</span><span style="color:#F1F5F9;">${this.fmt(d.subtotal, d.currency)}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#94A3B8;margin-top:2px;"><span>TVA (${d.taxRate}%) :</span><span style="color:#F1F5F9;">${this.fmt(d.taxAmount, d.currency)}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;color:#F5D0B5;border-top:1px solid #3A3530;padding-top:8px;margin-top:8px;">
+              <span>Total TTC :</span><span>${this.fmt(d.grandTotal, d.currency)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
   },
 
   // ── Main render dispatcher ────────────────────────────────────────────
   render: function (templateId, data) {
+    const d = data || this.collectData();
     switch (templateId) {
-      case 'green-clean':  return this.renderGreenClean(data);
-      case 'corp-blue':    return this.renderCorpBlue(data);
-      case 'corp-light':   return this.renderCorpLight(data);
-      case 'bold-blue':    return this.renderBoldBlue(data);
-      case 'wave-french':  return this.renderWaveFrench(data);
-      default:             return null; // handled by existing CSS-based system
+      case 'minimalist':  return this.renderMinimalist(d);
+      case 'corporate':   return this.renderCorporate(d);
+      case 'elegant':      return this.renderElegant(d);
+      case 'modern':       return this.renderModern(d);
+      case 'clean':        return this.renderClean(d);
+      case 'editorial':    return this.renderEditorial(d);
+      case 'premium':      return this.renderPremium(d);
+      default:             return this.renderMinimalist(d);
     }
   }
 };

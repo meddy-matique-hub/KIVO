@@ -1153,6 +1153,7 @@ window.KivoApp = {
     setVal('builder-terms', 'Net 30 days');
     setVal('builder-payment-method', 'Virement bancaire');
     setVal('builder-doc-currency', this.state.business.currency || 'FCFA');
+    setVal('builder-visual-template', this.state.business.visualTemplate || 'minimalist');
 
     // Enterprise fields from business settings
     const biz = this.state.business;
@@ -1339,7 +1340,33 @@ window.KivoApp = {
    * Updates Live Paper Invoice Preview in Real-Time
    */
   updateLiveInvoicePreview: function () {
-    const biz = this.state.business;
+    const biz = this.state.business || {};
+    const tSelect = document.getElementById('builder-visual-template');
+    const templateId = (tSelect && tSelect.value) ? tSelect.value : (biz.visualTemplate || 'minimalist');
+
+    // Dynamic template engine integration
+    if (window.KivoTemplates && typeof window.KivoTemplates.render === 'function') {
+      const data = window.KivoTemplates.collectData(this.state);
+      data.templateId = templateId;
+      const renderedHtml = window.KivoTemplates.render(templateId, data);
+      if (renderedHtml) {
+        const previewContainer = document.getElementById('live-paper-preview-container');
+        if (previewContainer) {
+          previewContainer.innerHTML = renderedHtml;
+          previewContainer.style.padding = '0';
+          previewContainer.style.overflow = 'hidden';
+          previewContainer.style.background = (templateId === 'premium') ? '#181A20' : '#FFFFFF';
+        }
+        const pubArea = document.getElementById('public-doc-printable-area');
+        if (pubArea) {
+          pubArea.innerHTML = renderedHtml;
+          pubArea.style.padding = '0';
+          pubArea.style.overflow = 'hidden';
+          pubArea.style.background = (templateId === 'premium') ? '#181A20' : '#FFFFFF';
+        }
+        return;
+      }
+    }
     
     const docType = document.getElementById('builder-doc-type') ? document.getElementById('builder-doc-type').value : 'invoice';
     const docNum = document.getElementById('builder-doc-number') ? document.getElementById('builder-doc-number').value : 'FAC-2026-0001';
@@ -2476,19 +2503,26 @@ window.KivoApp = {
     const container = document.getElementById('templates-grid-kivo');
     if (!container) return;
 
+    const currentTmpl = this.state.business?.visualTemplate || 'minimalist';
+
     if (window.KivoTemplates && KivoTemplates.builtIn) {
-      container.innerHTML = KivoTemplates.builtIn.map(tmpl => `
-        <div class="kivo-template-card" data-template="${tmpl.id}">
-          <div class="kivo-template-card-preview">
-            ${KivoTemplates.miniPreview(tmpl.id)}
+      container.innerHTML = KivoTemplates.builtIn.map(tmpl => {
+        const isActive = tmpl.id === currentTmpl;
+        return `
+          <div class="kivo-template-card ${isActive ? 'active-card' : ''}" data-template="${tmpl.id}">
+            <div class="kivo-template-card-preview">
+              ${KivoTemplates.miniPreview(tmpl.id)}
+            </div>
+            <div class="kivo-template-card-body">
+              <h3 class="kivo-template-card-title">${tmpl.name}</h3>
+              <p class="kivo-template-card-desc">${tmpl.desc}</p>
+              <button class="kivo-template-card-btn ${isActive ? 'active-template-btn' : ''}" onclick="KivoApp.useTemplate('${tmpl.id}')">
+                ${isActive ? '✓ Modèle actif' : 'Utiliser ce modèle'}
+              </button>
+            </div>
           </div>
-          <div class="kivo-template-card-body">
-            <h3 class="kivo-template-card-title">${tmpl.name}</h3>
-            <p class="kivo-template-card-desc">${tmpl.desc}</p>
-            <button class="kivo-template-card-btn" onclick="KivoApp.useTemplate('${tmpl.id}')">Utiliser ce modèle</button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
     
     // Setup tabs logic if not already setup
@@ -2515,32 +2549,42 @@ window.KivoApp = {
     this.state.business.visualTemplate = templateId;
     
     // Set appropriate colors based on template selection
-    switch(templateId) {
-      case 'minimalist':
-        this.state.business.primaryColor = '#cbd5e1';
-        break;
-      case 'corporate':
-        this.state.business.primaryColor = '#3b82f6';
-        break;
-      case 'elegant':
-        this.state.business.primaryColor = '#d4af37';
-        break;
-      case 'modern':
-        this.state.business.primaryColor = '#8b5cf6';
-        break;
-      case 'editorial':
-        this.state.business.primaryColor = '#ef4444';
-        break;
-      case 'premium':
-        this.state.business.primaryColor = '#b45309';
-        break;
+    const colorMap = {
+      minimalist: '#0F172A',
+      corporate:  '#1E3A5F',
+      elegant:    '#B8860B',
+      modern:     '#8B5CF6',
+      clean:      '#0E7490',
+      editorial:  '#EF4444',
+      premium:    '#C87D55'
+    };
+    if (colorMap[templateId]) {
+      this.state.business.primaryColor = colorMap[templateId];
     }
     
     // 2. Save implicitly to localStorage (and Supabase if connected)
     this.saveState();
     
-    // 3. Open a new invoice document
+    const tmplObj = window.KivoTemplates?.builtIn?.find(t => t.id === templateId);
+    const tmplName = tmplObj ? tmplObj.name : templateId;
+    this.showToast(`Modèle "${tmplName}" sélectionné et appliqué !`, 'success');
+
+    // 3. Re-render catalog so active checkmark updates immediately
+    this.renderCatalog();
+
+    // 4. Open invoice document with this template applied
     this.startNewDocument('invoice');
+  },
+
+  onBuilderTemplateChange: function (templateId) {
+    this.state.business = this.state.business || {};
+    this.state.business.visualTemplate = templateId;
+    this.saveState();
+    this.updateLiveInvoicePreview();
+    const tmplObj = window.KivoTemplates?.builtIn?.find(t => t.id === templateId);
+    if (tmplObj) {
+      this.showToast(`Modèle "${tmplObj.name}" appliqué à cette facture`, 'success');
+    }
   },
 
   openTemplateEditor: function () {
