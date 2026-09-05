@@ -1579,10 +1579,14 @@ window.KivoApp = {
 
     if (!gallery) return;
     gallery.innerHTML = window.KivoTemplates.builtIn.map(t => `
-      <div class="card hover-fx" style="cursor:pointer; padding:0.75rem;" onclick="KivoApp.startTemplateDocument('${docType}', '${t.id}')">
-        ${window.KivoTemplates.miniPreview(t.id, this.state.business?.primaryColor)}
-        <div style="font-weight:600; font-size:0.9rem; margin-top:0.5rem;">${t.name}</div>
-        <div style="font-size:0.7rem; color:var(--text-secondary);">${t.desc}</div>
+      <div class="kivo-template-card" data-template="${t.id}" style="cursor:pointer;" onclick="KivoApp.startTemplateDocument('${docType}', '${t.id}')">
+        <div class="kivo-template-card-preview" style="height: 140px; padding: 0.75rem 1rem 0 1rem;">
+          ${window.KivoTemplates.miniPreview(t.id, this.state.business?.primaryColor)}
+        </div>
+        <div class="kivo-template-card-body" style="padding: 1rem;">
+          <h3 class="kivo-template-card-title" style="font-size:0.9rem; margin-bottom:0.25rem;">${t.name}</h3>
+          <p class="kivo-template-card-desc" style="font-size:0.75rem; margin-bottom:0;">${t.desc}</p>
+        </div>
       </div>
     `).join('');
 
@@ -1591,13 +1595,20 @@ window.KivoApp = {
     if (cGallery) {
       const customs = this.state.business?.customTemplates || [];
       if (customs.length === 0) {
-        cGallery.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem; padding:1rem; grid-column:1/-1;">Aucun modèle sauvegardé.</div>`;
+        cGallery.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem; padding:1rem; grid-column:1/-1;">Aucun modèle personnalisé sauvegardé.</div>`;
       } else {
         cGallery.innerHTML = customs.map((t, idx) => `
-          <div class="card hover-fx" style="cursor:pointer; padding:0.75rem; position:relative;" onclick="KivoApp.startTemplateDocument('${docType}', '${t.id}', true)">
-            ${window.KivoTemplates.miniPreview(t.id, t.primaryColor)}
-            <div style="font-weight:600; font-size:0.9rem; margin-top:0.5rem;">${t.name}</div>
-            <button class="btn btn-sm" style="position:absolute; top:4px; right:4px; padding:2px 6px; background:rgba(0,0,0,0.5); color:white; border:none; border-radius:4px;" onclick="event.stopPropagation(); KivoApp.deleteCustomTemplate(${idx})">🗑️</button>
+          <div class="kivo-template-card" style="cursor:pointer; position:relative;" onclick="KivoApp.startTemplateDocument('${docType}', '${t.id}', true)">
+            <div class="kivo-template-card-preview" style="height: 140px; padding: 0.75rem 1rem 0 1rem;">
+              ${window.KivoTemplates.miniPreview(t.id, t.primaryColor)}
+            </div>
+            <div class="kivo-template-card-body" style="padding: 1rem;">
+              <h3 class="kivo-template-card-title" style="font-size:0.9rem; margin-bottom:0.25rem;">${t.name}</h3>
+              <p class="kivo-template-card-desc" style="font-size:0.75rem; margin-bottom:0;">Modèle personnalisé</p>
+            </div>
+            <button class="btn btn-sm" style="position:absolute; top:8px; right:8px; padding:4px 8px; background:rgba(0,0,0,0.6); color:white; border:none; border-radius:4px; z-index: 10;" onclick="event.stopPropagation(); KivoApp.deleteCustomTemplate(${idx})">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+            </button>
           </div>
         `).join('');
       }
