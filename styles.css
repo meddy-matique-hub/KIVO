@@ -2263,7 +2263,7 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 .kivo-template-card-preview {
   height: 220px;
   background: #f8fafc;
-  padding: 1rem 1.5rem 0 1.5rem;
+  padding: 0.875rem 1rem 0 1rem;
   position: relative;
   overflow: hidden;
   display: flex;
@@ -2271,20 +2271,23 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   align-items: flex-start;
 }
 
-.kivo-template-card-preview > div {
+.kivo-template-card-preview > .tmpl-mini-wrap {
   width: 100%;
-  height: 200px;
+  height: 100%;
   border-radius: 6px 6px 0 0;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Custom gradients for the background of the preview based on template */
-.kivo-template-card[data-template="minimalist"] .kivo-template-card-preview { background: linear-gradient(180deg, #f1f5f9 0%, #ffffff 100%); }
-.kivo-template-card[data-template="corporate"] .kivo-template-card-preview { background: linear-gradient(180deg, #e0e7ff 0%, #ffffff 100%); }
-.kivo-template-card[data-template="elegant"] .kivo-template-card-preview { background: linear-gradient(180deg, #fef3c7 0%, #ffffff 100%); }
-.kivo-template-card[data-template="modern"] .kivo-template-card-preview { background: linear-gradient(180deg, #fce7f3 0%, #ede9fe 100%); }
-.kivo-template-card[data-template="editorial"] .kivo-template-card-preview { background: linear-gradient(180deg, #e2e8f0 0%, #ffffff 100%); }
-.kivo-template-card[data-template="premium"] .kivo-template-card-preview { background: linear-gradient(180deg, #fcd34d 0%, #ffffff 100%); }
+.kivo-template-card[data-template="minimalist"] .kivo-template-card-preview { background: linear-gradient(160deg, #f1f5f9 0%, #e8edf2 100%); }
+.kivo-template-card[data-template="corporate"]  .kivo-template-card-preview { background: linear-gradient(160deg, #1E3A5F 0%, #2a4f80 100%); }
+.kivo-template-card[data-template="elegant"]    .kivo-template-card-preview { background: linear-gradient(160deg, #fef8e7 0%, #fdf2c7 100%); }
+.kivo-template-card[data-template="modern"]     .kivo-template-card-preview { background: linear-gradient(160deg, #F5F3FF 0%, #fce7f3 100%); }
+.kivo-template-card[data-template="editorial"]  .kivo-template-card-preview { background: linear-gradient(160deg, #1a1a1a 0%, #2d2d2d 100%); }
+.kivo-template-card[data-template="premium"]    .kivo-template-card-preview { background: linear-gradient(160deg, #1A1A2E 0%, #16213E 100%); }
 
 .kivo-template-card-body {
   padding: 1.5rem;

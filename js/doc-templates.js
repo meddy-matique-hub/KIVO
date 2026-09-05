@@ -91,15 +91,217 @@ window.KivoTemplates = {
   // ── Gallery Mini-Previews ─────────────────────────────────────────────
   miniPreview: function (id, c) {
     c = c || '#4F46E5';
-    const map = {
-      'minimalist': `<div style="background:#fff;padding:6px;height:90px;"><div style="border-bottom:1px solid #e2e8f0;padding-bottom:4px;margin-bottom:5px;display:flex;justify-content:space-between;"><div style="background:#cbd5e1;height:8px;width:30%;border-radius:1px;"></div></div><div style="background:#f1f5f9;height:4px;border-radius:1px;margin-bottom:2px;"></div><div style="background:#f1f5f9;height:4px;border-radius:1px;width:80%;"></div></div>`,
-      'corporate':  `<div style="background:#fff;padding:6px;height:90px;"><div style="background:#3b82f6;height:12px;width:100%;border-radius:1px;margin-bottom:4px;"></div><div style="background:#f1f5f9;height:4px;border-radius:1px;margin-bottom:2px;"></div><div style="background:#f1f5f9;height:4px;border-radius:1px;width:70%;"></div></div>`,
-      'elegant':    `<div style="background:#fff;padding:6px;height:90px;border:1px solid #f1f5f9;"><div style="text-align:center;margin-bottom:5px;"><div style="background:#d4af37;height:8px;width:40%;margin:0 auto;border-radius:1px;"></div></div><div style="background:#f8fafc;height:4px;border-radius:1px;margin-bottom:2px;"></div><div style="background:#f8fafc;height:4px;border-radius:1px;width:60%;margin:0 auto;"></div></div>`,
-      'modern':     `<div style="background:#fff;padding:6px;height:90px;"><div style="background:linear-gradient(90deg, #ec4899, #8b5cf6);height:6px;width:100%;border-radius:1px;margin-bottom:6px;"></div><div style="background:#f1f5f9;height:4px;border-radius:1px;margin-bottom:2px;"></div><div style="background:#f1f5f9;height:4px;border-radius:1px;width:75%;"></div></div>`,
-      'editorial':  `<div style="background:#fff;height:90px;overflow:hidden;"><div style="display:flex;background:#000;height:18px;color:#fff;font-size:5px;align-items:center;padding:2px;"><div style="background:#ef4444;height:100%;width:30%;"></div></div><div style="padding:6px;"><div style="background:#f1f5f9;height:4px;border-radius:1px;margin-bottom:2px;"></div><div style="background:#f1f5f9;height:4px;border-radius:1px;width:65%;"></div></div></div>`,
-      'premium':    `<div style="background:#1e293b;padding:6px;height:90px;"><div style="background:#b45309;height:1px;width:100%;margin:4px 0 6px;"></div><div style="background:#334155;height:4px;border-radius:1px;margin-bottom:2px;"></div><div style="background:#334155;height:4px;border-radius:1px;width:70%;"></div></div>`
+
+    const wrap = (inner, bg) =>
+      `<div class="tmpl-mini-wrap" style="background:${bg || '#fff'};width:100%;height:100%;font-size:0;line-height:0;">
+        ${inner}
+      </div>`;
+
+    const lineBlock = (w, h, bg, mb, extra) =>
+      `<div style="width:${w};height:${h}px;background:${bg};margin-bottom:${mb || 2}px;border-radius:2px;${extra || ''}"></div>`;
+
+    const tableRows = (accentBg, textBg, n) => {
+      let rows = '';
+      for (let i = 0; i < (n || 4); i++) {
+        rows += `<div style="display:flex;gap:3px;margin-bottom:2px;padding:2px 0;border-bottom:1px solid rgba(0,0,0,0.05);">
+          <div style="flex:3;height:5px;background:${i%2===0?textBg:'rgba(0,0,0,0.06)'};border-radius:1px;"></div>
+          <div style="flex:1;height:5px;background:${accentBg};border-radius:1px;"></div>
+          <div style="flex:1;height:5px;background:${accentBg};border-radius:1px;"></div>
+        </div>`;
+      }
+      return rows;
     };
-    return `<div style="border-radius:4px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,0.05);border:1px solid #e2e8f0;width:100%;height:100%;">${map[id] || map['minimalist']}</div>`;
+
+    const templates = {
+
+      // ── MINIMALIST: white background, top logo left + INVOICE right, table with grey header
+      minimalist: () => wrap(`
+        <div style="padding:10px;background:#fff;height:100%;display:flex;flex-direction:column;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+            <div>
+              <div style="width:28px;height:28px;background:#CBD5E1;border-radius:4px;margin-bottom:4px;"></div>
+              ${lineBlock('55%', 5, '#94A3B8', 2)}
+              ${lineBlock('40%', 3, '#CBD5E1', 0)}
+            </div>
+            <div style="text-align:right;">
+              <div style="font-family:serif;font-size:10px;font-weight:700;color:#1E293B;line-height:1.2;margin-bottom:4px;">INVOICE</div>
+              ${lineBlock('60px', 3, '#E2E8F0', 2)}
+              ${lineBlock('48px', 3, '#E2E8F0', 2)}
+              ${lineBlock('52px', 3, '#E2E8F0', 0)}
+            </div>
+          </div>
+          <div style="border-top:1.5px solid #CBD5E1;padding-top:5px;margin-bottom:5px;">
+            ${lineBlock('45%', 4, '#0F172A', 3)}
+            ${lineBlock('60%', 3, '#94A3B8', 2)}
+            ${lineBlock('50%', 3, '#CBD5E1', 0)}
+          </div>
+          <div style="background:#F1F5F9;border-radius:3px;padding:4px 5px;margin-bottom:3px;display:flex;gap:3px;">
+            <div style="flex:3;height:4px;background:#64748B;border-radius:1px;"></div>
+            <div style="flex:1;height:4px;background:#64748B;border-radius:1px;"></div>
+            <div style="flex:1;height:4px;background:#64748B;border-radius:1px;"></div>
+          </div>
+          ${tableRows('rgba(0,0,0,0.08)', 'rgba(0,0,0,0.07)', 4)}
+          <div style="margin-top:auto;display:flex;justify-content:flex-end;">
+            <div style="text-align:right;">${lineBlock('60px', 3, '#0F172A', 2)}${lineBlock('70px', 3, '#64748B', 2)}${lineBlock('80px', 5, '#0F172A', 0)}</div>
+          </div>
+        </div>`, '#fff'),
+
+      // ── CORPORATE: navy/blue header band, company name + INVOICE in header
+      corporate: () => wrap(`
+        <div style="background:#fff;height:100%;display:flex;flex-direction:column;">
+          <div style="background:#1E3A5F;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="width:22px;height:22px;background:rgba(255,255,255,0.2);border-radius:3px;margin-bottom:3px;"></div>
+              ${lineBlock('55px', 4, 'rgba(255,255,255,0.7)', 2)}
+              ${lineBlock('38px', 3, 'rgba(255,255,255,0.35)', 0)}
+            </div>
+            <div style="color:#fff;font-size:9px;font-weight:800;font-family:sans-serif;letter-spacing:0.5px;">INVOICE</div>
+          </div>
+          <div style="padding:7px 10px;flex:1;display:flex;flex-direction:column;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+              <div>${lineBlock('50px', 3, '#94A3B8', 2)}${lineBlock('65px', 4, '#1E3A5F', 2)}${lineBlock('42px', 3, '#94A3B8', 0)}</div>
+              <div style="text-align:right;">${lineBlock('45px', 3, '#94A3B8', 2)}${lineBlock('50px', 4, '#0F172A', 2)}${lineBlock('55px', 3, '#94A3B8', 0)}</div>
+            </div>
+            <div style="background:#EFF6FF;border-radius:2px;padding:3px 4px;display:flex;gap:3px;margin-bottom:3px;">
+              <div style="flex:3;height:4px;background:#1E3A5F;border-radius:1px;"></div>
+              <div style="flex:1;height:4px;background:#1E3A5F;border-radius:1px;"></div>
+              <div style="flex:1;height:4px;background:#1E40AF;border-radius:1px;"></div>
+            </div>
+            ${tableRows('rgba(30,58,95,0.15)', 'rgba(0,0,0,0.06)', 4)}
+            <div style="margin-top:auto;border-top:1px solid #E2E8F0;padding-top:4px;display:flex;justify-content:flex-end;">
+              <div>${lineBlock('50px', 3, '#94A3B8', 2)}${lineBlock('60px', 3, '#94A3B8', 2)}<div style="background:#1E3A5F;height:16px;border-radius:3px;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;">${lineBlock('45px', 3, 'rgba(255,255,255,0.8)', 0)}</div></div>
+            </div>
+          </div>
+        </div>`, '#fff'),
+
+      // ── ELEGANT: centered top, gold accent bar, serif italic title
+      elegant: () => wrap(`
+        <div style="background:#FFFDF7;height:100%;display:flex;flex-direction:column;">
+          <div style="padding:10px 12px 6px;border-bottom:2px solid #C9A84C;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="width:24px;height:24px;border:2px solid #C9A84C;border-radius:3px;margin-bottom:4px;"></div>
+                ${lineBlock('50px', 4, '#6B5C2A', 2)}
+                ${lineBlock('35px', 3, '#C9A84C', 0)}
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:11px;color:#C9A84C;font-style:italic;font-family:serif;font-weight:600;margin-bottom:3px;">Invoice</div>
+                ${lineBlock('48px', 3, '#C9A84C', 2)}
+                ${lineBlock('38px', 3, '#E8D5A0', 0)}
+              </div>
+            </div>
+          </div>
+          <div style="padding:6px 12px;flex:1;display:flex;flex-direction:column;">
+            <div style="margin-bottom:5px;">${lineBlock('40%', 3, '#C9A84C', 2)}${lineBlock('55%', 4, '#3D2B00', 2)}${lineBlock('50%', 3, '#A68B3A', 0)}</div>
+            <div style="border:1px solid #E8D5A0;border-radius:2px;overflow:hidden;margin-bottom:4px;">
+              <div style="background:#F7EAC8;padding:3px 5px;display:flex;gap:3px;">
+                <div style="flex:3;height:4px;background:#A68B3A;border-radius:1px;"></div>
+                <div style="flex:1;height:4px;background:#C9A84C;border-radius:1px;"></div>
+                <div style="flex:1;height:4px;background:#C9A84C;border-radius:1px;"></div>
+              </div>
+              <div style="padding:2px 5px;">${tableRows('#C9A84C', 'rgba(0,0,0,0.05)', 3)}</div>
+            </div>
+            <div style="margin-top:auto;text-align:center;">${lineBlock('70%', 1, '#C9A84C', 4, 'margin:0 auto;')}${lineBlock('50%', 3, '#A68B3A', 0, 'margin:0 auto;')}</div>
+          </div>
+        </div>`, '#FFFDF7'),
+
+      // ── MODERN: bold purple/pink gradient strip, two-column layout
+      modern: () => wrap(`
+        <div style="background:#fff;height:100%;display:flex;flex-direction:column;">
+          <div style="height:8px;background:linear-gradient(90deg,#7C3AED,#EC4899,#F59E0B);"></div>
+          <div style="padding:8px 10px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+            <div>
+              <div style="width:26px;height:26px;background:linear-gradient(135deg,#7C3AED,#EC4899);border-radius:5px;margin-bottom:4px;"></div>
+              ${lineBlock('48px', 4, '#1E1B4B', 2)}
+              ${lineBlock('36px', 3, '#7C3AED', 0)}
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:9px;font-weight:900;color:#7C3AED;font-family:sans-serif;letter-spacing:1px;margin-bottom:4px;">INVOICE</div>
+              ${lineBlock('40px', 3, '#A78BFA', 2)}
+              ${lineBlock('50px', 3, '#DDD6FE', 0)}
+            </div>
+          </div>
+          <div style="padding:0 10px;flex:1;display:flex;flex-direction:column;">
+            <div style="background:#F5F3FF;border-radius:3px;padding:3px 5px;display:flex;gap:3px;margin-bottom:3px;">
+              <div style="flex:3;height:4px;background:#7C3AED;border-radius:1px;"></div>
+              <div style="flex:1;height:4px;background:#EC4899;border-radius:1px;"></div>
+              <div style="flex:1;height:4px;background:#7C3AED;border-radius:1px;"></div>
+            </div>
+            ${tableRows('#A78BFA', 'rgba(124,58,237,0.07)', 4)}
+            <div style="margin-top:auto;background:linear-gradient(90deg,#7C3AED,#EC4899);height:18px;border-radius:3px;display:flex;align-items:center;justify-content:space-between;padding:0 6px;">
+              ${lineBlock('35px', 3, 'rgba(255,255,255,0.6)', 0)}${lineBlock('40px', 3, 'rgba(255,255,255,0.9)', 0)}
+            </div>
+          </div>
+        </div>`, '#fff'),
+
+      // ── EDITORIAL: bold full-width black header with red accent, striking typography
+      editorial: () => wrap(`
+        <div style="background:#fff;height:100%;display:flex;flex-direction:column;">
+          <div style="background:#111;padding:8px 10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="display:flex;gap:2px;margin-bottom:3px;">
+                  <div style="width:16px;height:16px;background:#EF4444;border-radius:2px;"></div>
+                  <div style="width:16px;height:16px;background:rgba(255,255,255,0.15);border-radius:2px;"></div>
+                </div>
+                ${lineBlock('52px', 4, 'rgba(255,255,255,0.85)', 2)}
+                ${lineBlock('38px', 3, 'rgba(255,255,255,0.4)', 0)}
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:8px;font-weight:900;color:#EF4444;font-family:sans-serif;letter-spacing:2px;">INVOICE</div>
+                ${lineBlock('36px', 3, 'rgba(255,255,255,0.4)', 1)}
+                ${lineBlock('45px', 3, 'rgba(255,255,255,0.6)', 0)}
+              </div>
+            </div>
+          </div>
+          <div style="padding:7px 10px;flex:1;display:flex;flex-direction:column;">
+            ${lineBlock('75%', 5, '#111', 2)}
+            ${lineBlock('55%', 3, '#6B7280', 5)}
+            <div style="background:#111;padding:3px 5px;display:flex;gap:3px;margin-bottom:3px;border-radius:2px;">
+              <div style="flex:3;height:4px;background:rgba(255,255,255,0.7);border-radius:1px;"></div>
+              <div style="flex:1;height:4px;background:#EF4444;border-radius:1px;"></div>
+              <div style="flex:1;height:4px;background:rgba(255,255,255,0.7);border-radius:1px;"></div>
+            </div>
+            ${tableRows('rgba(239,68,68,0.2)', 'rgba(0,0,0,0.06)', 4)}
+          </div>
+        </div>`, '#fff'),
+
+      // ── PREMIUM: dark background, copper/gold accents, luxury look
+      premium: () => wrap(`
+        <div style="background:#1A1A2E;height:100%;display:flex;flex-direction:column;">
+          <div style="padding:10px 12px;border-bottom:1px solid rgba(184,134,11,0.4);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <div style="width:24px;height:24px;background:linear-gradient(135deg,#B8860B,#FFD700);border-radius:3px;margin-bottom:4px;"></div>
+                ${lineBlock('50px', 4, 'rgba(255,215,0,0.7)', 2)}
+                ${lineBlock('36px', 3, 'rgba(255,215,0,0.35)', 0)}
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:8px;font-weight:800;color:#FFD700;font-family:sans-serif;letter-spacing:1.5px;margin-bottom:4px;">INVOICE</div>
+                ${lineBlock('42px', 3, 'rgba(255,215,0,0.4)', 2)}
+                ${lineBlock('35px', 3, 'rgba(255,255,255,0.2)', 0)}
+              </div>
+            </div>
+          </div>
+          <div style="padding:6px 12px;flex:1;display:flex;flex-direction:column;">
+            <div style="margin-bottom:5px;">${lineBlock('38%', 3, 'rgba(255,215,0,0.5)', 2)}${lineBlock('55%', 4, 'rgba(255,255,255,0.8)', 2)}${lineBlock('45%', 3, 'rgba(255,255,255,0.35)', 0)}</div>
+            <div style="border:1px solid rgba(184,134,11,0.3);border-radius:2px;overflow:hidden;margin-bottom:3px;">
+              <div style="background:rgba(184,134,11,0.25);padding:3px 5px;display:flex;gap:3px;">
+                <div style="flex:3;height:4px;background:rgba(255,215,0,0.7);border-radius:1px;"></div>
+                <div style="flex:1;height:4px;background:rgba(255,215,0,0.5);border-radius:1px;"></div>
+                <div style="flex:1;height:4px;background:rgba(255,215,0,0.5);border-radius:1px;"></div>
+              </div>
+              <div style="padding:2px 5px;">${tableRows('rgba(184,134,11,0.3)', 'rgba(255,255,255,0.1)', 3)}</div>
+            </div>
+            <div style="margin-top:auto;background:linear-gradient(90deg,#B8860B,#FFD700);height:16px;border-radius:3px;display:flex;align-items:center;justify-content:flex-end;padding-right:5px;">
+              ${lineBlock('40px', 3, 'rgba(0,0,0,0.5)', 0)}
+            </div>
+          </div>
+        </div>`, '#1A1A2E'),
+    };
+
+    const fn = templates[id] || templates['minimalist'];
+    return fn();
   },
 
   // ══════════════════════════════════════════════════════════════
