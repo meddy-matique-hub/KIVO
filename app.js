@@ -539,6 +539,11 @@ window.KivoApp = {
       if (billingTrigger) billingTrigger.classList.remove('group-active');
     }
 
+    // Auto close mobile drawer on view navigation
+    if (sidebar && sidebar.classList.contains('mobile-open')) {
+      sidebar.classList.remove('mobile-open');
+    }
+
     this.renderCurrentView();
     if (anchorTarget) {
       setTimeout(() => {
@@ -558,17 +563,20 @@ window.KivoApp = {
   },
 
   /**
-   * Toggles the sidebar visibility
+   * Toggles the sidebar visibility with smooth animation
    */
   toggleSidebar: function () {
     const sidebar = document.getElementById('sidebar');
     const reopenBtn = document.getElementById('sidebar-reopen-btn');
     if (sidebar) {
+      if (sidebar.classList.contains('mobile-open')) {
+        sidebar.classList.remove('mobile-open');
+        return;
+      }
       sidebar.classList.toggle('collapsed');
-      if (sidebar.classList.contains('collapsed')) {
-        if (reopenBtn) reopenBtn.style.display = 'flex';
-      } else {
-        if (reopenBtn) reopenBtn.style.display = 'none';
+      const isCollapsed = sidebar.classList.contains('collapsed');
+      if (reopenBtn) {
+        reopenBtn.style.display = isCollapsed ? 'flex' : 'none';
       }
     }
   },

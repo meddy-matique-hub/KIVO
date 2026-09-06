@@ -32,13 +32,13 @@
         <div class="sidebar-brand">
           <div class="sidebar-brand-logo">
             <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M7 6L14 16L7 26" stroke="#4F46E5" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M16 6L23 16L16 26" stroke="#7C3AED" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M7 6L14 16L7 26" stroke="#38BDF8" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 6L23 16L16 26" stroke="#818CF8" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
           <span class="sidebar-brand-name">KIVO</span>
-          <button id="sidebar-toggle-btn" class="sidebar-collapse-btn" onclick="KivoApp.toggleSidebar()" title="Masquer/Afficher le menu" aria-label="Toggle sidebar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+          <button id="sidebar-toggle-btn" class="sidebar-collapse-btn" onclick="KivoApp.toggleSidebar()" title="Replier le menu" aria-label="Replier le menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="3" x2="9" y2="21"/><polyline points="15 10 13 12 15 14"/></svg>
           </button>
         </div>
 
@@ -105,10 +105,10 @@
             <span class="nav-label">Mon profil</span>
           </a>
 
-          <!-- Plan & facturation -->
+          <!-- Abonnement & Paiement -->
           <a href="#pricing" class="nav-item" data-view="pricing">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-            <span class="nav-label">Plan & facturation</span>
+            <span class="nav-label">Abonnement & Paiement</span>
           </a>
 
           <!-- Gestion de l'équipe -->
@@ -141,9 +141,9 @@
 
       </aside>
 
-      <!-- Sidebar collapse re-open tab -->
+      <!-- Minimalist floating sidebar reopen button -->
       <button id="sidebar-reopen-btn" class="sidebar-reopen-btn" onclick="KivoApp.toggleSidebar()" title="Afficher le menu" style="display:none;" aria-label="Ouvrir le menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="3" x2="9" y2="21"/><polyline points="13 10 15 12 13 14"/></svg>
       </button>
 
       <!-- Main Dynamic Content Container -->
@@ -1629,8 +1629,8 @@
 
             <!-- Hero Titles -->
             <div class="pricing-hero-content">
-              <h1 class="pricing-title">Choisissez le plan qui vous correspond</h1>
-              <p class="pricing-subtitle">Commencez gratuitement. Passez à une offre supérieure lorsque votre activité grandit.</p>
+              <h1 class="pricing-title">Abonnement & Paiement</h1>
+              <p class="pricing-subtitle">Gérez votre formule KIVO, vos échéances et vos options de facturation d'abonnement.</p>
 
               <!-- Billing Cycle Switcher (Toggle Pill) -->
               <div class="pricing-billing-toggle">
