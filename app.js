@@ -1644,25 +1644,45 @@ window.KivoApp = {
     }
   },
 
+  openTemplateModal: function () {
+    this.openModal('modal-new-doc-choice');
+    this.switchDocCreationTab('templates');
+  },
+
+  openAIMenu: function () {
+    this.openModal('modal-new-doc-choice');
+    this.switchDocCreationTab('ai');
+  },
+
   startTemplateDocument: function (type, templateId, isCustom = false) {
     this.closeModal('modal-new-doc-choice');
-    this.startNewDocument(type); // Reset builder
     
-    setTimeout(() => {
-      if (isCustom) {
-        const customs = this.state.business?.customTemplates || [];
-        const t = customs.find(c => c.id === templateId);
-        if (t) {
-           document.getElementById('builder-color-primary').value = t.primaryColor || '#4F46E5';
-           document.getElementById('builder-color-secondary').value = t.secondaryColor || '#6366F1';
-           document.getElementById('builder-visual-template').value = t.baseTemplateId || templateId;
-        }
-      } else {
-        const selectEl = document.getElementById('builder-visual-template');
-        if (selectEl) selectEl.value = templateId;
+    // If not in builder yet, start new document
+    const builderSection = document.getElementById('view-document-builder');
+    const isAlreadyInBuilder = builderSection && builderSection.style.display !== 'none';
+    if (!isAlreadyInBuilder) {
+      this.startNewDocument(type);
+    }
+
+    const selectEl = document.getElementById('builder-visual-template');
+    if (selectEl) selectEl.value = templateId;
+
+    if (!this.state.business) this.state.business = {};
+    this.state.business.visualTemplate = templateId;
+
+    if (isCustom) {
+      const customs = this.state.business?.customTemplates || [];
+      const t = customs.find(c => c.id === templateId);
+      if (t) {
+        const cp = document.getElementById('builder-color-primary');
+        if (cp) cp.value = t.primaryColor || '#4F46E5';
+        const cs = document.getElementById('builder-color-secondary');
+        if (cs) cs.value = t.secondaryColor || '#6366F1';
       }
-      this.updateLiveInvoicePreview();
-    }, 100);
+    }
+
+    this.navigate('document-builder');
+    this.onBuilderTemplateChange(templateId);
   },
 
   startFreeDocument: function (type) {
@@ -3269,44 +3289,56 @@ window.KivoApp = {
   },
 
   /**
-   * Slider taille du logo
+   * Selection d'un client dans le constructeur
+   */
+  onBuilderClientSelect: function (clientId) {
+    if (!clientId) return;
+    const client = (this.state.clients || []).find(c => c.id === clientId);
+    if (!client) return;
+
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val || '';
+    };
+
+    setVal('builder-client-name', client.name || client.company || '');
+    setVal('builder-client-address', client.address || '');
+    setVal('builder-client-phone', client.phone || '');
+    setVal('builder-client-email', client.email || '');
+
+    this.updateLiveInvoicePreview();
+  },
+
+  /**
+   * Slider taille du logo (30px - 180px)
    */
   onLogoSizeChange: function (val) {
-    const size = parseInt(val) || 100;
+    const size = parseInt(val) || 70;
     const displayEl = document.getElementById('logo-size-display');
     if (displayEl) displayEl.textContent = size + 'px';
-    if (!this.state.business) return;
+    if (!this.state.business) this.state.business = {};
     this.state.business.logoSize = size;
-    // Appliquer immediatement dans l'apercu
-    const logoEl = document.getElementById('paper-logo-display');
-    if (logoEl) logoEl.style.maxHeight = size + 'px';
     this.saveState();
+    this.updateLiveInvoicePreview();
   },
 
   /**
-   * Selecteur position du logo
+   * Selecteur position du logo (left, center, right)
    */
   onLogoPositionChange: function (pos) {
-    if (!this.state.business) return;
+    if (!this.state.business) this.state.business = {};
     this.state.business.logoPosition = pos;
-    const headerRight = document.querySelector('#live-paper-preview-container div[style*="text-align: right"]');
-    if (headerRight) {
-      if (pos === 'left') { headerRight.style.textAlign = 'left'; }
-      else if (pos === 'center') { headerRight.style.textAlign = 'center'; }
-      else { headerRight.style.textAlign = 'right'; }
-    }
     this.saveState();
+    this.updateLiveInvoicePreview();
   },
 
   /**
-   * Telechargement PDF reel via html2pdf.js
+   * Telechargement PDF reel via html2pdf.js - GARANTI SUR 1 SEULE PAGE A4
    */
   downloadPdf: function () {
-    const biz = (this.state && this.state.business) || {};
     const docNum = (document.getElementById('builder-doc-number') || document.getElementById('pub-doc-number'));
-    const filename = (docNum ? docNum.textContent || docNum.value : 'document') + '.pdf';
+    const filename = ((docNum ? docNum.value || docNum.textContent : '') || 'facture_KIVO') + '.pdf';
 
-    // Determiner la zone a capturer
     let element = document.getElementById('live-paper-preview-container');
     if (!element || element.offsetParent === null) {
       element = document.getElementById('public-doc-printable-area');
@@ -3321,31 +3353,63 @@ window.KivoApp = {
       return;
     }
 
-    const format = (biz.invoicePageSize || 'a4').toLowerCase();
-    this.showToast('⏳ Génération du PDF en cours...', 'info');
+    this.showToast('⏳ Téléchargement de la facture (1 page A4)...', 'info');
 
-    // Injecter les variables CSS dans l'element pour que html2pdf les capte
-    const primary = biz.primaryColor || '#0F172A';
-    const secondary = biz.secondaryColor || '#64748B';
-    element.style.setProperty('--doc-primary', primary);
-    element.style.setProperty('--doc-secondary', secondary);
+    // Sauvegarder les dimensions et styles actuels
+    const origWidth = element.style.width;
+    const origHeight = element.style.height;
+    const origMaxHeight = element.style.maxHeight;
+    const origOverflow = element.style.overflow;
+    const origBoxShadow = element.style.boxShadow;
+
+    // Forcer le format strict A4 (794px × 1122px à 96 DPI)
+    element.style.width = '794px';
+    element.style.height = '1122px';
+    element.style.maxHeight = '1122px';
+    element.style.overflow = 'hidden';
+    element.style.boxShadow = 'none';
+
+    // Masquer l'effet de coin replié pour le document PDF officiel
+    const stack = element.closest('.mock-paper-stack');
+    const curls = stack ? stack.querySelectorAll('.paper-curl-corner') : [];
+    curls.forEach(c => c.style.display = 'none');
+
+    const opt = {
+      margin: 0,
+      filename: filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false, scrollY: 0 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: 'avoid-all' }
+    };
 
     html2pdf()
-      .set({
-        margin: 0,
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
-        jsPDF: { unit: 'mm', format: format, orientation: 'portrait' }
-      })
+      .set(opt)
       .from(element)
       .save()
-      .then(() => this.showToast('✅ PDF téléchargé avec succès !', 'success'))
-      .catch(e => { console.error(e); this.showToast('Erreur PDF : ' + e.message, 'error'); });
+      .then(() => {
+        element.style.width = origWidth;
+        element.style.height = origHeight;
+        element.style.maxHeight = origMaxHeight;
+        element.style.overflow = origOverflow;
+        element.style.boxShadow = origBoxShadow;
+        curls.forEach(c => c.style.display = '');
+        this.showToast('✅ Facture téléchargée sur 1 page A4 !', 'success');
+      })
+      .catch(e => {
+        element.style.width = origWidth;
+        element.style.height = origHeight;
+        element.style.maxHeight = origMaxHeight;
+        element.style.overflow = origOverflow;
+        element.style.boxShadow = origBoxShadow;
+        curls.forEach(c => c.style.display = '');
+        console.error(e);
+        this.showToast('Erreur PDF : ' + e.message, 'error');
+      });
   },
 
   /**
-   * Impression via fenetre du navigateur
+   * Impression via fenetre du navigateur (1 seule page A4)
    */
   printPdf: function () {
     window.print();
