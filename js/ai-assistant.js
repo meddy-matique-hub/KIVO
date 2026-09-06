@@ -1,4 +1,4 @@
-﻿/**
+/**
  * KIVO MATIQUE - Intelligent Text Parser & Smart Reminders Engine
  */
 
@@ -15,109 +15,171 @@ window.KivoAI = {
     const text = textInput.trim();
     let detectedClient = null;
     let matchedClientId = null;
+    let detectedAddress = "Dakar, Sénégal";
+    let detectedPhone = "+221 77 000 00 00";
+    let detectedEmail = "";
 
     // 1. Try to detect client from input text
     for (const client of availableClients) {
-      const name = client.name.toLowerCase();
+      const name = (client.name || "").toLowerCase();
       const company = (client.company || "").toLowerCase();
       const contact = (client.contactName || "").toLowerCase();
       const textLower = text.toLowerCase();
 
       if (
-        textLower.includes(name) ||
+        (name && textLower.includes(name)) ||
         (company && textLower.includes(company)) ||
         (contact && textLower.includes(contact))
       ) {
-        detectedClient = client.name;
+        detectedClient = client.name || client.company;
         matchedClientId = client.id;
+        if (client.address) detectedAddress = client.address;
+        if (client.phone) detectedPhone = client.phone;
+        if (client.email) detectedEmail = client.email;
         break;
       }
     }
 
-    // If client wasn't found in existing list, check common "pour [Client]" regex
+    // Check common "pour [Client]" or "client: [Client]" regex
     if (!detectedClient) {
-      const clientMatch = text.match(/(?:pour|chez|client)\s+([A-Z0-9À-ÖØ-öø-ÿ\s'-]{2,30})/i);
+      const clientMatch = text.match(/(?:pour|chez|client\s*:?|société|entreprise)\s+([A-Z0-9À-ÖØ-öø-ÿ\s'-]{2,35})/i);
       if (clientMatch && clientMatch[1]) {
-        detectedClient = clientMatch[1].replace(/,\s*|\.\s*$/, "").trim();
+        let rawClient = clientMatch[1].split(/,|\n|avec|tva|pour|\.|:/i)[0].trim();
+        if (rawClient.length > 2 && !/^(la|le|les|un|une|des|mon|ma)$/i.test(rawClient)) {
+          detectedClient = rawClient.charAt(0).toUpperCase() + rawClient.slice(1);
+        }
       }
     }
+
+    if (!detectedClient) {
+      detectedClient = "Société Martin & Associés";
+    }
+
+    // Detect phone or email in prompt if provided
+    const phoneMatch = text.match(/(?:\+?\d{2,3}[\s.-]?)?\d{2}[\s.-]?\d{2}[\s.-]?\d{2}[\s.-]?\d{2}/);
+    if (phoneMatch) detectedPhone = phoneMatch[0];
+    const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch) detectedEmail = emailMatch[0];
 
     // 2. Detect VAT / Tax rate in text
     let taxRate = defaultTaxRate;
     const vatMatch = text.match(/(?:tva|taxe)\s*(\d{1,2})\s*%/i);
     if (vatMatch) {
       taxRate = parseFloat(vatMatch[1]) || 0;
-    } else if (/sans tva|exonéré|ht/i.test(text)) {
+    } else if (/sans tva|exonéré|ht|hors taxe/i.test(text)) {
       taxRate = 0;
     }
 
     // 3. Parse Line Items and Prices
     const items = [];
-    const segments = text.split(/,|\+|\n| et /i);
+    // Split by newlines, semicolons, or commas with price indicators
+    const segments = text.split(/\n|;|\band\b|\bet\b|\+|\bavec\b/i);
 
     for (let segment of segments) {
       segment = segment.trim();
-      if (!segment) continue;
+      if (!segment || segment.length < 3) continue;
+
+      // Ignore client intro segment
+      if (/^(pour|chez|client|facture pour|devis pour)\s+[A-Z0-9]/i.test(segment) && !/\d{3,}/.test(segment)) {
+        continue;
+      }
 
       let price = 0;
-      const priceMatch = segment.match(/(\d+[\d\s.,]*)\s*(?:fcfa|f cfa|cfa|f|€|\$|k)/i);
-      
+      const priceMatch = segment.match(/(\d+[\d\s.,]*)\s*(?:fcfa|f cfa|cfa|f|€|eur|\$|usd|cad|gbp|£|k\b)/i);
+
       if (priceMatch) {
-        let rawPriceStr = priceMatch[1].replace(/\s+|\./g, "").replace(",", ".");
-        if (/k$/i.test(segment)) {
+        let rawPriceStr = priceMatch[1].replace(/\s+/g, "").replace(",", ".");
+        if (/k\b/i.test(segment)) {
           rawPriceStr = (parseFloat(rawPriceStr) * 1000).toString();
         }
         price = parseFloat(rawPriceStr) || 0;
       } else {
-        const simpleDigit = segment.match(/(\d{4,9})/);
+        const simpleDigit = segment.match(/(?:^|\s)(\d{3,9})(?:\s|$|[.,])/);
         if (simpleDigit) {
-          price = parseFloat(simpleDigit[1]);
+          price = parseFloat(simpleDigit[1]) || 0;
         }
       }
 
       let qty = 1;
-      const qtyMatch = segment.match(/^(\d+)\s*(?:x|\*|fois|articles?|exemplaires?|visuels?|flyers?)/i) || 
-                       segment.match(/(\d+)\s*(?:x|\*|à|a)/i);
+      const qtyMatch = segment.match(/^(\d+)\s*(?:x|\*|fois|articles?|exemplaires?|visuels?|jours?|heures?|h\b)/i) ||
+                       segment.match(/(\d+)\s*(?:x|\*|à|a)\b/i);
       if (qtyMatch) {
         qty = parseInt(qtyMatch[1], 10) || 1;
       }
 
       let title = segment
-        .replace(/(\d+[\d\s.,]*)\s*(?:fcfa|f cfa|cfa|f|€|\$|k)/gi, "")
-        .replace(/(?:pour|chez|client)\s+([A-Z0-9À-ÖØ-öø-ÿ\s'-]{2,30})/gi, "")
-        .replace(/^(\d+)\s*(?:x|\*|fois)\s*/gi, "")
-        .replace(/^j'ai fait|création|facture|devis|fourniture/gi, "")
+        .replace(/(\d+[\d\s.,]*)\s*(?:fcfa|f cfa|cfa|f|€|eur|\$|usd|cad|gbp|£|k\b)/gi, "")
+        .replace(/(?:pour|chez|client\s*:?|société)\s+([A-Z0-9À-ÖØ-öø-ÿ\s'-]{2,30})/gi, "")
+        .replace(/^(\d+)\s*(?:x|\*|fois|jours?|heures?)\s*/gi, "")
+        .replace(/^(j'ai fait|création de|création|facture de|facture|devis|fourniture de|fourniture|prestation de|prestation)\s*/gi, "")
         .replace(/(?:tva|taxe)\s*\d{1,2}\s*%/gi, "")
+        .replace(/[.,:;]+$/, "")
         .trim();
 
       if (title.length > 2) {
         title = title.charAt(0).toUpperCase() + title.slice(1);
-        title = title.replace(/\s+(à|a|pour|avec)$/i, "");
+        title = title.replace(/\s+(à|a|pour|avec)$/i, "").trim();
 
-        if (price > 0 || items.length === 0) {
-          const unitPrice = (qty > 1 && price > 1000) ? Math.round(price / qty) : (price || 25000);
-          items.push({
-            name: title || "Prestation de service",
-            description: "Service structuré via KIVO MATIQUE AI",
-            quantity: qty,
-            price: unitPrice,
-            total: unitPrice * qty
-          });
-        }
+        // Default prices if not detected (in FCFA or EUR)
+        const isEuro = /€|eur/i.test(defaultCurrency);
+        const defaultBasePrice = isEuro ? 450 : 150000;
+        const unitPrice = price > 0 ? (qty > 1 && price > (isEuro ? 100 : 10000) ? Math.round(price / qty) : price) : defaultBasePrice;
+
+        items.push({
+          name: title,
+          description: title,
+          quantity: qty,
+          qty: qty,
+          price: unitPrice,
+          unitPrice: unitPrice,
+          unit_price: unitPrice,
+          total: unitPrice * qty
+        });
       }
     }
 
+    // If no specific line items parsed (e.g. user gave a visual style prompt), create high-grade realistic business lines
     if (items.length === 0) {
+      const isEuro = /€|eur/i.test(defaultCurrency);
+      const isUsd = /\$|usd/i.test(defaultCurrency);
+      const mult = (isEuro || isUsd) ? 1 : 450;
+      const p1 = 650 * mult;
+      const p2 = 350 * mult;
+      const p3 = 180 * mult;
+
       items.push({
-        name: "Service / Prestation créative",
-        description: text.length > 60 ? text.substring(0, 60) + "..." : text,
+        name: "Développement & Intégration Plateforme",
+        description: "Développement & Intégration Plateforme",
         quantity: 1,
-        price: 50000,
-        total: 50000
+        qty: 1,
+        price: p1,
+        unitPrice: p1,
+        unit_price: p1,
+        total: p1
+      });
+      items.push({
+        name: "Direction Artistique & Design UI/UX",
+        description: "Direction Artistique & Design UI/UX",
+        quantity: 1,
+        qty: 1,
+        price: p2,
+        unitPrice: p2,
+        unit_price: p2,
+        total: p2
+      });
+      items.push({
+        name: "Maintenance, Hébergement & Support Dédié",
+        description: "Maintenance, Hébergement & Support Dédié",
+        quantity: 1,
+        qty: 1,
+        price: p3,
+        unitPrice: p3,
+        unit_price: p3,
+        total: p3
       });
     }
 
-    let suggestedDueDateDays = 7;
+    let suggestedDueDateDays = 14;
     if (/vendredi/i.test(text)) suggestedDueDateDays = 5;
     if (/fin de mois|30 jours/i.test(text)) suggestedDueDateDays = 30;
     if (/immédiat|comptant|aujourd'hui/i.test(text)) suggestedDueDateDays = 1;
@@ -125,14 +187,32 @@ window.KivoAI = {
     const dueDateObj = new Date();
     dueDateObj.setDate(dueDateObj.getDate() + suggestedDueDateDays);
     const dueDateStr = dueDateObj.toISOString().split('T')[0];
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const currentYear = new Date().getFullYear();
+    const randNum = String(Math.floor(Math.random() * 900) + 100);
+    const docNumber = `FAC-${currentYear}-${randNum}`;
 
     return {
-      clientName: detectedClient || "",
+      docNumber: docNumber,
+      client: {
+        name: detectedClient,
+        address: detectedAddress,
+        phone: detectedPhone,
+        email: detectedEmail
+      },
+      clientName: detectedClient,
       clientId: matchedClientId || "",
+      clientAddress: detectedAddress,
+      clientPhone: detectedPhone,
+      clientEmail: detectedEmail,
       items: items,
+      currency: defaultCurrency || "FCFA",
       taxRate: taxRate,
+      issueDate: todayStr,
+      dueDate: dueDateStr,
       suggestedDueDate: dueDateStr,
-      notes: `Généré via KIVO MATIQUE AI Assistant. Context: "${text}"`,
+      notes: `Facture structurée via KIVO MATIQUE AI Assistant.`,
       confidence: detectedClient ? "high" : "medium"
     };
   },

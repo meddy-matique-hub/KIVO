@@ -2495,14 +2495,14 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2.2rem 3.5rem 0.5rem 3.5rem;
+  padding: 1.25rem 2.5rem 0.5rem 2.5rem;
   position: relative;
   z-index: 10;
 }
 
 .ai-page-logo {
   font-family: 'Outfit', sans-serif;
-  font-size: 2rem;
+  font-size: 1.85rem;
   font-weight: 900;
   color: #0B132B;
   letter-spacing: -0.02em;
@@ -2517,11 +2517,11 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   max-width: 1440px;
   margin: 0 auto;
   width: 100%;
-  padding: 1.5rem 3.5rem 3rem 3.5rem;
+  padding: 0.5rem 2.5rem 2rem 2.5rem;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 3.5rem;
+  align-items: flex-start;
+  gap: 3rem;
   position: relative;
   z-index: 10;
   box-sizing: border-box;
@@ -2536,19 +2536,19 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 
 .ai-page-title {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 3.25rem;
+  font-size: 2.75rem;
   font-weight: 700;
   color: #091124;
   letter-spacing: -0.025em;
-  line-height: 1.12;
-  margin: 0 0 0.5rem 0;
+  line-height: 1.15;
+  margin: 0 0 0.35rem 0;
 }
 
 .ai-page-subtitle {
   font-family: 'Inter', sans-serif;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   color: #475569;
-  margin: 0 0 2rem 0;
+  margin: 0 0 1.35rem 0;
   font-weight: 400;
 }
 
@@ -2685,12 +2685,14 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 
 /* Right Panel: Glass Tablet Frame */
 .ai-page-right {
-  flex: 0 0 490px;
+  flex: 0 0 520px;
+  max-width: 520px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   position: relative;
+  margin-top: 0.25rem;
 }
 
 .ai-glass-tablet {
@@ -2708,14 +2710,14 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 .ai-tablet-paper {
   background: #FFFFFF;
   border-radius: 14px;
-  padding: 1.75rem 2rem;
+  padding: 1.5rem 1.75rem;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
   color: #0F172A;
   font-family: 'Inter', sans-serif;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 560px;
+  min-height: 520px;
   box-sizing: border-box;
   position: relative;
 }

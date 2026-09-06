@@ -509,6 +509,10 @@ window.KivoApp = {
         mainContent.style.marginLeft = '0';
         mainContent.style.maxWidth = '100vw';
         mainContent.style.padding = '0';
+      } else if (viewName === 'ai') {
+        mainContent.style.marginLeft = '';
+        mainContent.style.maxWidth = '';
+        mainContent.style.padding = '0';
       } else {
         mainContent.style.marginLeft = '';
         mainContent.style.maxWidth = '';
@@ -701,6 +705,23 @@ window.KivoApp = {
   t: function (key) {
     const lang = this.state.language || 'fr';
     return (this.translations[lang] && this.translations[lang][key]) || this.translations.fr[key] || key;
+  },
+
+  formatCurrency: function (val, customCurrency = null) {
+    const rawCurrency = customCurrency || (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+    const num = parseFloat(val) || 0;
+    const currencyMap = {
+      'FCFA': 'XOF', 'XOF': 'XOF', 'XAF': 'XAF',
+      'EUR': 'EUR', 'USD': 'USD', 'GBP': 'GBP', 'CAD': 'CAD',
+      'CDF': 'CDF', 'GNF': 'GNF', 'MAD': 'MAD', 'TND': 'TND',
+    };
+    const iso = currencyMap[rawCurrency];
+    if (iso && iso !== 'XOF' && iso !== 'XAF') {
+      try {
+        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: iso }).format(num);
+      } catch (e) {}
+    }
+    return new Intl.NumberFormat('fr-FR').format(Math.round(num)) + ' ' + rawCurrency;
   },
 
   /**
@@ -3042,129 +3063,150 @@ window.KivoApp = {
 
     const biz = (this.state && this.state.business) || {};
     const logoUrl = biz.logoUrl || null;
-    const bizName = biz.name || 'KIVO';
-    const bizAddress = biz.address || '20 rue de la Paix, Paris';
-    const bizPhone = biz.phone || '+33 1 23 45 67 89';
+    const bizName = biz.name || 'KIVO MATIQUE';
+    const bizAddress = biz.address || 'Plateau, Abidjan';
+    const bizPhone = biz.phone || '+225 07 48 12 34 56';
+    const bizEmail = biz.email || 'contact@kivo.com';
+    const bizOwner = biz.owner || 'Alex Dubois';
     const primaryColor = biz.primaryColor || '#0B132B';
+    const currency = (doc && doc.currency) || biz.currency || 'FCFA';
 
-    let docNum = 'INV-2024-0001';
-    let clientName = 'John Logo';
-    let clientAddress = '200 Connaissance\nMakeni Street';
-    let clientPhone = '004 604 5050';
-    let issuedDate = '25 janvier 2023';
-    let dueDate = '18 janvier 2023';
-    let availDate = '27 janvier 2023';
+    const todayObj = new Date();
+    const defaultDueObj = new Date(Date.now() + 14 * 86400000);
+    const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+
+    let docNum = `FAC-${todayObj.getFullYear()}-0042`;
+    let clientName = 'Cabinet Martin & Associés';
+    let clientAddress = '200 Boulevard de la République\nPlateau, Abidjan';
+    let clientPhone = '+225 05 12 34 56 78';
+    let issuedDate = todayObj.toLocaleDateString('fr-FR', dateOptions);
+    let dueDate = defaultDueObj.toLocaleDateString('fr-FR', dateOptions);
+    let taxRate = typeof (biz.taxRate) === 'number' ? biz.taxRate : 18;
+
+    const isEuro = /€|eur/i.test(currency);
+    const isUsd = /\$|usd/i.test(currency);
+    const mult = (isEuro || isUsd) ? 1 : 450;
+
     let lineItems = [
-      { desc: 'Facture minimaliste', qty: 1, price: 250 },
-      { desc: "Couleur de la la minimisation", qty: 1, price: 160 },
-      { desc: 'Commevo code sjec co couleurs', qty: 1, price: 50 },
-      { desc: 'Inspirée de mon modèle bio', qty: 1, price: 20 },
+      { desc: 'Développement & Intégration Web', qty: 1, price: 650 * mult },
+      { desc: 'Direction Artistique & Design UI/UX', qty: 1, price: 350 * mult },
+      { desc: 'Hébergement & Maintenance Serveur', qty: 1, price: 180 * mult }
     ];
-    let taxRate = 0;
 
     if (doc) {
       docNum = doc.docNumber || docNum;
-      if (doc.client) {
-        clientName = doc.client.name || clientName;
-        clientAddress = doc.client.address || clientAddress;
-        clientPhone = doc.client.phone || clientPhone;
+      if (doc.clientName) clientName = doc.clientName;
+      else if (doc.client && doc.client.name) clientName = doc.client.name;
+
+      if (doc.clientAddress) clientAddress = doc.clientAddress;
+      else if (doc.client && doc.client.address) clientAddress = doc.client.address;
+
+      if (doc.clientPhone) clientPhone = doc.clientPhone;
+      else if (doc.client && doc.client.phone) clientPhone = doc.client.phone;
+
+      if (doc.issueDate) {
+        try { issuedDate = new Date(doc.issueDate).toLocaleDateString('fr-FR', dateOptions); } catch (e) {}
       }
-      if (doc.items && doc.items.length) lineItems = doc.items.map(it => ({ desc: it.description, qty: it.qty || 1, price: it.unitPrice || 0 }));
-      taxRate = doc.taxRate || 0;
+      if (doc.dueDate || doc.suggestedDueDate) {
+        try { dueDate = new Date(doc.dueDate || doc.suggestedDueDate).toLocaleDateString('fr-FR', dateOptions); } catch (e) {}
+      }
+      if (typeof doc.taxRate === 'number') taxRate = doc.taxRate;
+
+      if (doc.items && doc.items.length) {
+        lineItems = doc.items.map(it => ({
+          desc: it.name || it.description || 'Prestation de service',
+          qty: it.quantity || it.qty || 1,
+          price: it.price || it.unitPrice || 0
+        }));
+      }
     }
 
     const subtotal = lineItems.reduce((s, it) => s + (it.qty * it.price), 0);
     const taxAmt = subtotal * taxRate / 100;
     const total = subtotal + taxAmt;
-    const fmt = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2 });
+    const fmt = (n) => this.formatCurrency(n, currency);
 
     const logoHtml = logoUrl
-      ? `<img src="${logoUrl}" style="height:28px; max-width:80px; object-fit:contain;">`
-      : `<span style="font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:900;color:${primaryColor};letter-spacing:-0.02em;">${bizName}</span>`;
+      ? `<img src="${logoUrl}" style="height:32px; max-width:110px; object-fit:contain;" alt="${bizName}">`
+      : `<span style="font-family:'Outfit',sans-serif;font-size:1.15rem;font-weight:900;color:${primaryColor};letter-spacing:-0.02em;">${bizName}</span>`;
 
     const badgeLetter = bizName.charAt(0).toUpperCase();
 
     paper.innerHTML = `
       <!-- Invoice header -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem;">
         <div>${logoHtml}</div>
-        <div style="width:32px;height:32px;border-radius:50%;background:${primaryColor};display:flex;align-items:center;justify-content:center;">
-          <span style="color:#FFF;font-weight:800;font-size:0.85rem;font-family:'Outfit',sans-serif;">${badgeLetter}</span>
+        <div style="width:34px;height:34px;border-radius:50%;background:${primaryColor};display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.15);">
+          <span style="color:#FFF;font-weight:800;font-size:0.9rem;font-family:'Outfit',sans-serif;">${badgeLetter}</span>
         </div>
       </div>
 
       <!-- Sender + Invoice meta -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
-        <div style="font-size:0.62rem;color:#475569;line-height:1.55;">
-          <div style="font-weight:600;color:#0F172A;font-size:0.68rem;">${clientName}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem;gap:1rem;">
+        <div style="font-size:0.68rem;color:#475569;line-height:1.55;max-width:55%;">
+          <div style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.06em;color:#94A3B8;font-weight:700;margin-bottom:0.2rem;">Destinataire</div>
+          <div style="font-weight:700;color:#0F172A;font-size:0.8rem;margin-bottom:0.15rem;">${clientName}</div>
           <div>${clientAddress.replace(/\n/g,'<br>')}</div>
-          <div>${clientPhone}</div>
+          ${clientPhone ? `<div>${clientPhone}</div>` : ''}
         </div>
-        <div style="text-align:right;font-size:0.62rem;color:#475569;line-height:1.6;">
-          <div style="font-weight:700;color:#0F172A;font-size:0.8rem;margin-bottom:0.25rem;">Invoice</div>
-          <div><span style="color:#94A3B8;">Total date:</span> ${issuedDate}</div>
-          <div><span style="color:#94A3B8;">Facture de nuit:</span> ${dueDate}</div>
-          <div><span style="color:#94A3B8;">Invalide:</span> ${availDate}</div>
+        <div style="text-align:right;font-size:0.68rem;color:#475569;line-height:1.6;">
+          <div style="font-weight:800;color:#0F172A;font-size:0.92rem;margin-bottom:0.25rem;">${docNum}</div>
+          <div><span style="color:#94A3B8;">Date d'émission :</span> <strong>${issuedDate}</strong></div>
+          <div><span style="color:#94A3B8;">Échéance :</span> <strong>${dueDate}</strong></div>
+          <div style="margin-top:0.3rem;"><span style="display:inline-block;padding:2px 8px;border-radius:9999px;background:#ECFDF5;color:#047857;font-size:0.62rem;font-weight:700;">En attente de paiement</span></div>
         </div>
       </div>
 
       <!-- Line items table -->
-      <table style="width:100%;border-collapse:collapse;font-size:0.6rem;margin-bottom:0.6rem;">
+      <table style="width:100%;border-collapse:collapse;font-size:0.68rem;margin-bottom:1rem;">
         <thead>
           <tr style="background:${primaryColor};color:#FFF;">
-            <th style="padding:0.35rem 0.45rem;text-align:left;font-weight:600;border-radius:3px 0 0 3px;">No.</th>
-            <th style="padding:0.35rem 0.45rem;text-align:left;font-weight:600;">Description</th>
-            <th style="padding:0.35rem 0.45rem;text-align:right;font-weight:600;">Quantity</th>
-            <th style="padding:0.35rem 0.45rem;text-align:right;font-weight:600;">Title</th>
-            <th style="padding:0.35rem 0.45rem;text-align:right;font-weight:600;border-radius:0 3px 3px 0;">Price</th>
+            <th style="padding:0.45rem 0.55rem;text-align:center;font-weight:600;border-radius:4px 0 0 4px;width:30px;">N°</th>
+            <th style="padding:0.45rem 0.55rem;text-align:left;font-weight:600;">Description</th>
+            <th style="padding:0.45rem 0.55rem;text-align:center;font-weight:600;width:40px;">Qté</th>
+            <th style="padding:0.45rem 0.55rem;text-align:right;font-weight:600;width:95px;">Prix Unit.</th>
+            <th style="padding:0.45rem 0.55rem;text-align:right;font-weight:600;border-radius:0 4px 4px 0;width:100px;">Total HT</th>
           </tr>
         </thead>
         <tbody>
           ${lineItems.map((it, i) => `
             <tr style="border-bottom:1px solid #F1F5F9;">
-              <td style="padding:0.3rem 0.45rem;color:#64748B;">${i + 1}</td>
-              <td style="padding:0.3rem 0.45rem;color:#0F172A;">${it.desc}</td>
-              <td style="padding:0.3rem 0.45rem;text-align:right;color:#64748B;">${it.qty}</td>
-              <td style="padding:0.3rem 0.45rem;text-align:right;color:#64748B;">${fmt(it.price)}</td>
-              <td style="padding:0.3rem 0.45rem;text-align:right;font-weight:600;color:#0F172A;">${fmt(it.qty * it.price)}</td>
+              <td style="padding:0.4rem 0.55rem;color:#64748B;text-align:center;font-weight:500;">${i + 1}</td>
+              <td style="padding:0.4rem 0.55rem;color:#0F172A;font-weight:500;">${it.desc}</td>
+              <td style="padding:0.4rem 0.55rem;text-align:center;color:#64748B;">${it.qty}</td>
+              <td style="padding:0.4rem 0.55rem;text-align:right;color:#64748B;">${fmt(it.price)}</td>
+              <td style="padding:0.4rem 0.55rem;text-align:right;font-weight:600;color:#0F172A;">${fmt(it.qty * it.price)}</td>
             </tr>`).join('')}
         </tbody>
       </table>
 
       <!-- Totals -->
-      <div style="display:flex;justify-content:flex-end;margin-bottom:0.75rem;">
-        <div style="min-width:180px;font-size:0.62rem;">
-          <div style="display:flex;justify-content:space-between;padding:0.2rem 0;border-bottom:1px solid #F1F5F9;">
-            <span style="color:#64748B;">Subtotal</span>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+        <div style="min-width:210px;font-size:0.68rem;">
+          <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid #F1F5F9;">
+            <span style="color:#64748B;">Total Hors Taxe (HT)</span>
             <span style="font-weight:600;color:#0F172A;">${fmt(subtotal)}</span>
           </div>
-          ${taxRate > 0 ? `<div style="display:flex;justify-content:space-between;padding:0.2rem 0;border-bottom:1px solid #F1F5F9;">
+          <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid #F1F5F9;">
             <span style="color:#64748B;">TVA (${taxRate}%)</span>
-            <span style="font-weight:600;color:#0F172A;">${fmt(taxAmt)}</span>
-          </div>` : `<div style="display:flex;justify-content:space-between;padding:0.2rem 0;border-bottom:1px solid #F1F5F9;">
-            <span style="color:#64748B;">Couleurs coulées</span>
-            <span style="font-weight:600;color:#0F172A;">${fmt(0)}</span>
+            <span style="font-weight:600;color:#0F172A;">${taxRate > 0 ? fmt(taxAmt) : 'Exonéré (0%)'}</span>
           </div>
-          <div style="display:flex;justify-content:space-between;padding:0.2rem 0;border-bottom:1px solid #F1F5F9;">
-            <span style="color:#64748B;">Tax</span>
-            <span style="font-weight:600;color:#0F172A;">$0.00</span>
-          </div>`}
-          <div style="display:flex;justify-content:space-between;padding:0.3rem 0.5rem;background:${primaryColor};border-radius:4px;margin-top:0.2rem;">
-            <span style="color:#FFF;font-weight:700;">Total</span>
-            <span style="color:#FFF;font-weight:800;">${fmt(total)}</span>
+          <div style="display:flex;justify-content:space-between;padding:0.45rem 0.65rem;background:${primaryColor};color:#FFF;border-radius:6px;margin-top:0.35rem;box-shadow:0 3px 10px rgba(0,0,0,0.12);">
+            <span style="font-weight:700;">TOTAL TTC</span>
+            <span style="font-weight:800;font-size:0.78rem;">${fmt(total)}</span>
           </div>
         </div>
       </div>
 
-      <!-- Signature -->
-      <div style="margin-bottom:0.5rem;font-size:0.58rem;color:#94A3B8;">Facture autocertifiée</div>
-      <div style="font-family:'Dancing Script',cursive,Georgia,serif;font-size:1.2rem;color:#0F172A;line-height:1;margin-bottom:0.75rem;">Jhoni Mon</div>
+      <!-- Signature & Certification -->
+      <div style="margin-bottom:0.25rem;font-size:0.6rem;color:#94A3B8;font-weight:500;">Bon pour accord & certification KIVO MATIQUE</div>
+      <div style="font-family:'Dancing Script',cursive,Georgia,serif;font-size:1.35rem;color:#0F172A;line-height:1;margin-bottom:0.85rem;">${bizOwner}</div>
 
       <!-- Footer -->
-      <div style="border-top:1px solid #E2E8F0;padding-top:0.5rem;display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:0.58rem;color:#64748B;">${bizName} · ${bizPhone} · ${biz.email || 'contact@kivo.com'}</div>
-        <div style="width:18px;height:18px;border-radius:50%;background:${primaryColor};display:flex;align-items:center;justify-content:center;">
-          <span style="color:#FFF;font-weight:800;font-size:0.5rem;">${badgeLetter}</span>
+      <div style="border-top:1px solid #E2E8F0;padding-top:0.6rem;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:0.6rem;color:#64748B;">${bizName} · ${bizPhone} · ${bizEmail}</div>
+        <div style="width:20px;height:20px;border-radius:50%;background:${primaryColor};display:flex;align-items:center;justify-content:center;">
+          <span style="color:#FFF;font-weight:800;font-size:0.55rem;">${badgeLetter}</span>
         </div>
       </div>
     `;
@@ -3206,8 +3248,8 @@ window.KivoApp = {
         btn.disabled = false;
         btn.innerHTML = '✦ Générer ma facture';
       }
-      this.showToast('✅ Aperçu généré ! Modifiez ou ouvrez dans l\'éditeur.', 'success');
-    }, 900);
+      this.showToast('✅ Facture structurée avec succès !', 'success');
+    }, 600);
   },
 
   /**
@@ -3218,12 +3260,19 @@ window.KivoApp = {
     const promptEl = document.getElementById('ai-custom-prompt');
     if (!promptEl) return;
 
+    const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+    const isEur = /€|eur/i.test(currency);
+    const p1 = isEur ? '450 €' : '450 000 FCFA';
+    const p2 = isEur ? '250 €' : '250 000 FCFA';
+    const p3 = isEur ? '1 200 €' : '1 200 000 FCFA';
+    const p4 = isEur ? '850 €' : '850 000 FCFA';
+
     const presets = {
-      minimalist: 'Crée-moi une facture minimaliste, sobre, fond blanc pur, typographie moderne sans-serif noire. Services : Développement web 1500€, Hébergement 200€. TVA 20%.',
-      premium: 'Crée une facture élégante et premium avec couleur or/champagne, logo en haut à gauche, table de lignes sophistiquée. Design luxe. Services : Design UI/UX 3200€, Branding 1800€. TVA 20%.',
-      corporate: 'Crée une facture corporate professionnelle, style entreprise, bleu marine foncé, logo en haut, mise en page structurée. Prestation conseil 5000€, Formation 2500€. TVA 20%.',
-      'my-colors': 'Crée une facture avec mes couleurs de marque et mon logo. Adapte automatiquement la palette au logo importé.',
-      'my-template': 'Inspirée de mon dernier modèle de facture, reprends le même format et style que d\'habitude.'
+      minimalist: `Facture minimaliste pour Cabinet Alpha : Audit de conformité ${p1}, Rédaction des actes ${p2}. TVA 18%.`,
+      premium: `Facture premium pour Studio Luxe : Identité de marque complète ${p3}, Pack supports digitaux & print ${p4}. TVA 18%.`,
+      corporate: `Facture corporate pour Entreprise Global Tech : Mission de conseil stratégique ${p3}, Formation des équipes ${p4}. TVA 18%.`,
+      'my-colors': `Facture pour Boutique Éléganza avec mes couleurs de marque : Développement boutique e-commerce ${p4}, Maintenance annuelle ${p2}. TVA 18%.`,
+      'my-template': `Facture pour Médias Plus : Campagne digitale réseaux sociaux ${p2}, Production vidéo publicitaire ${p1}. TVA 18%.`
     };
 
     const promptText = presets[type] || '';
@@ -3269,19 +3318,22 @@ window.KivoApp = {
     setTimeout(() => {
       // Pre-fill items
       if (doc.items && doc.items.length) {
-        // Clear existing lines
         const lineBody = document.getElementById('line-items-body');
         if (lineBody) {
           lineBody.innerHTML = '';
           doc.items.forEach((item) => {
-            this.addLineItem(item.description, item.qty || 1, item.unitPrice || 0);
+            const desc = item.name || item.description || 'Prestation';
+            const qty = item.quantity || item.qty || 1;
+            const price = item.price || item.unitPrice || 0;
+            this.addLineItem(desc, qty, price);
           });
         }
       }
       // Pre-fill client
-      if (doc.client && doc.client.name) {
+      const clientName = doc.clientName || (doc.client && doc.client.name) || '';
+      if (clientName) {
         const clientInput = document.getElementById('builder-client-name');
-        if (clientInput) clientInput.value = doc.client.name;
+        if (clientInput) clientInput.value = clientName;
       }
       this.updateLiveInvoicePreview();
       this.showToast('✅ Facture IA chargée dans l\'éditeur !', 'success');
@@ -3289,7 +3341,7 @@ window.KivoApp = {
   },
 
   /**
-   * Saves the AI-generated invoice directly to Supabase.
+   * Saves the AI-generated invoice directly to Supabase / Local storage.
    */
   saveAiInvoiceDirectly: async function () {
     if (!this._aiGeneratedDoc) {
@@ -3299,34 +3351,41 @@ window.KivoApp = {
 
     const doc = this._aiGeneratedDoc;
     const biz = (this.state && this.state.business) || {};
-    const taxRate = doc.taxRate || biz.taxRate || 18;
-    const items = (doc.items || []).map(it => ({
-      description: it.description,
-      qty: it.qty || 1,
-      unit_price: it.unitPrice || 0,
-      total: (it.qty || 1) * (it.unitPrice || 0)
-    }));
+    const taxRate = typeof doc.taxRate === 'number' ? doc.taxRate : (biz.taxRate || 18);
+    const currency = doc.currency || biz.currency || 'FCFA';
+    const items = (doc.items || []).map(it => {
+      const q = it.quantity || it.qty || 1;
+      const p = it.price || it.unitPrice || 0;
+      return {
+        description: it.name || it.description || 'Prestation',
+        qty: q,
+        unit_price: p,
+        total: q * p
+      };
+    });
     const subtotal = items.reduce((s, i) => s + i.total, 0);
     const taxAmt = subtotal * taxRate / 100;
     const total = subtotal + taxAmt;
+
+    const clientName = doc.clientName || (doc.client && doc.client.name) || 'Client Entreprise';
+    const clientAddress = doc.clientAddress || (doc.client && doc.client.address) || '';
 
     const newDoc = {
       id: 'doc_ai_' + Date.now(),
       type: 'invoice',
       status: 'draft',
       docNumber: doc.docNumber || this._generateDocNumber('invoice'),
-      client: doc.client ? doc.client.name : '',
-      clientAddress: doc.client ? doc.client.address : '',
+      client: clientName,
+      clientAddress: clientAddress,
       items: items,
       subtotal: subtotal,
       taxRate: taxRate,
-      taxAmount: taxAmt,
+      tax: taxAmt,
       total: total,
-      currency: biz.currency || 'FCFA',
-      issuedAt: new Date().toISOString().split('T')[0],
-      dueAt: '',
+      currency: currency,
+      dueDate: doc.dueDate || doc.suggestedDueDate || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
       notes: '[Créé par IA]',
-      createdAt: new Date().toISOString()
+      issuedAt: new Date().toISOString().split('T')[0]
     };
 
     // Save to local state
