@@ -1818,162 +1818,205 @@
         <!-- END view-pricing -->
 
 
-        <!-- ==================== SETTINGS VIEW ==================== -->
-        <section id="view-settings" class="view-section" style="display: none;">
+        <!-- ==================== MON PROFIL VIEW ==================== -->
+        <section id="view-settings" class="view-section profile-page-section" style="display: none;">
 
-          <div class="page-header">
-            <div>
-              <h1>Paramètres de l'entreprise</h1>
-              <p class="page-subtitle">Configurez vos coordonnées, devises, taux de TVA, Stripe et préférences.</p>
-            </div>
-            <button class="btn btn-primary" onclick="KivoApp.saveSettings()">Enregistrer les modifications</button>
-          </div>
-
-          <div class="card" style="max-width: 850px;">
-            <h3 style="margin-bottom: 1.25rem;">Profil & Coordonnées</h3>
+          <div class="profile-container">
             
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Nom de l'entreprise / Raison Sociale</label>
-                <input type="text" id="setting-biz-name" class="form-input" value="MD Creative Studio">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Propriétaire / Dirigeant</label>
-                <input type="text" id="setting-biz-owner" class="form-input" value="Marc Koffi">
+            <!-- Page Title Header (Serif as in reference image) -->
+            <div class="profile-header-wrap">
+              <h1 class="profile-main-title">Mon profil</h1>
+              <div class="profile-header-actions">
+                <button class="btn btn-primary profile-save-btn" onclick="KivoApp.saveSettings()">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                  <span>Enregistrer les modifications</span>
+                </button>
               </div>
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Logo de l'entreprise</label>
-                <div style="display: flex; gap: 1rem; align-items: center;">
-                  <div class="paper-logo-badge" id="setting-logo-preview-badge" style="width: 50px; height: 50px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-family: var(--font-heading); font-weight: 800; font-size: 1.2rem; background: var(--primary-light); color: var(--primary); overflow: hidden;">KM</div>
-                  <input type="file" id="setting-biz-logo-file" class="form-input" accept="image/*" onchange="KivoApp.handleLogoUpload(this.files)" style="padding: 0.35rem;">
+            <!-- 3-Column Grid Matching Reference Image -->
+            <div class="profile-grid">
+
+              <!-- COLUMN 1: Profile Identity Dual-Layer Card -->
+              <div class="profile-col profile-col-identity">
+                <div class="profile-id-outer-card">
+                  
+                  <!-- Floating Frosted Glass Card -->
+                  <div class="profile-id-glass-card">
+                    <!-- Circular Avatar (Monogram or Photo) -->
+                    <div class="profile-avatar-circle" id="profile-avatar-display" onclick="document.getElementById('profile-logo-input').click()" title="Cliquer pour importer ou changer le logo / photo">
+                      <svg class="profile-avatar-k-logo" id="profile-avatar-svg" width="40" height="40" viewBox="0 0 32 32" fill="none">
+                        <path d="M7 6L14 16L7 26" stroke="#0F172A" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M16 6L23 16L16 26" stroke="#475569" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                      <img id="profile-avatar-img" src="" alt="Avatar" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                    </div>
+
+                    <!-- User Name & Email -->
+                    <h2 class="profile-id-name" id="profile-id-name-display">Julien Dubois</h2>
+                    <p class="profile-id-email" id="profile-id-email-display">julien.dubois@kivo.com</p>
+
+                    <!-- Status Pill -->
+                    <div class="profile-status-pill-wrap">
+                      <span class="profile-status-pill" id="profile-status-badge">Compte Actif</span>
+                    </div>
+                  </div>
+
                 </div>
               </div>
-              <div class="form-group">
-                <label class="form-label">Site Web (Optionnel)</label>
-                <input type="text" id="setting-biz-website" class="form-input" placeholder="Ex: www.entreprise.com">
+
+              <!-- COLUMN 2: Personal Info + Preferences + Logout -->
+              <div class="profile-col profile-col-center">
+                
+                <!-- Card 2A: Informations personnelles -->
+                <div class="profile-card">
+                  <h3 class="profile-card-title">Informations personnelles</h3>
+                  
+                  <div class="profile-form-group">
+                    <label class="profile-label" for="setting-biz-owner">Nom</label>
+                    <input type="text" id="setting-biz-owner" class="profile-input" placeholder="Ex: Julien Dubois" oninput="document.getElementById('profile-id-name-display').textContent = this.value || 'Julien Dubois'">
+                  </div>
+
+                  <div class="profile-form-group">
+                    <label class="profile-label" for="setting-biz-email">Email</label>
+                    <input type="email" id="setting-biz-email" class="profile-input" placeholder="Ex: julien.dubois@kivo.com" oninput="document.getElementById('profile-id-email-display').textContent = this.value || 'julien.dubois@kivo.com'">
+                  </div>
+                </div>
+
+                <!-- Card 2B: Préférences -->
+                <div class="profile-card">
+                  <h3 class="profile-card-title">Préférences</h3>
+
+                  <div class="profile-form-group">
+                    <label class="profile-label" for="setting-biz-currency">Devise</label>
+                    <div class="profile-select-wrap">
+                      <select id="setting-biz-currency" class="profile-select">
+                        <option value="EUR">EUR €</option>
+                        <option value="FCFA">FCFA (XOF / XAF)</option>
+                        <option value="USD">USD $</option>
+                        <option value="CAD">CAD $</option>
+                        <option value="GBP">GBP £</option>
+                        <option value="MAD">MAD</option>
+                        <option value="TND">TND</option>
+                        <option value="DZD">DZD</option>
+                        <option value="CDF">CDF</option>
+                        <option value="GNF">GNF</option>
+                      </select>
+                      <svg class="profile-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                  </div>
+
+                  <div class="profile-form-group">
+                    <label class="profile-label" for="setting-biz-language">Langue</label>
+                    <div class="profile-select-wrap">
+                      <select id="setting-biz-language" class="profile-select" onchange="KivoApp.setLanguage(this.value)">
+                        <option value="fr">Français</option>
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                      </select>
+                      <svg class="profile-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                  </div>
+
+                  <div class="profile-form-group">
+                    <label class="profile-label" for="profile-doc-preference">Préférences de documents</label>
+                    <div class="profile-select-wrap">
+                      <select id="profile-doc-preference" class="profile-select">
+                        <option value="standard">Facture Standard | Devis Détaillé</option>
+                        <option value="detailed">Facture Détaillée | Devis Standard</option>
+                        <option value="minimal">Facture Épurée | Devis Simple</option>
+                      </select>
+                      <svg class="profile-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Logout Button Below Column 2 -->
+                <button class="profile-logout-btn" onclick="KivoAuth.signOut()" title="Se déconnecter de la session">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                  </svg>
+                  <span>Déconnexion</span>
+                </button>
+
               </div>
+
+              <!-- COLUMN 3: Enterprise + Security -->
+              <div class="profile-col profile-col-right">
+                
+                <!-- Card 3A: Entreprise -->
+                <div class="profile-card">
+                  <h3 class="profile-card-title">Entreprise</h3>
+
+                  <div class="profile-form-group">
+                    <label class="profile-label" for="setting-biz-name">Nom de l'entreprise</label>
+                    <input type="text" id="setting-biz-name" class="profile-input" placeholder="Ex: Dubois & Co.">
+                  </div>
+
+                  <!-- Row: Logo upload box + Address -->
+                  <div class="profile-logo-address-row">
+                    <div class="profile-logo-upload-box" onclick="document.getElementById('profile-logo-input').click()" title="Importer ou changer le logo de l'entreprise">
+                      <input type="file" id="profile-logo-input" accept="image/*" style="display:none;" onchange="KivoApp.handleProfileLogoUpload(this.files)">
+                      <div id="profile-logo-preview" class="profile-logo-preview-area">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        <span class="profile-upload-text">Importer logo</span>
+                      </div>
+                    </div>
+
+                    <div class="profile-address-group">
+                      <label class="profile-label" for="setting-biz-address">Adresse</label>
+                      <textarea id="setting-biz-address" class="profile-textarea" placeholder="12, rue de la Paix, 75002 Paris" rows="2"></textarea>
+                    </div>
+                  </div>
+
+                  <!-- Row: Téléphone + Email pro -->
+                  <div class="profile-two-cols">
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-phone">Téléphone</label>
+                      <input type="text" id="setting-biz-phone" class="profile-input" placeholder="+33 1 23 45 67 89">
+                    </div>
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-pro-email">Email professionnel</label>
+                      <input type="email" id="setting-biz-pro-email" class="profile-input" placeholder="contact@dubois.co">
+                    </div>
+                  </div>
+
+                  <!-- Informations légales -->
+                  <div class="profile-legal-section">
+                    <label class="profile-label">Informations légales</label>
+                    <div class="profile-two-cols">
+                      <div class="profile-form-group" style="margin-bottom:0;">
+                        <input type="text" id="setting-biz-taxid" class="profile-input profile-input-subtle" placeholder="Siret: 123 456 789 00012">
+                      </div>
+                      <div class="profile-form-group" style="margin-bottom:0;">
+                        <input type="text" id="setting-biz-vat" class="profile-input profile-input-subtle" placeholder="TVA: FR 12 123456789">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Card 3B: Security -->
+                <div class="profile-card">
+                  <h3 class="profile-card-title">Security</h3>
+                  
+                  <div class="profile-security-actions">
+                    <button type="button" class="profile-btn-outline" onclick="KivoApp.openChangePasswordModal()">
+                      Changer le mot de passe
+                    </button>
+                    <button type="button" class="profile-btn-outline" onclick="KivoApp.openConnectedAccountsModal()">
+                      Comptes connectés
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Téléphone (WhatsApp)</label>
-                <input type="text" id="setting-biz-phone" class="form-input" value="+221 77 842 19 02">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Email professionnel</label>
-                <input type="email" id="setting-biz-email" class="form-input" value="marc.koffi@mdcreative.design">
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Adresse & Ville</label>
-                <input type="text" id="setting-biz-address" class="form-input" value="Avenue Cheikh Anta Diop, Dakar">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Numéro SIRET / NINEA / Tax ID</label>
-                <input type="text" id="setting-biz-taxid" class="form-input" value="SN-NINEA-849204812">
-              </div>
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 2rem 0;">
-
-            <h3 style="margin-bottom: 1.25rem;">Facturation & Numérotation</h3>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Préfixe des Factures</label>
-                <input type="text" id="setting-biz-prefix" class="form-input" value="FAC-2026-">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Préfixe des Devis</label>
-                <input type="text" id="setting-biz-quote-prefix" class="form-input" value="DEV-2026-">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Taux TVA par défaut (%)</label>
-                <select id="setting-biz-vat" class="form-select">
-                  <option value="18">18% (Standard Afrique de l'Ouest FCFA)</option>
-                  <option value="20">20% (Standard France / Europe)</option>
-                  <option value="0">0% (Exonéré / Hors Taxe)</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Langue de l'application</label>
-                <select id="setting-biz-language" class="form-select" onchange="KivoApp.setLanguage(this.value)">
-                  <option value="fr">🇫🇷 Français</option>
-                  <option value="en">🇬🇧 English</option>
-                  <option value="es">🇪🇸 Español</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Devise principale</label>
-                <select id="setting-biz-currency" class="form-select">
-                  <option value="FCFA">FCFA (XOF / XAF)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="USD">USD ($)</option>
-                </select>
-              </div>
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 2rem 0;">
-
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
-              <div>
-                <h3 style="margin: 0;">Abonnement & Forfaits KIVO MATIQUE</h3>
-                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">Gérez la formule commerciale de votre entreprise.</p>
-              </div>
-              <span class="badge badge-accepted" id="settings-current-plan-badge" style="font-size: 0.85rem; padding: 0.35rem 0.85rem;">
-                ✓ Forfait Actif : PRO (3 990 FCFA / mois)
-              </span>
-            </div>
-
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-              <div class="card" id="setting-plan-card-gratuit" style="padding: 1.25rem; text-align: center; border: 1px solid var(--border-color);">
-                <h4 style="margin-bottom: 0.25rem;">GRATUIT</h4>
-                <div style="font-weight: 800; font-size: 1.35rem;">0 FCFA</div>
-                <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.35rem 0 1rem 0;">3 documents / mois</p>
-                <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="KivoApp.switchSubscriptionTier('Gratuit')">Activer ce forfait</button>
-              </div>
-
-              <div class="card" id="setting-plan-card-pro" style="padding: 1.25rem; text-align: center; border: 2px solid var(--primary); background: var(--primary-light);">
-                <span class="badge badge-accepted" style="font-size: 0.65rem; margin-bottom: 0.25rem;">Populaire</span>
-                <h4 style="margin-bottom: 0.25rem; color: var(--primary);">PRO</h4>
-                <div style="font-weight: 800; font-size: 1.35rem; color: var(--primary);">3 990 FCFA <span style="font-size: 0.75rem;">/mois</span></div>
-                <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.35rem 0 1rem 0;">Illimité + IA + Stripe & Mobile Money (38 380 F/an)</p>
-                <button class="btn btn-primary btn-sm" style="width: 100%;" onclick="KivoApp.switchSubscriptionTier('Pro')">Sélectionné ✓</button>
-              </div>
-
-              <div class="card" id="setting-plan-card-business" style="padding: 1.25rem; text-align: center; border: 1px solid var(--border-color);">
-                <h4 style="margin-bottom: 0.25rem;">BUSINESS</h4>
-                <div style="font-weight: 800; font-size: 1.35rem;">9 990 FCFA <span style="font-size: 0.75rem;">/mois</span></div>
-                <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.35rem 0 1rem 0;">5 sièges (+1 500 F/membre sup.) · Multi-devises (95 880 F/an)</p>
-                <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="KivoApp.switchSubscriptionTier('Business')">Activer Business</button>
-              </div>
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 2rem 0;">
-
-            <h3 style="margin-bottom: 1.25rem;">Intégrations, Stripe & Paiements</h3>
-            <div class="form-group">
-              <label class="form-label">Clé d'API Publique Stripe (Stripe Publishable Key)</label>
-              <input type="text" id="setting-stripe-key" class="form-input" placeholder="pk_test_..." value="pk_test_51KivoMastiqueDemoStripeKey998">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Numéros Mobile Money pour encaissements (Wave / Orange Money / MTN)</label>
-              <input type="text" id="setting-momo-numbers" class="form-input" value="Wave: +221 77 842 19 02 | Orange: +221 77 842 19 02 | MTN: +225 07 89 12 34">
-            </div>
-
-            <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center;">
-              <button class="btn btn-danger btn-sm" onclick="KivoApp.resetDemoData()">⚠️ Réinitialiser les données de démo</button>
-              <a href="https://wa.me/221778421902" target="_blank" class="btn btn-whatsapp btn-sm">💬 Support Client WhatsApp</a>
-            </div>
           </div>
+
         </section>
 
       </main>
@@ -2378,6 +2421,67 @@
           + Nouvelle facture pour ce client
         </button>
         <button class="btn btn-secondary" onclick="KivoApp.closeModal('modal-client-details')" style="margin-left: 0.5rem;">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SECURITY: CHANGE PASSWORD MODAL ==================== -->
+  <div class="modal-overlay" id="modal-change-password">
+    <div class="modal-card" style="max-width: 480px; width: 95%;">
+      <div class="modal-header">
+        <h2 style="font-size: 1.25rem; margin: 0;">Changer le mot de passe</h2>
+        <button class="modal-close" onclick="KivoApp.closeModal('modal-change-password')">✕</button>
+      </div>
+      <form id="form-change-password" onsubmit="event.preventDefault(); KivoApp.submitPasswordChange();" style="padding-top: 1rem;">
+        <div class="form-group">
+          <label class="form-label" for="profile-new-password">Nouveau mot de passe</label>
+          <input type="password" id="profile-new-password" class="form-input" placeholder="Au moins 6 caractères" minlength="6" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="profile-confirm-password">Confirmer le mot de passe</label>
+          <input type="password" id="profile-confirm-password" class="form-input" placeholder="Répéter le mot de passe" minlength="6" required>
+        </div>
+        <div id="profile-password-error" style="display: none; color: var(--danger-text); font-size: 0.85rem; margin-bottom: 1rem;"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="KivoApp.closeModal('modal-change-password')">Annuler</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-pwd-change">Mettre à jour</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== SECURITY: CONNECTED ACCOUNTS MODAL ==================== -->
+  <div class="modal-overlay" id="modal-connected-accounts">
+    <div class="modal-card" style="max-width: 520px; width: 95%;">
+      <div class="modal-header">
+        <h2 style="font-size: 1.25rem; margin: 0;">Comptes & Sessions connectés</h2>
+        <button class="modal-close" onclick="KivoApp.closeModal('modal-connected-accounts')">✕</button>
+      </div>
+      <div style="padding: 1.25rem 0;">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: var(--bg-subtle); border-radius: 12px; margin-bottom: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: #EFF6FF; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">📧</div>
+            <div>
+              <strong style="font-size: 0.95rem; display: block; color: var(--text-primary);">Email & Mot de passe</strong>
+              <span style="font-size: 0.82rem; color: var(--text-muted);" id="modal-conn-email-text">Compte principal KIVO</span>
+            </div>
+          </div>
+          <span style="background: #DCFCE7; color: #15803D; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 9999px;">Connecté</span>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: var(--bg-subtle); border-radius: 12px;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: #FEF2F2; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">🌐</div>
+            <div>
+              <strong style="font-size: 0.95rem; display: block; color: var(--text-primary);">Authentification Supabase Cloud</strong>
+              <span style="font-size: 0.82rem; color: var(--text-muted);">Protection par RLS (Row Level Security)</span>
+            </div>
+          </div>
+          <span style="background: #E0E7FF; color: #3730A3; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 9999px;">Sécurisé</span>
+        </div>
+      </div>
+      <div style="text-align: right; margin-top: 1rem;">
+        <button class="btn btn-secondary" onclick="KivoApp.closeModal('modal-connected-accounts')">Fermer</button>
       </div>
     </div>
   </div>

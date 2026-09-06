@@ -2944,21 +2944,57 @@ window.KivoApp = {
 
   renderSettings: function () {
     const biz = this.state.business;
-    if (document.getElementById('setting-biz-name')) document.getElementById('setting-biz-name').value = biz.name;
-    if (document.getElementById('setting-biz-owner')) document.getElementById('setting-biz-owner').value = biz.owner;
-    if (document.getElementById('setting-biz-phone')) document.getElementById('setting-biz-phone').value = biz.phone;
-    if (document.getElementById('setting-biz-email')) document.getElementById('setting-biz-email').value = biz.email;
+    if (document.getElementById('setting-biz-name')) document.getElementById('setting-biz-name').value = biz.name || '';
+    if (document.getElementById('setting-biz-owner')) document.getElementById('setting-biz-owner').value = biz.owner || '';
+    if (document.getElementById('setting-biz-phone')) document.getElementById('setting-biz-phone').value = biz.phone || '';
+    if (document.getElementById('setting-biz-email')) document.getElementById('setting-biz-email').value = biz.email || '';
+    if (document.getElementById('setting-biz-pro-email')) document.getElementById('setting-biz-pro-email').value = biz.proEmail || biz.email || '';
     if (document.getElementById('setting-biz-website')) document.getElementById('setting-biz-website').value = biz.website || '';
     if (document.getElementById('setting-biz-address')) document.getElementById('setting-biz-address').value = biz.address || '';
     if (document.getElementById('setting-biz-taxid')) document.getElementById('setting-biz-taxid').value = biz.taxId || '';
-    if (document.getElementById('setting-biz-currency')) document.getElementById('setting-biz-currency').value = biz.currency;
+    if (document.getElementById('setting-biz-currency')) document.getElementById('setting-biz-currency').value = biz.currency || 'FCFA';
     if (document.getElementById('setting-biz-prefix')) document.getElementById('setting-biz-prefix').value = biz.invoicePrefix || "FAC-2026-";
     if (document.getElementById('setting-biz-quote-prefix')) document.getElementById('setting-biz-quote-prefix').value = biz.quotePrefix || "DEV-2026-";
     if (document.getElementById('setting-biz-vat')) document.getElementById('setting-biz-vat').value = biz.defaultVatRate || 18;
     if (document.getElementById('setting-stripe-key')) document.getElementById('setting-stripe-key').value = biz.stripeKey || "pk_test_51KivoMastiqueDemoStripeKey998";
     if (document.getElementById('setting-biz-language')) document.getElementById('setting-biz-language').value = this.state.language || "fr";
 
+    // ── Profile Identity Card (Column 1) ─────────────────────────────────
+    const displayName = biz.owner || biz.name || 'Mon Compte';
+    const displayEmail = biz.email || 'contact@entreprise.com';
+
+    const nameDisplay = document.getElementById('profile-id-name-display');
+    const emailDisplay = document.getElementById('profile-id-email-display');
+    if (nameDisplay) nameDisplay.textContent = displayName;
+    if (emailDisplay) emailDisplay.textContent = displayEmail;
+
+    // Restore logo in avatar circle
+    const avatarSvg = document.getElementById('profile-avatar-svg');
+    const avatarImg = document.getElementById('profile-avatar-img');
+    if (avatarSvg && avatarImg) {
+      if (biz.logoUrl) {
+        avatarSvg.style.display = 'none';
+        avatarImg.src = biz.logoUrl;
+        avatarImg.style.display = 'block';
+      } else {
+        avatarSvg.style.display = '';
+        avatarImg.style.display = 'none';
+      }
+    }
+
+    // Restore logo in the upload box
+    const previewArea = document.getElementById('profile-logo-preview');
+    if (previewArea && biz.logoUrl) {
+      previewArea.innerHTML = `<img src="${biz.logoUrl}" style="width:100%;height:100%;object-fit:contain;border-radius:8px;" alt="Logo">`;
+    }
+
+    // Status badge — show subscription tier
     const tier = biz.subscriptionTier || 'Pro';
+    const statusBadge = document.getElementById('profile-status-badge');
+    if (statusBadge) {
+      statusBadge.textContent = 'Compte Actif';
+    }
+
     const badgeEl = document.getElementById('settings-current-plan-badge');
     if (badgeEl) {
       badgeEl.textContent = `✓ Forfait Actif : ${tier.toUpperCase()}`;
@@ -2985,6 +3021,7 @@ window.KivoApp = {
     if (document.getElementById('setting-biz-owner')) biz.owner = document.getElementById('setting-biz-owner').value;
     if (document.getElementById('setting-biz-phone')) biz.phone = document.getElementById('setting-biz-phone').value;
     if (document.getElementById('setting-biz-email')) biz.email = document.getElementById('setting-biz-email').value;
+    if (document.getElementById('setting-biz-pro-email')) biz.proEmail = document.getElementById('setting-biz-pro-email').value;
     if (document.getElementById('setting-biz-website')) biz.website = document.getElementById('setting-biz-website').value;
     if (document.getElementById('setting-biz-address')) biz.address = document.getElementById('setting-biz-address').value;
     if (document.getElementById('setting-biz-taxid')) biz.taxId = document.getElementById('setting-biz-taxid').value;
@@ -3026,6 +3063,115 @@ window.KivoApp = {
 
     this.showToast("Paramètres KIVO MATIQUE enregistrés !", "success");
     this.updateUserBrandingUI();
+  },
+
+  // ── Profile Page: Security & Logo Functions ──────────────────────────────
+
+  /**
+   * Opens the Change Password modal and resets its form
+   */
+  openChangePasswordModal: function () {
+    const form = document.getElementById('form-change-password');
+    if (form) form.reset();
+    const errEl = document.getElementById('profile-password-error');
+    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+    this.openModal('modal-change-password');
+  },
+
+  /**
+   * Opens the Connected Accounts modal and populates the user's email
+   */
+  openConnectedAccountsModal: function () {
+    const emailEl = document.getElementById('modal-conn-email-text');
+    if (emailEl) {
+      const userEmail = (this.state && this.state.business && this.state.business.email)
+        || (window.KivoAuth && window.KivoAuth.currentUser && window.KivoAuth.currentUser.email)
+        || 'Compte principal KIVO';
+      emailEl.textContent = userEmail;
+    }
+    this.openModal('modal-connected-accounts');
+  },
+
+  /**
+   * Submits a password change via Supabase Auth
+   */
+  submitPasswordChange: async function () {
+    const newPwd = (document.getElementById('profile-new-password') || {}).value || '';
+    const confirmPwd = (document.getElementById('profile-confirm-password') || {}).value || '';
+    const errEl = document.getElementById('profile-password-error');
+    const btn = document.getElementById('btn-submit-pwd-change');
+
+    const showError = (msg) => {
+      if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    };
+
+    if (!newPwd || newPwd.length < 6) {
+      return showError('Le mot de passe doit contenir au moins 6 caractères.');
+    }
+    if (newPwd !== confirmPwd) {
+      return showError('Les mots de passe ne correspondent pas.');
+    }
+
+    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Mise à jour…'; }
+
+    try {
+      if (window.KivoDb && window.KivoDb.supabase) {
+        const { error } = await window.KivoDb.supabase.auth.updateUser({ password: newPwd });
+        if (error) throw error;
+      }
+      this.closeModal('modal-change-password');
+      this.showToast('Mot de passe mis à jour avec succès !', 'success');
+    } catch (err) {
+      showError(err.message || 'Erreur lors de la mise à jour du mot de passe.');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Mettre à jour'; }
+    }
+  },
+
+  /**
+   * Handles logo file upload from the profile page logo upload box.
+   * Shows a live preview in both the upload box and the avatar circle.
+   */
+  handleProfileLogoUpload: function (files) {
+    if (!files || !files[0]) return;
+    const file = files[0];
+    if (!file.type.startsWith('image/')) {
+      this.showToast('Veuillez sélectionner un fichier image.', 'warning');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+
+      // Store in state
+      this.state.business.logoUrl = dataUrl;
+      this.saveState();
+
+      // Update the logo upload box preview
+      const previewArea = document.getElementById('profile-logo-preview');
+      if (previewArea) {
+        previewArea.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:contain;border-radius:8px;" alt="Logo">`;
+      }
+
+      // Update the avatar circle in the identity card
+      const avatarSvg = document.getElementById('profile-avatar-svg');
+      const avatarImg = document.getElementById('profile-avatar-img');
+      if (avatarSvg) avatarSvg.style.display = 'none';
+      if (avatarImg) { avatarImg.src = dataUrl; avatarImg.style.display = 'block'; }
+
+      // Update sidebar branding
+      this.updateUserBrandingUI();
+
+      // Sync to Supabase if connected
+      if (window.KivoDb && this.supabaseConnected) {
+        this.saveSettings();
+      }
+
+      this.showToast('Logo importé avec succès !', 'success');
+    };
+    reader.readAsDataURL(file);
   },
 
   // handleLogoUpload is defined below (FileReader + extractColors version)
