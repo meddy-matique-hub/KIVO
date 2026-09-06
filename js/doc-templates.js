@@ -665,16 +665,36 @@ window.KivoTemplates = {
   // ── Main render dispatcher ────────────────────────────────────────────
   render: function (templateId, data) {
     const d = data || this.collectData();
+    let html = '';
     switch (templateId) {
-      case 'minimalist':  return this.renderMinimalist(d);
-      case 'corporate':   return this.renderCorporate(d);
-      case 'elegant':      return this.renderElegant(d);
-      case 'modern':       return this.renderModern(d);
-      case 'clean':        return this.renderClean(d);
-      case 'editorial':    return this.renderEditorial(d);
-      case 'premium':      return this.renderPremium(d);
-      default:             return this.renderMinimalist(d);
+      case 'minimalist':  html = this.renderMinimalist(d); break;
+      case 'corporate':   html = this.renderCorporate(d); break;
+      case 'elegant':     html = this.renderElegant(d); break;
+      case 'modern':      html = this.renderModern(d); break;
+      case 'clean':       html = this.renderClean(d); break;
+      case 'editorial':   html = this.renderEditorial(d); break;
+      case 'premium':     html = this.renderPremium(d); break;
+      default:            html = this.renderMinimalist(d); break;
     }
+
+    // Inlay professional "PAYÉE" watermark stamp if status is paid
+    if (d.status === 'paid' && d.docType !== 'quote') {
+      const stamp = `
+        <div style="position:absolute; top:28px; right:32px; transform:rotate(-10deg); z-index:25; pointer-events:none; border:2.5px solid #10B981; border-radius:8px; padding:5px 14px; background:rgba(236,253,245,0.92); backdrop-filter:blur(3px); box-shadow:0 4px 14px rgba(16,185,129,0.2);">
+          <div style="font-family:'Outfit',sans-serif; font-size:16px; font-weight:900; letter-spacing:0.18em; color:#047857; text-transform:uppercase; line-height:1; display:flex; align-items:center; gap:6px;">
+            <span>PAYÉE</span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+        </div>
+      `;
+      if (html.includes('position:relative;')) {
+        html = html.replace(/(<div[^>]*position:relative;[^>]*>)/i, `$1${stamp}`);
+      } else {
+        html = `<div style="position:relative;width:100%;height:100%;">${stamp}${html}</div>`;
+      }
+    }
+
+    return html;
   }
 };
 

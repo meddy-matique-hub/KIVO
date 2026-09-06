@@ -8,84 +8,62 @@ window.KivoAuth = {
 
   init: async function() {
     console.log('[KivoAuth] Initializing Auth...');
-    
-    // Check current session
-    const { data: { session }, error } = await KivoDb.supabase.auth.getSession();
-    if (error) {
-      console.error('[KivoAuth] getSession error:', error);
+    if (!window.KivoDb || !window.KivoDb.supabase) {
+      console.error('[KivoAuth] Supabase client is not available.');
+      return;
     }
     
-    this.session = session;
-    this.user = session?.user || null;
-
-    // Listen for auth state changes
-    KivoDb.supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[KivoAuth] Auth event: ${event}`);
+    // Check current session
+    try {
+      const { data: { session }, error } = await KivoDb.supabase.auth.getSession();
+      if (error) {
+        console.error('[KivoAuth] getSession error:', error);
+      }
       this.session = session;
       this.user = session?.user || null;
-      
-      if (event === 'SIGNED_IN' && session) {
-        // User just signed in (from modal-login or view-auth or OAuth redirect)
-        await this.handlePostLogin(session);
-      } else if (event === 'SIGNED_OUT') {
-        // Session was cleared — close modal and return to landing page
+    } catch (e) {
+      console.error('[KivoAuth] Error checking initial session:', e);
+    }
+
+    // Listen for auth state changes without triggering unwanted background redirects
+    KivoDb.supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`[KivoAuth] Auth event: ${event}`);
+      const prevUserId = this.user?.id;
+      this.session = session;
+      this.user = session?.user || null;
+
+      if (event === 'SIGNED_OUT') {
         const loginModal = document.getElementById('modal-login');
         if (loginModal) loginModal.style.display = 'none';
         if (window.KivoApp) {
+          KivoApp.state = JSON.parse(JSON.stringify(KivoApp.BLANK_STATE));
+          KivoApp.supabaseConnected = false;
           KivoApp.navigate('landing');
+        }
+      } else if (event === 'SIGNED_IN' && session) {
+        // Only trigger post-login workflow if user was previously not logged in
+        // or changed user, preventing background token refreshes from kicking user to dashboard
+        if (!prevUserId || prevUserId !== session.user.id) {
+          await this.handlePostLogin(session);
         }
       }
     });
   },
 
   /**
-   * Called after any successful sign-in.
-   * Closes login modal, loads data from Supabase, routes user to dashboard or onboarding.
+   * Called after a real sign-in (explicit credentials or OAuth callback).
    */
   handlePostLogin: async function(session) {
+    if (!session || !session.user) return;
     console.log('[KivoAuth] handlePostLogin — user:', session.user.email);
 
     // 1. Close login modal
     const loginModal = document.getElementById('modal-login');
     if (loginModal) loginModal.style.display = 'none';
 
-    // 2. Store user email in app state
+    // 2. Delegate to KivoApp to sync data and determine route (onboarding vs dashboard)
     if (window.KivoApp) {
-      // Ensure app state is initialized
-      if (!KivoApp.state) {
-        KivoApp.state = JSON.parse(JSON.stringify(KivoApp.BLANK_STATE));
-      }
-      // Load any previously saved local state
-      KivoApp.loadState();
-      // Safely set user email (override if needed)
-      KivoApp.state.userEmail = session.user?.email || '';
-      KivoApp.supabaseConnected = true;
-
-      // Load data from Supabase (this also sets isOnboarded if business_settings exist)
-      try {
-        await KivoApp.syncFromSupabase();
-      } catch(e) {
-        console.error('[KivoAuth] syncFromSupabase error after login:', e);
-      }
-
-      // Route: if onboarded → dashboard, else → onboarding
-      if (KivoApp.state.isOnboarded) {
-        KivoApp.showToast(`Bienvenue sur KIVO MATIQUE, ${KivoApp.state.business?.owner || session.user?.email} ! 👋`, 'success');
-        KivoApp.navigate('dashboard');
-      } else {
-        KivoApp.showToast('Connexion réussie ! Configurons votre espace.', 'info');
-        KivoApp.navigate('onboarding');
-      }
-    }
-  },
-
-  handleAuthRedirect: function() {
-    if (!this.session) {
-      console.warn('[KivoAuth] No active session. App data might fail RLS.');
-      document.getElementById('modal-login').style.display = 'flex';
-    } else {
-      console.log('[KivoAuth] User is authenticated:', this.user.email);
-      document.getElementById('modal-login').style.display = 'none';
+      await KivoApp.onUserAuthenticated(session.user);
     }
   },
 
@@ -128,12 +106,12 @@ window.KivoAuth = {
 
   signOut: async function() {
     const { error } = await KivoDb.supabase.auth.signOut();
-    if (error) console.error('[KivoAuth] signOut error:', error.message);
-    else console.log('[KivoAuth] Successfully signed out.');
+    if (error) {
+      console.error('[KivoAuth] signOut error:', error.message);
+    } else {
+      console.log('[KivoAuth] Successfully signed out.');
+      this.session = null;
+      this.user = null;
+    }
   }
 };
-
-// Auto-initialize when the script loads
-document.addEventListener('DOMContentLoaded', () => {
-  KivoAuth.init();
-});

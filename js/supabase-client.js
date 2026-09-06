@@ -99,11 +99,34 @@ if (window.KivoDb) {
 
     loadAll: async function () {
       console.log('[KivoDb] Loading all data from Supabase...');
-      const { data: settings }   = await _kivoClient.from('business_settings').select('*');
-      const { data: clients }    = await _kivoClient.from('clients').select('*').order('created_at', { ascending: false });
-      const { data: catalog }    = await _kivoClient.from('catalog').select('*').order('created_at', { ascending: true });
-      const { data: documents }  = await _kivoClient.from('documents').select('*').order('created_at', { ascending: false });
-      const { data: activities } = await _kivoClient.from('activities').select('*').order('created_at', { ascending: false }).limit(50);
+      // Get current authenticated user to enforce strict isolation
+      const { data: userData } = await _kivoClient.auth.getUser();
+      const user = userData?.user;
+      if (!user) {
+        console.warn('[KivoDb] loadAll: No authenticated user. Returning empty datasets.');
+        return {
+          settings:   [],
+          clients:    [],
+          catalog:    [],
+          documents:  [],
+          activities: []
+        };
+      }
+
+      // Strictly filter business_settings by this user's ID
+      const { data: settings, error: sErr } = await _kivoClient
+        .from('business_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (sErr) console.error('[KivoDb] Error fetching settings:', sErr);
+
+      const { data: clients }    = await _kivoClient.from('clients').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+      const { data: catalog }    = await _kivoClient.from('catalog').select('*').eq('user_id', user.id).order('created_at', { ascending: true });
+      const { data: documents }  = await _kivoClient.from('documents').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+      const { data: activities } = await _kivoClient.from('activities').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50);
       return {
         settings:   settings   || [],
         clients:    clients    || [],
@@ -123,7 +146,39 @@ if (window.KivoDb) {
 
     saveClient:      async function (client)   { return this.upsert('clients', client); },
     saveCatalogItem: async function (item)     { return this.upsert('catalog', item); },
-    saveSettings:    async function (settings) { return this.upsert('business_settings', settings); },
+    saveSettings:    async function (settings) {
+      const { data: userData } = await _kivoClient.auth.getUser();
+      const user = userData?.user;
+      if (!user) throw new Error("Utilisateur non authentifié.");
+
+      const payload = { ...settings, user_id: user.id };
+
+      // Check if existing settings record exists for this user
+      const { data: existing } = await _kivoClient
+        .from('business_settings')
+        .select('id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        payload.updated_at = new Date().toISOString();
+        const { data: updated, error } = await _kivoClient
+          .from('business_settings')
+          .update(payload)
+          .eq('id', existing[0].id)
+          .select();
+        if (error) throw error;
+        return updated;
+      } else {
+        const { data: inserted, error } = await _kivoClient
+          .from('business_settings')
+          .insert(payload)
+          .select();
+        if (error) throw error;
+        return inserted;
+      }
+    },
 
     uploadLogo: async function (file, userId) {
       try {

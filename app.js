@@ -139,14 +139,22 @@ window.KivoApp = {
 
   /**
    * Initializes application state and router
-   * Auth is checked FIRST — app waits for session before showing any data
+   * Centralized single source of truth for boot & routing
    */
   init: async function () {
     console.log("[KivoApp] Initializing KIVO MATIQUE application...");
     this.setupRouting();
     this.setupEventListeners();
 
-    // 1. Check Supabase session first
+    // 1. Check if returning from Google OAuth (URL hash contains access_token or query contains code)
+    const hasOAuthCallback = window.location.hash.includes('access_token=') || window.location.search.includes('code=');
+
+    // 2. Initialize Auth client
+    if (window.KivoAuth && typeof window.KivoAuth.init === 'function') {
+      await window.KivoAuth.init();
+    }
+
+    // 3. Check Supabase session
     let session = null;
     try {
       if (window.KivoDb && window.KivoDb.supabase) {
@@ -159,6 +167,10 @@ window.KivoApp = {
             await KivoDb.supabase.auth.signOut();
           } else {
             session = rawSession;
+            if (window.KivoAuth) {
+              KivoAuth.session = session;
+              KivoAuth.user = userData.user;
+            }
           }
         }
       }
@@ -166,25 +178,85 @@ window.KivoApp = {
       console.warn('[KivoApp] Error checking session:', e);
     }
 
-    if (session) {
-      document.getElementById('modal-login').style.display = 'none';
-      // Clean up any legacy non-user-scoped key
-      localStorage.removeItem('kivo_app_state');
+    // If returning from OAuth, clean URL hash/query smoothly without breaking router
+    if (hasOAuthCallback && session) {
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+
+    if (session && session.user) {
+      const loginModal = document.getElementById('modal-login');
+      if (loginModal) loginModal.style.display = 'none';
+      localStorage.removeItem('kivo_app_state'); // Purge legacy unscoped state
+      this.state.userEmail = session.user.email || '';
       this.loadState();
       this.supabaseConnected = true;
-      this.handleRoute();
+
+      // Sync user data from Supabase to evaluate real onboarding status
       try {
         await this.syncFromSupabase();
       } catch (e) {
-        console.error('[KivoApp] Supabase sync error:', e);
+        console.error('[KivoApp] Supabase sync error on boot:', e);
       }
-    } else {
-      // Unauthenticated visitor: load landing page cleanly without blocking modal
-      console.log('[KivoApp] Unauthenticated visitor — rendering clean landing page.');
-      document.getElementById('modal-login').style.display = 'none';
-      this.supabaseConnected = true;
-      this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
+
+      // If user is not onboarded yet, pre-fill form with OAuth/signup metadata
+      if (!this.state.isOnboarded) {
+        this.prefillOnboardingWithAuthUser(session.user);
+      }
+
       this.handleRoute();
+    } else {
+      // Unauthenticated visitor: start with clean blank state, no fake data
+      console.log('[KivoApp] Visitor session — rendering public landing view.');
+      const loginModal = document.getElementById('modal-login');
+      if (loginModal) loginModal.style.display = 'none';
+      this.supabaseConnected = false;
+      this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
+      this.state.isOnboarded = false;
+      this.handleRoute();
+    }
+  },
+
+  /**
+   * Central callback when a user authenticates (via email form or OAuth)
+   */
+  onUserAuthenticated: async function (user) {
+    if (!user) return;
+    console.log('[KivoApp] onUserAuthenticated for:', user.email);
+    this.state.userEmail = user.email || '';
+    this.supabaseConnected = true;
+    this.loadState();
+
+    try {
+      await this.syncFromSupabase();
+    } catch (e) {
+      console.error('[KivoApp] syncFromSupabase error:', e);
+    }
+
+    if (this.state.isOnboarded) {
+      this.showToast("Connexion réussie.", "success");
+      this.navigate('dashboard');
+    } else {
+      this.prefillOnboardingWithAuthUser(user);
+      this.showToast("Bienvenue ! Configurez votre entreprise pour commencer.", "info");
+      this.navigate('onboarding');
+    }
+  },
+
+  /**
+   * Pre-fills onboarding form with the real authenticated user's details
+   */
+  prefillOnboardingWithAuthUser: function (user) {
+    if (!user) return;
+    const emailEl = document.getElementById('onboard-biz-email');
+    if (emailEl) {
+      emailEl.value = user.email || '';
+    }
+    const ownerEl = document.getElementById('onboard-biz-owner');
+    if (ownerEl && !ownerEl.value) {
+      const metaName = user.user_metadata?.full_name || user.user_metadata?.name || '';
+      ownerEl.value = metaName || (user.email ? user.email.split('@')[0] : '');
     }
   },
 
@@ -194,14 +266,11 @@ window.KivoApp = {
   initSupabase: async function () {
     if (!window.KivoDb) return;
     try {
-      // Check auth session (faster than a real ping)
       const { data: { session } } = await KivoDb.supabase.auth.getSession();
       if (!session) {
-        console.warn('[KivoApp] No Supabase session — not loading cloud data yet.');
         return;
       }
       this.supabaseConnected = true;
-      console.log('[KivoApp] ✅ Supabase session active — syncing cloud data...');
       await this.syncFromSupabase();
     } catch (e) {
       console.error('[KivoApp] Supabase init error:', e);
@@ -209,22 +278,25 @@ window.KivoApp = {
   },
 
   /**
-   * Loads all data from Supabase and merges into local state
+   * Loads all data from Supabase and merges into local state.
+   * A user is strictly considered onboarded ONLY if they have a business_settings record
+   * with a non-empty company_name and owner!
    */
   syncFromSupabase: async function () {
     if (!window.KivoDb || !this.supabaseConnected) return;
     const data = await window.KivoDb.loadAll();
     if (!data) return;
 
-    const isNewUser = !data.settings || data.settings.length === 0;
+    const s = (data.settings && data.settings.length > 0) ? data.settings[0] : null;
+    const hasValidProfile = !!(s && s.company_name && s.company_name.trim() !== '' && s.owner && s.owner.trim() !== '');
 
-    if (isNewUser) {
-      // Brand new account — start completely clean. Pull name/email from auth metadata.
-      const authUser = window.KivoAuth?.user;
+    if (!hasValidProfile) {
+      // Brand new or unconfigured account — strictly not onboarded!
       this.state.isOnboarded = false;
+      const authUser = window.KivoAuth?.user;
+      this.state.business = JSON.parse(JSON.stringify(this.BLANK_STATE.business));
       this.state.business.owner = authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || '';
       this.state.business.email = authUser?.email || '';
-      this.state.business.name = 'Mon Entreprise';
       this.state.clients = [];
       this.state.documents = [];
       this.state.catalog = [];
@@ -310,7 +382,7 @@ window.KivoApp = {
 
     this.saveState();
     this.renderCurrentView();
-    console.log('[KivoApp] Supabase sync complete. isNewUser:', isNewUser);
+    console.log('[KivoApp] Supabase sync complete. isOnboarded:', this.state.isOnboarded);
   },
 
   /**
@@ -447,23 +519,35 @@ window.KivoApp = {
       anchorTarget = rawView;
     }
 
-    if (!viewName) viewName = '';
-
-    const publicViews = ['landing', 'auth', 'onboarding', 'public-doc', 'pricing'];
-    const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'catalog', 'reminders', 'analytics', 'settings', 'ai', 'pricing', 'team', 'integrations'];
-    const validViews = [...publicViews, ...appViews];
+    const publicViews = ['landing', 'auth', 'public-doc', 'pricing'];
+    const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'catalog', 'reminders', 'analytics', 'settings', 'ai', 'team', 'integrations'];
+    const validViews = [...publicViews, ...appViews, 'onboarding'];
 
     if (!validViews.includes(viewName)) {
       viewName = '';
     }
 
+    const isAuthenticated = !!(window.KivoAuth && window.KivoAuth.user);
     const isOnboarded = this.state && this.state.isOnboarded === true;
 
-    if (!viewName) {
-      viewName = isOnboarded ? 'dashboard' : 'landing';
-    } else if (!isOnboarded && appViews.includes(viewName) && !publicViews.includes(viewName)) {
-      this.showToast("Veuillez vous connecter ou créer votre compte KIVO MATIQUE.", "info");
-      viewName = 'landing';
+    // Single Central Decision Logic:
+    if (!isAuthenticated) {
+      // 1. VISITOR: strictly public views only. No fake accounts, no demo bypass.
+      if (!publicViews.includes(viewName)) {
+        viewName = 'landing';
+      }
+    } else if (!isOnboarded) {
+      // 2. AUTHENTICATED BUT ONBOARDING INCOMPLETE:
+      // Mandatory onboarding before accessing dashboard or document management
+      if (viewName !== 'onboarding' && viewName !== 'public-doc') {
+        viewName = 'onboarding';
+      }
+    } else {
+      // 3. AUTHENTICATED AND ONBOARDED:
+      // Redirect from landing, auth, or onboarding to dashboard. Keep active subviews (documents, clients, etc.)
+      if (!viewName || viewName === 'landing' || viewName === 'auth' || viewName === 'onboarding') {
+        viewName = 'dashboard';
+      }
     }
 
     this.activeView = viewName;
@@ -1133,10 +1217,36 @@ window.KivoApp = {
   openNewDocModal: function (type = 'invoice') {
     if (!this.state) this.state = {};
     if (!this.state.business) this.state.business = JSON.parse(JSON.stringify(this.BLANK_STATE.business));
+    const gSelect = document.getElementById('gallery-doc-type');
+    if (gSelect) gSelect.value = type;
+    const aiSelect = document.getElementById('ai-mode-doc-type');
+    if (aiSelect) aiSelect.value = type;
     this.openModal('modal-new-doc-choice');
+    this.switchDocCreationTab('templates');
     if (typeof this.renderTemplateGallery === 'function') {
       this.renderTemplateGallery();
     }
+  },
+
+  /**
+   * Called when document type changes between invoice and quote inside the editor
+   */
+  updateBuilderTypeState: function () {
+    const typeSelect = document.getElementById('builder-doc-type');
+    const docType = typeSelect ? typeSelect.value : 'invoice';
+    const titleEl = document.getElementById('builder-page-title');
+    if (titleEl) {
+      titleEl.textContent = (docType === 'quote') ? 'Créer un devis' : 'Créer une facture';
+    }
+    const docIdEl = document.getElementById('builder-doc-id');
+    // If creating a fresh document (not editing an existing one), refresh the sequential number
+    if (!docIdEl || !docIdEl.value) {
+      const numEl = document.getElementById('builder-doc-number');
+      if (numEl) {
+        numEl.value = this.generateDocumentNumber(docType);
+      }
+    }
+    this.updateLiveInvoicePreview();
   },
 
   /**
@@ -2790,7 +2900,16 @@ window.KivoApp = {
     if (btn) { btn.disabled = false; btn.textContent = 'Se connecter'; }
 
     if (result.error) {
-      this.showToast(result.error.message || "Email ou mot de passe incorrect.", "error");
+      const rawMsg = result.error.message || '';
+      let friendlyMsg = "Email ou mot de passe incorrect.";
+      if (rawMsg.includes('Email not confirmed')) {
+        friendlyMsg = "Votre email n'a pas encore été confirmé. Vérifiez votre boîte mail.";
+      } else if (rawMsg.includes('Too many requests')) {
+        friendlyMsg = "Trop de tentatives. Veuillez patienter quelques minutes.";
+      } else if (rawMsg.includes('User not found') || rawMsg.includes('user not found')) {
+        friendlyMsg = "Aucun compte trouvé avec cet email.";
+      }
+      this.showToast(friendlyMsg, "error");
     }
     // On success, onAuthStateChange fires and handlePostLogin() is called automatically
   },
@@ -2817,23 +2936,23 @@ window.KivoApp = {
     const btn = document.querySelector('#auth-form-register button[type=submit]');
     if (btn) { btn.disabled = true; btn.textContent = 'Création...'; }
 
-    const result = await KivoAuth.signUp(email, pwd);
+    // Pass full_name so it's stored in Supabase user metadata & prefilled in onboarding
+    const result = await KivoAuth.signUp(email, pwd, name);
 
     if (btn) { btn.disabled = false; btn.textContent = 'Créer mon compte ➔'; }
 
     if (result.error) {
       this.showToast(result.error.message || "Erreur lors de l'inscription.", "error");
     } else {
-      // Store the display name locally for onboarding
+      // Store the display name locally for onboarding prefill
       this.state.userEmail = email;
       this.state.business.owner = name;
       this.state.business.email = email;
-      // NOTE: password is NOT stored — Supabase handles it securely
       this.saveState();
 
-      const needsConfirmation = !result.data?.session; // Supabase email confirmation
+      const needsConfirmation = !result.data?.session; // Supabase email confirmation required
       if (needsConfirmation) {
-        this.showToast("Compte créé ! Vérifiez votre email pour confirmer votre inscription.", "success");
+        this.showToast("Compte créé ! Vérifiez votre boîte email pour confirmer votre inscription, puis revenez vous connecter.", "success");
       } else {
         this.showToast(`🎉 Compte créé ! Configurons votre entreprise...`, "success");
         setTimeout(() => this.navigate('onboarding'), 800);
@@ -2872,15 +2991,8 @@ window.KivoApp = {
   },
 
   fillDemoOnboardingData: function () {
-    document.getElementById('onboard-biz-name').value = "MD Creative Studio";
-    document.getElementById('onboard-biz-owner').value = "Marc Koffi";
-    document.getElementById('onboard-biz-country').value = "Sénégal";
-    document.getElementById('onboard-biz-phone-prefix').value = "+221";
-    document.getElementById('onboard-biz-phone').value = "77 842 19 02";
-    document.getElementById('onboard-biz-currency').value = "FCFA";
-    document.getElementById('onboard-biz-email').value = "marc.koffi@mdcreative.design";
-    document.getElementById('onboard-biz-taxid').value = "SN-NINEA-849204812";
-    this.showToast("⚡ Données de démonstration chargées.", "info");
+    // NEUTRALIZED: no more fake accounts. Pre-fill from real auth user instead.
+    this.prefillOnboardingWithAuthUser(window.KivoAuth?.user || null);
   },
 
   selectedOnboardPlan: 'Pro',
