@@ -1184,7 +1184,7 @@ window.KivoApp = {
       const logoImg = document.getElementById('builder-logo-preview-img');
       const previewBox = document.getElementById('builder-logo-preview-box');
       const uploadPrompt = document.getElementById('builder-logo-upload-prompt');
-      if (logoImg) logoImg.src = biz.logoUrl;
+      if (logoImg) { logoImg.src = biz.logoUrl; logoImg.style.display = 'block'; }
       if (previewBox) previewBox.style.display = 'flex';
       if (uploadPrompt) uploadPrompt.style.display = 'none';
     } else {
@@ -1194,10 +1194,12 @@ window.KivoApp = {
       if (uploadPrompt) uploadPrompt.style.display = 'block';
     }
 
-    // Items
+    // Items - Pre-populate realistic business items so invoice looks full and complete
     const tbody = document.getElementById('builder-items-tbody');
     if (tbody) tbody.innerHTML = '';
-    this.addBuilderLineItem('Prestation de service', 1, 0);
+    this.addBuilderLineItem('Conseil & Stratégie Digitale', 1, 180000, 18);
+    this.addBuilderLineItem('Développement Web & Intégration KIVO', 1, 320000, 18);
+    this.addBuilderLineItem('Maintenance & Support Mensuel', 1, 65000, 18);
 
     this.recalculateBuilderTotals();
     this.updateLiveInvoicePreview();
@@ -1261,7 +1263,7 @@ window.KivoApp = {
   /**
    * Adds a line item row in builder
    */
-  addBuilderLineItem: function (name = '', qty = 1, price = 0, tax = 18) {
+  addBuilderLineItem: function (name = 'Prestation / Article', qty = 1, price = 50000, tax = 18) {
     const tbody = document.getElementById('builder-items-tbody');
     if (!tbody) return;
 
@@ -1271,7 +1273,7 @@ window.KivoApp = {
 
     tr.innerHTML = `
       <td style="padding-bottom: 0.5rem; padding-right: 0.5rem;">
-        <input type="text" class="form-input item-name" value="${name}" placeholder="Description" oninput="KivoApp.updateLiveInvoicePreview()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;">
+        <input type="text" class="form-input item-name" value="${name}" placeholder="Désignation du service ou produit" oninput="KivoApp.updateLiveInvoicePreview()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;">
       </td>
       <td style="padding-bottom: 0.5rem; padding-right: 0.5rem;">
         <input type="number" class="form-input item-qty" value="${qty}" min="1" oninput="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: center;">
@@ -1292,12 +1294,13 @@ window.KivoApp = {
         <strong class="item-total-display" style="font-size: 0.85rem; color: #0F172A;">${(qty * price).toLocaleString('fr-FR')} FCFA</strong>
       </td>
       <td style="text-align: center; vertical-align: middle; padding-bottom: 0.5rem;">
-        <button class="btn btn-danger btn-sm" onclick="this.closest('tr').remove(); KivoApp.recalculateBuilderTotals();" style="background: transparent; border: none; color: #EF4444; font-size: 1rem; cursor: pointer;">✕</button>
+        <button class="btn btn-danger btn-sm" onclick="this.closest('tr').remove(); KivoApp.recalculateBuilderTotals(); KivoApp.updateLiveInvoicePreview();" style="background: transparent; border: none; color: #EF4444; font-size: 1rem; cursor: pointer;" title="Supprimer">✕</button>
       </td>
     `;
 
     tbody.appendChild(tr);
     this.recalculateBuilderTotals();
+    this.updateLiveInvoicePreview();
   },
 
   /**
@@ -1476,19 +1479,18 @@ window.KivoApp = {
         const totalHT = qty * price;
         const taxAmount = totalHT * (taxRate / 100);
 
-        if (name) {
-          subtotal += totalHT;
-          totalTax += taxAmount;
-          rows.push(`
-            <tr>
-              <td style="padding: 0.75rem 0; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #E2E8F0;">${name}</td>
-              <td style="text-align: center; padding: 0.75rem 0; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #E2E8F0;">${qty}</td>
-              <td style="text-align: right; padding: 0.75rem 0; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #E2E8F0;">${price.toLocaleString('fr-FR')} ${currency}</td>
-              <td style="text-align: center; padding: 0.75rem 0; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #E2E8F0;">${taxRate}%</td>
-              <td style="text-align: right; padding: 0.75rem 0; font-size: 0.85rem; color: #0F172A; font-weight: 600; border-bottom: 1px solid #E2E8F0;">${totalHT.toLocaleString('fr-FR')} ${currency}</td>
-            </tr>
-          `);
-        }
+        // Always push even if name is blank — so freshly-added rows appear immediately
+        subtotal += totalHT;
+        totalTax += taxAmount;
+        rows.push(`
+          <tr>
+            <td style="padding: 0.75rem 0; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #E2E8F0;">${name || 'Nouvelle prestation'}</td>
+            <td style="text-align: center; padding: 0.75rem 0; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #E2E8F0;">${qty}</td>
+            <td style="text-align: right; padding: 0.75rem 0; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #E2E8F0;">${price.toLocaleString('fr-FR')} ${currency}</td>
+            <td style="text-align: center; padding: 0.75rem 0; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #E2E8F0;">${taxRate}%</td>
+            <td style="text-align: right; padding: 0.75rem 0; font-size: 0.85rem; color: #0F172A; font-weight: 600; border-bottom: 1px solid #E2E8F0;">${totalHT.toLocaleString('fr-FR')} ${currency}</td>
+          </tr>
+        `);
       });
 
       if (rows.length === 0) {
@@ -2982,38 +2984,7 @@ window.KivoApp = {
     this.updateUserBrandingUI();
   },
 
-  handleLogoUpload: async function (files) {
-    if (!files || files.length === 0) return;
-    const file = files[0];
-    
-    if (!window.KivoAuth || !window.KivoAuth.user) {
-      this.showToast("⚠️ Vous devez être connecté pour importer un logo.", "danger");
-      return;
-    }
-    
-    this.showToast("⏳ Importation du logo en cours...", "info");
-    
-    const userId = window.KivoAuth.user.id;
-    const publicUrl = await window.KivoDb.uploadLogo(file, userId);
-    
-    if (publicUrl) {
-      this.state.business.logoUrl = publicUrl;
-      this.saveState();
-      
-      const previewBadge = document.getElementById('setting-logo-preview-badge');
-      if (previewBadge) {
-        previewBadge.innerHTML = `<img src="${publicUrl}" style="width:100%; height:100%; object-fit:cover;">`;
-      }
-      
-      this.showToast("✅ Logo importé avec succès !", "success");
-      this.updateUserBrandingUI();
-      
-      // Save logo URL to Supabase business settings
-      this.saveSettings();
-    } else {
-      this.showToast("❌ Échec de l'importation du logo.", "danger");
-    }
-  },
+  // handleLogoUpload is defined below (FileReader + extractColors version)
 
   openModal: function (modalId) {
     const el = document.getElementById(modalId);
@@ -3190,69 +3161,111 @@ window.KivoApp = {
     this.showToast('Palette appliquée', 'success');
   },
 
-  handleLogoUpload: function (input) {
-    if (input.files && input.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const preview = document.getElementById('builder-logo-preview-img');
-        if (preview) {
-           preview.src = e.target.result;
-           preview.style.display = 'block';
-           
-           // Show extract color button
-           const extractBtn = document.getElementById('btn-extract-colors');
-           if (extractBtn) extractBtn.style.display = 'inline-block';
-        }
-        
-        // Also upload to Supabase
-        if (window.KivoDb && window.KivoAuth && window.KivoAuth.user) {
-          this.showToast('Upload du logo en cours...', 'info');
-          window.KivoDb.uploadLogo(input.files[0], window.KivoAuth.user.id).then(url => {
-            if (url) {
-              if (!this.state.business) this.state.business = {};
-              this.state.business.logoUrl = url;
-              this.updateLiveInvoicePreview();
-              this.showToast('Logo enregistré !', 'success');
-            }
-          });
-        }
-      };
-      reader.readAsDataURL(input.files[0]);
+  handleLogoUpload: function (inputOrFiles) {
+    let file = null;
+    if (inputOrFiles instanceof FileList && inputOrFiles.length > 0) {
+      file = inputOrFiles[0];
+    } else if (inputOrFiles && inputOrFiles.files && inputOrFiles.files.length > 0) {
+      file = inputOrFiles.files[0];
+    } else if (inputOrFiles && inputOrFiles instanceof File) {
+      file = inputOrFiles;
     }
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      this.state.business = this.state.business || {};
+      this.state.business.logoUrl = dataUrl;
+
+      // Update builder previews
+      const preview = document.getElementById('builder-logo-preview-img');
+      const previewBox = document.getElementById('builder-logo-preview-box');
+      const uploadPrompt = document.getElementById('builder-logo-upload-prompt');
+      if (preview) {
+        preview.src = dataUrl;
+        preview.style.display = 'block';
+      }
+      if (previewBox) previewBox.style.display = 'flex';
+      if (uploadPrompt) uploadPrompt.style.display = 'none';
+
+      // Update settings preview
+      const settingBadge = document.getElementById('setting-logo-preview-badge');
+      if (settingBadge) {
+        settingBadge.innerHTML = `<img src="${dataUrl}" style="width:100%; height:100%; object-fit:contain;">`;
+      }
+
+      this.saveState();
+
+      // Automatically extract logo color and update live invoice preview
+      setTimeout(() => {
+        this.extractColorsFromLogo();
+        this.updateLiveInvoicePreview();
+      }, 60);
+
+      // Also upload to Supabase in the background if connected
+      if (window.KivoDb && window.KivoAuth && window.KivoAuth.user) {
+        window.KivoDb.uploadLogo(file, window.KivoAuth.user.id).then(url => {
+          if (url) {
+            this.state.business.logoUrl = url;
+            this.saveState();
+            this.updateLiveInvoicePreview();
+            if (this.supabaseConnected) this.saveSettings();
+          }
+        }).catch(err => console.warn('Supabase logo upload error:', err));
+      }
+
+      this.showToast('✅ Logo importé et couleurs adaptées !', 'success');
+    };
+    reader.readAsDataURL(file);
   },
 
   extractColorsFromLogo: function () {
     const img = document.getElementById('builder-logo-preview-img');
-    if (!img || !img.src) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    canvas.width = img.naturalWidth || img.width || 100;
-    canvas.height = img.naturalHeight || img.height || 100;
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    
-    try {
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-      let r = 0, g = 0, b = 0, count = 0;
-      for (let i = 0; i < imageData.length; i += 4) {
-        if (imageData[i+3] > 128) {
-          if (imageData[i] > 240 && imageData[i+1] > 240 && imageData[i+2] > 240) continue;
-          r += imageData[i]; g += imageData[i+1]; b += imageData[i+2]; count++;
+    const logoSrc = (img && img.src) || (this.state.business && this.state.business.logoUrl);
+    if (!logoSrc) return;
+
+    const tempImg = new Image();
+    tempImg.crossOrigin = "Anonymous";
+    tempImg.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        canvas.width = Math.min(tempImg.naturalWidth || 100, 200);
+        canvas.height = Math.min(tempImg.naturalHeight || 100, 200);
+        ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        let r = 0, g = 0, b = 0, count = 0;
+        for (let i = 0; i < imageData.length; i += 4) {
+          const a = imageData[i+3];
+          const pr = imageData[i];
+          const pg = imageData[i+1];
+          const pb = imageData[i+2];
+          // Filter out transparent and pure white/black background pixels
+          if (a > 120 && !(pr > 235 && pg > 235 && pb > 235) && !(pr < 25 && pg < 25 && pb < 25)) {
+            r += pr; g += pg; b += pb; count++;
+          }
         }
+        if (count > 0) {
+          r = Math.floor(r / count);
+          g = Math.floor(g / count);
+          b = Math.floor(b / count);
+          const toHex = (c) => { const h = c.toString(16); return h.length === 1 ? '0' + h : h; };
+          const primaryHex = '#' + toHex(r) + toHex(g) + toHex(b);
+          this.state.business = this.state.business || {};
+          this.state.business.primaryColor = primaryHex;
+          const pInput = document.getElementById('builder-color-primary');
+          if (pInput) pInput.value = primaryHex;
+          this.saveState();
+          this.updateLiveInvoicePreview();
+          this.showToast(`🎨 Couleur détectée du logo (${primaryHex}) et appliquée !`, 'success');
+        }
+      } catch (e) {
+        console.warn('Auto color extraction warning:', e);
       }
-      if (count > 0) {
-        r = Math.floor(r/count); g = Math.floor(g/count); b = Math.floor(b/count);
-        const toHex = (c) => { const h = c.toString(16); return h.length === 1 ? '0'+h : h; };
-        const primaryHex = '#' + toHex(r) + toHex(g) + toHex(b);
-        this.applyPalette(primaryHex, '#64748B');
-        this.showToast('Palette générée avec succès !', 'success');
-      } else {
-        this.showToast('Couleur introuvable', 'error');
-      }
-    } catch(e) {
-      console.error(e);
-      this.showToast('Erreur lors de l\'analyse du logo', 'error');
-    }
+    };
+    tempImg.src = logoSrc;
   },
 
   /**
