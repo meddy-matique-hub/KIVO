@@ -378,8 +378,8 @@
                     <span class="badge" style="position: absolute; top: -12px; right: 24px; background: #2563EB; color: #FFF; font-weight: 700; font-size: 0.75rem; padding: 4px 10px;">Recommandé</span>
                     <div>
                       <h3 style="font-size: 1.25rem; font-weight: 700; color: #0F172A;">Pro</h3>
-                      <div style="font-size: 2.25rem; font-weight: 800; font-family: var(--font-heading); color: #2563EB; margin: 0.75rem 0;">2 590 FCFA <span style="font-size: 0.9rem; font-weight: 500; color: #64748B;">/ mois</span></div>
-                      <p style="color: #64748B; font-size: 0.9rem; margin-bottom: 1.5rem;">Pour les créateurs, freelances et professionnels actifs.</p>
+                      <div style="font-size: 2.25rem; font-weight: 800; font-family: var(--font-heading); color: #2563EB; margin: 0.75rem 0;">3 990 FCFA <span style="font-size: 0.9rem; font-weight: 500; color: #64748B;">/ mois</span></div>
+                      <p style="color: #64748B; font-size: 0.9rem; margin-bottom: 1.5rem;">Pour les créateurs, freelances et professionnels actifs (ou 38 380 FCFA/an soit 3 190 F/mois).</p>
                       <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem; color: #334155;">
                         <li>✓ Factures & devis illimités</li>
                         <li>✓ Clients & catalogue illimités</li>
@@ -395,10 +395,11 @@
                   <div class="card hover-fx" style="padding: 2.25rem; border-radius: 20px; display: flex; flex-direction: column; justify-content: space-between;">
                     <div>
                       <h3 style="font-size: 1.25rem; font-weight: 700; color: #0F172A;">Business</h3>
-                      <div style="font-size: 2.25rem; font-weight: 800; font-family: var(--font-heading); color: #0F172A; margin: 0.75rem 0;">6 990 FCFA <span style="font-size: 0.9rem; font-weight: 500; color: #64748B;">/ mois</span></div>
-                      <p style="color: #64748B; font-size: 0.9rem; margin-bottom: 1.5rem;">Pour les entreprises et équipes en développement.</p>
+                      <div style="font-size: 2.25rem; font-weight: 800; font-family: var(--font-heading); color: #0F172A; margin: 0.75rem 0;">9 990 FCFA <span style="font-size: 0.9rem; font-weight: 500; color: #64748B;">/ mois</span></div>
+                      <p style="color: #64748B; font-size: 0.9rem; margin-bottom: 1.5rem;">Pour les entreprises et équipes (ou 95 880 FCFA/an soit 7 990 F/mois · 5 sièges inclus).</p>
                       <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem; color: #334155;">
                         <li>✓ Tout le forfait Pro</li>
+                        <li>✓ 5 sièges inclus (+1 500 F/membre sup.)</li>
                         <li>✓ Multi-utilisateurs & permissions</li>
                         <li>✓ Modèles personnalisés sur-mesure</li>
                         <li>✓ Intégration Stripe & support prioritaire</li>
@@ -672,14 +673,14 @@
                   <div class="card onboard-plan-card selected-plan" id="onboard-plan-pro" style="cursor: pointer; padding: 1.25rem; text-align: center; border: 2px solid var(--primary); background: var(--primary-light);" onclick="KivoApp.selectOnboardingPlan('Pro')">
                     <span class="badge badge-accepted" style="font-size: 0.65rem; margin-bottom: 0.25rem;">Recommandé</span>
                     <h4 style="margin-bottom: 0.25rem; color: var(--primary);">PRO</h4>
-                    <div style="font-weight: 800; font-size: 1.35rem; color: var(--primary);">2 590 FCFA <span style="font-size: 0.75rem; font-weight: 400;">(4 €) /mois</span></div>
-                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.35rem;">Documents illimités, Stripe & Mobile Money.</p>
+                    <div style="font-weight: 800; font-size: 1.35rem; color: var(--primary);">3 990 FCFA <span style="font-size: 0.75rem; font-weight: 400;">/mois</span></div>
+                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.35rem;">Documents illimités, IA, Stripe & Mobile Money.</p>
                   </div>
 
                   <div class="card onboard-plan-card" id="onboard-plan-business" style="cursor: pointer; padding: 1.25rem; text-align: center; border: 2px solid var(--border-color);" onclick="KivoApp.selectOnboardingPlan('Business')">
                     <h4 style="margin-bottom: 0.25rem;">BUSINESS</h4>
-                    <div style="font-weight: 800; font-size: 1.35rem; color: var(--text-primary);">6 990 FCFA <span style="font-size: 0.75rem; font-weight: 400;">(11 €) /mois</span></div>
-                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.35rem;">Multi-devises, Remboursements & API.</p>
+                    <div style="font-weight: 800; font-size: 1.35rem; color: var(--text-primary);">9 990 FCFA <span style="font-size: 0.75rem; font-weight: 400;">/mois</span></div>
+                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.35rem;">5 sièges inclus · Multi-devises, Remboursements & API.</p>
                   </div>
 
                 </div>
@@ -1609,8 +1610,9 @@
                   <div class="pricing-tier-name">FREE</div>
                   <div class="pricing-tier-price">
                     <span class="pricing-price-num" id="price-val-free">0 FCFA</span>
-                    <span class="pricing-price-period">/ mois</span>
+                    <span class="pricing-price-period" id="price-period-free">/ mois</span>
                   </div>
+                  <div class="pricing-tier-conv" id="price-conv-free" style="visibility: hidden;">&nbsp;</div>
                   <div class="pricing-tier-sub">Pour découvrir KIVO</div>
                 </div>
                 <!-- Bottom Half (White on light) -->
@@ -1638,22 +1640,23 @@
                 <div class="pricing-card-top pricing-card-top-gold">
                   <div class="pricing-tier-name pricing-tier-name-gold">PRO</div>
                   <div class="pricing-tier-price">
-                    <span class="pricing-price-num" id="price-val-pro">2 590 FCFA</span>
-                    <span class="pricing-price-period">/ mois</span>
+                    <span class="pricing-price-num" id="price-val-pro">3 990 FCFA</span>
+                    <span class="pricing-price-period" id="price-period-pro">/ mois</span>
                   </div>
-                  <div class="pricing-tier-conv" id="price-conv-pro">≈ 4 € / mois</div>
+                  <div class="pricing-tier-conv" id="price-conv-pro">≈ 6 € / mois</div>
                   <div class="pricing-tier-sub">Pour les indépendants et petites entreprises</div>
                 </div>
                 <!-- Bottom Half (White with gold border) -->
                 <div class="pricing-card-bottom">
                   <ul class="pricing-features-list">
                     <li><span class="p-check p-check-gold">✓</span> Documents illimités</li>
+                    <li><span class="p-check p-check-gold">✓</span> 1 utilisateur inclus</li>
                     <li><span class="p-check p-check-gold">✓</span> Tous les modèles professionnels</li>
                     <li><span class="p-check p-check-gold">✓</span> Personnalisation avancée</li>
                     <li><span class="p-check p-check-gold">✓</span> Création avec IA</li>
                     <li><span class="p-check p-check-gold">✓</span> Gestion complète des clients</li>
                     <li><span class="p-check p-check-gold">✓</span> Statistiques</li>
-                    <li><span class="p-check p-check-gold">✓</span> Paiements en ligne</li>
+                    <li><span class="p-check p-check-gold">✓</span> Paiements en ligne (Stripe & MoMo)</li>
                     <li><span class="p-check p-check-gold">✓</span> Logo et identité visuelle avancée</li>
                   </ul>
                   <button class="pricing-btn pricing-btn-gold" data-tier="Pro" onclick="KivoApp.switchSubscriptionTier('Pro')">
@@ -1668,21 +1671,23 @@
                 <div class="pricing-card-top">
                   <div class="pricing-tier-name">BUSINESS</div>
                   <div class="pricing-tier-price">
-                    <span class="pricing-price-num" id="price-val-biz">6 990 FCFA</span>
-                    <span class="pricing-price-period">/ mois</span>
+                    <span class="pricing-price-num" id="price-val-biz">9 990 FCFA</span>
+                    <span class="pricing-price-period" id="price-period-biz">/ mois</span>
                   </div>
-                  <div class="pricing-tier-conv" id="price-conv-biz">≈ 11 € / mois</div>
+                  <div class="pricing-tier-conv" id="price-conv-biz">5 sièges inclus · +1 500 FCFA/membre sup.</div>
                   <div class="pricing-tier-sub">Pour les entreprises qui veulent automatiser leur facturation</div>
                 </div>
                 <!-- Bottom Half (White) -->
                 <div class="pricing-card-bottom">
                   <ul class="pricing-features-list">
                     <li><span class="p-check">✓</span> Tout ce qui est inclus dans Pro</li>
+                    <li><span class="p-check">✓</span> 5 sièges inclus</li>
+                    <li><span class="p-check">✓</span> Membre sup. : +1 500 FCFA / mois</li>
+                    <li><span class="p-check">✓</span> Gestion membres & rôles</li>
                     <li><span class="p-check">✓</span> Multi-devises</li>
                     <li><span class="p-check">✓</span> Gestion des remboursements</li>
                     <li><span class="p-check">✓</span> API & intégrations</li>
                     <li><span class="p-check">✓</span> Automatisation avancée</li>
-                    <li><span class="p-check">✓</span> Fonctionnalités professionnelles avancées</li>
                   </ul>
                   <button class="pricing-btn pricing-btn-dark" data-tier="Business" onclick="KivoApp.switchSubscriptionTier('Business')">
                     Passer à Business
@@ -1717,6 +1722,18 @@
                         <td class="text-center">3</td>
                         <td class="text-center"><strong>Illimité</strong></td>
                         <td class="text-center"><strong>Illimité</strong></td>
+                      </tr>
+                      <tr>
+                        <td>Sièges / Utilisateurs inclus</td>
+                        <td class="text-center">1 utilisateur</td>
+                        <td class="text-center">1 utilisateur</td>
+                        <td class="text-center"><strong>5 sièges inclus</strong></td>
+                      </tr>
+                      <tr>
+                        <td>Membre supplémentaire</td>
+                        <td class="text-center pf-no">—</td>
+                        <td class="text-center pf-no">—</td>
+                        <td class="text-center"><strong>+1 500 FCFA / mois</strong></td>
                       </tr>
                       <tr>
                         <td>Modèles</td>
@@ -1912,7 +1929,7 @@
                 <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">Gérez la formule commerciale de votre entreprise.</p>
               </div>
               <span class="badge badge-accepted" id="settings-current-plan-badge" style="font-size: 0.85rem; padding: 0.35rem 0.85rem;">
-                ✓ Forfait Actif : PRO (2 590 FCFA / 4€ par mois)
+                ✓ Forfait Actif : PRO (3 990 FCFA / mois)
               </span>
             </div>
 
@@ -1927,15 +1944,15 @@
               <div class="card" id="setting-plan-card-pro" style="padding: 1.25rem; text-align: center; border: 2px solid var(--primary); background: var(--primary-light);">
                 <span class="badge badge-accepted" style="font-size: 0.65rem; margin-bottom: 0.25rem;">Populaire</span>
                 <h4 style="margin-bottom: 0.25rem; color: var(--primary);">PRO</h4>
-                <div style="font-weight: 800; font-size: 1.35rem; color: var(--primary);">2 590 FCFA <span style="font-size: 0.75rem;">(4 €) /mois</span></div>
-                <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.35rem 0 1rem 0;">Illimité + IA + Stripe & Mobile Money</p>
+                <div style="font-weight: 800; font-size: 1.35rem; color: var(--primary);">3 990 FCFA <span style="font-size: 0.75rem;">/mois</span></div>
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.35rem 0 1rem 0;">Illimité + IA + Stripe & Mobile Money (38 380 F/an)</p>
                 <button class="btn btn-primary btn-sm" style="width: 100%;" onclick="KivoApp.switchSubscriptionTier('Pro')">Sélectionné ✓</button>
               </div>
 
               <div class="card" id="setting-plan-card-business" style="padding: 1.25rem; text-align: center; border: 1px solid var(--border-color);">
                 <h4 style="margin-bottom: 0.25rem;">BUSINESS</h4>
-                <div style="font-weight: 800; font-size: 1.35rem;">6 990 FCFA <span style="font-size: 0.75rem;">(11 €) /mois</span></div>
-                <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.35rem 0 1rem 0;">Multi-devises, Remboursements & API</p>
+                <div style="font-weight: 800; font-size: 1.35rem;">9 990 FCFA <span style="font-size: 0.75rem;">/mois</span></div>
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.35rem 0 1rem 0;">5 sièges (+1 500 F/membre sup.) · Multi-devises (95 880 F/an)</p>
                 <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="KivoApp.switchSubscriptionTier('Business')">Activer Business</button>
               </div>
             </div>

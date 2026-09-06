@@ -14,10 +14,13 @@
 
 ## 3. Tarification & Abonnements (Subscriptions)
 - **Devises supportées** : FCFA (XOF/XAF), EUR (€), USD ($), CAD ($), GBP (£).
-- **Forfaits KIVO MATIQUE** :
-  - **Gratuit** : Limité (max 3 factures/mois, fonctionnalités de base).
-  - **Pro** : **2 590 FCFA / mois** (~4 € / mois) — Factures illimitées, export PDF, relances automatiques, paiement Mobile Money & Carte.
-  - **Business** : **6 990 FCFA / mois** (~11 € / mois) — Multi-devises, relances IA avancées, support Stripe complet, remboursements & rapports analytiques.
+- **Forfaits KIVO MATIQUE (Tarifs Officiels)** :
+  - **FREE** : **0 FCFA / mois** (Gratuit) — Limité (max 3 documents/mois, 1 utilisateur, modèles essentiels).
+  - **PRO** : **3 990 FCFA / mois** — Factures & devis illimités, 1 utilisateur, tous les modèles pro, IA, paiements Stripe & Mobile Money.
+    - *Annuel PRO (-20%)* : **38 380 FCFA / an** (soit **3 190 FCFA / mois**).
+  - **BUSINESS** : **9 990 FCFA / mois** — Tout Pro + 5 sièges inclus, gestion membres & rôles, multi-devises, remboursements & API.
+    - *Annuel BUSINESS (-20%)* : **95 880 FCFA / an** (soit **7 990 FCFA / mois**).
+    - *Membre supplémentaire* : **+1 500 FCFA / mois** par utilisateur additionnel.
 
 ## 4. Paiements & Stripe
 - Support pour Stripe (Carte bancaire Visa/Mastercard) et Mobile Money (Wave, Orange Money, MTN MoMo).

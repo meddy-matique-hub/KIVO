@@ -3829,13 +3829,22 @@ window.KivoApp = {
     }
 
     // Highlight current subscription tier button
+    const defaultTexts = {
+      'Gratuit': 'Commencer gratuitement',
+      'Pro': 'Passer à Pro',
+      'Business': 'Passer à Business'
+    };
     const currentTier = (biz.subscriptionTier || 'Gratuit').toLowerCase();
     document.querySelectorAll('.pricing-btn[data-tier]').forEach(btn => {
       btn.classList.remove('pricing-btn-current');
-      if (btn.getAttribute('data-tier') && btn.getAttribute('data-tier').toLowerCase() === currentTier) {
+      btn.disabled = false;
+      const tier = btn.getAttribute('data-tier');
+      if (tier && tier.toLowerCase() === currentTier) {
         btn.textContent = '✓ Votre forfait actuel';
         btn.classList.add('pricing-btn-current');
         btn.disabled = true;
+      } else if (tier && defaultTexts[tier]) {
+        btn.textContent = defaultTexts[tier];
       }
     });
 
@@ -3849,9 +3858,13 @@ window.KivoApp = {
   togglePricingBilling: function (billingType) {
     const monthlyBtn = document.getElementById('toggle-billing-monthly');
     const annualBtn = document.getElementById('toggle-billing-annual');
+    const priceValFree = document.getElementById('price-val-free');
+    const pricePeriodFree = document.getElementById('price-period-free');
     const priceValPro = document.getElementById('price-val-pro');
+    const pricePeriodPro = document.getElementById('price-period-pro');
     const priceConvPro = document.getElementById('price-conv-pro');
     const priceValBiz = document.getElementById('price-val-biz');
+    const pricePeriodBiz = document.getElementById('price-period-biz');
     const priceConvBiz = document.getElementById('price-conv-biz');
 
     if (!monthlyBtn || !annualBtn) return;
@@ -3859,17 +3872,27 @@ window.KivoApp = {
     if (billingType === 'monthly') {
       monthlyBtn.classList.add('active');
       annualBtn.classList.remove('active');
-      if (priceValPro) priceValPro.textContent = '2 590 FCFA';
-      if (priceConvPro) priceConvPro.textContent = '≈ 4 € / mois';
-      if (priceValBiz) priceValBiz.textContent = '6 990 FCFA';
-      if (priceConvBiz) priceConvBiz.textContent = '≈ 11 € / mois';
+      if (priceValFree) priceValFree.textContent = '0 FCFA';
+      if (pricePeriodFree) pricePeriodFree.textContent = '/ mois';
+      if (priceValPro) priceValPro.textContent = '3 990 FCFA';
+      if (pricePeriodPro) pricePeriodPro.textContent = '/ mois';
+      if (priceConvPro) priceConvPro.textContent = '≈ 6 € / mois';
+      if (priceValBiz) priceValBiz.textContent = '9 990 FCFA';
+      if (pricePeriodBiz) pricePeriodBiz.textContent = '/ mois';
+      if (priceConvBiz) priceConvBiz.textContent = '5 sièges inclus · +1 500 FCFA/membre sup.';
     } else {
       annualBtn.classList.add('active');
       monthlyBtn.classList.remove('active');
-      if (priceValPro) priceValPro.textContent = '2 070 FCFA';
-      if (priceConvPro) priceConvPro.textContent = '≈ 3,20 € / mois';
-      if (priceValBiz) priceValBiz.textContent = '5 590 FCFA';
-      if (priceConvBiz) priceConvBiz.textContent = '≈ 8,80 € / mois';
+      if (priceValFree) priceValFree.textContent = '0 FCFA';
+      if (pricePeriodFree) pricePeriodFree.textContent = '/ an';
+      // PRO ANNUEL: 38 380 FCFA / an (soit 3 190 FCFA / mois · -20%)
+      if (priceValPro) priceValPro.textContent = '38 380 FCFA';
+      if (pricePeriodPro) pricePeriodPro.textContent = '/ an';
+      if (priceConvPro) priceConvPro.textContent = 'soit 3 190 FCFA / mois (-20%)';
+      // BUSINESS ANNUEL: 95 880 FCFA / an (soit 7 990 FCFA / mois · -20%)
+      if (priceValBiz) priceValBiz.textContent = '95 880 FCFA';
+      if (pricePeriodBiz) pricePeriodBiz.textContent = '/ an';
+      if (priceConvBiz) priceConvBiz.textContent = 'soit 7 990 FCFA / mois (-20%) · +1 500 FCFA/membre sup.';
     }
   },
 
@@ -3895,6 +3918,7 @@ window.KivoApp = {
       date: new Date().toISOString()
     });
     this.saveState();
+    this.renderPricingPage();
   },
 
   /**
