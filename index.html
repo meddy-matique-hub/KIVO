@@ -289,7 +289,7 @@
                     <div class="glass-3d-badge">3D</div>
                     <div class="glass-card-text">
                       <strong>Modèles intelligents</strong>
-                      <span>30 modèles prêts</span>
+                      <span>Quelques modèles prêts</span>
                     </div>
                   </div>
 
@@ -344,50 +344,139 @@
 
               </div>
 
-              <!-- 4. Modèles & Design Showcase Section -->
-              <div id="landing-templates" style="padding: 4rem 0; border-top: 1px solid #E2E8F0;">
-                <div style="text-align: center; max-width: 650px; margin: 0 auto 3rem auto;">
-                  <h2 style="font-family: var(--font-heading); font-size: 2.2rem; font-weight: 800; color: #0F172A; margin-bottom: 0.75rem;">Des modèles prêts pour votre activité</h2>
-                  <p style="color: #475569; font-size: 1rem;">Exportez en PDF haute définition, personnalisez vos couleurs et intégrez votre logo en un instant.</p>
+              <!-- 4. Modèles & Visualiseur Interactif Showcase Section -->
+              <div id="landing-templates" style="padding: 4.5rem 0; border-top: 1px solid #E2E8F0;">
+                <div style="text-align: center; max-width: 680px; margin: 0 auto 2.25rem auto;">
+                  <span class="badge" style="background: #EFF6FF; color: #2563EB; font-weight: 700; font-size: 0.8rem; padding: 4px 12px; margin-bottom: 0.75rem; display: inline-block;">Visualiseur Interactif</span>
+                  <h2 style="font-family: var(--font-heading); font-size: 2.3rem; font-weight: 800; color: #0F172A; margin-bottom: 0.75rem;">Des modèles prêts pour votre activité</h2>
+                  <p style="color: #475569; font-size: 1.05rem; line-height: 1.6;">Testez et visualisez en direct les modèles officiels de KIVO MATIQUE. Export PDF vectoriel 300 DPI, personnalisation immédiate de vos couleurs et calcul automatique de la TVA.</p>
                 </div>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem;">
-                  <div class="card hover-fx" style="padding: 1.25rem; border-radius: 16px; text-align: center; cursor: pointer;" onclick="window.location.hash='#auth'">
-                    <div style="height: 180px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
-                      <div style="position: absolute; top: 0; left: 0; right: 0; height: 12px; background: #059669;"></div>
-                      <span style="font-size: 0.85rem; font-weight: 700; color: #059669;">Green Clean</span>
-                    </div>
-                    <strong style="display: block; font-size: 0.95rem; color: #0F172A;">Green Clean</strong>
-                    <span style="font-size: 0.75rem; color: #64748B;">Épuré avec bande d'en-tête verte</span>
-                  </div>
-
-                  <div class="card hover-fx" style="padding: 1.25rem; border-radius: 16px; text-align: center; cursor: pointer;" onclick="window.location.hash='#auth'">
-                    <div style="height: 180px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
-                      <div style="position: absolute; top: 0; left: 0; right: 0; height: 28px; background: #1E3A8A;"></div>
-                      <span style="font-size: 0.85rem; font-weight: 700; color: #1E3A8A;">Corporate Blue</span>
-                    </div>
-                    <strong style="display: block; font-size: 0.95rem; color: #0F172A;">Corporate Blue</strong>
-                    <span style="font-size: 0.75rem; color: #64748B;">Bandeau bleu profond et mise en page moderne</span>
-                  </div>
-
-                  <div class="card hover-fx" style="padding: 1.25rem; border-radius: 16px; text-align: center; cursor: pointer;" onclick="window.location.hash='#auth'">
-                    <div style="height: 180px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
-                      <div style="position: absolute; top: 0; left: 0; right: 0; height: 8px; background: #0284C7;"></div>
-                      <span style="font-size: 0.85rem; font-weight: 700; color: #0284C7;">Corporate Light</span>
-                    </div>
-                    <strong style="display: block; font-size: 0.95rem; color: #0F172A;">Corporate Light</strong>
-                    <span style="font-size: 0.75rem; color: #64748B;">En-tête aéré et tableau élégant</span>
-                  </div>
-
-                  <div class="card hover-fx" style="padding: 1.25rem; border-radius: 16px; text-align: center; cursor: pointer;" onclick="window.location.hash='#auth'">
-                    <div style="height: 180px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
-                      <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 8px; background: #2563EB;"></div>
-                      <span style="font-size: 0.85rem; font-weight: 700; color: #2563EB;">Bold Blue</span>
-                    </div>
-                    <strong style="display: block; font-size: 0.95rem; color: #0F172A;">Bold Blue</strong>
-                    <span style="font-size: 0.75rem; color: #64748B;">Lignes fortes et contrastes marqués</span>
+                <!-- Template Selector Pills Nav -->
+                <div class="kivo-vis-nav-container">
+                  <div class="kivo-vis-nav" role="tablist">
+                    <button class="kivo-vis-tab" data-template="minimalist" onclick="KivoVisualizer.select('minimalist')">
+                      <span>⚡ Minimalist</span>
+                      <span class="vis-pill-badge">Épuré</span>
+                    </button>
+                    <button class="kivo-vis-tab active" data-template="corporate" onclick="KivoVisualizer.select('corporate')">
+                      <span>🏛️ Corporate</span>
+                      <span class="vis-pill-badge">B2B</span>
+                    </button>
+                    <button class="kivo-vis-tab" data-template="modern" onclick="KivoVisualizer.select('modern')">
+                      <span>🎨 Modern</span>
+                      <span class="vis-pill-badge">Agences</span>
+                    </button>
+                    <button class="kivo-vis-tab" data-template="elegant" onclick="KivoVisualizer.select('elegant')">
+                      <span>👑 Elegant</span>
+                      <span class="vis-pill-badge">Luxe</span>
+                    </button>
+                    <button class="kivo-vis-tab" data-template="clean" onclick="KivoVisualizer.select('clean')">
+                      <span>📐 Modern Clean</span>
+                      <span class="vis-pill-badge">Cyan</span>
+                    </button>
+                    <button class="kivo-vis-tab" data-template="editorial" onclick="KivoVisualizer.select('editorial')">
+                      <span>📰 Editorial</span>
+                      <span class="vis-pill-badge">Impact</span>
+                    </button>
+                    <button class="kivo-vis-tab" data-template="premium" onclick="KivoVisualizer.select('premium')">
+                      <span>✨ Premium Dark</span>
+                      <span class="vis-pill-badge">Cuivre</span>
+                    </button>
                   </div>
                 </div>
+
+                <!-- Main Live Visualizer Stage -->
+                <div class="kivo-visualizer-stage" id="landing-visualizer-stage">
+                  
+                  <!-- Left Column: Specs & Interactive Controls -->
+                  <div class="kivo-vis-details">
+                    <span class="kivo-vis-badge" id="vis-badge">Recommandé B2B</span>
+                    <h3 class="kivo-vis-title" id="vis-title">Corporate</h3>
+                    <p class="kivo-vis-desc" id="vis-desc">Formel et structuré avec un bandeau bleu marine contrasté. Le standard par excellence pour les entreprises, PME, cabinets et échanges inter-entreprises.</p>
+                    
+                    <!-- Controls Card -->
+                    <div class="kivo-vis-controls-card">
+                      <div class="kivo-vis-control-row">
+                        <span class="kivo-vis-control-label">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                          Type de document
+                        </span>
+                        <div class="kivo-segmented-group">
+                          <button class="kivo-segmented-btn active" id="vis-btn-invoice" onclick="KivoVisualizer.setType('invoice')">📄 Facture</button>
+                          <button class="kivo-segmented-btn" id="vis-btn-quote" onclick="KivoVisualizer.setType('quote')">📝 Devis</button>
+                        </div>
+                      </div>
+
+                      <div class="kivo-vis-control-row">
+                        <span class="kivo-vis-control-label">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                          Statut de règlement
+                        </span>
+                        <div class="kivo-segmented-group">
+                          <button class="kivo-segmented-btn active" id="vis-btn-paid" onclick="KivoVisualizer.setPaid(true)">✓ Payée (Tampon)</button>
+                          <button class="kivo-segmented-btn" id="vis-btn-pending" onclick="KivoVisualizer.setPaid(false)">⏳ En attente</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Key highlights -->
+                    <ul class="kivo-vis-features-list">
+                      <li>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Export PDF haute fidélité (A4 vectoriel prêt pour impression)</span>
+                      </li>
+                      <li>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Calculs automatisés HT, TVA (18% / 20%) et Total TTC</span>
+                      </li>
+                      <li>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>QR Code Wave & Mobile Money pour encaissement instantané</span>
+                      </li>
+                    </ul>
+
+                    <!-- CTA -->
+                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                      <a href="#auth" class="btn btn-primary" style="padding: 0.85rem 1.6rem; font-size: 0.95rem; font-weight: 700; border-radius: 9999px; box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.35); display: inline-flex; align-items: center; gap: 6px;">
+                        <span>Créer une facture avec ce modèle</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                      </a>
+                    </div>
+                  </div>
+
+                  <!-- Right Column: Live Document Window Frame -->
+                  <div class="kivo-visualizer-window">
+                    <div class="kivo-vis-window-top">
+                      <div class="kivo-vis-window-dots">
+                        <span style="background: #EF4444;"></span>
+                        <span style="background: #F59E0B;"></span>
+                        <span style="background: #10B981;"></span>
+                      </div>
+                      <div class="kivo-vis-filename" id="vis-doc-name">FAC-2026-0042_corporate.pdf</div>
+                      <div class="kivo-vis-window-badge">Format A4 · 300 DPI</div>
+                    </div>
+
+                    <div class="kivo-visualizer-sheet-wrap">
+                      <div class="kivo-visualizer-sheet" id="vis-canvas">
+                        <!-- Populated dynamically by KivoVisualizer with real template HTML -->
+                        <div style="padding: 3rem; text-align: center; color: #64748B;">Chargement du modèle...</div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                <!-- Collection Grid Below Visualizer -->
+                <div style="text-align: center; margin-bottom: 2rem;">
+                  <h3 style="font-family: var(--font-heading); font-size: 1.4rem; font-weight: 700; color: #0F172A; margin-bottom: 0.4rem;">Explorez toute la collection de modèles</h3>
+                  <p style="color: #64748B; font-size: 0.9rem;">Cliquez sur un modèle pour l'afficher instantanément dans le visualiseur ci-dessus.</p>
+                </div>
+
+                <div class="kivo-vis-gallery-grid" id="landing-vis-gallery">
+                  <!-- Injected dynamically by KivoVisualizer with miniPreview cards -->
+                </div>
+
               </div>
 
               <!-- 5. Tarifs Section -->
@@ -2767,8 +2856,8 @@
           <div style="display: flex; align-items: center; gap: 0.75rem;">
             <div style="width: 38px; height: 38px; border-radius: 50%; background: #FEF2F2; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">🌐</div>
             <div>
-              <strong style="font-size: 0.95rem; display: block; color: var(--text-primary);">Authentification Supabase Cloud</strong>
-              <span style="font-size: 0.82rem; color: var(--text-muted);">Protection par RLS (Row Level Security)</span>
+              <strong style="font-size: 0.95rem; display: block; color: var(--text-primary);">Synchronisation Cloud Sécurisée</strong>
+              <span style="font-size: 0.82rem; color: var(--text-muted);">Protection chiffrée & isolation stricte de vos données</span>
             </div>
           </div>
           <span style="background: #E0E7FF; color: #3730A3; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 9999px;">Sécurisé</span>

@@ -731,6 +731,11 @@ window.KivoApp = {
       case 'pricing':
         this.renderPricingPage();
         break;
+      case 'landing':
+        if (window.KivoVisualizer) {
+          window.KivoVisualizer.init();
+        }
+        break;
       default:
         break;
     }
