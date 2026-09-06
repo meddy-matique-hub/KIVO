@@ -1090,16 +1090,13 @@ window.KivoApp = {
    * Opens New Document Choice Modal
    * Guard: do not open if app state is not ready (user not fully loaded)
    */
-  openNewDocModal: function () {
-    if (!this.state || !this.state.business) {
-      this.showToast("Chargement en cours... Veuillez patienter.", "info");
-      return;
-    }
-    if (!this.state.isOnboarded) {
-      this.showToast("Veuillez déabord vous connecter pour créer une facture.", "info");
-      return;
-    }
+  openNewDocModal: function (type = 'invoice') {
+    if (!this.state) this.state = {};
+    if (!this.state.business) this.state.business = JSON.parse(JSON.stringify(this.BLANK_STATE.business));
     this.openModal('modal-new-doc-choice');
+    if (typeof this.renderTemplateGallery === 'function') {
+      this.renderTemplateGallery();
+    }
   },
 
   /**
