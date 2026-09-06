@@ -462,7 +462,7 @@ window.KivoApp = {
     if (!viewName) viewName = '';
 
     const publicViews = ['landing', 'auth', 'onboarding', 'public-doc'];
-    const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'catalog', 'reminders', 'analytics', 'settings'];
+    const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'catalog', 'reminders', 'analytics', 'settings', 'ai'];
     const validViews = [...publicViews, ...appViews];
 
     if (!validViews.includes(viewName)) {
@@ -613,6 +613,9 @@ window.KivoApp = {
         break;
       case 'settings':
         this.renderSettings();
+        break;
+      case 'ai':
+        this.renderAiPage();
         break;
       default:
         break;
@@ -3013,8 +3016,341 @@ window.KivoApp = {
     if (el) el.classList.remove('active');
   },
 
+
+  // ===========================
+  // PAGE « CRÉATION AVEC L'IA »
+  // ===========================
+
+  /** Holds the last document generated via the AI page */
+  _aiGeneratedDoc: null,
+
+  /**
+   * Called by renderCurrentView when activeView === 'ai'.
+   * Initialises the live preview tablet with placeholder invoice data.
+   */
+  renderAiPage: function () {
+    this._renderAiTabletPreview(this._aiGeneratedDoc || null);
+  },
+
+  /**
+   * Renders the glass-tablet invoice preview inside the AI page.
+   * @param {Object|null} doc  - Parsed invoice doc or null for default demo.
+   */
+  _renderAiTabletPreview: function (doc) {
+    const paper = document.getElementById('ai-tablet-paper');
+    if (!paper) return;
+
+    const biz = (this.state && this.state.business) || {};
+    const logoUrl = biz.logoUrl || null;
+    const bizName = biz.name || 'KIVO';
+    const bizAddress = biz.address || '20 rue de la Paix, Paris';
+    const bizPhone = biz.phone || '+33 1 23 45 67 89';
+    const primaryColor = biz.primaryColor || '#0B132B';
+
+    let docNum = 'INV-2024-0001';
+    let clientName = 'John Logo';
+    let clientAddress = '200 Connaissance\nMakeni Street';
+    let clientPhone = '004 604 5050';
+    let issuedDate = '25 janvier 2023';
+    let dueDate = '18 janvier 2023';
+    let availDate = '27 janvier 2023';
+    let lineItems = [
+      { desc: 'Facture minimaliste', qty: 1, price: 250 },
+      { desc: "Couleur de la la minimisation", qty: 1, price: 160 },
+      { desc: 'Commevo code sjec co couleurs', qty: 1, price: 50 },
+      { desc: 'Inspirée de mon modèle bio', qty: 1, price: 20 },
+    ];
+    let taxRate = 0;
+
+    if (doc) {
+      docNum = doc.docNumber || docNum;
+      if (doc.client) {
+        clientName = doc.client.name || clientName;
+        clientAddress = doc.client.address || clientAddress;
+        clientPhone = doc.client.phone || clientPhone;
+      }
+      if (doc.items && doc.items.length) lineItems = doc.items.map(it => ({ desc: it.description, qty: it.qty || 1, price: it.unitPrice || 0 }));
+      taxRate = doc.taxRate || 0;
+    }
+
+    const subtotal = lineItems.reduce((s, it) => s + (it.qty * it.price), 0);
+    const taxAmt = subtotal * taxRate / 100;
+    const total = subtotal + taxAmt;
+    const fmt = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2 });
+
+    const logoHtml = logoUrl
+      ? `<img src="${logoUrl}" style="height:28px; max-width:80px; object-fit:contain;">`
+      : `<span style="font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:900;color:${primaryColor};letter-spacing:-0.02em;">${bizName}</span>`;
+
+    const badgeLetter = bizName.charAt(0).toUpperCase();
+
+    paper.innerHTML = `
+      <!-- Invoice header -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+        <div>${logoHtml}</div>
+        <div style="width:32px;height:32px;border-radius:50%;background:${primaryColor};display:flex;align-items:center;justify-content:center;">
+          <span style="color:#FFF;font-weight:800;font-size:0.85rem;font-family:'Outfit',sans-serif;">${badgeLetter}</span>
+        </div>
+      </div>
+
+      <!-- Sender + Invoice meta -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+        <div style="font-size:0.62rem;color:#475569;line-height:1.55;">
+          <div style="font-weight:600;color:#0F172A;font-size:0.68rem;">${clientName}</div>
+          <div>${clientAddress.replace(/\n/g,'<br>')}</div>
+          <div>${clientPhone}</div>
+        </div>
+        <div style="text-align:right;font-size:0.62rem;color:#475569;line-height:1.6;">
+          <div style="font-weight:700;color:#0F172A;font-size:0.8rem;margin-bottom:0.25rem;">Invoice</div>
+          <div><span style="color:#94A3B8;">Total date:</span> ${issuedDate}</div>
+          <div><span style="color:#94A3B8;">Facture de nuit:</span> ${dueDate}</div>
+          <div><span style="color:#94A3B8;">Invalide:</span> ${availDate}</div>
+        </div>
+      </div>
+
+      <!-- Line items table -->
+      <table style="width:100%;border-collapse:collapse;font-size:0.6rem;margin-bottom:0.6rem;">
+        <thead>
+          <tr style="background:${primaryColor};color:#FFF;">
+            <th style="padding:0.35rem 0.45rem;text-align:left;font-weight:600;border-radius:3px 0 0 3px;">No.</th>
+            <th style="padding:0.35rem 0.45rem;text-align:left;font-weight:600;">Description</th>
+            <th style="padding:0.35rem 0.45rem;text-align:right;font-weight:600;">Quantity</th>
+            <th style="padding:0.35rem 0.45rem;text-align:right;font-weight:600;">Title</th>
+            <th style="padding:0.35rem 0.45rem;text-align:right;font-weight:600;border-radius:0 3px 3px 0;">Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${lineItems.map((it, i) => `
+            <tr style="border-bottom:1px solid #F1F5F9;">
+              <td style="padding:0.3rem 0.45rem;color:#64748B;">${i + 1}</td>
+              <td style="padding:0.3rem 0.45rem;color:#0F172A;">${it.desc}</td>
+              <td style="padding:0.3rem 0.45rem;text-align:right;color:#64748B;">${it.qty}</td>
+              <td style="padding:0.3rem 0.45rem;text-align:right;color:#64748B;">${fmt(it.price)}</td>
+              <td style="padding:0.3rem 0.45rem;text-align:right;font-weight:600;color:#0F172A;">${fmt(it.qty * it.price)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+
+      <!-- Totals -->
+      <div style="display:flex;justify-content:flex-end;margin-bottom:0.75rem;">
+        <div style="min-width:180px;font-size:0.62rem;">
+          <div style="display:flex;justify-content:space-between;padding:0.2rem 0;border-bottom:1px solid #F1F5F9;">
+            <span style="color:#64748B;">Subtotal</span>
+            <span style="font-weight:600;color:#0F172A;">${fmt(subtotal)}</span>
+          </div>
+          ${taxRate > 0 ? `<div style="display:flex;justify-content:space-between;padding:0.2rem 0;border-bottom:1px solid #F1F5F9;">
+            <span style="color:#64748B;">TVA (${taxRate}%)</span>
+            <span style="font-weight:600;color:#0F172A;">${fmt(taxAmt)}</span>
+          </div>` : `<div style="display:flex;justify-content:space-between;padding:0.2rem 0;border-bottom:1px solid #F1F5F9;">
+            <span style="color:#64748B;">Couleurs coulées</span>
+            <span style="font-weight:600;color:#0F172A;">${fmt(0)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:0.2rem 0;border-bottom:1px solid #F1F5F9;">
+            <span style="color:#64748B;">Tax</span>
+            <span style="font-weight:600;color:#0F172A;">$0.00</span>
+          </div>`}
+          <div style="display:flex;justify-content:space-between;padding:0.3rem 0.5rem;background:${primaryColor};border-radius:4px;margin-top:0.2rem;">
+            <span style="color:#FFF;font-weight:700;">Total</span>
+            <span style="color:#FFF;font-weight:800;">${fmt(total)}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Signature -->
+      <div style="margin-bottom:0.5rem;font-size:0.58rem;color:#94A3B8;">Facture autocertifiée</div>
+      <div style="font-family:'Dancing Script',cursive,Georgia,serif;font-size:1.2rem;color:#0F172A;line-height:1;margin-bottom:0.75rem;">Jhoni Mon</div>
+
+      <!-- Footer -->
+      <div style="border-top:1px solid #E2E8F0;padding-top:0.5rem;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:0.58rem;color:#64748B;">${bizName} · ${bizPhone} · ${biz.email || 'contact@kivo.com'}</div>
+        <div style="width:18px;height:18px;border-radius:50%;background:${primaryColor};display:flex;align-items:center;justify-content:center;">
+          <span style="color:#FFF;font-weight:800;font-size:0.5rem;">${badgeLetter}</span>
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Triggered when user clicks "Générer ma facture".
+   * Parses the prompt and updates the tablet preview.
+   */
+  generateWithAiPage: function () {
+    const promptEl = document.getElementById('ai-custom-prompt');
+    if (!promptEl) return;
+    const promptText = promptEl.value.trim();
+    if (!promptText) {
+      this.showToast('Décrivez votre facture dans la zone de texte.', 'info');
+      return;
+    }
+
+    const btn = document.getElementById('ai-generate-btn');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span style="opacity:0.7">✦</span> Génération en cours…';
+    }
+
+    setTimeout(() => {
+      const clients = (this.state && this.state.clients) || [];
+      const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+      const taxRate = (this.state && this.state.business && this.state.business.taxRate) || 18;
+
+      const doc = window.KivoAI ? window.KivoAI.parseTextToDocument(promptText, clients, currency, taxRate) : null;
+      this._aiGeneratedDoc = doc;
+      this._renderAiTabletPreview(doc);
+
+      // Show action toolbar
+      const toolbar = document.getElementById('ai-action-toolbar');
+      if (toolbar) toolbar.style.display = 'flex';
+
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '✦ Générer ma facture';
+      }
+      this.showToast('✅ Aperçu généré ! Modifiez ou ouvrez dans l\'éditeur.', 'success');
+    }, 900);
+  },
+
+  /**
+   * Applies a preset style/prompt and regenerates the preview.
+   * @param {string} type - 'minimalist' | 'premium' | 'corporate' | 'my-colors' | 'my-template'
+   */
+  applyAiPreset: function (type) {
+    const promptEl = document.getElementById('ai-custom-prompt');
+    if (!promptEl) return;
+
+    const presets = {
+      minimalist: 'Crée-moi une facture minimaliste, sobre, fond blanc pur, typographie moderne sans-serif noire. Services : Développement web 1500€, Hébergement 200€. TVA 20%.',
+      premium: 'Crée une facture élégante et premium avec couleur or/champagne, logo en haut à gauche, table de lignes sophistiquée. Design luxe. Services : Design UI/UX 3200€, Branding 1800€. TVA 20%.',
+      corporate: 'Crée une facture corporate professionnelle, style entreprise, bleu marine foncé, logo en haut, mise en page structurée. Prestation conseil 5000€, Formation 2500€. TVA 20%.',
+      'my-colors': 'Crée une facture avec mes couleurs de marque et mon logo. Adapte automatiquement la palette au logo importé.',
+      'my-template': 'Inspirée de mon dernier modèle de facture, reprends le même format et style que d\'habitude.'
+    };
+
+    const promptText = presets[type] || '';
+    promptEl.value = promptText;
+
+    // Auto-generate after 150ms so user sees the text appear first
+    setTimeout(() => {
+      this.generateWithAiPage();
+    }, 150);
+
+    // Highlight the selected preset card
+    document.querySelectorAll('.ai-preset-card').forEach(card => {
+      card.classList.remove('active');
+    });
+    const activeCard = document.querySelector(`.ai-preset-card[data-preset="${type}"]`);
+    if (activeCard) activeCard.classList.add('active');
+  },
+
+  /**
+   * Switches the carousel dot indicator.
+   * @param {number} index
+   */
+  setAiSlide: function (index) {
+    document.querySelectorAll('.ai-carousel-dot').forEach((dot, i) => {
+      dot.classList.toggle('active', i === index);
+    });
+  },
+
+  /**
+   * Transfers the AI-generated invoice to the builder view for editing.
+   */
+  transferAiInvoiceToBuilder: function () {
+    if (!this._aiGeneratedDoc) {
+      this.showToast('Générez d\'abord une facture avec l\'IA.', 'info');
+      return;
+    }
+    const doc = this._aiGeneratedDoc;
+
+    // Navigate to builder with a new document
+    this.startNewDocument('invoice');
+    this.navigate('document-builder');
+
+    setTimeout(() => {
+      // Pre-fill items
+      if (doc.items && doc.items.length) {
+        // Clear existing lines
+        const lineBody = document.getElementById('line-items-body');
+        if (lineBody) {
+          lineBody.innerHTML = '';
+          doc.items.forEach((item) => {
+            this.addLineItem(item.description, item.qty || 1, item.unitPrice || 0);
+          });
+        }
+      }
+      // Pre-fill client
+      if (doc.client && doc.client.name) {
+        const clientInput = document.getElementById('builder-client-name');
+        if (clientInput) clientInput.value = doc.client.name;
+      }
+      this.updateLiveInvoicePreview();
+      this.showToast('✅ Facture IA chargée dans l\'éditeur !', 'success');
+    }, 300);
+  },
+
+  /**
+   * Saves the AI-generated invoice directly to Supabase.
+   */
+  saveAiInvoiceDirectly: async function () {
+    if (!this._aiGeneratedDoc) {
+      this.showToast('Générez d\'abord une facture avec l\'IA.', 'info');
+      return;
+    }
+
+    const doc = this._aiGeneratedDoc;
+    const biz = (this.state && this.state.business) || {};
+    const taxRate = doc.taxRate || biz.taxRate || 18;
+    const items = (doc.items || []).map(it => ({
+      description: it.description,
+      qty: it.qty || 1,
+      unit_price: it.unitPrice || 0,
+      total: (it.qty || 1) * (it.unitPrice || 0)
+    }));
+    const subtotal = items.reduce((s, i) => s + i.total, 0);
+    const taxAmt = subtotal * taxRate / 100;
+    const total = subtotal + taxAmt;
+
+    const newDoc = {
+      id: 'doc_ai_' + Date.now(),
+      type: 'invoice',
+      status: 'draft',
+      docNumber: doc.docNumber || this._generateDocNumber('invoice'),
+      client: doc.client ? doc.client.name : '',
+      clientAddress: doc.client ? doc.client.address : '',
+      items: items,
+      subtotal: subtotal,
+      taxRate: taxRate,
+      taxAmount: taxAmt,
+      total: total,
+      currency: biz.currency || 'FCFA',
+      issuedAt: new Date().toISOString().split('T')[0],
+      dueAt: '',
+      notes: '[Créé par IA]',
+      createdAt: new Date().toISOString()
+    };
+
+    // Save to local state
+    if (!this.state.documents) this.state.documents = [];
+    this.state.documents.unshift(newDoc);
+    this.saveState();
+
+    // Save to Supabase if connected
+    if (window.KivoDb && this.supabaseConnected) {
+      try {
+        await window.KivoDb.saveDocument(newDoc);
+        this.showToast('✅ Facture enregistrée dans Supabase !', 'success');
+      } catch (e) {
+        console.error('Supabase save error:', e);
+        this.showToast('✅ Facture sauvegardée localement (Supabase indisponible).', 'success');
+      }
+    } else {
+      this.showToast('✅ Facture enregistrée localement !', 'success');
+    }
+  },
+
   openAiModal: function () {
-    this.openModal('modal-ai-prompt');
+    // Legacy alias: now navigates to the dedicated AI page
+    this.navigate('ai');
   },
 
   executeStandaloneAiParse: function () {

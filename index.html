@@ -12,7 +12,7 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Playfair+Display:wght@700;800&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
 
   <!-- Stylesheet -->
   <link rel="stylesheet" href="styles.css?v=3.1">
@@ -61,7 +61,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             <span class="sidebar-label">Modèles</span>
           </a>
-          <a href="#" class="nav-item" data-view="ai" onclick="KivoApp.openAiModal()">
+          <a href="#ai" class="nav-item" data-view="ai">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
             <span class="sidebar-label">Création IA</span>
           </a>
@@ -1403,8 +1403,143 @@
         </section>
 
 
+
+        <!-- ==================== AI CREATION PAGE VIEW ==================== -->
+        <section id="view-ai" class="view-section" style="display: none; padding: 0; margin: -2rem; width: calc(100% + 4rem); min-height: 100vh; background: #F4F6F9; overflow: hidden; position: relative;">
+
+          <!-- Dark Mesh Background (right side) -->
+          <div class="ai-page-bg-mesh">
+            <!-- Glowing LED capsule -->
+            <div class="ai-glowing-capsule"></div>
+            <!-- 4-point sparkle star -->
+            <div class="ai-star-sparkle">
+              <svg viewBox="0 0 32 32" fill="currentColor" width="32" height="32">
+                <path d="M16 0 L17.5 14.5 L32 16 L17.5 17.5 L16 32 L14.5 17.5 L0 16 L14.5 14.5 Z"/>
+              </svg>
+            </div>
+            <!-- AI label bottom right -->
+            <div style="position:absolute;bottom:2rem;right:2rem;font-family:'Outfit',sans-serif;font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:0.15em;">AI</div>
+          </div>
+
+          <!-- Top bar -->
+          <div class="ai-page-topbar">
+            <span class="ai-page-logo">
+              <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 6L14 16L7 26" stroke="#0B132B" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 6L23 16L16 26" stroke="#2563EB" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              KIVO
+            </span>
+          </div>
+
+          <!-- Main 2-column layout -->
+          <div class="ai-page-container">
+
+            <!-- LEFT PANEL -->
+            <div class="ai-page-left">
+              <h1 class="ai-page-title">Créer avec l'IA</h1>
+              <p class="ai-page-subtitle">Décrivez la facture que vous imaginez.</p>
+
+              <!-- AI Input Card -->
+              <div class="ai-input-card">
+                <div class="ai-input-card-header">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                  AI input
+                </div>
+                <textarea
+                  id="ai-custom-prompt"
+                  class="ai-input-textarea"
+                  placeholder="Exemple : crée-moi une facture moderne, élégante, bleu nuit et blanc, avec mon logo en haut à gauche..."
+                  rows="4"
+                ></textarea>
+                <button id="ai-generate-btn" class="ai-generate-btn" onclick="KivoApp.generateWithAiPage()">
+                  ✦ Générer ma facture
+                </button>
+
+                <!-- Post-generate action buttons (hidden until generated) -->
+                <div id="ai-action-toolbar" class="ai-action-toolbar">
+                  <button class="ai-action-btn-primary" onclick="KivoApp.transferAiInvoiceToBuilder()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Ouvrir dans l'éditeur
+                  </button>
+                  <button class="ai-action-btn-secondary" onclick="KivoApp.saveAiInvoiceDirectly()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Enregistrer
+                  </button>
+                </div>
+              </div>
+
+              <!-- Preset Cards Row 1 (3 cards) -->
+              <div class="ai-presets-row-1">
+                <button class="ai-preset-card" data-preset="minimalist" onclick="KivoApp.applyAiPreset('minimalist')">
+                  <span class="ai-preset-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  </span>
+                  <span class="ai-preset-title">Facture minimaliste</span>
+                </button>
+                <button class="ai-preset-card" data-preset="premium" onclick="KivoApp.applyAiPreset('premium')">
+                  <span class="ai-preset-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  </span>
+                  <span class="ai-preset-title">Style premium</span>
+                </button>
+                <button class="ai-preset-card" data-preset="corporate" onclick="KivoApp.applyAiPreset('corporate')">
+                  <span class="ai-preset-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                  </span>
+                  <span class="ai-preset-title">Style corporate</span>
+                </button>
+              </div>
+
+              <!-- Preset Cards Row 2 (2 cards) -->
+              <div class="ai-presets-row-2">
+                <button class="ai-preset-card" data-preset="my-colors" onclick="KivoApp.applyAiPreset('my-colors')">
+                  <span class="ai-preset-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/><path d="M2 12h20"/></svg>
+                  </span>
+                  <span class="ai-preset-title">Utiliser mes couleurs</span>
+                </button>
+                <button class="ai-preset-card" data-preset="my-template" onclick="KivoApp.applyAiPreset('my-template')">
+                  <span class="ai-preset-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                  </span>
+                  <span class="ai-preset-title">Inspirée de mon modèle</span>
+                </button>
+              </div>
+            </div>
+            <!-- END LEFT PANEL -->
+
+            <!-- RIGHT PANEL: Floating glass tablet -->
+            <div class="ai-page-right">
+              <div class="ai-glass-tablet">
+                <div class="ai-tablet-paper" id="ai-tablet-paper">
+                  <!-- Rendered dynamically by KivoApp._renderAiTabletPreview() -->
+                  <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94A3B8;font-size:0.85rem;">
+                    Aperçu de la facture…
+                  </div>
+                </div>
+              </div>
+
+              <!-- Carousel dots -->
+              <div class="ai-carousel-dots">
+                <button class="ai-carousel-dot" onclick="KivoApp.setAiSlide(0)" aria-label="Slide 1"></button>
+                <button class="ai-carousel-dot active" onclick="KivoApp.setAiSlide(1)" aria-label="Slide 2"></button>
+                <button class="ai-carousel-dot" onclick="KivoApp.setAiSlide(2)" aria-label="Slide 3"></button>
+                <button class="ai-carousel-dot" onclick="KivoApp.setAiSlide(3)" aria-label="Slide 4"></button>
+              </div>
+            </div>
+            <!-- END RIGHT PANEL -->
+
+          </div>
+          <!-- END main container -->
+
+        </section>
+        <!-- END view-ai -->
+
+
         <!-- ==================== SETTINGS VIEW ==================== -->
         <section id="view-settings" class="view-section" style="display: none;">
+
           <div class="page-header">
             <div>
               <h1>Paramètres de l'entreprise</h1>
