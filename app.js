@@ -462,7 +462,7 @@ window.KivoApp = {
     if (!viewName) viewName = '';
 
     const publicViews = ['landing', 'auth', 'onboarding', 'public-doc', 'pricing'];
-    const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'catalog', 'reminders', 'analytics', 'settings', 'ai', 'pricing'];
+    const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'catalog', 'reminders', 'analytics', 'settings', 'ai', 'pricing', 'team', 'integrations'];
     const validViews = [...publicViews, ...appViews];
 
     if (!validViews.includes(viewName)) {
@@ -520,12 +520,24 @@ window.KivoApp = {
       }
     }
 
-    document.querySelectorAll('.nav-item, .mobile-nav-item').forEach(item => {
+    document.querySelectorAll('.nav-item, .mobile-nav-item, .nav-sub-item').forEach(item => {
       item.classList.remove('active');
       if (item.getAttribute('data-view') === viewName) {
         item.classList.add('active');
       }
     });
+
+    // Auto-expand and highlight Billing group when in documents or document-builder
+    const billingGroup = document.getElementById('nav-group-billing-items');
+    const billingTrigger = document.querySelector('[data-group="billing"]');
+    const billingChevron = document.getElementById('chevron-billing');
+    if (viewName === 'documents' || viewName === 'document-builder') {
+      if (billingGroup) billingGroup.classList.add('open');
+      if (billingChevron) billingChevron.style.transform = 'rotate(180deg)';
+      if (billingTrigger) billingTrigger.classList.add('group-active');
+    } else {
+      if (billingTrigger) billingTrigger.classList.remove('group-active');
+    }
 
     this.renderCurrentView();
     if (anchorTarget) {
@@ -554,9 +566,24 @@ window.KivoApp = {
     if (sidebar) {
       sidebar.classList.toggle('collapsed');
       if (sidebar.classList.contains('collapsed')) {
-        if (reopenBtn) reopenBtn.style.display = 'block';
+        if (reopenBtn) reopenBtn.style.display = 'flex';
       } else {
         if (reopenBtn) reopenBtn.style.display = 'none';
+      }
+    }
+  },
+
+  /**
+   * Toggles a collapsible nav group (e.g. Facturation)
+   */
+  toggleNavGroup: function (groupId) {
+    const groupItems = document.getElementById(`nav-group-${groupId}-items`);
+    const chevron = document.getElementById(`chevron-${groupId}`);
+    if (groupItems) {
+      groupItems.classList.toggle('open');
+      const isOpen = groupItems.classList.contains('open');
+      if (chevron) {
+        chevron.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
       }
     }
   },
@@ -646,6 +673,11 @@ window.KivoApp = {
     if (nameEl) nameEl.textContent = biz.owner || "Mon Compte";
     if (bizEl) bizEl.textContent = biz.name || "KIVO MATIQUE";
     if (emailEl) emailEl.textContent = biz.email || "contact@entreprise.com";
+    
+    const teamOwnerName = document.getElementById('team-owner-name');
+    const teamOwnerEmail = document.getElementById('team-owner-email');
+    if (teamOwnerName) teamOwnerName.textContent = biz.owner || "Propriétaire";
+    if (teamOwnerEmail) teamOwnerEmail.textContent = biz.email || "contact@kivo.app";
     
     if (avatarEl) {
       if (biz.logoUrl) {
