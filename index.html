@@ -65,6 +65,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
             <span class="sidebar-label">Création IA</span>
           </a>
+          <a href="#pricing" class="nav-item" data-view="pricing">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span class="sidebar-label">Abonnements</span>
+          </a>
           <a href="#settings" class="nav-item" data-view="settings">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             <span class="sidebar-label">Paramètres</span>
@@ -1534,6 +1538,267 @@
 
         </section>
         <!-- END view-ai -->
+
+
+        <!-- ==================== PRICING & SUBSCRIPTIONS VIEW ==================== -->
+        <section id="view-pricing" class="view-section" style="display: none; padding: 0; margin: 0; width: 100%; min-height: 100vh; background: #FFFFFF; position: relative;">
+
+          <!-- TOP DARK HERO SECTION -->
+          <div class="pricing-dark-hero">
+            
+            <!-- Top Navbar inside Pricing (matching reference image) -->
+            <header class="pricing-topbar">
+              <!-- Left: Gold K Logo + KIVO MATIQUE -->
+              <a href="#dashboard" class="pricing-brand">
+                <div class="pricing-brand-logo">
+                  <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+                    <path d="M7 6L14 16L7 26" stroke="#D4AF37" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M16 6L23 16L16 26" stroke="#E5C378" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+                <span class="pricing-brand-name">KIVO MATIQUE</span>
+              </a>
+
+              <!-- Center: Navigation Pills -->
+              <nav class="pricing-nav-pills">
+                <a href="#dashboard" class="pricing-nav-pill active">Tableau de bord</a>
+                <a href="#documents" class="pricing-nav-pill">Factures</a>
+                <a href="#documents" class="pricing-nav-pill" onclick="setTimeout(()=>document.querySelector('[data-filter=quote]')?.click(),100)">Devis</a>
+                <a href="#clients" class="pricing-nav-pill">Clients</a>
+                <a href="#catalog" class="pricing-nav-pill">Modèles</a>
+                <a href="#ai" class="pricing-nav-pill">IA</a>
+              </nav>
+
+              <!-- Right: User Avatar & Name -->
+              <div class="pricing-user-profile" onclick="KivoApp.navigate('settings')">
+                <div class="pricing-avatar" id="pricing-user-avatar">
+                  <img id="pricing-user-photo" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="User">
+                </div>
+                <span class="pricing-username" id="pricing-user-name">Julien Dubois</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+            </header>
+
+            <!-- Hero Titles -->
+            <div class="pricing-hero-content">
+              <h1 class="pricing-title">Choisissez le plan qui vous correspond</h1>
+              <p class="pricing-subtitle">Commencez gratuitement. Passez à une offre supérieure lorsque votre activité grandit.</p>
+
+              <!-- Billing Cycle Switcher (Toggle Pill) -->
+              <div class="pricing-billing-toggle">
+                <button id="toggle-billing-monthly" class="pricing-toggle-btn active" onclick="KivoApp.togglePricingBilling('monthly')">
+                  Mensuel
+                </button>
+                <button id="toggle-billing-annual" class="pricing-toggle-btn" onclick="KivoApp.togglePricingBilling('annual')">
+                  Annuel <span class="pricing-discount-badge">-20%</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+          <!-- END TOP DARK HERO -->
+
+          <!-- PRICING CARDS CONTAINER (OVERLAPPING DARK/LIGHT) -->
+          <div class="pricing-cards-container">
+            <div class="pricing-cards-grid">
+
+              <!-- CARD 1: FREE -->
+              <div class="pricing-card" id="pricing-card-free">
+                <!-- Top Half (Glass on dark) -->
+                <div class="pricing-card-top">
+                  <div class="pricing-tier-name">FREE</div>
+                  <div class="pricing-tier-price">
+                    <span class="pricing-price-num" id="price-val-free">0 FCFA</span>
+                    <span class="pricing-price-period">/ mois</span>
+                  </div>
+                  <div class="pricing-tier-sub">Pour découvrir KIVO</div>
+                </div>
+                <!-- Bottom Half (White on light) -->
+                <div class="pricing-card-bottom">
+                  <ul class="pricing-features-list">
+                    <li><span class="p-check">✓</span> 3 documents par mois</li>
+                    <li><span class="p-check">✓</span> Factures et devis</li>
+                    <li><span class="p-check">✓</span> PDF A4</li>
+                    <li><span class="p-check">✓</span> Logo d'entreprise</li>
+                    <li><span class="p-check">✓</span> Modèles essentiels</li>
+                    <li><span class="p-check">✓</span> Gestion de base des clients</li>
+                  </ul>
+                  <button class="pricing-btn pricing-btn-dark" data-tier="Gratuit" onclick="KivoApp.switchSubscriptionTier('Gratuit')">
+                    Commencer gratuitement
+                  </button>
+                </div>
+              </div>
+
+              <!-- CARD 2: PRO (Featured Elevated with Gold border) -->
+              <div class="pricing-card pricing-card-featured" id="pricing-card-pro">
+                <!-- Popular Badge -->
+                <div class="pricing-badge-popular">★ LE PLUS POPULAIRE</div>
+
+                <!-- Top Half (Glass on dark with gold glow) -->
+                <div class="pricing-card-top pricing-card-top-gold">
+                  <div class="pricing-tier-name pricing-tier-name-gold">PRO</div>
+                  <div class="pricing-tier-price">
+                    <span class="pricing-price-num" id="price-val-pro">2 590 FCFA</span>
+                    <span class="pricing-price-period">/ mois</span>
+                  </div>
+                  <div class="pricing-tier-conv" id="price-conv-pro">≈ 4 € / mois</div>
+                  <div class="pricing-tier-sub">Pour les indépendants et petites entreprises</div>
+                </div>
+                <!-- Bottom Half (White with gold border) -->
+                <div class="pricing-card-bottom">
+                  <ul class="pricing-features-list">
+                    <li><span class="p-check p-check-gold">✓</span> Documents illimités</li>
+                    <li><span class="p-check p-check-gold">✓</span> Tous les modèles professionnels</li>
+                    <li><span class="p-check p-check-gold">✓</span> Personnalisation avancée</li>
+                    <li><span class="p-check p-check-gold">✓</span> Création avec IA</li>
+                    <li><span class="p-check p-check-gold">✓</span> Gestion complète des clients</li>
+                    <li><span class="p-check p-check-gold">✓</span> Statistiques</li>
+                    <li><span class="p-check p-check-gold">✓</span> Paiements en ligne</li>
+                    <li><span class="p-check p-check-gold">✓</span> Logo et identité visuelle avancée</li>
+                  </ul>
+                  <button class="pricing-btn pricing-btn-gold" data-tier="Pro" onclick="KivoApp.switchSubscriptionTier('Pro')">
+                    Passer à Pro
+                  </button>
+                </div>
+              </div>
+
+              <!-- CARD 3: BUSINESS -->
+              <div class="pricing-card" id="pricing-card-business">
+                <!-- Top Half (Glass on dark) -->
+                <div class="pricing-card-top">
+                  <div class="pricing-tier-name">BUSINESS</div>
+                  <div class="pricing-tier-price">
+                    <span class="pricing-price-num" id="price-val-biz">6 990 FCFA</span>
+                    <span class="pricing-price-period">/ mois</span>
+                  </div>
+                  <div class="pricing-tier-conv" id="price-conv-biz">≈ 11 € / mois</div>
+                  <div class="pricing-tier-sub">Pour les entreprises qui veulent automatiser leur facturation</div>
+                </div>
+                <!-- Bottom Half (White) -->
+                <div class="pricing-card-bottom">
+                  <ul class="pricing-features-list">
+                    <li><span class="p-check">✓</span> Tout ce qui est inclus dans Pro</li>
+                    <li><span class="p-check">✓</span> Multi-devises</li>
+                    <li><span class="p-check">✓</span> Gestion des remboursements</li>
+                    <li><span class="p-check">✓</span> API & intégrations</li>
+                    <li><span class="p-check">✓</span> Automatisation avancée</li>
+                    <li><span class="p-check">✓</span> Fonctionnalités professionnelles avancées</li>
+                  </ul>
+                  <button class="pricing-btn pricing-btn-dark" data-tier="Business" onclick="KivoApp.switchSubscriptionTier('Business')">
+                    Passer à Business
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+          <!-- END PRICING CARDS -->
+
+          <!-- BOTTOM COMPARISON & ENTERPRISE SECTION -->
+          <div class="pricing-bottom-section">
+            <div class="pricing-bottom-grid">
+
+              <!-- Left: Compare Table -->
+              <div class="pricing-compare-box">
+                <h3 class="pricing-compare-title">Comparez les fonctionnalités</h3>
+                <div class="pricing-compare-table-wrapper">
+                  <table class="pricing-compare-table">
+                    <thead>
+                      <tr>
+                        <th style="text-align: left; width: 40%;">Fonctionnalité</th>
+                        <th style="text-align: center; width: 20%;">Free</th>
+                        <th style="text-align: center; width: 20%; color: #B88E3E;">Pro</th>
+                        <th style="text-align: center; width: 20%;">Business</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Documents par mois</td>
+                        <td class="text-center">3</td>
+                        <td class="text-center"><strong>Illimité</strong></td>
+                        <td class="text-center"><strong>Illimité</strong></td>
+                      </tr>
+                      <tr>
+                        <td>Modèles</td>
+                        <td class="text-center">Essentiels</td>
+                        <td class="text-center">✓ (Tous)</td>
+                        <td class="text-center">✓ (Tous + IA)</td>
+                      </tr>
+                      <tr>
+                        <td>Logo & Identité</td>
+                        <td class="text-center">✓</td>
+                        <td class="text-center">✓</td>
+                        <td class="text-center">✓</td>
+                      </tr>
+                      <tr>
+                        <td>Personnalisation</td>
+                        <td class="text-center">Basique</td>
+                        <td class="text-center">✓ Avancée</td>
+                        <td class="text-center">✓ Complète</td>
+                      </tr>
+                      <tr>
+                        <td>Gestion des Clients</td>
+                        <td class="text-center">3 clients max</td>
+                        <td class="text-center">✓ Illimité</td>
+                        <td class="text-center">✓ Illimité + CRM</td>
+                      </tr>
+                      <tr>
+                        <td>Statistiques & Rapports</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center">✓</td>
+                        <td class="text-center">✓ Avancées</td>
+                      </tr>
+                      <tr>
+                        <td>Assistant IA</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center">✓</td>
+                        <td class="text-center">✓ Prioritaire</td>
+                      </tr>
+                      <tr>
+                        <td>Paiements en ligne (Stripe & MoMo)</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center">✓</td>
+                        <td class="text-center">✓</td>
+                      </tr>
+                      <tr>
+                        <td>Multi-devises (XOF, EUR, USD, CAD, GBP)</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center">✓</td>
+                      </tr>
+                      <tr>
+                        <td>Remboursements clients</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center">✓</td>
+                      </tr>
+                      <tr>
+                        <td>API & Intégrations</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center">✓</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Right: Enterprise "Besoin de plus ?" Box -->
+              <div class="pricing-enterprise-card">
+                <h4 class="pricing-enterprise-title">Besoin de plus ?</h4>
+                <p class="pricing-enterprise-desc">
+                  Une offre Enterprise sur mesure est disponible pour les organisations ayant des besoins spécifiques.
+                </p>
+                <button class="pricing-btn pricing-btn-dark" style="width: auto; padding: 0.75rem 1.75rem;" onclick="KivoApp.contactEnterpriseSupport()">
+                  Nous contacter
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+        </section>
+        <!-- END view-pricing -->
 
 
         <!-- ==================== SETTINGS VIEW ==================== -->

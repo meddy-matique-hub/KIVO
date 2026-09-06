@@ -461,8 +461,8 @@ window.KivoApp = {
 
     if (!viewName) viewName = '';
 
-    const publicViews = ['landing', 'auth', 'onboarding', 'public-doc'];
-    const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'catalog', 'reminders', 'analytics', 'settings', 'ai'];
+    const publicViews = ['landing', 'auth', 'onboarding', 'public-doc', 'pricing'];
+    const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'catalog', 'reminders', 'analytics', 'settings', 'ai', 'pricing'];
     const validViews = [...publicViews, ...appViews];
 
     if (!validViews.includes(viewName)) {
@@ -473,7 +473,7 @@ window.KivoApp = {
 
     if (!viewName) {
       viewName = isOnboarded ? 'dashboard' : 'landing';
-    } else if (!isOnboarded && appViews.includes(viewName)) {
+    } else if (!isOnboarded && appViews.includes(viewName) && !publicViews.includes(viewName)) {
       this.showToast("Veuillez vous connecter ou créer votre compte KIVO MATIQUE.", "info");
       viewName = 'landing';
     }
@@ -620,6 +620,9 @@ window.KivoApp = {
         break;
       case 'ai':
         this.renderAiPage();
+        break;
+      case 'pricing':
+        this.renderPricingPage();
         break;
       default:
         break;
@@ -3805,6 +3808,101 @@ window.KivoApp = {
    */
   printPdf: function () {
     window.print();
+  },
+
+  /**
+   * Renders / refreshes the Pricing & Subscriptions page
+   */
+  renderPricingPage: function () {
+    // Update user avatar/name from state
+    const biz = (this.state && this.state.business) || {};
+    const ownerName = biz.owner || 'Mon Compte';
+    const nameEl = document.getElementById('pricing-user-name');
+    if (nameEl) nameEl.textContent = ownerName;
+
+    const photoEl = document.getElementById('pricing-user-photo');
+    const avatarEl = document.getElementById('pricing-user-avatar');
+    if (biz.logoUrl && avatarEl) {
+      avatarEl.innerHTML = `<img src="${biz.logoUrl}" style="width:100%;height:100%;object-fit:contain;border-radius:50%;" alt="Logo">`;
+    } else if (photoEl) {
+      // Keep default placeholder photo
+    }
+
+    // Highlight current subscription tier button
+    const currentTier = (biz.subscriptionTier || 'Gratuit').toLowerCase();
+    document.querySelectorAll('.pricing-btn[data-tier]').forEach(btn => {
+      btn.classList.remove('pricing-btn-current');
+      if (btn.getAttribute('data-tier') && btn.getAttribute('data-tier').toLowerCase() === currentTier) {
+        btn.textContent = '✓ Votre forfait actuel';
+        btn.classList.add('pricing-btn-current');
+        btn.disabled = true;
+      }
+    });
+
+    // Default monthly toggle
+    this.togglePricingBilling('monthly');
+  },
+
+  /**
+   * Toggles monthly / annual billing display on the pricing page
+   */
+  togglePricingBilling: function (billingType) {
+    const monthlyBtn = document.getElementById('toggle-billing-monthly');
+    const annualBtn = document.getElementById('toggle-billing-annual');
+    const priceValPro = document.getElementById('price-val-pro');
+    const priceConvPro = document.getElementById('price-conv-pro');
+    const priceValBiz = document.getElementById('price-val-biz');
+    const priceConvBiz = document.getElementById('price-conv-biz');
+
+    if (!monthlyBtn || !annualBtn) return;
+
+    if (billingType === 'monthly') {
+      monthlyBtn.classList.add('active');
+      annualBtn.classList.remove('active');
+      if (priceValPro) priceValPro.textContent = '2 590 FCFA';
+      if (priceConvPro) priceConvPro.textContent = '≈ 4 € / mois';
+      if (priceValBiz) priceValBiz.textContent = '6 990 FCFA';
+      if (priceConvBiz) priceConvBiz.textContent = '≈ 11 € / mois';
+    } else {
+      annualBtn.classList.add('active');
+      monthlyBtn.classList.remove('active');
+      if (priceValPro) priceValPro.textContent = '2 070 FCFA';
+      if (priceConvPro) priceConvPro.textContent = '≈ 3,20 € / mois';
+      if (priceValBiz) priceValBiz.textContent = '5 590 FCFA';
+      if (priceConvBiz) priceConvBiz.textContent = '≈ 8,80 € / mois';
+    }
+  },
+
+  /**
+   * Switch subscription tier (saves in state & shows toast)
+   */
+  switchSubscriptionTier: function (tier) {
+    if (!this.state) this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
+    if (!this.state.business) this.state.business = {};
+    this.state.business.subscriptionTier = tier;
+    this.saveState();
+
+    const labels = { 'Gratuit': 'Free', 'Pro': 'Pro', 'Business': 'Business' };
+    const label = labels[tier] || tier;
+    this.showToast(`✅ Forfait ${label} activé ! Bienvenue dans KIVO MATIQUE ${label}.`, 'success');
+
+    // Log activity
+    if (!this.state.activities) this.state.activities = [];
+    this.state.activities.unshift({
+      id: Date.now().toString(),
+      type: 'subscription',
+      text: `Forfait changé vers ${label}`,
+      date: new Date().toISOString()
+    });
+    this.saveState();
+  },
+
+  /**
+   * Opens WhatsApp to contact enterprise support
+   */
+  contactEnterpriseSupport: function () {
+    const msg = encodeURIComponent("Bonjour, je suis intéressé par l'offre Enterprise KIVO MATIQUE. Pouvez-vous me contacter ?");
+    window.open(`https://wa.me/221778421902?text=${msg}`, '_blank');
   }
 };
 
