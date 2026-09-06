@@ -125,17 +125,11 @@
 
         </nav>
 
-        <!-- User Card (bottom) -->
-        <div class="sidebar-user-card">
-          <div class="sidebar-user-info">
-            <div class="sidebar-user-avatar" id="sidebar-avatar">KM</div>
-            <div class="sidebar-user-text">
-              <div class="sidebar-user-name" id="sidebar-user-name">Mon Compte</div>
-              <div class="sidebar-user-email" id="sidebar-user-email">contact@kivo.app</div>
-            </div>
-          </div>
-          <button class="sidebar-logout-btn" onclick="KivoApp.logout()" title="Se déconnecter" aria-label="Déconnexion">
+        <!-- Sidebar Footer: Clean logout action only -->
+        <div class="sidebar-footer-action">
+          <button class="sidebar-logout-clean-btn" onclick="KivoApp.logout()" title="Se déconnecter" aria-label="Déconnexion">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>Déconnexion</span>
           </button>
         </div>
 
@@ -2436,21 +2430,28 @@
       <div style="position: absolute; top: -10%; left: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(37,99,235,0.05) 0%, rgba(255,255,255,0) 70%); border-radius: 50%;"></div>
       <div style="position: absolute; bottom: -20%; right: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, rgba(37,99,235,0.08) 0%, rgba(255,255,255,0) 70%); border-radius: 50%;"></div>
 
-      <div class="auth-card" style="background: var(--bg-card); border-radius: var(--radius-xl); padding: 3rem; width: 100%; max-width: 440px; box-shadow: var(--shadow-xl); position: relative; z-index: 10; border: 1px solid rgba(255,255,255,0.8);">
+      <div class="auth-card" style="background: var(--bg-card); border-radius: var(--radius-xl); padding: 2.5rem; width: 100%; max-width: 440px; box-shadow: var(--shadow-xl); position: relative; z-index: 10; border: 1px solid rgba(255,255,255,0.8);">
         
-        <div style="text-align: center; margin-bottom: 2.5rem;">
+        <!-- Brand header -->
+        <div style="text-align: center; margin-bottom: 2rem;">
           <div class="brand-logo-icon" style="margin: 0 auto 1rem auto; width: 56px; height: 56px; font-size: 1.5rem; box-shadow: 0 12px 24px rgba(37,99,235,0.25);">KM</div>
-          <h2 style="font-family: var(--font-heading); font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;" id="auth-title">Bienvenue sur KIVO</h2>
-          <p style="color: var(--text-secondary); font-size: 0.95rem;" id="auth-subtitle">Connectez-vous pour accéder à votre espace</p>
+          <h2 style="font-family: var(--font-heading); font-size: 1.6rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.35rem;">KIVO MATIQUE</h2>
+          <p style="color: var(--text-secondary); font-size: 0.9rem;" id="auth-subtitle">Business, simplified.</p>
+        </div>
+
+        <!-- Auth Tabs -->
+        <div class="auth-tabs-toggle">
+          <button class="auth-tab-btn active" id="tab-signin" onclick="setAuthTab('signin')">Se connecter</button>
+          <button class="auth-tab-btn" id="tab-signup" onclick="setAuthTab('signup')">Créer un compte</button>
         </div>
 
         <!-- Google OAuth Button -->
-        <button class="btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.75rem; background: #FFF; border: 1px solid var(--border-color); color: var(--text-primary); font-weight: 600; padding: 0.85rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; box-shadow: var(--shadow-sm); transition: all 0.2s;" onmouseover="this.style.backgroundColor='#F8FAFC'; this.style.borderColor='#CBD5E1';" onmouseout="this.style.backgroundColor='#FFF'; this.style.borderColor='var(--border-color)';" onclick="handleGoogleLogin()">
+        <button class="btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.75rem; background: #FFF; border: 1px solid var(--border-color); color: var(--text-primary); font-weight: 600; padding: 0.85rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; box-shadow: var(--shadow-sm); transition: all 0.2s;" onmouseover="this.style.backgroundColor='#F8FAFC'; this.style.borderColor='#CBD5E1';" onmouseout="this.style.backgroundColor='#FFF'; this.style.borderColor='var(--border-color)';" onclick="handleGoogleLogin()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
           Continuer avec Google
         </button>
 
-        <div style="display: flex; align-items: center; margin-bottom: 1.5rem;">
+        <div style="display: flex; align-items: center; margin-bottom: 1.25rem;">
           <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
           <div style="padding: 0 1rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">OU</div>
           <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
@@ -2458,6 +2459,7 @@
 
         <form id="auth-form" onsubmit="event.preventDefault(); submitAuthForm();">
           
+          <!-- Name field (signup only) -->
           <div class="form-group" id="auth-name-group" style="display: none;">
             <label class="form-label" style="font-weight: 600;">Nom complet</label>
             <input type="text" id="auth-name" class="form-input" placeholder="Jean Dupont" style="padding: 0.85rem 1rem; border-radius: var(--radius-md);">
@@ -2471,7 +2473,7 @@
           <div class="form-group">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
               <label class="form-label" style="margin: 0; font-weight: 600;">Mot de passe</label>
-              <a href="#" style="font-size: 0.8rem; font-weight: 500;" onclick="alert('Fonctionnalité de récupération à venir'); return false;" id="auth-forgot-link">Mot de passe oublié ?</a>
+              <a href="#" style="font-size: 0.8rem; font-weight: 500; display: none;" onclick="handleForgotPassword(); return false;" id="auth-forgot-link">Mot de passe oublié ?</a>
             </div>
             <div style="position: relative;">
               <input type="password" id="auth-password" class="form-input" placeholder="••••••••" required autocomplete="current-password" style="padding: 0.85rem 1rem; border-radius: var(--radius-md);">
@@ -2485,13 +2487,17 @@
             Se connecter
           </button>
           
-          <p id="auth-error-msg" style="color: var(--danger); font-size: 0.85rem; text-align: center; margin-top: 1rem; display: none; background: var(--danger-bg); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid rgba(239, 68, 68, 0.2);"></p>
+          <!-- Error/info message -->
+          <div id="auth-error-msg" style="display: none; margin-top: 1rem;"></div>
+          
+          <!-- Smart signup suggestion (shown on login failure with unknown email) -->
+          <div id="auth-signup-suggest" style="display: none; margin-top: 0.75rem; padding: 0.9rem 1rem; background: rgba(37,99,235,0.06); border: 1px solid rgba(37,99,235,0.2); border-radius: var(--radius-md); text-align: center;">
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.6rem;">Aucun compte trouvé avec cet email.</p>
+            <button type="button" class="btn btn-primary" id="auth-suggest-create-btn" style="width: 100%; padding: 0.6rem; font-size: 0.9rem; font-weight: 600;" onclick="switchToSignupWithEmail()">
+              ➔ Créer un compte avec cet email
+            </button>
+          </div>
         </form>
-
-        <div style="text-align: center; margin-top: 2rem; font-size: 0.9rem; color: var(--text-secondary);">
-          <span id="auth-switch-text">Vous n'avez pas de compte ?</span> 
-          <a href="#" onclick="toggleAuthMode(); return false;" style="font-weight: 600; color: var(--primary);">Créer un compte</a>
-        </div>
       </div>
     </div>
   </div>
@@ -2499,18 +2505,48 @@
   <script>
     let isSignUpMode = false;
 
-    function toggleAuthMode() {
-      isSignUpMode = !isSignUpMode;
-      document.getElementById('auth-title').textContent = isSignUpMode ? "Créer un compte" : "Bienvenue sur KIVO";
-      document.getElementById('auth-subtitle').textContent = isSignUpMode ? "Rejoignez-nous pour simplifier votre facturation" : "Connectez-vous pour accéder à votre espace";
-      document.getElementById('auth-name-group').style.display = isSignUpMode ? "block" : "none";
-      document.getElementById('auth-forgot-link').style.display = isSignUpMode ? "none" : "block";
-      document.getElementById('auth-submit-btn').textContent = isSignUpMode ? "Créer mon compte" : "Se connecter";
-      document.getElementById('auth-switch-text').textContent = isSignUpMode ? "Vous avez déjà un compte ?" : "Vous n'avez pas de compte ?";
-      document.querySelector('#auth-switch-text + a').textContent = isSignUpMode ? "Se connecter" : "Créer un compte";
-      document.getElementById('auth-error-msg').style.display = 'none';
-      if(isSignUpMode) document.getElementById('auth-name').required = true;
+    function setAuthTab(mode) {
+      isSignUpMode = (mode === 'signup');
+      document.getElementById('tab-signin').classList.toggle('active', !isSignUpMode);
+      document.getElementById('tab-signup').classList.toggle('active', isSignUpMode);
+      document.getElementById('auth-name-group').style.display = isSignUpMode ? 'block' : 'none';
+      document.getElementById('auth-forgot-link').style.display = isSignUpMode ? 'none' : 'block';
+      document.getElementById('auth-submit-btn').textContent = isSignUpMode ? 'Créer mon compte' : 'Se connecter';
+      if (isSignUpMode) document.getElementById('auth-name').required = true;
       else document.getElementById('auth-name').required = false;
+      hideAuthMessages();
+    }
+
+    function switchToSignupWithEmail() {
+      const email = document.getElementById('auth-email').value;
+      setAuthTab('signup');
+      document.getElementById('auth-email').value = email;
+      document.getElementById('auth-name').focus();
+    }
+
+    function switchToSigninWithEmail(email) {
+      setAuthTab('signin');
+      if (email) document.getElementById('auth-email').value = email;
+    }
+
+    function hideAuthMessages() {
+      const err = document.getElementById('auth-error-msg');
+      const sug = document.getElementById('auth-signup-suggest');
+      err.style.display = 'none';
+      err.innerHTML = '';
+      sug.style.display = 'none';
+    }
+
+    function showAuthError(msg) {
+      const err = document.getElementById('auth-error-msg');
+      err.innerHTML = `<p style="color: var(--danger); font-size: 0.85rem; text-align: center; background: var(--danger-bg); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid rgba(239,68,68,0.2); margin: 0;">${msg}</p>`;
+      err.style.display = 'block';
+    }
+
+    function showAuthInfo(msg) {
+      const err = document.getElementById('auth-error-msg');
+      err.innerHTML = `<p style="color: var(--primary); font-size: 0.85rem; text-align: center; background: rgba(37,99,235,0.06); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid rgba(37,99,235,0.2); margin: 0;">${msg}</p>`;
+      err.style.display = 'block';
     }
 
     function togglePasswordVisibility() {
@@ -2519,51 +2555,76 @@
       else pInput.type = 'password';
     }
 
+    function handleForgotPassword() {
+      showAuthInfo('La récupération de mot de passe sera disponible bientôt.');
+    }
+
     async function handleGoogleLogin() {
       if (window.KivoAuth && window.KivoAuth.signInWithGoogle) {
         await window.KivoAuth.signInWithGoogle();
       } else {
-        alert("La connexion Google est en cours de configuration.");
+        showAuthInfo('La connexion Google est en cours de configuration.');
       }
     }
 
     async function submitAuthForm() {
       const btn = document.getElementById('auth-submit-btn');
-      const err = document.getElementById('auth-error-msg');
-      const email = document.getElementById('auth-email').value;
+      const email = document.getElementById('auth-email').value.trim();
       const pass = document.getElementById('auth-password').value;
       const originalText = btn.textContent;
       
       btn.disabled = true;
       btn.innerHTML = `<div class="loading-spinner" style="display:inline-block; border-color:white; border-top-color:transparent; width:16px; height:16px; border-width:2px; margin-right:8px; vertical-align:middle;"></div> Traitement...`;
-      err.style.display = 'none';
+      hideAuthMessages();
 
       try {
         let res;
         if (isSignUpMode) {
-          const name = document.getElementById('auth-name').value;
+          const name = document.getElementById('auth-name').value.trim();
           res = await KivoAuth.signUp(email, pass, name);
           if (!res.error) {
-            alert("Compte créé avec succès ! Veuillez vous connecter.");
-            toggleAuthMode();
-            document.getElementById('auth-password').value = '';
+            // Success — auth.js handlePostLogin will take over automatically via onAuthStateChange
+            showAuthInfo('✅ Compte créé ! Redirection en cours...');
+            return; // Do NOT reset button — page will navigate
+          } else {
+            const msg = res.error.message || '';
+            if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('User already registered')) {
+              showAuthInfo('Ce compte existe déjà. Connectez-vous avec votre mot de passe.');
+              setTimeout(() => switchToSigninWithEmail(email), 1800);
+            } else {
+              showAuthError(msg || 'Erreur lors de la création du compte.');
+            }
           }
         } else {
           res = await KivoAuth.signIn(email, pass);
-        }
-
-        if (res && res.error) {
-          err.textContent = res.error.message || "Une erreur est survenue.";
-          err.style.display = 'block';
+          if (!res.error) {
+            showAuthInfo('✅ Connexion réussie ! Redirection...');
+            return; // handlePostLogin takes over
+          } else {
+            const msg = res.error.message || '';
+            const isUnknown = msg.includes('Invalid login credentials') || msg.includes('user not found') || msg.includes('Email not confirmed');
+            if (isUnknown) {
+              showAuthError('Identifiants incorrects ou aucun compte trouvé.');
+              // Show smart 1-click signup suggestion
+              document.getElementById('auth-signup-suggest').style.display = 'block';
+            } else {
+              showAuthError(msg || 'Erreur de connexion.');
+            }
+          }
         }
       } catch (e) {
-        err.textContent = e.message || "Erreur de connexion.";
-        err.style.display = 'block';
+        showAuthError(e.message || 'Erreur de connexion.');
       } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
       }
     }
+
+    // Allow external code to open auth modal in a specific mode
+    window.openAuthModal = function(mode) {
+      document.getElementById('modal-login').style.display = 'flex';
+      setAuthTab(mode || 'signin');
+    };
   </script>
 
   <!-- Modal 5: Confirmation Modal for Destructive Actions -->

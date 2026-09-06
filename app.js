@@ -129,6 +129,15 @@ window.KivoApp = {
   },
 
   /**
+   * Returns a user-scoped localStorage key.
+   * Each user's data is isolated under their own key to prevent data bleed.
+   */
+  getUserStorageKey: function () {
+    const userId = window.KivoAuth?.user?.id || null;
+    return userId ? `kivo_app_state_${userId}` : 'kivo_app_state_guest';
+  },
+
+  /**
    * Initializes application state and router
    * Auth is checked FIRST — app waits for session before showing any data
    */
@@ -159,18 +168,8 @@ window.KivoApp = {
 
     if (session) {
       document.getElementById('modal-login').style.display = 'none';
-      const stored = localStorage.getItem('kivo_app_state');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          const isDemoData = parsed.userEmail && parsed.userEmail !== session.user.email;
-          const isSeeded = (parsed.clients || []).some(c => c.id && c.id.startsWith('cli_demo'));
-          if (isDemoData || isSeeded) {
-            localStorage.removeItem('kivo_app_state');
-          }
-        } catch(e) {}
-      }
-      
+      // Clean up any legacy non-user-scoped key
+      localStorage.removeItem('kivo_app_state');
       this.loadState();
       this.supabaseConnected = true;
       this.handleRoute();
@@ -217,13 +216,22 @@ window.KivoApp = {
     const data = await window.KivoDb.loadAll();
     if (!data) return;
 
-    // If Supabase has business settings for this user → they have completed onboarding
-    if (data.settings && data.settings.length > 0) {
-      this.state.isOnboarded = true;
-    }
+    const isNewUser = !data.settings || data.settings.length === 0;
 
-    // Merge Supabase settings into local business object
-    if (data.settings && data.settings.length > 0) {
+    if (isNewUser) {
+      // Brand new account — start completely clean. Pull name/email from auth metadata.
+      const authUser = window.KivoAuth?.user;
+      this.state.isOnboarded = false;
+      this.state.business.owner = authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || '';
+      this.state.business.email = authUser?.email || '';
+      this.state.business.name = 'Mon Entreprise';
+      this.state.clients = [];
+      this.state.documents = [];
+      this.state.catalog = [];
+      this.state.activities = [];
+    } else {
+      // Existing user — merge cloud settings
+      this.state.isOnboarded = true;
       const s = data.settings[0];
       this.state.business = {
         ...this.state.business,
@@ -251,7 +259,7 @@ window.KivoApp = {
         logoPosition: s.logo_position || this.state.business.logoPosition || 'right',
         invoicePageSize: s.invoice_page_size || this.state.business.invoicePageSize || 'a4',
       };
-      
+
       // Update the visual UI elements with loaded settings
       const tSelect = document.getElementById('builder-visual-template');
       if (tSelect) tSelect.value = this.state.business.visualTemplate;
@@ -259,74 +267,50 @@ window.KivoApp = {
       if (pColor) pColor.value = this.state.business.primaryColor;
       const sColor = document.getElementById('builder-color-secondary');
       if (sColor) sColor.value = this.state.business.secondaryColor;
-      
-      // Apply them immediately
       if (typeof this.updateDocumentPreviewVisuals === 'function') {
         this.updateDocumentPreviewVisuals();
       }
-    }
 
-    // Merge clients from Supabase
-    if (data.clients && data.clients.length > 0) {
-      const cloudIds = new Set(data.clients.map(c => c.id));
-      const localOnly = (this.state.clients || []).filter(c => !cloudIds.has(c.id));
-      this.state.clients = [
-        ...data.clients.map(c => ({
-          id: c.id, name: c.name, type: c.client_type, company: c.company,
-          contactName: c.contact_name, taxId: c.tax_id, email: c.email,
-          phone: c.phone, address: c.address,
-          totalInvoiced: c.total_invoiced, totalPaid: c.total_paid, balanceDue: c.balance_due
-        })),
-        ...localOnly
-      ];
-    }
-
-    // Merge catalog
-    if (data.catalog && data.catalog.length > 0) {
-      const cloudIds = new Set(data.catalog.map(p => p.id));
-      const localOnly = (this.state.catalog || []).filter(p => !cloudIds.has(p.id));
-      this.state.catalog = [
-        ...data.catalog.map(p => ({
-          id: p.id, name: p.name, description: p.description,
-          price: p.price, unit: p.unit, taxRate: p.tax_rate
-        })),
-        ...localOnly
-      ];
-    }
-
-    // Merge documents
-    if (data.documents && data.documents.length > 0) {
-      const cloudIds = new Set(data.documents.map(d => d.id));
-      const localOnly = (this.state.documents || []).filter(d => !cloudIds.has(d.id));
-      this.state.documents = [
-        ...data.documents.map(d => ({
-          id: d.id, number: d.number, type: d.type, status: d.status,
-          currency: d.currency, clientId: d.client_id, clientName: d.client_name,
-          clientType: d.client_type, clientTaxId: d.client_tax_id,
-          clientEmail: d.client_email, clientPhone: d.client_phone,
-          issueDate: d.issue_date, dueDate: d.due_date,
-          items: typeof d.items === 'string' ? JSON.parse(d.items) : (d.items || []),
-          subtotal: d.subtotal, discount: d.discount, taxRate: d.tax_rate,
-          tax: d.tax, total: d.total, amountPaid: d.amount_paid,
-          notes: d.notes, terms: d.terms,
-          publicToken: d.public_token, viewsCount: d.views_count
-        })),
-        ...localOnly
-      ];
-    }
-
-    // Merge activities
-    if (data.activities && data.activities.length > 0) {
-      this.state.activities = data.activities.map(a => ({
-        id: a.id, timestamp: a.timestamp, type: a.type,
-        icon: a.icon, title: a.title, details: a.details
+      // Replace (not merge) clients — only cloud truth, new user = []
+      this.state.clients = (data.clients || []).map(c => ({
+        id: c.id, name: c.name, type: c.client_type, company: c.company,
+        contactName: c.contact_name, taxId: c.tax_id, email: c.email,
+        phone: c.phone, address: c.address,
+        totalInvoiced: c.total_invoiced, totalPaid: c.total_paid, balanceDue: c.balance_due
       }));
+
+      // Replace catalog
+      this.state.catalog = (data.catalog || []).map(p => ({
+        id: p.id, name: p.name, description: p.description,
+        price: p.price, unit: p.unit, taxRate: p.tax_rate
+      }));
+
+      // Replace documents
+      this.state.documents = (data.documents || []).map(d => ({
+        id: d.id, number: d.number, type: d.type, status: d.status,
+        currency: d.currency, clientId: d.client_id, clientName: d.client_name,
+        clientType: d.client_type, clientTaxId: d.client_tax_id,
+        clientEmail: d.client_email, clientPhone: d.client_phone,
+        issueDate: d.issue_date, dueDate: d.due_date,
+        items: typeof d.items === 'string' ? JSON.parse(d.items) : (d.items || []),
+        subtotal: d.subtotal, discount: d.discount, taxRate: d.tax_rate,
+        tax: d.tax, total: d.total, amountPaid: d.amount_paid,
+        notes: d.notes, terms: d.terms,
+        publicToken: d.public_token, viewsCount: d.views_count
+      }));
+
+      // Activities
+      if (data.activities && data.activities.length > 0) {
+        this.state.activities = data.activities.map(a => ({
+          id: a.id, timestamp: a.timestamp, type: a.type,
+          icon: a.icon, title: a.title, details: a.details
+        }));
+      }
     }
 
     this.saveState();
     this.renderCurrentView();
-    // this.showToast('☁️ Données synchronisées depuis Supabase.', 'success'); // Supprimer notification Supabase
-    console.log('[KivoApp] Supabase sync complete.');
+    console.log('[KivoApp] Supabase sync complete. isNewUser:', isNewUser);
   },
 
   /**
@@ -356,7 +340,8 @@ window.KivoApp = {
    * Loads state from localStorage
    */
   loadState: function () {
-    const saved = localStorage.getItem('kivo_app_state');
+    const key = this.getUserStorageKey();
+    const saved = localStorage.getItem(key);
     if (saved) {
       try {
         this.state = JSON.parse(saved);
@@ -387,7 +372,8 @@ window.KivoApp = {
    * Persists state to localStorage (Supabase sync is handled per-entity)
    */
   saveState: function () {
-    localStorage.setItem('kivo_app_state', JSON.stringify(this.state));
+    const key = this.getUserStorageKey();
+    localStorage.setItem(key, JSON.stringify(this.state));
   },
 
   /**
@@ -409,22 +395,24 @@ window.KivoApp = {
    * Without this, getSession() finds the old token and auto-logs in the user.
    */
   logout: async function () {
-    if (confirm("Voulez-vous vraiment vous déconnecter de KIVO MATIQUE ?")) {
-      try {
-        // Critical: sign out from Supabase to destroy the token in localStorage
-        if (window.KivoDb && window.KivoDb.supabase) {
-          await KivoDb.supabase.auth.signOut();
-        }
-      } catch (e) {
-        console.error('[KivoApp] Error during Supabase signOut:', e);
-      }
-      // Clear local app state
+    try {
+      // Remove this user's isolated state key
+      const key = this.getUserStorageKey();
+      localStorage.removeItem(key);
+      // Also remove legacy key if present
       localStorage.removeItem('kivo_app_state');
+      // Reset in-memory state
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.supabaseConnected = false;
-      // Force page reload to get a fresh, clean session check
-      window.location.href = window.location.pathname;
+      // Sign out from Supabase to destroy the auth token
+      if (window.KivoDb && window.KivoDb.supabase) {
+        await KivoDb.supabase.auth.signOut();
+      }
+    } catch (e) {
+      console.error('[KivoApp] Error during logout:', e);
     }
+    // Force page reload to land on clean state
+    window.location.href = window.location.pathname;
   },
 
   /**
@@ -673,29 +661,14 @@ window.KivoApp = {
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
     }
     const biz = (this.state && this.state.business) || {};
-    const nameEl = document.getElementById('sidebar-user-name');
     const bizEl = document.getElementById('sidebar-business-name');
-    const emailEl = document.getElementById('sidebar-user-email');
-    const avatarEl = document.getElementById('sidebar-avatar');
-    
-    if (nameEl) nameEl.textContent = biz.owner || "Mon Compte";
-    if (bizEl) bizEl.textContent = biz.name || "KIVO MATIQUE";
-    if (emailEl) emailEl.textContent = biz.email || "contact@entreprise.com";
+    if (bizEl) bizEl.textContent = biz.name || 'KIVO MATIQUE';
     
     const teamOwnerName = document.getElementById('team-owner-name');
     const teamOwnerEmail = document.getElementById('team-owner-email');
-    if (teamOwnerName) teamOwnerName.textContent = biz.owner || "Propriétaire";
-    if (teamOwnerEmail) teamOwnerEmail.textContent = biz.email || "contact@kivo.app";
-    
-    if (avatarEl) {
-      if (biz.logoUrl) {
-        avatarEl.style.overflow = 'hidden';
-        avatarEl.style.background = '#FFFFFF';
-        avatarEl.innerHTML = `<img src="${biz.logoUrl}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;">`;
-      } else {
-        avatarEl.innerHTML = biz.logoText || "KM";
-      }
-    }
+    if (teamOwnerName) teamOwnerName.textContent = biz.owner || 'Propriétaire';
+    if (teamOwnerEmail) teamOwnerEmail.textContent = biz.email || '';
+
 
     const previewBadge = document.getElementById('setting-logo-preview-badge');
     if (previewBadge) {
@@ -3256,7 +3229,7 @@ window.KivoApp = {
     const bizAddress = biz.address || 'Plateau, Abidjan';
     const bizPhone = biz.phone || '+225 07 48 12 34 56';
     const bizEmail = biz.email || 'contact@kivo.com';
-    const bizOwner = biz.owner || 'Alex Dubois';
+    const bizOwner = biz.owner || '';
     const primaryColor = biz.primaryColor || '#0B132B';
     const currency = (doc && doc.currency) || biz.currency || 'FCFA';
 
