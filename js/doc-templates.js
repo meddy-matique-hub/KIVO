@@ -140,8 +140,8 @@ window.KivoTemplates = {
       dueDate:        get('builder-due-date')        || '25/08/2026',
       status:         get('builder-doc-status')      || 'sent',
       paymentMethod:  get('builder-payment-method')  || 'Virement bancaire',
-      terms:          get('builder-terms')           || 'Net 30 days',
-      notes:          get('builder-notes')           || 'Facture KIVO MATIQUE. Merci pour votre collaboration.',
+      terms:          get('builder-terms')           || 'À réception',
+      notes:          get('builder-notes')           || '',
       client: {
         name:    get('builder-client-name')    || clientFound.name    || clientFound.company || 'CLIENT PRO SOLUTIONS',
         company: clientFound.company           || '',
@@ -278,14 +278,13 @@ window.KivoTemplates = {
             <div>Conditions : <span style="font-weight:600;color:${isDark ? '#E2E8F0' : '#0F172A'};">${d.terms}</span></div>
           </div>
           <div>
-            <strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:3px;">Notes / Mentions</strong>
-            <div>${d.notes || 'Document généré avec KIVO MATIQUE.'}</div>
+            ${d.notes ? `<strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:3px;">Notes / Mentions</strong><div>${d.notes}</div>` : ''}
           </div>
         </div>
 
         <!-- Footer -->
         <div style="text-align:center;font-size:10px;color:${isDark ? '#64748B' : '#94A3B8'};padding-top:6px;border-top:1px solid ${isDark ? '#2D323F' : '#F1F5F9'};">
-          ${d.biz.name} · Facture conforme KIVO MATIQUE · Merci pour votre confiance
+          ${[d.biz.name, d.biz.address, d.biz.taxId].filter(Boolean).join(' · ')}
         </div>
       </div>
     `;
@@ -677,13 +676,12 @@ window.KivoTemplates = {
       default:            html = this.renderMinimalist(d); break;
     }
 
-    // Inlay professional "PAYÉE" watermark stamp if status is paid
+    // Inlay professional "PAYÉE" background watermark if status is paid
     if (d.status === 'paid' && d.docType !== 'quote') {
       const stamp = `
-        <div style="position:absolute; top:28px; right:32px; transform:rotate(-10deg); z-index:25; pointer-events:none; border:2.5px solid #10B981; border-radius:8px; padding:5px 14px; background:rgba(236,253,245,0.92); backdrop-filter:blur(3px); box-shadow:0 4px 14px rgba(16,185,129,0.2);">
-          <div style="font-family:'Outfit',sans-serif; font-size:16px; font-weight:900; letter-spacing:0.18em; color:#047857; text-transform:uppercase; line-height:1; display:flex; align-items:center; gap:6px;">
-            <span>PAYÉE</span>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <div class="invoice-paid-watermark" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%) rotate(-24deg); z-index:0; pointer-events:none; border:6px solid #10B981; border-radius:18px; padding:12px 42px; opacity:0.09; user-select:none; display:flex; align-items:center; justify-content:center;">
+          <div style="font-family:'Outfit',sans-serif; font-size:68px; font-weight:900; letter-spacing:0.35em; color:#10B981; text-transform:uppercase; line-height:1;">
+            PAYÉE
           </div>
         </div>
       `;

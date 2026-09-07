@@ -468,23 +468,24 @@ window.KivoApp = {
    */
   logout: async function () {
     try {
-      // Remove this user's isolated state key
+      if (window.KivoAuth) {
+        window.KivoAuth.user = null;
+        window.KivoAuth.session = null;
+      }
+      this.supabaseConnected = false;
       const key = this.getUserStorageKey();
       localStorage.removeItem(key);
-      // Also remove legacy key if present
       localStorage.removeItem('kivo_app_state');
-      // Reset in-memory state
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
-      this.supabaseConnected = false;
-      // Sign out from Supabase to destroy the auth token
+      
       if (window.KivoDb && window.KivoDb.supabase) {
         await KivoDb.supabase.auth.signOut();
       }
     } catch (e) {
       console.error('[KivoApp] Error during logout:', e);
     }
-    // Force page reload to land on clean state
-    window.location.href = window.location.pathname;
+    window.location.hash = 'landing';
+    window.location.reload();
   },
 
   /**
@@ -566,7 +567,8 @@ window.KivoApp = {
       loginModal.style.display = viewName === 'auth' ? 'flex' : 'none';
     }
 
-    const isFullWidthView = publicViews.includes(viewName);
+    // Keep sidebar and app layout active for authenticated users visiting pricing
+    const isFullWidthView = !isAuthenticated ? publicViews.includes(viewName) : (viewName === 'landing' || viewName === 'public-doc');
     const sidebar = document.getElementById('sidebar');
     const mobileBottomNav = document.querySelector('.mobile-bottom-nav');
     const mobileHeader = document.querySelector('.mobile-header');
@@ -574,6 +576,11 @@ window.KivoApp = {
     if (sidebar) sidebar.style.display = isFullWidthView ? 'none' : 'flex';
     if (mobileBottomNav) mobileBottomNav.style.display = isFullWidthView ? 'none' : 'flex';
     if (mobileHeader) mobileHeader.style.display = isFullWidthView ? 'none' : 'flex';
+
+    const pricingTopbar = document.querySelector('.pricing-topbar');
+    if (pricingTopbar) {
+      pricingTopbar.style.display = isAuthenticated ? 'none' : 'flex';
+    }
 
     const mainContent = document.querySelector('.main-content');
     if (mainContent) {
@@ -1409,12 +1416,13 @@ window.KivoApp = {
     setVal('builder-client-address', '');
     setVal('builder-client-phone', '');
 
-    // Logo from business settings
-    if (biz.logoUrl) {
+    // Logo from business settings or builder session
+    this.builderCustomLogoUrl = biz.logoUrl || null;
+    if (this.builderCustomLogoUrl) {
       const logoImg = document.getElementById('builder-logo-preview-img');
       const previewBox = document.getElementById('builder-logo-preview-box');
       const uploadPrompt = document.getElementById('builder-logo-upload-prompt');
-      if (logoImg) { logoImg.src = biz.logoUrl; logoImg.style.display = 'block'; }
+      if (logoImg) { logoImg.src = this.builderCustomLogoUrl; logoImg.style.display = 'block'; }
       if (previewBox) previewBox.style.display = 'flex';
       if (uploadPrompt) uploadPrompt.style.display = 'none';
     } else {
@@ -1475,6 +1483,34 @@ window.KivoApp = {
     // Client override fields
     setVal('builder-client-address', doc.clientAddress || '');
     setVal('builder-client-phone', doc.clientPhone || '');
+
+    // Logo restoration
+    this.builderCustomLogoUrl = doc.logoUrl !== undefined ? doc.logoUrl : (biz.logoUrl || null);
+    const logoImg = document.getElementById('builder-logo-preview-img');
+    const previewBox = document.getElementById('builder-logo-preview-box');
+    const uploadPrompt = document.getElementById('builder-logo-upload-prompt');
+    if (this.builderCustomLogoUrl) {
+      if (logoImg) { logoImg.src = this.builderCustomLogoUrl; logoImg.style.display = 'block'; }
+      if (previewBox) previewBox.style.display = 'flex';
+      if (uploadPrompt) uploadPrompt.style.display = 'none';
+    } else {
+      if (previewBox) previewBox.style.display = 'none';
+      if (uploadPrompt) uploadPrompt.style.display = 'block';
+    }
+
+    // Color restoration
+    if (doc.primaryColor && document.getElementById('builder-color-primary')) {
+      document.getElementById('builder-color-primary').value = doc.primaryColor;
+      if (document.getElementById('builder-color-primary-text')) {
+        document.getElementById('builder-color-primary-text').value = doc.primaryColor;
+      }
+    }
+    if (doc.secondaryColor && document.getElementById('builder-color-secondary')) {
+      document.getElementById('builder-color-secondary').value = doc.secondaryColor;
+      if (document.getElementById('builder-color-secondary-text')) {
+        document.getElementById('builder-color-secondary-text').value = doc.secondaryColor;
+      }
+    }
 
     const tbody = document.getElementById('builder-items-tbody');
     if (tbody) tbody.innerHTML = '';
@@ -2129,6 +2165,9 @@ window.KivoApp = {
       amountPaid: status === 'paid' ? grandTotal : 0,
       notes: notes,
       terms: terms,
+      logoUrl: this.builderCustomLogoUrl !== undefined ? this.builderCustomLogoUrl : (this.state.business && this.state.business.logoUrl) || null,
+      primaryColor: document.getElementById('builder-color-primary') ? document.getElementById('builder-color-primary').value : null,
+      secondaryColor: document.getElementById('builder-color-secondary') ? document.getElementById('builder-color-secondary').value : null,
       publicToken: 'tok_' + Math.random().toString(36).substring(2, 8),
       viewsCount: 1,
       lastViewedAt: new Date().toLocaleString('fr-FR')
@@ -4195,6 +4234,10 @@ window.KivoApp = {
     this.showToast('Palette appliquée', 'success');
   },
 
+  /**
+   * Invoice-specific logo upload: updates only this builder session and document,
+   * without mutating the company profile logo in Mon profil or Supabase.
+   */
   handleLogoUpload: function (inputOrFiles) {
     let file = null;
     if (inputOrFiles instanceof FileList && inputOrFiles.length > 0) {
@@ -4206,13 +4249,19 @@ window.KivoApp = {
     }
     if (!file) return;
 
+    if (!file.type.startsWith('image/')) {
+      this.showToast('Veuillez sélectionner un fichier image valide.', 'warning');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target.result;
-      this.state.business = this.state.business || {};
-      this.state.business.logoUrl = dataUrl;
+      
+      // Store strictly for this builder document session
+      this.builderCustomLogoUrl = dataUrl;
 
-      // Update builder previews
+      // Update builder preview elements
       const preview = document.getElementById('builder-logo-preview-img');
       const previewBox = document.getElementById('builder-logo-preview-box');
       const uploadPrompt = document.getElementById('builder-logo-upload-prompt');
@@ -4223,35 +4272,124 @@ window.KivoApp = {
       if (previewBox) previewBox.style.display = 'flex';
       if (uploadPrompt) uploadPrompt.style.display = 'none';
 
-      // Update settings preview
-      const settingBadge = document.getElementById('setting-logo-preview-badge');
-      if (settingBadge) {
-        settingBadge.innerHTML = `<img src="${dataUrl}" style="width:100%; height:100%; object-fit:contain;">`;
-      }
-
-      this.saveState();
-
       // Automatically extract logo color and update live invoice preview
       setTimeout(() => {
         this.extractColorsFromLogo();
         this.updateLiveInvoicePreview();
       }, 60);
 
-      // Also upload to Supabase in the background if connected
-      if (window.KivoDb && window.KivoAuth && window.KivoAuth.user) {
-        window.KivoDb.uploadLogo(file, window.KivoAuth.user.id).then(url => {
-          if (url) {
-            this.state.business.logoUrl = url;
-            this.saveState();
-            this.updateLiveInvoicePreview();
-            if (this.supabaseConnected) this.saveSettings();
-          }
-        }).catch(err => console.warn('Supabase logo upload error:', err));
-      }
-
-      this.showToast('✅ Logo importé et couleurs adaptées !', 'success');
+      this.showToast('Logo appliqué à la facture.', 'success');
     };
     reader.readAsDataURL(file);
+  },
+
+  /**
+   * Payment terms dropdown selector handler
+   */
+  onBuilderTermsChange: function (val) {
+    const customInput = document.getElementById('builder-terms');
+    if (!customInput) return;
+    if (val === 'custom') {
+      customInput.style.display = 'block';
+      customInput.focus();
+    } else {
+      customInput.style.display = 'none';
+      customInput.value = val;
+    }
+    this.updateLiveInvoicePreview();
+  },
+
+  /**
+   * Color picker change handler
+   */
+  onBuilderColorChange: function () {
+    const pPicker = document.getElementById('builder-color-primary');
+    const sPicker = document.getElementById('builder-color-secondary');
+    const pText = document.getElementById('builder-color-primary-text');
+    const sText = document.getElementById('builder-color-secondary-text');
+
+    if (pPicker && pText) pText.value = pPicker.value;
+    if (sPicker && sText) sText.value = sPicker.value;
+
+    this.updateLiveInvoicePreview();
+  },
+
+  /**
+   * Color text input change handler
+   */
+  onBuilderColorTextInput: function (type, hex) {
+    if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) return;
+    if (type === 'primary') {
+      const pPicker = document.getElementById('builder-color-primary');
+      if (pPicker) pPicker.value = hex;
+    } else {
+      const sPicker = document.getElementById('builder-color-secondary');
+      if (sPicker) sPicker.value = hex;
+    }
+    this.updateLiveInvoicePreview();
+  },
+
+  /**
+   * Set builder colors from preset swatches
+   */
+  setBuilderPresetColors: function (primary, secondary) {
+    const pPicker = document.getElementById('builder-color-primary');
+    const sPicker = document.getElementById('builder-color-secondary');
+    const pText = document.getElementById('builder-color-primary-text');
+    const sText = document.getElementById('builder-color-secondary-text');
+
+    if (pPicker) pPicker.value = primary;
+    if (pText) pText.value = primary;
+    if (sPicker) sPicker.value = secondary;
+    if (sText) sText.value = secondary;
+
+    this.updateLiveInvoicePreview();
+  },
+
+  /**
+   * Real currency exchange rates reference matrix
+   */
+  currencyRates: {
+    FCFA: 1,
+    XOF: 1,
+    XAF: 1,
+    EUR: 655.957,
+    USD: 605,
+    GBP: 770,
+    CAD: 445
+  },
+
+  /**
+   * Real currency conversion: converts unit prices, subtotal, and tax
+   */
+  onBuilderCurrencyChange: function (newCurrency) {
+    const oldCurrency = this.builderCurrentCurrency || (this.state.business && this.state.business.currency) || 'FCFA';
+    this.builderCurrentCurrency = newCurrency;
+
+    if (oldCurrency !== newCurrency) {
+      const rateOld = this.currencyRates[oldCurrency] || 1;
+      const rateNew = this.currencyRates[newCurrency] || 1;
+      const factor = rateOld / rateNew;
+
+      document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
+        const priceInput = tr.querySelector('.item-price');
+        if (priceInput) {
+          const currentPrice = parseFloat(priceInput.value) || 0;
+          if (currentPrice > 0) {
+            const isFcfa = (newCurrency === 'FCFA' || newCurrency === 'XOF' || newCurrency === 'XAF');
+            const converted = isFcfa
+              ? Math.round(currentPrice * factor)
+              : Math.round((currentPrice * factor) * 100) / 100;
+            priceInput.value = converted;
+          }
+        }
+      });
+
+      this.showToast(`Devise modifiée : 1 ${oldCurrency} = ${(1 * factor).toFixed(4)} ${newCurrency}. Prix convertis.`, 'info');
+    }
+
+    this.recalculateBuilderTotals();
+    this.updateLiveInvoicePreview();
   },
 
   extractColorsFromLogo: function () {
@@ -4348,10 +4486,11 @@ window.KivoApp = {
 
   /**
    * Telechargement PDF reel via html2pdf.js - GARANTI SUR 1 SEULE PAGE A4
+   * Utilise un conteneur sandbox isole sans decalage de scroll ni debordement
    */
   downloadPdf: function () {
     const docNum = (document.getElementById('builder-doc-number') || document.getElementById('pub-doc-number'));
-    const filename = ((docNum ? docNum.value || docNum.textContent : '') || 'facture_KIVO') + '.pdf';
+    const filename = ((docNum ? docNum.value || docNum.textContent : '') || 'facture_KIVO').trim().replace(/[^a-zA-Z0-9-_]/g, '_') + '.pdf';
 
     let element = document.getElementById('live-paper-preview-container');
     if (!element || element.offsetParent === null) {
@@ -4367,57 +4506,72 @@ window.KivoApp = {
       return;
     }
 
-    this.showToast('⏳ Téléchargement de la facture (1 page A4)...', 'info');
+    this.showToast('⏳ Génération du PDF (1 page A4)...', 'info');
 
-    // Sauvegarder les dimensions et styles actuels
-    const origWidth = element.style.width;
-    const origHeight = element.style.height;
-    const origMaxHeight = element.style.maxHeight;
-    const origOverflow = element.style.overflow;
-    const origBoxShadow = element.style.boxShadow;
+    // Create an isolated sandbox to avoid any viewport scroll offsets or outer margin overflows
+    const sandbox = document.createElement('div');
+    sandbox.style.position = 'fixed';
+    sandbox.style.top = '0';
+    sandbox.style.left = '-9999px';
+    sandbox.style.width = '794px';
+    sandbox.style.height = '1122px';
+    sandbox.style.maxHeight = '1122px';
+    sandbox.style.overflow = 'hidden';
+    sandbox.style.background = '#FFFFFF';
+    sandbox.style.boxSizing = 'border-box';
+    sandbox.style.zIndex = '-9999';
 
-    // Forcer le format strict A4 (794px × 1122px à 96 DPI)
-    element.style.width = '794px';
-    element.style.height = '1122px';
-    element.style.maxHeight = '1122px';
-    element.style.overflow = 'hidden';
-    element.style.boxShadow = 'none';
+    const clone = element.cloneNode(true);
+    clone.style.width = '100%';
+    clone.style.height = '100%';
+    clone.style.maxHeight = '1122px';
+    clone.style.overflow = 'hidden';
+    clone.style.margin = '0';
+    clone.style.padding = '28px 32px';
+    clone.style.boxSizing = 'border-box';
+    clone.style.boxShadow = 'none';
+    clone.style.transform = 'none';
 
-    // Masquer l'effet de coin replié pour le document PDF officiel
-    const stack = element.closest('.mock-paper-stack');
-    const curls = stack ? stack.querySelectorAll('.paper-curl-corner') : [];
-    curls.forEach(c => c.style.display = 'none');
+    // Remove decorative mock paper curl or stack shadows
+    clone.querySelectorAll('.paper-curl-corner, .mock-paper-stack').forEach(el => el.remove());
+
+    sandbox.appendChild(clone);
+    document.body.appendChild(sandbox);
 
     const opt = {
       margin: 0,
       filename: filename,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false, scrollY: 0 },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 794,
+        windowHeight: 1122
+      },
+      jsPDF: {
+        unit: 'mm',
+        format: 'a4',
+        orientation: 'portrait',
+        compress: true
+      },
       pagebreak: { mode: 'avoid-all' }
     };
 
     html2pdf()
       .set(opt)
-      .from(element)
+      .from(sandbox)
       .save()
       .then(() => {
-        element.style.width = origWidth;
-        element.style.height = origHeight;
-        element.style.maxHeight = origMaxHeight;
-        element.style.overflow = origOverflow;
-        element.style.boxShadow = origBoxShadow;
-        curls.forEach(c => c.style.display = '');
+        if (sandbox.parentNode) document.body.removeChild(sandbox);
         this.showToast('✅ Facture téléchargée sur 1 page A4 !', 'success');
       })
       .catch(e => {
-        element.style.width = origWidth;
-        element.style.height = origHeight;
-        element.style.maxHeight = origMaxHeight;
-        element.style.overflow = origOverflow;
-        element.style.boxShadow = origBoxShadow;
-        curls.forEach(c => c.style.display = '');
-        console.error(e);
+        if (sandbox.parentNode) document.body.removeChild(sandbox);
+        console.error('[KivoApp] Erreur PDF:', e);
         this.showToast('Erreur PDF : ' + e.message, 'error');
       });
   },
