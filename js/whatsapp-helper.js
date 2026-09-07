@@ -1,4 +1,4 @@
-﻿/**
+/**
  * KIVO MATIQUE - WhatsApp Integration & Helper Module
  * Pre-formatted message builders and Meta WhatsApp Business API integration
  */
@@ -15,15 +15,15 @@ window.WhatsAppHelper = {
     const totalAmount = (document.total || 0).toLocaleString("fr-FR") + " " + currencyStr;
     const publicUrl = `${window.location.origin}${window.location.pathname}#public-doc?id=${document.id}`;
 
-    let message = `Bonjour ${document.clientName || "Cher client"} 👋,\n\n`;
+    let message = `Bonjour ${document.clientName || "Cher client"},\n\n`;
     
     if (isQuote) {
       message += `Votre devis *${docNum}* d'un montant de *${totalAmount}* émis par *${businessName}* est prêt.\n\n`;
-      message += `Vous pouvez le consulter et l'accepter directement en ligne ici :\n👉 ${publicUrl}\n\n`;
+      message += `Vous pouvez le consulter et l'accepter directement en ligne ici :\n${publicUrl}\n\n`;
       message += `Restant à votre entière disposition.\nKIVO MATIQUE | Business, simplified.`;
     } else {
       message += `Votre facture *${docNum}* d'un montant de *${totalAmount}* émise par *${businessName}* est disponible.\n\n`;
-      message += `Vous pouvez la consulter, la télécharger et la régler en un clic par Carte bancaire (Stripe) ou Mobile Money :\n👉 ${publicUrl}\n\n`;
+      message += `Vous pouvez la consulter, la télécharger et la régler en un clic par Carte bancaire (Stripe) ou Mobile Money :\n${publicUrl}\n\n`;
       message += `Merci pour votre confiance !\nKIVO MATIQUE`;
     }
 

@@ -203,6 +203,6 @@ if (window.KivoDb) {
     deleteCatalogItem: async function (id)      { return this.delete('catalog',    { id }); }
   };
 
-  console.log('[KivoDb] ✅ Supabase client initialized successfully.');
+  console.log('[KivoDb] Supabase client initialized successfully.');
 
 } // end guard

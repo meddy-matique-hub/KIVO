@@ -1,4 +1,4 @@
-﻿/**
+/**
  * KIVO MATIQUE - Demo Data Seed
  * Pre-loaded realistic data for MD Creative Studio (SMB invoicing context)
  */
@@ -354,7 +354,7 @@ window.KIVO_DEMO_DATA = {
     {
       id: "notif_2",
       type: "quote",
-      title: "Devis accepté 🎉",
+      title: "Devis accepté",
       message: "Restaurant La Paix a accepté le devis #DEV-2026-0004.",
       time: "5 août",
       read: false,

@@ -326,7 +326,7 @@ window.KivoTemplates = {
             </div>
           </div>
           <div style="margin-top:auto;border-top:1px solid #E2E8F0;padding-top:3px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:5px;color:#10B981;font-weight:800;">✓ TOTAL TTC</span>
+            <span style="font-size:5px;color:#10B981;font-weight:800;">TOTAL TTC</span>
             <div style="text-align:right;font-size:6.5px;font-weight:900;color:#0F172A;">389 400 FCFA</div>
           </div>
         </div>`, '#fff'),
@@ -696,5 +696,5 @@ window.KivoTemplates = {
   }
 };
 
-console.log('[KivoTemplates] ✅', window.KivoTemplates.builtIn.length, 'templates disponibles.');
+console.log('[KivoTemplates]', window.KivoTemplates.builtIn.length, 'templates disponibles.');
 
