@@ -96,32 +96,38 @@
             <span class="nav-label">Rapports</span>
           </a>
 
-          <!-- PARAMÈTRES section -->
-          <div class="nav-section-label">Paramètres</div>
-
-          <!-- Mon profil -->
-          <a href="#settings" class="nav-item" data-view="settings">
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-            <span class="nav-label">Mon profil</span>
-          </a>
-
-          <!-- Abonnement & Paiement -->
-          <a href="#pricing" class="nav-item" data-view="pricing">
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-            <span class="nav-label">Abonnement & Paiement</span>
-          </a>
-
-          <!-- Gestion de l'équipe -->
-          <a href="#team" class="nav-item" data-view="team">
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>
-            <span class="nav-label">Gestion de l'équipe</span>
-          </a>
-
-          <!-- Intégrations -->
-          <a href="#integrations" class="nav-item" data-view="integrations">
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            <span class="nav-label">Intégrations</span>
-          </a>
+          <!-- PARAMÈTRES (groupe collapsible) -->
+          <div class="nav-group" id="nav-group-settings">
+            <button class="nav-group-trigger" onclick="KivoApp.toggleNavGroup('settings')" data-group="settings">
+              <div class="nav-group-trigger-left">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span class="nav-label">Paramètres</span>
+              </div>
+              <svg class="nav-group-chevron" id="chevron-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="nav-group-items" id="nav-group-settings-items">
+              <!-- Profil -->
+              <a href="#settings" class="nav-sub-item" data-view="settings">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                <span class="nav-label">Mon profil</span>
+              </a>
+              <!-- Abonnement & Paiement -->
+              <a href="#pricing" class="nav-sub-item" data-view="pricing">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                <span class="nav-label">Abonnement & Paiement</span>
+              </a>
+              <!-- Équipe -->
+              <a href="#team" class="nav-sub-item" data-view="team">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>
+                <span class="nav-label">Équipe</span>
+              </a>
+              <!-- Intégrations -->
+              <a href="#integrations" class="nav-sub-item" data-view="integrations">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <span class="nav-label">Intégrations</span>
+              </a>
+            </div>
+          </div>
 
         </nav>
 
@@ -697,7 +703,7 @@
             <!-- Login Form -->
             <form id="auth-form-login" onsubmit="event.preventDefault(); KivoApp.submitLogin();">
               <div class="form-group">
-                <label class="form-label">Email professionnel</label>
+                <label class="form-label">Adresse e-mail</label>
                 <input type="email" id="auth-login-email" class="form-input" placeholder="contact@entreprise.com" required>
               </div>
               <div class="form-group">
@@ -722,7 +728,7 @@
                 <input type="text" id="auth-reg-name" class="form-input" placeholder="Ex: Jean-Marc Ndiaye" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Email professionnel <span style="color: var(--danger-text);">*</span></label>
+                <label class="form-label">Adresse e-mail <span style="color: var(--danger-text);">*</span></label>
                 <input type="email" id="auth-reg-email" class="form-input" placeholder="contact@entreprise.com" required>
               </div>
               <div class="form-group">
@@ -763,8 +769,8 @@
 
               <!-- Onboarding Step 1: Enterprise Profile -->
               <div style="margin-bottom: 2.5rem;">
-                <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem; font-size: 1.15rem; color: var(--primary);">
-                  <span>1️⃣</span> Coordonnées de votre Entreprise
+                <h3 style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1.25rem; font-size: 1.15rem; color: var(--primary);">
+                  <span style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 0.8rem; font-weight: 700;">1</span> Coordonnées de votre Entreprise
                 </h3>
 
                 <div class="form-row">
@@ -881,7 +887,7 @@
 
                 <div class="form-row">
                   <div class="form-group">
-                    <label class="form-label">Email professionnel <span style="color: var(--danger-text);">*</span></label>
+                    <label class="form-label">Adresse e-mail <span style="color: var(--danger-text);">*</span></label>
                     <input type="email" id="onboard-biz-email" class="form-input" placeholder="contact@entreprise.sn" required>
                   </div>
                   <div class="form-group">
@@ -893,8 +899,8 @@
 
               <!-- Onboarding Step 2: Choice of Subscription Plan -->
               <div style="margin-bottom: 2.5rem;">
-                <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem; font-size: 1.15rem; color: var(--primary);">
-                  <span>2️⃣</span> Sélectionnez votre formule KIVO MATIQUE
+                <h3 style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1.25rem; font-size: 1.15rem; color: var(--primary);">
+                  <span style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 0.8rem; font-weight: 700;">2</span> Sélectionnez votre formule KIVO MATIQUE
                 </h3>
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
@@ -1649,24 +1655,7 @@
               <p class="page-subtitle">Analysez l'évolution de vos ventes et de vos encaissements.</p>
             </div>
           </div>
-
-          <div class="kpi-grid">
-            <div class="card kpi-card">
-              <span class="kpi-title">Taux d'acceptation devis</span>
-              <div class="kpi-value" style="color: var(--primary);">85%</div>
-              <span class="kpi-subtext">3 devis sur 4 validés</span>
-            </div>
-            <div class="card kpi-card">
-              <span class="kpi-title">Délai moyen de paiement</span>
-              <div class="kpi-value" style="color: var(--success-text);">4.2 Jours</div>
-              <span class="kpi-subtext">Après envoi du lien WhatsApp</span>
-            </div>
-            <div class="card kpi-card">
-              <span class="kpi-title">Canal le plus efficace</span>
-              <div class="kpi-value">Wave Money</div>
-              <span class="kpi-subtext">72% des règlements effectués</span>
-            </div>
-          </div>
+          <div id="analytics-content"></div>
         </section>
 
 
@@ -2241,7 +2230,7 @@
                       <input type="text" id="setting-biz-phone" class="profile-input" placeholder="+33 1 23 45 67 89">
                     </div>
                     <div class="profile-form-group">
-                      <label class="profile-label" for="setting-biz-pro-email">Email professionnel</label>
+                      <label class="profile-label" for="setting-biz-pro-email">Email de l'entreprise</label>
                       <input type="email" id="setting-biz-pro-email" class="profile-input" placeholder="contact@dubois.co">
                     </div>
                   </div>
