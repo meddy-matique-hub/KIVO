@@ -1385,7 +1385,10 @@ window.KivoApp = {
     setVal('builder-due-date', dueStr);
     setVal('builder-doc-status', 'draft');
     setVal('builder-notes', '');
-    setVal('builder-terms', 'Net 30 days');
+    setVal('builder-terms', 'À réception');
+    setVal('builder-terms-select', 'À réception');
+    const termsCustomInput = document.getElementById('builder-terms');
+    if (termsCustomInput) termsCustomInput.style.display = 'none';
     setVal('builder-payment-method', 'Virement bancaire');
     setVal('builder-doc-currency', this.state.business.currency || 'FCFA');
     setVal('builder-visual-template', this.state.business.visualTemplate || 'minimalist');
@@ -1462,7 +1465,22 @@ window.KivoApp = {
     setVal('builder-due-date', doc.dueDate || new Date().toISOString().split('T')[0]);
     setVal('builder-doc-status', doc.status || 'sent');
     setVal('builder-notes', doc.notes || '');
-    setVal('builder-terms', doc.terms || '');
+    // Sync payment terms: check if doc.terms matches a known option, otherwise use custom
+    const knownTerms = ['À réception', 'Net 7 jours', 'Net 15 jours', 'Net 30 jours', 'Net 45 jours', 'Net 60 jours'];
+    const docTerms = doc.terms || 'À réception';
+    const termsSelectEl = document.getElementById('builder-terms-select');
+    const termsInputEl = document.getElementById('builder-terms');
+    if (termsSelectEl) {
+      if (knownTerms.includes(docTerms)) {
+        termsSelectEl.value = docTerms;
+        if (termsInputEl) { termsInputEl.value = docTerms; termsInputEl.style.display = 'none'; }
+      } else {
+        termsSelectEl.value = 'custom';
+        if (termsInputEl) { termsInputEl.value = docTerms; termsInputEl.style.display = 'block'; }
+      }
+    } else {
+      setVal('builder-terms', docTerms);
+    }
     setVal('builder-payment-method', doc.paymentMethod || 'Virement bancaire');
 
     // Enterprise fields from business settings
@@ -1784,7 +1802,7 @@ window.KivoApp = {
     if (methodEl) methodEl.textContent = paymentMethod || "Virement bancaire";
     
     const termsEl = document.getElementById('paper-terms-text');
-    if (termsEl) termsEl.textContent = terms || "Net 30 days";
+    if (termsEl) termsEl.textContent = terms || "À réception";
     
     const notesEl = document.getElementById('paper-notes-text');
     if (notesEl) {
@@ -2482,8 +2500,8 @@ window.KivoApp = {
     document.getElementById('pub-total').textContent = (doc.total || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
     document.getElementById('pub-bar-total').textContent = (doc.total || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
 
-    document.getElementById('pub-terms').textContent = doc.terms || "Paiement à réception par Carte bancaire (Stripe) ou Mobile Money.";
-    document.getElementById('pub-notes').textContent = doc.notes || "Merci pour votre confiance.";
+    document.getElementById('pub-terms').textContent = doc.terms || "À réception";
+    document.getElementById('pub-notes').textContent = doc.notes || "";
 
     const btnContainer = document.getElementById('pub-bar-buttons-container');
     
