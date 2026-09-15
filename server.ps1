@@ -9,9 +9,9 @@ while ($listener.IsListening) {
         $res = $context.Response
         $localPath = $req.Url.LocalPath.TrimStart('/')
         if ([string]::IsNullOrWhiteSpace($localPath)) { $localPath = "index.html" }
-        $filePath = Join-Path "c:\KIVO" $localPath
+        $filePath = Join-Path $PSScriptRoot $localPath
         if (-not (Test-Path $filePath) -or (Get-Item $filePath).PSIsContainer) {
-            $filePath = "c:\KIVO\index.html"
+            $filePath = Join-Path $PSScriptRoot "index.html"
         }
         $bytes = [System.IO.File]::ReadAllBytes($filePath)
         $res.ContentLength64 = $bytes.Length
@@ -19,6 +19,8 @@ while ($listener.IsListening) {
         if ($ext -eq ".html") { $res.ContentType = "text/html; charset=utf-8" }
         elseif ($ext -eq ".css") { $res.ContentType = "text/css" }
         elseif ($ext -eq ".js") { $res.ContentType = "application/javascript" }
+        elseif ($ext -eq ".svg") { $res.ContentType = "image/svg+xml" }
+        elseif ($ext -eq ".png") { $res.ContentType = "image/png" }
         $res.OutputStream.Write($bytes, 0, $bytes.Length)
         $res.OutputStream.Close()
     } catch {

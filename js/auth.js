@@ -35,10 +35,16 @@ window.KivoAuth = {
       if (event === 'SIGNED_OUT') {
         const loginModal = document.getElementById('modal-login');
         if (loginModal) loginModal.style.display = 'none';
+        this.session = null;
+        this.user = null;
         if (window.KivoApp) {
           KivoApp.state = JSON.parse(JSON.stringify(KivoApp.BLANK_STATE));
+          KivoApp.state.isOnboarded = false;
           KivoApp.supabaseConnected = false;
-          KivoApp.navigate('landing');
+          if (window.location.hash !== '#landing') {
+            window.location.hash = '#landing';
+          }
+          KivoApp.handleRoute();
         }
       } else if (event === 'SIGNED_IN' && session) {
         // Only trigger post-login workflow if user was previously not logged in
@@ -105,13 +111,17 @@ window.KivoAuth = {
   },
 
   signOut: async function() {
-    const { error } = await KivoDb.supabase.auth.signOut();
-    if (error) {
-      console.error('[KivoAuth] signOut error:', error.message);
-    } else {
-      console.log('[KivoAuth] Successfully signed out.');
-      this.session = null;
-      this.user = null;
+    if (window.KivoApp && typeof window.KivoApp.logout === 'function') {
+      return await window.KivoApp.logout();
     }
+    try {
+      if (window.KivoDb && window.KivoDb.supabase) {
+        await KivoDb.supabase.auth.signOut();
+      }
+    } catch (e) {
+      console.warn('[KivoAuth] signOut error:', e);
+    }
+    this.session = null;
+    this.user = null;
   }
 };

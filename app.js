@@ -467,25 +467,52 @@ window.KivoApp = {
    * Without this, getSession() finds the old token and auto-logs in the user.
    */
   logout: async function () {
+    console.log('[KivoApp] Logging out...');
     try {
+      // 1. Capture user-scoped storage key BEFORE clearing user object
+      const userKey = this.getUserStorageKey();
+      if (userKey) localStorage.removeItem(userKey);
+      localStorage.removeItem('kivo_app_state');
+      localStorage.removeItem('kivo_app_state_guest');
+
+      // 2. Explicitly purge all Supabase auth tokens from localStorage
+      // to ensure no stale token can re-authenticate the user on page refresh
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith('sb-') || k.startsWith('supabase.') || k.includes('auth-token'))) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+
+      // 3. Clear session and user references in memory
       if (window.KivoAuth) {
         window.KivoAuth.user = null;
         window.KivoAuth.session = null;
       }
       this.supabaseConnected = false;
-      const key = this.getUserStorageKey();
-      localStorage.removeItem(key);
-      localStorage.removeItem('kivo_app_state');
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
-      
+      this.state.isOnboarded = false;
+
+      // 4. Perform Supabase SDK signOut with catch guard
       if (window.KivoDb && window.KivoDb.supabase) {
-        await KivoDb.supabase.auth.signOut();
+        try {
+          await KivoDb.supabase.auth.signOut();
+        } catch (authErr) {
+          console.warn('[KivoApp] Supabase signOut non-blocking error:', authErr);
+        }
       }
     } catch (e) {
       console.error('[KivoApp] Error during logout:', e);
     }
-    window.location.hash = 'landing';
-    window.location.reload();
+
+    // 5. Clean URL and navigate to landing cleanly
+    if (window.location.hash !== '#landing') {
+      window.location.hash = '#landing';
+    }
+    this.handleRoute();
+    this.showToast('Déconnexion réussie.', 'info');
   },
 
   /**
@@ -536,6 +563,13 @@ window.KivoApp = {
       // 1. VISITOR: strictly public views only. No fake accounts, no demo bypass.
       if (!publicViews.includes(viewName)) {
         viewName = 'landing';
+        if (window.location.hash && window.location.hash !== '#landing' && window.location.hash !== '#') {
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', '#landing');
+          } else {
+            window.location.hash = '#landing';
+          }
+        }
       }
     } else if (!isOnboarded) {
       // 2. AUTHENTICATED BUT ONBOARDING INCOMPLETE:
@@ -4532,29 +4566,39 @@ window.KivoApp = {
 
     this.showToast('Génération du PDF (1 page A4)...', 'info');
 
-    // Create an isolated sandbox to avoid any viewport scroll offsets or outer margin overflows
+    // Create an isolated sandbox at (0,0) with zIndex -99999 so html2canvas renders
+    // the content at exact origin without negative offset (which caused the blank page bug)
     const sandbox = document.createElement('div');
+    sandbox.id = 'kivo-pdf-sandbox';
     sandbox.style.position = 'fixed';
     sandbox.style.top = '0';
-    sandbox.style.left = '-9999px';
+    sandbox.style.left = '0';
     sandbox.style.width = '794px';
     sandbox.style.height = '1122px';
+    sandbox.style.minHeight = '1122px';
     sandbox.style.maxHeight = '1122px';
     sandbox.style.overflow = 'hidden';
-    sandbox.style.background = '#FFFFFF';
+    sandbox.style.background = (element.style.backgroundColor && element.style.backgroundColor !== 'transparent')
+      ? element.style.backgroundColor
+      : (element.id === 'public-doc-printable-area' ? '#FFFFFF' : (element.style.background || '#FFFFFF'));
     sandbox.style.boxSizing = 'border-box';
-    sandbox.style.zIndex = '-9999';
+    sandbox.style.margin = '0';
+    sandbox.style.padding = '0';
+    sandbox.style.zIndex = '-99999';
+    sandbox.style.pointerEvents = 'none';
 
     const clone = element.cloneNode(true);
-    clone.style.width = '100%';
-    clone.style.height = '100%';
+    clone.style.width = '794px';
+    clone.style.height = '1122px';
+    clone.style.minHeight = '1122px';
     clone.style.maxHeight = '1122px';
     clone.style.overflow = 'hidden';
     clone.style.margin = '0';
-    clone.style.padding = '28px 32px';
-    clone.style.boxSizing = 'border-box';
     clone.style.boxShadow = 'none';
+    clone.style.border = 'none';
+    clone.style.borderRadius = '0';
     clone.style.transform = 'none';
+    clone.style.boxSizing = 'border-box';
 
     // Remove decorative mock paper curl or stack shadows
     clone.querySelectorAll('.paper-curl-corner, .mock-paper-stack').forEach(el => el.remove());
@@ -4573,6 +4617,10 @@ window.KivoApp = {
         logging: false,
         scrollX: 0,
         scrollY: 0,
+        x: 0,
+        y: 0,
+        width: 794,
+        height: 1122,
         windowWidth: 794,
         windowHeight: 1122
       },

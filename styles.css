@@ -2523,7 +2523,9 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   }
   
   #live-paper-preview-container,
-  #live-paper-preview-container * {
+  #live-paper-preview-container *,
+  #public-doc-printable-area,
+  #public-doc-printable-area * {
     visibility: visible !important;
   }
 
