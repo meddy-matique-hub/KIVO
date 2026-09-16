@@ -143,40 +143,22 @@ window.KivoApp = {
    */
   init: async function () {
     console.log("[KivoApp] Initializing KIVO MATIQUE application...");
+    if (!this.state) {
+      this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
+    }
     this.setupRouting();
     this.setupEventListeners();
 
     // 1. Check if returning from Google OAuth (URL hash contains access_token or query contains code)
     const hasOAuthCallback = window.location.hash.includes('access_token=') || window.location.search.includes('code=');
 
-    // 2. Initialize Auth client
+    // 2. Initialize Auth client (KivoAuth.init validates session with server)
     if (window.KivoAuth && typeof window.KivoAuth.init === 'function') {
       await window.KivoAuth.init();
     }
 
-    // 3. Check Supabase session
-    let session = null;
-    try {
-      if (window.KivoDb && window.KivoDb.supabase) {
-        const { data: sessionData } = await KivoDb.supabase.auth.getSession();
-        const rawSession = sessionData?.session || null;
-        if (rawSession) {
-          const { data: userData, error: userError } = await KivoDb.supabase.auth.getUser();
-          if (userError || !userData?.user) {
-            console.warn('[KivoApp] Session token invalid or expired — signing out.');
-            await KivoDb.supabase.auth.signOut();
-          } else {
-            session = rawSession;
-            if (window.KivoAuth) {
-              KivoAuth.session = session;
-              KivoAuth.user = userData.user;
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('[KivoApp] Error checking session:', e);
-    }
+    const session = window.KivoAuth?.session || null;
+    const user = window.KivoAuth?.user || null;
 
     // If returning from OAuth, clean URL hash/query smoothly without breaking router
     if (hasOAuthCallback && session) {
@@ -185,12 +167,12 @@ window.KivoApp = {
       }
     }
 
-    if (session && session.user) {
+    if (user) {
       const loginModal = document.getElementById('modal-login');
       if (loginModal) loginModal.style.display = 'none';
       localStorage.removeItem('kivo_app_state'); // Purge legacy unscoped state
-      this.state.userEmail = session.user.email || '';
       this.loadState();
+      this.state.userEmail = user.email || '';
       this.supabaseConnected = true;
 
       // Sync user data from Supabase to evaluate real onboarding status
@@ -202,7 +184,7 @@ window.KivoApp = {
 
       // If user is not onboarded yet, pre-fill form with OAuth/signup metadata
       if (!this.state.isOnboarded) {
-        this.prefillOnboardingWithAuthUser(session.user);
+        this.prefillOnboardingWithAuthUser(user);
       }
 
       this.handleRoute();
@@ -224,9 +206,9 @@ window.KivoApp = {
   onUserAuthenticated: async function (user) {
     if (!user) return;
     console.log('[KivoApp] onUserAuthenticated for:', user.email);
+    this.loadState();
     this.state.userEmail = user.email || '';
     this.supabaseConnected = true;
-    this.loadState();
 
     try {
       await this.syncFromSupabase();
@@ -3449,6 +3431,13 @@ window.KivoApp = {
 
     const fullPhone = `${phonePrefix} ${rawPhone}`;
 
+    if (!this.state) {
+      this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
+    }
+    if (!this.state.business) {
+      this.state.business = JSON.parse(JSON.stringify(this.BLANK_STATE.business));
+    }
+
     const biz = this.state.business;
     biz.name = bizName;
     biz.owner = bizOwner;
@@ -4775,7 +4764,11 @@ window.KivoApp = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    window.KivoApp.init();
+  });
+} else {
   window.KivoApp.init();
-});
+}
 

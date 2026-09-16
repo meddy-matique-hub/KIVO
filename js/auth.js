@@ -13,16 +13,32 @@ window.KivoAuth = {
       return;
     }
     
-    // Check current session
+    // Check current session and validate with getUser() to prevent stale tokens
     try {
       const { data: { session }, error } = await KivoDb.supabase.auth.getSession();
       if (error) {
         console.error('[KivoAuth] getSession error:', error);
       }
-      this.session = session;
-      this.user = session?.user || null;
+      if (session) {
+        // Validate with server that token is still authentic and user exists
+        const { data: userData, error: userError } = await KivoDb.supabase.auth.getUser();
+        if (userError || !userData?.user) {
+          console.warn('[KivoAuth] Stale or invalid session found — purging.');
+          try { await KivoDb.supabase.auth.signOut(); } catch (_) {}
+          this.session = null;
+          this.user = null;
+        } else {
+          this.session = session;
+          this.user = userData.user;
+        }
+      } else {
+        this.session = null;
+        this.user = null;
+      }
     } catch (e) {
       console.error('[KivoAuth] Error checking initial session:', e);
+      this.session = null;
+      this.user = null;
     }
 
     // Listen for auth state changes without triggering unwanted background redirects
@@ -61,7 +77,13 @@ window.KivoAuth = {
    */
   handlePostLogin: async function(session) {
     if (!session || !session.user) return;
+    if (this._handlingLogin === session.user.id) return;
+    this._handlingLogin = session.user.id;
+    setTimeout(() => { this._handlingLogin = null; }, 2500);
+
     console.log('[KivoAuth] handlePostLogin — user:', session.user.email);
+    this.session = session;
+    this.user = session.user;
 
     // 1. Close login modal
     const loginModal = document.getElementById('modal-login');

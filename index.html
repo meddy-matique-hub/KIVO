@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Playfair+Display:wght@700;800&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=3.1">
+  <link rel="stylesheet" href="styles.css?v=3.2">
 </head>
 <body>
 
@@ -2867,8 +2867,10 @@
           const name = document.getElementById('auth-name').value.trim();
           res = await KivoAuth.signUp(email, pass, name);
           if (!res.error) {
-            // Success — auth.js handlePostLogin will take over automatically via onAuthStateChange
             showAuthInfo('Compte créé ! Redirection en cours...');
+            if (res.data?.session) {
+              await KivoAuth.handlePostLogin(res.data.session);
+            }
             return; // Do NOT reset button — page will navigate
           } else {
             const msg = res.error.message || '';
@@ -2883,6 +2885,9 @@
           res = await KivoAuth.signIn(email, pass);
           if (!res.error) {
             showAuthInfo('Connexion réussie ! Redirection...');
+            if (res.data?.session) {
+              await KivoAuth.handlePostLogin(res.data.session);
+            }
             return; // handlePostLogin takes over
           } else {
             const msg = res.error.message || '';
@@ -3051,13 +3056,13 @@
   <!-- Scripts -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-client.js?v=3.1"></script>
-  <script src="js/auth.js?v=3.1"></script>
-  <script src="js/ai-assistant.js?v=3.1"></script>
-  <script src="js/payment-provider.js?v=3.1"></script>
-  <script src="js/whatsapp-helper.js?v=3.1"></script>
-  <script src="js/doc-templates.js?v=3.1"></script>
-  <script src="app.js?v=3.1"></script>
+  <script src="js/supabase-client.js?v=3.2"></script>
+  <script src="js/auth.js?v=3.2"></script>
+  <script src="js/ai-assistant.js?v=3.2"></script>
+  <script src="js/payment-provider.js?v=3.2"></script>
+  <script src="js/whatsapp-helper.js?v=3.2"></script>
+  <script src="js/doc-templates.js?v=3.2"></script>
+  <script src="app.js?v=3.2"></script>
 </body>
 </html>
 
