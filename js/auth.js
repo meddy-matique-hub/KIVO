@@ -45,24 +45,24 @@ window.KivoAuth = {
     KivoDb.supabase.auth.onAuthStateChange(async (event, session) => {
       console.log(`[KivoAuth] Auth event: ${event}`);
       const prevUserId = this.user?.id;
-      this.session = session;
-      this.user = session?.user || null;
 
       if (event === 'SIGNED_OUT') {
-        const loginModal = document.getElementById('modal-login');
-        if (loginModal) loginModal.style.display = 'none';
         this.session = null;
         this.user = null;
+        this._isLoggingIn = false;
+        const loginModal = document.getElementById('modal-login');
+        if (loginModal) loginModal.style.display = 'none';
         if (window.KivoApp) {
-          KivoApp.state = JSON.parse(JSON.stringify(KivoApp.BLANK_STATE));
-          KivoApp.state.isOnboarded = false;
-          KivoApp.supabaseConnected = false;
-          if (window.location.hash !== '#landing') {
-            window.location.hash = '#landing';
-          }
-          KivoApp.handleRoute();
+          window.KivoApp.isSessionLoading = false;
+          window.KivoApp._isAuthenticating = false;
+          window.KivoApp.state = JSON.parse(JSON.stringify(window.KivoApp.BLANK_STATE));
+          window.KivoApp.state.isOnboarded = false;
+          window.KivoApp.supabaseConnected = false;
+          window.KivoApp.navigate('landing');
         }
-      } else if (event === 'SIGNED_IN' && session) {
+      } else if (event === 'SIGNED_IN' && session?.user) {
+        this.session = session;
+        this.user = session.user;
         // Only trigger post-login workflow if user was previously not logged in
         // or changed user, preventing background token refreshes from kicking user to dashboard
         if (!prevUserId || prevUserId !== session.user.id) {
@@ -77,21 +77,29 @@ window.KivoAuth = {
    */
   handlePostLogin: async function(session) {
     if (!session || !session.user) return;
-    if (this._handlingLogin === session.user.id) return;
-    this._handlingLogin = session.user.id;
-    setTimeout(() => { this._handlingLogin = null; }, 2500);
+    if (this._isLoggingIn) return;
+    this._isLoggingIn = true;
 
-    console.log('[KivoAuth] handlePostLogin — user:', session.user.email);
-    this.session = session;
-    this.user = session.user;
+    try {
+      console.log('[KivoAuth] handlePostLogin — user:', session.user.email);
+      this.session = session;
+      this.user = session.user;
 
-    // 1. Close login modal
-    const loginModal = document.getElementById('modal-login');
-    if (loginModal) loginModal.style.display = 'none';
+      // 1. Close login modal
+      const loginModal = document.getElementById('modal-login');
+      if (loginModal) loginModal.style.display = 'none';
 
-    // 2. Delegate to KivoApp to sync data and determine route (onboarding vs dashboard)
-    if (window.KivoApp) {
-      await KivoApp.onUserAuthenticated(session.user);
+      // 2. Hide auth messages
+      if (typeof window.hideAuthMessages === 'function') {
+        window.hideAuthMessages();
+      }
+
+      // 3. Delegate to KivoApp to sync data and determine route (onboarding vs dashboard)
+      if (window.KivoApp) {
+        await window.KivoApp.onUserAuthenticated(session.user);
+      }
+    } finally {
+      this._isLoggingIn = false;
     }
   },
 

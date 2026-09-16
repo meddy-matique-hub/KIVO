@@ -143,6 +143,7 @@ window.KivoApp = {
    */
   init: async function () {
     console.log("[KivoApp] Initializing KIVO MATIQUE application...");
+    this.isSessionLoading = true;
     if (!this.state) {
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
     }
@@ -187,6 +188,7 @@ window.KivoApp = {
         this.prefillOnboardingWithAuthUser(user);
       }
 
+      this.isSessionLoading = false;
       this.handleRoute();
     } else {
       // Unauthenticated visitor: start with clean blank state, no fake data
@@ -196,6 +198,7 @@ window.KivoApp = {
       this.supabaseConnected = false;
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.state.isOnboarded = false;
+      this.isSessionLoading = false;
       this.handleRoute();
     }
   },
@@ -205,24 +208,38 @@ window.KivoApp = {
    */
   onUserAuthenticated: async function (user) {
     if (!user) return;
-    console.log('[KivoApp] onUserAuthenticated for:', user.email);
-    this.loadState();
-    this.state.userEmail = user.email || '';
-    this.supabaseConnected = true;
+    if (this._isAuthenticating) return;
+    this._isAuthenticating = true;
+    this.isSessionLoading = true;
 
     try {
-      await this.syncFromSupabase();
-    } catch (e) {
-      console.error('[KivoApp] syncFromSupabase error:', e);
-    }
+      console.log('[KivoApp] onUserAuthenticated for:', user.email);
+      const loginModal = document.getElementById('modal-login');
+      if (loginModal) loginModal.style.display = 'none';
 
-    if (this.state.isOnboarded) {
-      this.showToast("Connexion réussie.", "success");
-      this.navigate('dashboard');
-    } else {
-      this.prefillOnboardingWithAuthUser(user);
-      this.showToast("Bienvenue ! Configurez votre entreprise pour commencer.", "info");
-      this.navigate('onboarding');
+      this.loadState();
+      this.state.userEmail = user.email || '';
+      this.supabaseConnected = true;
+
+      try {
+        await this.syncFromSupabase();
+      } catch (e) {
+        console.error('[KivoApp] syncFromSupabase error:', e);
+      }
+
+      this.isSessionLoading = false;
+
+      if (this.state.isOnboarded) {
+        this.showToast("Connexion réussie.", "success");
+        this.navigate('dashboard');
+      } else {
+        this.prefillOnboardingWithAuthUser(user);
+        this.showToast("Bienvenue ! Configurez votre entreprise pour commencer.", "info");
+        this.navigate('onboarding');
+      }
+    } finally {
+      this.isSessionLoading = false;
+      this._isAuthenticating = false;
     }
   },
 
@@ -363,7 +380,9 @@ window.KivoApp = {
     }
 
     this.saveState();
-    this.renderCurrentView();
+    if (this.activeView && this.activeView !== 'landing' && this.activeView !== 'auth') {
+      this.renderCurrentView();
+    }
     console.log('[KivoApp] Supabase sync complete. isOnboarded:', this.state.isOnboarded);
   },
 
@@ -450,6 +469,12 @@ window.KivoApp = {
    */
   logout: async function () {
     console.log('[KivoApp] Logging out...');
+    this.isSessionLoading = false;
+    this._isAuthenticating = false;
+    if (window.KivoAuth) {
+      window.KivoAuth._isLoggingIn = false;
+    }
+
     try {
       // 1. Capture user-scoped storage key BEFORE clearing user object
       const userKey = this.getUserStorageKey();
@@ -477,6 +502,9 @@ window.KivoApp = {
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.state.isOnboarded = false;
 
+      const loginModal = document.getElementById('modal-login');
+      if (loginModal) loginModal.style.display = 'none';
+
       // 4. Perform Supabase SDK signOut with catch guard
       if (window.KivoDb && window.KivoDb.supabase) {
         try {
@@ -490,10 +518,7 @@ window.KivoApp = {
     }
 
     // 5. Clean URL and navigate to landing cleanly
-    if (window.location.hash !== '#landing') {
-      window.location.hash = '#landing';
-    }
-    this.handleRoute();
+    this.navigate('landing');
     this.showToast('Déconnexion réussie.', 'info');
   },
 
@@ -519,6 +544,11 @@ window.KivoApp = {
    * Handles hash navigation and auth guards
    */
   handleRoute: function () {
+    if (this.isSessionLoading) {
+      console.log('[KivoApp] handleRoute deferred — session loading in progress.');
+      return;
+    }
+
     const hash = window.location.hash || '';
     let rawView = hash.split('?')[0].replace('#', '');
     let viewName = rawView;
@@ -568,6 +598,10 @@ window.KivoApp = {
     }
 
     this.activeView = viewName;
+
+    // Purge any lingering or stale toast elements when navigating
+    const tc = document.getElementById('toast-container');
+    if (tc) tc.innerHTML = '';
 
     document.querySelectorAll('.view-section').forEach(sec => {
       sec.style.display = 'none';
@@ -667,7 +701,12 @@ window.KivoApp = {
    * Programmatic navigation helper
    */
   navigate: function (viewName, params = '') {
-    window.location.hash = `#${viewName}${params ? '?' + params : ''}`;
+    const targetHash = `#${viewName}${params ? '?' + params : ''}`;
+    if (window.location.hash === targetHash) {
+      this.handleRoute();
+    } else {
+      window.location.hash = targetHash;
+    }
   },
 
   /**
@@ -4200,6 +4239,12 @@ window.KivoApp = {
   },
 
   showToast: function (message, type = 'info') {
+    if (!message || (typeof message === 'string' && !message.trim())) {
+      return;
+    }
+    const cleanMsg = typeof message === 'string' ? message.trim() : String(message);
+    if (!cleanMsg) return;
+
     const container = document.getElementById('toast-container');
     if (!container) return;
 
@@ -4213,7 +4258,7 @@ window.KivoApp = {
     toast.className = 'toast';
     toast.innerHTML = `
       <span style="display:inline-flex;align-items:center;flex-shrink:0;">${iconSvg}</span>
-      <span style="font-weight:500;">${message}</span>
+      <span style="font-weight:500;">${cleanMsg}</span>
     `;
 
     container.appendChild(toast);

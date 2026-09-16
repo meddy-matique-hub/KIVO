@@ -100,8 +100,13 @@ if (window.KivoDb) {
     loadAll: async function () {
       console.log('[KivoDb] Loading all data from Supabase...');
       // Get current authenticated user to enforce strict isolation
-      const { data: userData } = await _kivoClient.auth.getUser();
-      const user = userData?.user;
+      let user = window.KivoAuth?.user || null;
+      if (!user) {
+        try {
+          const { data: userData } = await _kivoClient.auth.getUser();
+          user = userData?.user || null;
+        } catch (_) {}
+      }
       if (!user) {
         console.warn('[KivoDb] loadAll: No authenticated user. Returning empty datasets.');
         return {
@@ -147,8 +152,13 @@ if (window.KivoDb) {
     saveClient:      async function (client)   { return this.upsert('clients', client); },
     saveCatalogItem: async function (item)     { return this.upsert('catalog', item); },
     saveSettings:    async function (settings) {
-      const { data: userData } = await _kivoClient.auth.getUser();
-      const user = userData?.user;
+      let user = window.KivoAuth?.user || null;
+      if (!user) {
+        try {
+          const { data: userData } = await _kivoClient.auth.getUser();
+          user = userData?.user || null;
+        } catch (_) {}
+      }
       if (!user) throw new Error("Utilisateur non authentifié.");
 
       const payload = { ...settings, user_id: user.id };
