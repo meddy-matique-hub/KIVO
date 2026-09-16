@@ -371,9 +371,7 @@ button {
 
 /* Sidebar Footer — Clean logout only */
 .sidebar-footer-action {
-  margin-top: auto;
-  padding: 0.75rem 0.65rem 0.65rem 0.65rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.2rem 0 0 0;
 }
 
 .sidebar-logout-clean-btn {
@@ -840,43 +838,46 @@ button {
 
 .sidebar-footer-section {
   margin-top: auto;
-  padding: 1rem;
-  border-top: 1px solid var(--border-color);
+  padding: 0.85rem 0.65rem 0.65rem 0.65rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
-  background: #FFFFFF;
+  gap: 0.45rem;
+  background: transparent;
 }
 
 .sidebar-user-card {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.6rem 0.75rem;
+  padding: 0.65rem 0.75rem;
   border-radius: var(--radius-md);
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sidebar-user-card:hover {
-  background: #FFFFFF;
-  border-color: var(--primary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(56, 189, 248, 0.35);
+  transform: translateY(-1px);
 }
 
 .sidebar-user-avatar {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: var(--primary-gradient);
+  background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
   color: #FFFFFF;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
 }
 
 .sidebar-user-info {
@@ -889,7 +890,7 @@ button {
 .sidebar-user-name {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #F8FAFC;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -897,7 +898,7 @@ button {
 
 .sidebar-user-email {
   font-size: 0.72rem;
-  color: var(--text-muted);
+  color: #94A3B8;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
