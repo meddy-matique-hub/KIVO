@@ -624,8 +624,8 @@ window.KivoApp = {
     const mobileHeader = document.querySelector('.mobile-header');
 
     if (sidebar) sidebar.style.display = isFullWidthView ? 'none' : 'flex';
-    if (mobileBottomNav) mobileBottomNav.style.display = isFullWidthView ? 'none' : 'flex';
-    if (mobileHeader) mobileHeader.style.display = isFullWidthView ? 'none' : 'flex';
+    if (mobileBottomNav) mobileBottomNav.style.display = isFullWidthView ? 'none' : '';
+    if (mobileHeader) mobileHeader.style.display = isFullWidthView ? 'none' : '';
 
     const pricingTopbar = document.querySelector('.pricing-topbar');
     if (pricingTopbar) {
@@ -681,9 +681,9 @@ window.KivoApp = {
       if (settingsTrigger) settingsTrigger.classList.remove('group-active');
     }
 
-    // Auto close mobile drawer on view navigation
+    // Auto close mobile drawer on view navigation (also clears backdrop + body scroll lock)
     if (sidebar && sidebar.classList.contains('mobile-open')) {
-      sidebar.classList.remove('mobile-open');
+      this.toggleMobileSidebar(false);
     }
 
     this.renderCurrentView();
@@ -729,6 +729,52 @@ window.KivoApp = {
   },
 
   /**
+   * Toggle mobile sidebar drawer (open/close)
+   * @param {boolean|undefined} forceState - true=open, false=close, undefined=toggle
+   */
+  toggleMobileSidebar: function (forceState) {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (!sidebar) return;
+
+    const isCurrentlyOpen = sidebar.classList.contains('mobile-open');
+    const shouldOpen = (forceState === undefined) ? !isCurrentlyOpen : !!forceState;
+
+    if (shouldOpen) {
+      sidebar.classList.add('mobile-open');
+      if (backdrop) backdrop.classList.add('active');
+      document.body.style.overflow = 'hidden'; // prevent background scroll
+    } else {
+      sidebar.classList.remove('mobile-open');
+      if (backdrop) backdrop.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+  },
+
+  /**
+   * Switch between Formulaire and Aperçu tabs in mobile Document Builder
+   * @param {'form'|'preview'} tabName
+   */
+  switchBuilderMobileTab: function (tabName) {
+    const container = document.querySelector('.builder-view-container');
+    if (!container) return;
+
+    // Update container mode class
+    container.classList.remove('mobile-mode-form', 'mobile-mode-preview');
+    container.classList.add(tabName === 'preview' ? 'mobile-mode-preview' : 'mobile-mode-form');
+
+    // Update toggle button active states
+    document.querySelectorAll('.builder-mobile-toggle-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    const activeBtn = document.querySelector(`.builder-mobile-toggle-btn[data-tab="${tabName}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Scroll to top of the visible panel
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+
+  /**
    * Toggles a collapsible nav group (e.g. Facturation)
    */
   toggleNavGroup: function (groupId) {
@@ -747,11 +793,12 @@ window.KivoApp = {
    * Setup event listeners
    */
   setupEventListeners: function () {
+    // Note: mobile-menu-toggle uses onclick="KivoApp.toggleMobileSidebar()" in HTML.
+    // This listener is kept as fallback for browsers that may parse onclick differently.
     const toggleBtn = document.getElementById('mobile-menu-toggle');
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', () => {
-        document.getElementById('sidebar').classList.toggle('mobile-open');
-      });
+    if (toggleBtn && !toggleBtn.dataset.listenerAttached) {
+      toggleBtn.dataset.listenerAttached = '1';
+      toggleBtn.addEventListener('click', () => this.toggleMobileSidebar());
     }
 
     const filterPills = document.querySelectorAll('#doc-filter-pills button');
@@ -809,6 +856,10 @@ window.KivoApp = {
       case 'pricing':
         this.renderPricingPage();
         break;
+      case 'document-builder':
+        // Reset mobile tab to "form" view each time builder is opened
+        this.switchBuilderMobileTab('form');
+        break;
       default:
         break;
     }
@@ -854,6 +905,26 @@ window.KivoApp = {
         boxEl.style.display = 'none';
         promptEl.style.display = 'block';
       }
+    }
+
+    // Update mobile header avatar initials
+    const mobileInitialsEl = document.getElementById('mobile-user-initials');
+    if (mobileInitialsEl) {
+      const owner = biz.owner || biz.name || '';
+      const initials = owner.split(' ').filter(w => w.length > 0).slice(0, 2).map(w => w[0].toUpperCase()).join('') || 'KM';
+      mobileInitialsEl.textContent = initials;
+    }
+
+    // Update sidebar user card
+    const sidebarUserName = document.getElementById('sidebar-user-name');
+    const sidebarUserEmail = document.getElementById('sidebar-user-email');
+    const sidebarUserAvatarEl = document.getElementById('sidebar-user-avatar');
+    if (sidebarUserName) sidebarUserName.textContent = biz.owner || biz.name || 'Mon compte';
+    if (sidebarUserEmail) sidebarUserEmail.textContent = biz.email || (window.KivoAuth && window.KivoAuth.user ? window.KivoAuth.user.email : '');
+    if (sidebarUserAvatarEl) {
+      const owner2 = biz.owner || biz.name || '';
+      const initials2 = owner2.split(' ').filter(w => w.length > 0).slice(0, 2).map(w => w[0].toUpperCase()).join('') || 'KM';
+      sidebarUserAvatarEl.textContent = initials2;
     }
   },
 
