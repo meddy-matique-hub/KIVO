@@ -169,15 +169,30 @@ if (window.KivoDb) {
       if (!user) throw new Error("Utilisateur non authentifié.");
 
       // Package lines and metadata cleanly in items JSON
-      const lines = Array.isArray(doc.items) ? doc.items : (typeof doc.items === 'string' ? JSON.parse(doc.items || '[]') : []);
+      let rawLines = doc.items;
+      if (typeof rawLines === 'string') {
+        try {
+          const parsed = JSON.parse(rawLines || '[]');
+          rawLines = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.lines) ? parsed.lines : []);
+        } catch (_) { rawLines = []; }
+      } else if (rawLines && !Array.isArray(rawLines) && Array.isArray(rawLines.lines)) {
+        rawLines = rawLines.lines;
+      }
+      const lines = Array.isArray(rawLines) ? rawLines : [];
+
+      const resolvedIssueDate = doc.issueDate || doc.issue_date || new Date().toISOString().split('T')[0];
+      const resolvedDueDate   = doc.dueDate   || doc.due_date   || '';
+      const resolvedCurrency  = doc.currency  || 'FCFA';
+
       const itemsPayload = JSON.stringify({
         lines: lines,
-        issueDate: doc.issueDate || doc.issue_date || new Date().toISOString().split('T')[0],
-        dueDate: doc.dueDate || doc.due_date || '',
-        currency: doc.currency || 'FCFA'
+        issueDate: resolvedIssueDate,
+        dueDate: resolvedDueDate,
+        currency: resolvedCurrency
       });
 
       // Strict mapping to valid Supabase columns
+      // issue_date and due_date are stored BOTH as top-level columns and inside items JSON
       const payload = {
         id: doc.id,
         user_id: user.id,
@@ -190,6 +205,9 @@ if (window.KivoDb) {
         client_tax_id: doc.clientTaxId || doc.client_tax_id || '',
         client_email: doc.clientEmail || doc.client_email || '',
         client_phone: doc.clientPhone || doc.client_phone || '',
+        issue_date: resolvedIssueDate,
+        due_date: resolvedDueDate || null,
+        currency: resolvedCurrency,
         items: itemsPayload,
         subtotal: Number(doc.subtotal) || 0,
         discount: Number(doc.discount) || 0,

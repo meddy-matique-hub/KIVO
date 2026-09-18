@@ -11,6 +11,21 @@ window.KivoApp = {
   pendingDeleteAction: null,
 
   /**
+   * Génère un UUID v4 valide compatible avec le type uuid de PostgreSQL/Supabase.
+   * Utilise crypto.randomUUID() natif si disponible, sinon un fallback RFC 4122.
+   */
+  generateUUID: function () {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    // Fallback RFC 4122 v4
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  },
+
+  /**
    * Translations Dictionary for i18n (Français, English, Español)
    */
   translations: {
@@ -2684,7 +2699,7 @@ window.KivoApp = {
     const discount = 0;
     const taxRate = 0; // Per-line taxes used instead
 
-    const docId = existingDocId || ('doc_' + Math.random().toString(36).substring(2, 8));
+    const docId = existingDocId || this.generateUUID();
 
     const docObj = {
       id: docId,
@@ -2736,7 +2751,7 @@ window.KivoApp = {
     }
 
     this.state.activities.unshift({
-      id: 'act_' + Date.now(),
+      id: this.generateUUID(),
       timestamp: "À l'instant",
       type: type === 'quote' ? 'quote_created' : 'invoice_sent',
       icon: 'file-text',
@@ -2880,7 +2895,7 @@ window.KivoApp = {
         const { data: cloudDoc, error: docErr } = await KivoDb.supabase
           .from('documents')
           .select('*')
-          .match({ id: docId })
+          .eq('id', docId)
           .maybeSingle();
 
         if (docErr) throw docErr;
@@ -2945,7 +2960,7 @@ window.KivoApp = {
           const { data: cloudBiz, error: bizErr } = await KivoDb.supabase
             .from('business_settings')
             .select('*')
-            .match({ user_id: cloudDoc.user_id })
+            .eq('user_id', cloudDoc.user_id)
             .maybeSingle();
 
           if (!bizErr && cloudBiz) {
@@ -3000,6 +3015,7 @@ window.KivoApp = {
     const currencyStr = doc.currency || biz.currency || 'FCFA';
 
     // Increment document view count asynchronously in the cloud
+    // NOTE: Supabase v2 builders are NOT Promises until awaited — must use async IIFE, no .catch() on builder
     if (this.supabaseConnected && (!window.KivoAuth || !window.KivoAuth.user || window.KivoAuth.user.id !== doc.userId)) {
       const newViews = (doc.viewsCount || 0) + 1;
       const newStatus = doc.status === 'sent' ? 'viewed' : doc.status;
@@ -3011,10 +3027,18 @@ window.KivoApp = {
         this.saveState();
       }
       
-      KivoDb.supabase.from('documents')
-        .update({ views_count: newViews, status: newStatus })
-        .match({ id: doc.id })
-        .catch(e => console.error('[KivoApp] Failed to update views_count:', e));
+      // Async IIFE — fire & forget, does NOT block rendering
+      ;(async () => {
+        try {
+          const { error } = await KivoDb.supabase
+            .from('documents')
+            .update({ views_count: newViews, status: newStatus })
+            .eq('id', doc.id);
+          if (error) console.warn('[KivoApp] views_count update warning:', error.message);
+        } catch (e) {
+          console.warn('[KivoApp] Failed to update views_count:', e.message || e);
+        }
+      })();
     }
 
     const pubLogoEl = document.getElementById('pub-business-logo');
@@ -3141,7 +3165,7 @@ window.KivoApp = {
     if (doc) {
       doc.status = 'accepted';
       this.state.activities.unshift({
-        id: 'act_' + Date.now(),
+        id: this.generateUUID(),
         timestamp: "À l'instant",
         type: 'quote_accepted',
         icon: 'check-circle',
@@ -3228,7 +3252,7 @@ window.KivoApp = {
       doc.amountPaid = (doc.amountPaid || 0) + amount;
 
       this.state.activities.unshift({
-        id: 'act_' + Date.now(),
+        id: this.generateUUID(),
         timestamp: "À l'instant",
         type: 'payment',
         icon: 'dollar-sign',
@@ -3246,7 +3270,7 @@ window.KivoApp = {
       doc.status = 'refunded';
 
       this.state.activities.unshift({
-        id: 'act_' + Date.now(),
+        id: this.generateUUID(),
         timestamp: "À l'instant",
         type: 'refund',
         icon: 'rotate-ccw',
@@ -4824,7 +4848,7 @@ window.KivoApp = {
     const clientAddress = doc.clientAddress || (doc.client && doc.client.address) || '';
 
     const newDoc = {
-      id: 'doc_ai_' + Date.now(),
+      id: this.generateUUID(),
       type: 'invoice',
       status: 'draft',
       docNumber: doc.docNumber || this._generateDocNumber('invoice'),
@@ -4897,7 +4921,7 @@ window.KivoApp = {
     }
 
     const newClient = {
-      id: 'cli_' + Date.now(),
+      id: this.generateUUID(),
       name: name,
       clientType: type,
       company: type === 'B2B' ? name : '',
@@ -5453,37 +5477,31 @@ window.KivoApp = {
       }
     }
 
-    // Création d'un bac à sable A4 fixe (largeur standard 794px, min-height 1122px)
+    // Création d'un bac à sable A4 hors-écran (position absolute, hors du viewport)
+    // html2canvas nécessite que l'élément soit dans le DOM et rendu — pas forcément visible
     const sandbox = document.createElement('div');
     sandbox.id = 'kivo-pdf-sandbox';
-    sandbox.style.position = 'fixed';
-    sandbox.style.left = '0';
-    sandbox.style.top = '0';
-    sandbox.style.width = '794px';
-    sandbox.style.minHeight = '1122px';
-    sandbox.style.background = (templateId === 'premium') ? '#181A20' : '#FFFFFF';
-    sandbox.style.zIndex = '99999';
-    sandbox.style.pointerEvents = 'none';
-    sandbox.style.boxSizing = 'border-box';
-    sandbox.style.margin = '0';
-    sandbox.style.padding = '0';
+    sandbox.style.cssText = [
+      'position: absolute',
+      'left: -9999px',
+      'top: 0',
+      'width: 794px',
+      'min-height: 1122px',
+      'background: ' + ((templateId === 'premium') ? '#181A20' : '#FFFFFF'),
+      'z-index: -1',
+      'pointer-events: none',
+      'box-sizing: border-box',
+      'margin: 0',
+      'padding: 0',
+      'overflow: visible',
+      'font-family: Arial, sans-serif'
+    ].join(';');
     sandbox.innerHTML = renderedHtml;
 
     // Overlay de progression élégant
     const overlay = document.createElement('div');
     overlay.id = 'kivo-pdf-loading-overlay';
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.right = '0';
-    overlay.style.bottom = '0';
-    overlay.style.background = 'rgba(15, 23, 42, 0.75)';
-    overlay.style.zIndex = '100000';
-    overlay.style.display = 'flex';
-    overlay.style.alignItems = 'center';
-    overlay.style.justifyContent = 'center';
-    overlay.style.color = '#FFFFFF';
-    overlay.style.fontFamily = 'Inter, sans-serif';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.75);z-index:100000;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Inter,sans-serif;';
     overlay.innerHTML = `
       <div style="background:#1E293B;padding:22px 30px;border-radius:12px;display:flex;align-items:center;gap:14px;box-shadow:0 20px 40px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.1);">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round" style="animation:spin 0.9s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
@@ -5510,39 +5528,44 @@ window.KivoApp = {
     }));
 
     Promise.all(imagePromises).then(() => {
-      const opt = {
-        margin: 0,
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          logging: false,
-          backgroundColor: (templateId === 'premium') ? '#181A20' : '#FFFFFF'
-        },
-        jsPDF: {
-          unit: 'mm',
-          format: 'a4',
-          orientation: 'portrait',
-          compress: true
-        },
-        pagebreak: { mode: 'avoid-all' }
-      };
+      // Attendre 2 ticks de rendu pour que le navigateur peigne le contenu
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const opt = {
+          margin: 0,
+          filename: filename,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            logging: false,
+            backgroundColor: (templateId === 'premium') ? '#181A20' : '#FFFFFF',
+            width: 794,
+            windowWidth: 794
+          },
+          jsPDF: {
+            unit: 'mm',
+            format: 'a4',
+            orientation: 'portrait',
+            compress: true
+          },
+          pagebreak: { mode: 'avoid-all' }
+        };
 
-      html2pdf()
-        .set(opt)
-        .from(sandbox)
-        .save()
-        .then(() => {
-          cleanup();
-          this.showToast('Facture téléchargée avec succès sur 1 page A4 !', 'success');
-        })
-        .catch(e => {
-          cleanup();
-          console.error('[KivoApp] Erreur PDF:', e);
-          this.showToast('Erreur lors du téléchargement : ' + (e.message || e), 'error');
-        });
+        html2pdf()
+          .set(opt)
+          .from(sandbox)
+          .save()
+          .then(() => {
+            cleanup();
+            this.showToast('Facture téléchargée avec succès sur 1 page A4 !', 'success');
+          })
+          .catch(e => {
+            cleanup();
+            console.error('[KivoApp] Erreur PDF:', e);
+            this.showToast('Erreur lors du téléchargement : ' + (e.message || e), 'error');
+          });
+      }));
     });
   },
 
