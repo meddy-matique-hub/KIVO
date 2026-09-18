@@ -28,16 +28,11 @@ window.KivoTemplates = {
   },
 
   logoHtml: function (biz, defaultSize, shape, fallbackDark = false) {
-    const szVal = (biz && biz.logoSize) ? biz.logoSize : (defaultSize || 60);
+    if (!biz || !biz.logoUrl) return '';
+    const szVal = (biz && biz.logoSize) ? biz.logoSize : (defaultSize || 70);
     const sz = typeof szVal === 'number' ? `${szVal}px` : szVal;
     const br = shape === 'circle' ? '50%' : (shape === 'none' ? '0' : '6px');
-
-    if (biz && biz.logoUrl) {
-      return `<img src="${biz.logoUrl}" style="max-height:${sz};max-width:220px;height:auto;object-fit:contain;border-radius:${br};display:inline-block;" alt="Logo">`;
-    }
-    const txt = (biz && biz.logoText) || (biz && biz.name ? biz.name.substring(0, 4).toUpperCase() : 'KIVO');
-    const bg  = fallbackDark ? 'linear-gradient(135deg,#D49B7A,#B87352)' : ((biz && biz.logoBg) || 'linear-gradient(135deg,#4F46E5,#7C3AED)');
-    return `<div style="height:${sz};min-width:${sz};padding:0 12px;border-radius:${br};background:${bg};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:calc(${sz} * 0.38);letter-spacing:0.5px;flex-shrink:0;">${txt}</div>`;
+    return `<img src="${biz.logoUrl}" style="max-height:${sz};max-width:220px;height:auto;object-fit:contain;border-radius:${br};display:inline-block;" alt="Logo">`;
   },
 
   rows: function (items, currency, accBg, isDark = false) {
@@ -60,9 +55,20 @@ window.KivoTemplates = {
     const biz = (state && state.business) || {};
     const get = id => { const el = document.getElementById(id); return el ? el.value : ''; };
 
-    // Capture live logo from preview element or state
+    // Capture live logo from preview element or state — with explicit deletion check
+    const isLogoRemoved = window.KivoApp && window.KivoApp._invoiceLogoRemoved;
     const logoImg = document.getElementById('builder-logo-preview-img');
-    const liveLogoUrl = (logoImg && logoImg.src && logoImg.style.display !== 'none') ? logoImg.src : (biz.logoUrl || '');
+    const previewBox = document.getElementById('builder-logo-preview-box');
+    let liveLogoUrl = '';
+    if (!isLogoRemoved) {
+      if (logoImg && logoImg.src && previewBox && previewBox.style.display !== 'none' && !logoImg.src.endsWith('/')) {
+        liveLogoUrl = logoImg.src;
+      } else if (window.KivoApp && window.KivoApp.builderCustomLogoUrl) {
+        liveLogoUrl = window.KivoApp.builderCustomLogoUrl;
+      } else if (biz.logoUrl) {
+        liveLogoUrl = biz.logoUrl;
+      }
+    }
     
     // Logo size & position
     const sizeInput = document.getElementById('builder-logo-size');
@@ -71,10 +77,10 @@ window.KivoTemplates = {
     const liveLogoPos  = posSelect ? posSelect.value : (biz.logoPosition || 'right');
 
     const activeBiz = Object.assign({}, biz, {
-      name:         get('builder-biz-name')    || biz.name    || 'KIVO Inc.',
-      address:      get('builder-biz-address') || biz.address || '2833 Minimalist',
-      phone:        get('builder-biz-phone')   || biz.phone   || '+23 457 78 79',
-      email:        get('builder-biz-email')   || biz.email   || 'kivo@kivoexample.com',
+      name:         get('builder-biz-name')    || biz.name    || '',
+      address:      get('builder-biz-address') || biz.address || '',
+      phone:        get('builder-biz-phone')   || biz.phone   || '',
+      email:        get('builder-biz-email')   || biz.email   || '',
       logoUrl:      liveLogoUrl,
       logoSize:     liveLogoSize,
       logoPosition: liveLogoPos
@@ -87,7 +93,7 @@ window.KivoTemplates = {
     let subtotal = 0;
     let totalTaxAmount = 0;
 
-    // Read ALL rows in the table even if freshly added
+    // Read ALL rows in the table
     const itemRows = document.querySelectorAll('#builder-items-tbody tr');
     itemRows.forEach(tr => {
       const nameInput = tr.querySelector('.item-name');
@@ -95,37 +101,28 @@ window.KivoTemplates = {
       const priceInput= tr.querySelector('.item-price');
       const taxInput  = tr.querySelector('.item-tax');
 
-      const name  = nameInput ? nameInput.value : '';
+      const name  = nameInput ? nameInput.value.trim() : '';
       const qty   = qtyInput ? (parseFloat(qtyInput.value) || 1) : 1;
       const price = priceInput ? (parseFloat(priceInput.value) || 0) : 0;
-      const taxRate = taxInput ? (parseFloat(taxInput.value) || 0) : 18;
+      const taxRate = taxInput ? (parseFloat(taxInput.value) || 0) : 0;
 
-      const itemTotal = qty * price;
-      const itemTax = itemTotal * (taxRate / 100);
+      // Only count rows that have a name or a price > 0
+      if (name || price > 0) {
+        const itemTotal = qty * price;
+        const itemTax = itemTotal * (taxRate / 100);
 
-      subtotal += itemTotal;
-      totalTaxAmount += itemTax;
+        subtotal += itemTotal;
+        totalTaxAmount += itemTax;
 
-      items.push({
-        name: name || 'Prestation de service',
-        quantity: qty,
-        price: price,
-        taxRate: taxRate,
-        total: itemTotal
-      });
+        items.push({
+          name: name || 'Article',
+          quantity: qty,
+          price: price,
+          taxRate: taxRate,
+          total: itemTotal
+        });
+      }
     });
-
-    // Default populated items matching reference image if no rows exist
-    if (items.length === 0) {
-      items.push(
-        { name: 'Abonnement SaaS KIVO - Plan Premium (10 licences)', quantity: 1, price: 350000, taxRate: 30, total: 350000 },
-        { name: "Intégration d'API Personnalisée", quantity: 2, price: 150000, taxRate: 10, total: 300000 },
-        { name: 'Totales lignes de services', quantity: 1, price: 150000, taxRate: 18, total: 150000 },
-        { name: 'Une service', quantity: 1, price: 20000, taxRate: 0, total: 20000 }
-      );
-      subtotal = 820000;
-      totalTaxAmount = (350000 * 0.30) + (300000 * 0.10) + (150000 * 0.18);
-    }
 
     const discount   = parseFloat(get('builder-input-discount')) || 0;
     const taxable    = Math.max(0, subtotal - discount);
@@ -135,19 +132,19 @@ window.KivoTemplates = {
     return {
       biz: activeBiz,
       docType:        get('builder-doc-type')        || 'invoice',
-      docNum:         get('builder-doc-number')      || 'K-2026-0001',
-      issueDate:      get('builder-issue-date')      || '22/06/2026',
-      dueDate:        get('builder-due-date')        || '25/08/2026',
-      status:         get('builder-doc-status')      || 'sent',
+      docNum:         get('builder-doc-number')      || '',
+      issueDate:      get('builder-issue-date')      || new Date().toISOString().split('T')[0],
+      dueDate:        get('builder-due-date')        || '',
+      status:         get('builder-doc-status')      || 'draft',
       paymentMethod:  get('builder-payment-method')  || 'Virement bancaire',
       terms:          get('builder-terms')           || 'À réception',
       notes:          get('builder-notes')           || '',
       client: {
-        name:    get('builder-client-name')    || clientFound.name    || clientFound.company || 'CLIENT PRO SOLUTIONS',
+        name:    get('builder-client-name')    || clientFound.name    || clientFound.company || '',
         company: clientFound.company           || '',
-        phone:   get('builder-client-phone')   || clientFound.phone   || '+23 456-8439',
-        email:   get('builder-client-email')   || clientFound.email   || 'email@trustprosolution.com',
-        address: get('builder-client-address') || clientFound.address || '3223 Nimmakst',
+        phone:   get('builder-client-phone')   || clientFound.phone   || '',
+        email:   get('builder-client-email')   || clientFound.email   || '',
+        address: get('builder-client-address') || clientFound.address || '',
         taxId:   clientFound.taxId || ''
       },
       items, subtotal, discount, taxAmount: totalTaxAmount, grandTotal, currency,
@@ -228,15 +225,17 @@ window.KivoTemplates = {
 
   // ── Client Box Renderer Helper ────────────────────────────────────────
   renderClient: function (d, titleColor, subtitleColor, isDark = false) {
+    const hasClient = d.client && d.client.name;
     return `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;background:${isDark ? '#222631' : '#F8FAFC'};padding:12px 14px;border-radius:6px;border:1px solid ${isDark ? '#2D323F' : '#E2E8F0'};">
         <div>
           <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">Client / Facturé à</div>
-          <div style="font-size:14px;font-weight:800;color:${titleColor};margin-top:2px;">${d.client.name}</div>
+          <div style="font-size:14px;font-weight:800;color:${titleColor};margin-top:2px;">${hasClient ? d.client.name : '<span style="font-size:12px;font-weight:400;color:' + subtitleColor + ';font-style:italic;">(Sélectionnez un client)</span>'}</div>
+          ${d.client.address || d.client.phone ? `
           <div style="font-size:11px;color:${subtitleColor};line-height:1.4;margin-top:2px;">
             ${d.client.address ? d.client.address + '<br>' : ''}
             ${d.client.phone ? 'Tél.: ' + d.client.phone : ''}
-          </div>
+          </div>` : ''}
         </div>
         <div style="text-align:right;">
           <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">Contact &amp; Email</div>

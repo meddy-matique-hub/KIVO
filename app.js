@@ -623,9 +623,21 @@ window.KivoApp = {
     const mobileBottomNav = document.querySelector('.mobile-bottom-nav');
     const mobileHeader = document.querySelector('.mobile-header');
 
-    if (sidebar) sidebar.style.display = isFullWidthView ? 'none' : 'flex';
+    if (sidebar) {
+      if (isFullWidthView) {
+        sidebar.style.display = 'none';
+      } else {
+        sidebar.style.display = 'flex';
+      }
+    }
     if (mobileBottomNav) mobileBottomNav.style.display = isFullWidthView ? 'none' : '';
-    if (mobileHeader) mobileHeader.style.display = isFullWidthView ? 'none' : '';
+    if (mobileHeader) {
+      if (isFullWidthView) {
+        mobileHeader.style.display = 'none';
+      } else {
+        mobileHeader.style.display = window.innerWidth <= 1024 ? 'flex' : '';
+      }
+    }
 
     const pricingTopbar = document.querySelector('.pricing-topbar');
     if (pricingTopbar) {
@@ -728,19 +740,29 @@ window.KivoApp = {
     }
   },
 
+  _lastToggleMobileSidebarTime: 0,
+
   /**
    * Toggle mobile sidebar drawer (open/close)
    * @param {boolean|undefined} forceState - true=open, false=close, undefined=toggle
    */
   toggleMobileSidebar: function (forceState) {
+    const now = Date.now();
+    // Guard against rapid duplicate trigger on touch devices (e.g. touchend + click within 350ms)
+    if (forceState === undefined && now - this._lastToggleMobileSidebarTime < 350) {
+      return;
+    }
+    this._lastToggleMobileSidebarTime = now;
+
     const sidebar = document.getElementById('sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
     if (!sidebar) return;
 
     const isCurrentlyOpen = sidebar.classList.contains('mobile-open');
-    const shouldOpen = (forceState === undefined) ? !isCurrentlyOpen : !!forceState;
+    const shouldOpen = (typeof forceState === 'boolean') ? forceState : !isCurrentlyOpen;
 
     if (shouldOpen) {
+      sidebar.style.display = 'flex';
       sidebar.classList.add('mobile-open');
       if (backdrop) backdrop.classList.add('active');
       document.body.style.overflow = 'hidden'; // prevent background scroll
@@ -767,8 +789,13 @@ window.KivoApp = {
     document.querySelectorAll('.builder-mobile-toggle-btn').forEach(btn => {
       btn.classList.remove('active');
     });
-    const activeBtn = document.querySelector(`.builder-mobile-toggle-btn[data-tab="${tabName}"]`);
-    if (activeBtn) activeBtn.classList.add('active');
+    const activeBtns = document.querySelectorAll(`.builder-mobile-toggle-btn[data-tab="${tabName}"]`);
+    activeBtns.forEach(btn => btn.classList.add('active'));
+
+    // Re-render live preview to guarantee fresh data
+    if (tabName === 'preview') {
+      this.updateLiveInvoicePreview();
+    }
 
     // Scroll to top of the visible panel
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -793,13 +820,62 @@ window.KivoApp = {
    * Setup event listeners
    */
   setupEventListeners: function () {
-    // Note: mobile-menu-toggle uses onclick="KivoApp.toggleMobileSidebar()" in HTML.
-    // This listener is kept as fallback for browsers that may parse onclick differently.
+    // 1. Mobile menu toggle button (click + touchend for Android / iPhone Safari)
     const toggleBtn = document.getElementById('mobile-menu-toggle');
-    if (toggleBtn && !toggleBtn.dataset.listenerAttached) {
-      toggleBtn.dataset.listenerAttached = '1';
-      toggleBtn.addEventListener('click', () => this.toggleMobileSidebar());
+    if (toggleBtn && !toggleBtn.dataset.bound) {
+      toggleBtn.dataset.bound = 'true';
+      const handleToggle = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        this.toggleMobileSidebar();
+      };
+      toggleBtn.addEventListener('click', handleToggle);
+      toggleBtn.addEventListener('touchend', handleToggle, { passive: false });
     }
+
+    // 2. Sidebar drawer mobile close button (X)
+    const closeBtn = document.querySelector('.sidebar-mobile-close-btn');
+    if (closeBtn && !closeBtn.dataset.bound) {
+      closeBtn.dataset.bound = 'true';
+      const handleClose = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        this.toggleMobileSidebar(false);
+      };
+      closeBtn.addEventListener('click', handleClose);
+      closeBtn.addEventListener('touchend', handleClose, { passive: false });
+    }
+
+    // 3. Sidebar backdrop overlay (click or tap outside to close)
+    const backdropEl = document.getElementById('sidebar-backdrop');
+    if (backdropEl && !backdropEl.dataset.bound) {
+      backdropEl.dataset.bound = 'true';
+      const handleBackdrop = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        this.toggleMobileSidebar(false);
+      };
+      backdropEl.addEventListener('click', handleBackdrop);
+      backdropEl.addEventListener('touchend', handleBackdrop, { passive: false });
+    }
+
+    // 4. Close sidebar drawer when clicking/tapping on any nav link on mobile
+    const closeMobileSidebarOnNav = () => {
+      if (window.innerWidth <= 1024) {
+        this.toggleMobileSidebar(false);
+      }
+    };
+    const sidebarNavLinks = document.querySelectorAll('.sidebar-nav a, .sidebar-footer-section a, .sidebar-user-card');
+    sidebarNavLinks.forEach(link => {
+      link.addEventListener('click', closeMobileSidebarOnNav);
+      link.addEventListener('touchend', closeMobileSidebarOnNav, { passive: true });
+    });
 
     const filterPills = document.querySelectorAll('#doc-filter-pills button');
     filterPills.forEach(btn => {
@@ -859,6 +935,8 @@ window.KivoApp = {
       case 'document-builder':
         // Reset mobile tab to "form" view each time builder is opened
         this.switchBuilderMobileTab('form');
+        this.populateBuilderCatalogDropdown();
+        this.updateLiveInvoicePreview();
         break;
       default:
         break;
@@ -1561,12 +1639,12 @@ window.KivoApp = {
       if (uploadPrompt) uploadPrompt.style.display = 'block';
     }
 
-    // Items - Pre-populate realistic business items so invoice looks full and complete
+    // Items - Clean state: 1 blank row ready for input
     const tbody = document.getElementById('builder-items-tbody');
     if (tbody) tbody.innerHTML = '';
-    this.addBuilderLineItem('Conseil & Stratégie Digitale', 1, 180000, 18);
-    this.addBuilderLineItem('Développement Web & Intégration KIVO', 1, 320000, 18);
-    this.addBuilderLineItem('Maintenance & Support Mensuel', 1, 65000, 18);
+    const defaultVat = this.state.business?.defaultVatRate !== undefined ? this.state.business.defaultVatRate : (this.state.business?.taxRate || 18);
+    this.addBuilderLineItem('', 1, 0, defaultVat);
+    this.populateBuilderCatalogDropdown();
 
     this.recalculateBuilderTotals();
     this.updateLiveInvoicePreview();
@@ -1667,6 +1745,7 @@ window.KivoApp = {
       this.addBuilderLineItem('Prestation de service', 1, doc.subtotal || doc.total || 50000);
     }
 
+    this.populateBuilderCatalogDropdown();
     this.recalculateBuilderTotals();
     this.updateLiveInvoicePreview();
     this.navigate('document-builder');
@@ -4622,6 +4701,51 @@ window.KivoApp = {
     setVal('builder-client-email', client.email || '');
 
     this.updateLiveInvoicePreview();
+  },
+
+  /**
+   * Peuple le menu déroulant du catalogue dans le constructeur de facture
+   */
+  populateBuilderCatalogDropdown: function () {
+    const select = document.getElementById('builder-catalog-select');
+    if (!select) return;
+    const catalog = (this.state && this.state.catalog) || [];
+    const currency = this.state?.business?.currency || 'FCFA';
+    if (catalog.length === 0) {
+      select.innerHTML = '<option value="">+ Aucun article au catalogue</option>';
+      select.disabled = true;
+    } else {
+      select.disabled = false;
+      select.innerHTML = `<option value="">+ Ajouter depuis le catalogue (${catalog.length})...</option>` +
+        catalog.map(it => `<option value="${it.id}">${it.name} — ${Number(it.price || 0).toLocaleString('fr-FR')} ${currency}</option>`).join('');
+    }
+  },
+
+  /**
+   * Ajout direct d'un article du catalogue dans les lignes du constructeur
+   */
+  onBuilderCatalogSelect: function (itemId) {
+    if (!itemId) return;
+    const item = (this.state.catalog || []).find(it => String(it.id) === String(itemId));
+    if (!item) return;
+
+    // Si la seule ligne existante est vide (placeholder initial), la remplacer
+    const tbody = document.getElementById('builder-items-tbody');
+    if (tbody) {
+      const rows = tbody.querySelectorAll('tr');
+      if (rows.length === 1) {
+        const nameInput = rows[0].querySelector('.item-name');
+        const priceInput = rows[0].querySelector('.item-price');
+        if (nameInput && !nameInput.value.trim() && priceInput && parseFloat(priceInput.value) === 0) {
+          rows[0].remove();
+        }
+      }
+    }
+
+    const defaultVat = this.state.business?.defaultVatRate !== undefined ? this.state.business.defaultVatRate : (this.state.business?.taxRate || 18);
+    const tax = (item.taxRate !== undefined && item.taxRate !== null) ? Number(item.taxRate) : defaultVat;
+    this.addBuilderLineItem(item.name || 'Article', 1, Number(item.price) || 0, tax);
+    this.showToast(`Article "${item.name}" ajouté`, 'success');
   },
 
   /**

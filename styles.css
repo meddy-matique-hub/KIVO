@@ -747,18 +747,37 @@ button {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
+@media (min-width: 1025px) {
+  .mobile-header {
+    display: none !important;
+  }
+}
+
 .mobile-menu-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
   border-radius: 8px;
   border: 1px solid var(--border-color);
   background: #FFFFFF;
   color: var(--text-primary);
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
   transition: all 0.15s ease;
+  position: relative;
+  z-index: 92;
+}
+
+.mobile-menu-btn svg,
+.mobile-menu-btn svg * {
+  pointer-events: none;
 }
 
 .mobile-menu-btn:active {
@@ -927,6 +946,7 @@ button {
     top: 0 !important;
     left: 0 !important;
     height: 100vh !important;
+    height: 100dvh !important;
     width: 280px !important;
     max-width: 84vw !important;
     z-index: 1001 !important;
@@ -934,12 +954,14 @@ button {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     pointer-events: none !important;
     overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
     box-shadow: none;
   }
 
   .sidebar.mobile-open {
     transform: translateX(0) !important;
     pointer-events: auto !important;
+    visibility: visible !important;
     box-shadow: 4px 0 40px rgba(5, 11, 24, 0.45) !important;
   }
 
@@ -5115,6 +5137,195 @@ html, body {
     margin-bottom: 1.25rem;
   }
 }
+
+/* ==========================================================================
+   BUILDER — Responsive Mode Pills Bar (tabs: Modèle / Créer / IA)
+   ========================================================================== */
+.builder-mode-pills-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.builder-mode-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #475569;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.builder-mode-pill-btn:hover {
+  background: #F1F5F9;
+  border-color: #CBD5E1;
+  color: #0F172A;
+}
+
+.builder-mode-pill-btn.active {
+  background: linear-gradient(135deg, #1D4ED8, #3B82F6);
+  color: #FFFFFF;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+/* ==========================================================================
+   BUILDER — 2-Column Form Grid (responsive)
+   ========================================================================== */
+.builder-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* ==========================================================================
+   BUILDER — Full Mobile Responsive Corrections (≤ 640px)
+   ========================================================================== */
+@media (max-width: 640px) {
+  /* Builder view: remove negative margin/padding inherited from main-content override */
+  .builder-view-container {
+    padding: 1rem 0 2rem 0 !important;
+    margin: -1.25rem -1rem 0 -1rem !important;
+    width: calc(100% + 2rem) !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Builder top header: stack vertically, hide secondary actions */
+  .builder-top-header {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+    padding: 1rem 1rem 0 1rem;
+    margin-bottom: 0 !important;
+  }
+
+  .builder-header-left {
+    width: 100%;
+  }
+
+  .builder-title {
+    font-size: 1.1rem !important;
+  }
+
+  .builder-badge {
+    display: none !important; /* Hide "Édition en direct" badge on very small screens */
+  }
+
+  /* Action buttons: wrap & shrink nicely */
+  .builder-actions-group {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .btn-builder-action {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 0 0.65rem !important;
+    font-size: 0.78rem !important;
+  }
+
+  /* Pills bar: scroll horizontally on very small screens */
+  .builder-mode-pills-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 1rem 0.5rem 1rem;
+    margin-bottom: 0;
+    gap: 0.5rem;
+    scrollbar-width: none;
+  }
+  .builder-mode-pills-bar::-webkit-scrollbar { display: none; }
+
+  .builder-mode-pill-btn {
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    padding: 0.45rem 0.85rem;
+  }
+
+  /* Mobile toggle bar: full-width, sticky below header */
+  .builder-mobile-toggle-bar {
+    margin: 0 0 0 0 !important;
+    border-radius: 0 !important;
+    padding: 6px 1rem !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 50 !important;
+    background: #F1F5F9 !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+  }
+
+  /* Builder split layout: full column on mobile */
+  .builder-split-layout {
+    padding: 1rem !important;
+    gap: 0 !important;
+  }
+
+  .builder-editor-column {
+    gap: 1.25rem !important;
+  }
+
+  /* 2-col grids in builder forms collapse to 1 col */
+  .builder-grid-2col {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* grid-column: span 2 is meaningless on 1-col layout – override */
+  .builder-grid-2col > [style*="grid-column: span 2"],
+  .builder-grid-2col > [style*="grid-column:span 2"] {
+    grid-column: span 1 !important;
+  }
+
+  /* Builder form card inner padding reduction */
+  .builder-editor-column > div > div[style*="border-radius: 12px"] {
+    padding: 1rem !important;
+  }
+
+  /* Color section header: wrap button on small screens */
+  .builder-editor-column > div > div[style*="justify-content: space-between"] {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Preview column: full width with proper centering */
+  .builder-preview-column {
+    padding: 1rem !important;
+    background: #F8FAFC;
+    border-radius: 12px;
+  }
+
+  .mock-paper-stack {
+    max-width: 100% !important;
+  }
+}
+
+/* ==========================================================================
+   MOBILE HEADER — Logo width control (≤ 640px)
+   ========================================================================== */
+@media (max-width: 640px) {
+  .mobile-brand-text {
+    font-size: 1rem;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-header {
+    padding: 0.65rem 0.85rem;
+  }
+}
+
 
 
 
