@@ -118,38 +118,129 @@ if (window.KivoDb) {
         };
       }
 
-      // Strictly filter business_settings by this user's ID
-      const { data: settings, error: sErr } = await _kivoClient
-        .from('business_settings')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
+      // Parallel execution for maximum speed (replaces slow sequential fetches)
+      try {
+        const [
+          settingsRes,
+          clientsRes,
+          catalogRes,
+          documentsRes,
+          activitiesRes
+        ] = await Promise.all([
+          _kivoClient.from('business_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1),
+          _kivoClient.from('clients').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+          _kivoClient.from('catalog').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
+          _kivoClient.from('documents').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+          _kivoClient.from('activities').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50)
+        ]);
 
-      if (sErr) console.error('[KivoDb] Error fetching settings:', sErr);
+        if (settingsRes.error) console.error('[KivoDb] settings error:', settingsRes.error);
+        if (clientsRes.error) console.error('[KivoDb] clients error:', clientsRes.error);
+        if (catalogRes.error) console.error('[KivoDb] catalog error:', catalogRes.error);
+        if (documentsRes.error) console.error('[KivoDb] documents error:', documentsRes.error);
 
-      const { data: clients }    = await _kivoClient.from('clients').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-      const { data: catalog }    = await _kivoClient.from('catalog').select('*').eq('user_id', user.id).order('created_at', { ascending: true });
-      const { data: documents }  = await _kivoClient.from('documents').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-      const { data: activities } = await _kivoClient.from('activities').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50);
-      return {
-        settings:   settings   || [],
-        clients:    clients    || [],
-        catalog:    catalog    || [],
-        documents:  documents  || [],
-        activities: activities || []
-      };
+        return {
+          settings:   settingsRes.data   || [],
+          clients:    clientsRes.data    || [],
+          catalog:    catalogRes.data    || [],
+          documents:  documentsRes.data  || [],
+          activities: activitiesRes.data || []
+        };
+      } catch (e) {
+        console.error('[KivoDb] loadAll parallel fetch error:', e);
+        return {
+          settings:   [],
+          clients:    [],
+          catalog:    [],
+          documents:  [],
+          activities: []
+        };
+      }
     },
 
     saveDocument: async function (doc) {
-      const payload = { ...doc };
-      if (Array.isArray(payload.items)) {
-        payload.items = JSON.stringify(payload.items);
+      let user = window.KivoAuth?.user || null;
+      if (!user) {
+        try {
+          const { data: userData } = await _kivoClient.auth.getUser();
+          user = userData?.user || null;
+        } catch (_) {}
       }
-      return this.upsert('documents', payload);
+      if (!user) throw new Error("Utilisateur non authentifié.");
+
+      // Package lines and metadata cleanly in items JSON
+      const lines = Array.isArray(doc.items) ? doc.items : (typeof doc.items === 'string' ? JSON.parse(doc.items || '[]') : []);
+      const itemsPayload = JSON.stringify({
+        lines: lines,
+        issueDate: doc.issueDate || doc.issue_date || new Date().toISOString().split('T')[0],
+        dueDate: doc.dueDate || doc.due_date || '',
+        currency: doc.currency || 'FCFA'
+      });
+
+      // Strict mapping to valid Supabase columns
+      const payload = {
+        id: doc.id,
+        user_id: user.id,
+        number: doc.number,
+        type: doc.type || 'invoice',
+        status: doc.status || 'draft',
+        client_id: doc.clientId || doc.client_id || null,
+        client_name: doc.clientName || doc.client_name || '',
+        client_type: doc.clientType || doc.client_type || 'B2B',
+        client_tax_id: doc.clientTaxId || doc.client_tax_id || '',
+        client_email: doc.clientEmail || doc.client_email || '',
+        client_phone: doc.clientPhone || doc.client_phone || '',
+        items: itemsPayload,
+        subtotal: Number(doc.subtotal) || 0,
+        discount: Number(doc.discount) || 0,
+        tax_rate: Number(doc.taxRate !== undefined ? doc.taxRate : doc.tax_rate) || 0,
+        tax_amount: Number(doc.taxAmount !== undefined ? doc.taxAmount : (doc.tax || doc.tax_amount)) || 0,
+        total: Number(doc.total) || 0,
+        amount_paid: Number(doc.amountPaid !== undefined ? doc.amountPaid : doc.amount_paid) || 0,
+        notes: doc.notes || '',
+        conditions: doc.conditions || doc.terms || '',
+        public_token: doc.publicToken || doc.public_token || ('tok_' + Math.random().toString(36).substring(2, 12)),
+        views_count: Number(doc.viewsCount !== undefined ? doc.viewsCount : doc.views_count) || 0
+      };
+
+      const { data: upserted, error } = await _kivoClient.from('documents').upsert(payload).select();
+      if (error) {
+        console.error('[KivoDb] saveDocument error:', error);
+        throw error;
+      }
+      return upserted;
     },
 
-    saveClient:      async function (client)   { return this.upsert('clients', client); },
+    saveClient: async function (client) {
+      let user = window.KivoAuth?.user || null;
+      if (!user) {
+        try {
+          const { data: userData } = await _kivoClient.auth.getUser();
+          user = userData?.user || null;
+        } catch (_) {}
+      }
+      if (!user) throw new Error("Utilisateur non authentifié.");
+
+      // Strict mapping to valid Supabase columns only (no invalid tax_id/total_invoiced)
+      const payload = {
+        id: client.id,
+        user_id: user.id,
+        name: client.name,
+        type: client.type || client.clientType || 'B2B',
+        company: client.company || '',
+        contact_name: client.contact_name || client.contactName || '',
+        email: client.email || '',
+        phone: client.phone || '',
+        address: client.address || ''
+      };
+
+      const { data: upserted, error } = await _kivoClient.from('clients').upsert(payload).select();
+      if (error) {
+        console.error('[KivoDb] saveClient error:', error);
+        throw error;
+      }
+      return upserted;
+    },
     saveCatalogItem: async function (item)     { return this.upsert('catalog', item); },
     saveSettings:    async function (settings) {
       let user = window.KivoAuth?.user || null;

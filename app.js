@@ -343,8 +343,9 @@ window.KivoApp = {
       }
 
       // Replace (not merge) clients — only cloud truth, new user = []
+      // NOTE: Supabase column is 'type', not 'client_type'
       this.state.clients = (data.clients || []).map(c => ({
-        id: c.id, name: c.name, type: c.client_type, company: c.company,
+        id: c.id, name: c.name, type: c.type || c.client_type, company: c.company,
         contactName: c.contact_name, taxId: c.tax_id, email: c.email,
         phone: c.phone, address: c.address,
         totalInvoiced: c.total_invoiced, totalPaid: c.total_paid, balanceDue: c.balance_due
@@ -357,18 +358,56 @@ window.KivoApp = {
       }));
 
       // Replace documents
-      this.state.documents = (data.documents || []).map(d => ({
-        id: d.id, number: d.number, type: d.type, status: d.status,
-        currency: d.currency, clientId: d.client_id, clientName: d.client_name,
-        clientType: d.client_type, clientTaxId: d.client_tax_id,
-        clientEmail: d.client_email, clientPhone: d.client_phone,
-        issueDate: d.issue_date, dueDate: d.due_date,
-        items: typeof d.items === 'string' ? JSON.parse(d.items) : (d.items || []),
-        subtotal: d.subtotal, discount: d.discount, taxRate: d.tax_rate,
-        tax: d.tax, total: d.total, amountPaid: d.amount_paid,
-        notes: d.notes, terms: d.terms,
-        publicToken: d.public_token, viewsCount: d.views_count
-      }));
+      // NOTE: items is stored as JSON wrapper {lines:[], issueDate, dueDate, currency}
+      // tax_amount (not tax), conditions (not terms)
+      this.state.documents = (data.documents || []).map(d => {
+        let parsedItems = d.items || [];
+        let storedIssueDate = d.issue_date || '';
+        let storedDueDate = d.due_date || '';
+        let storedCurrency = d.currency || 'FCFA';
+        if (typeof parsedItems === 'string') {
+          try {
+            const wrapper = JSON.parse(parsedItems);
+            // items is {lines:[], issueDate, dueDate, currency} or a raw array
+            if (wrapper && !Array.isArray(wrapper) && Array.isArray(wrapper.lines)) {
+              parsedItems = wrapper.lines;
+              storedIssueDate = wrapper.issueDate || storedIssueDate;
+              storedDueDate = wrapper.dueDate || storedDueDate;
+              storedCurrency = wrapper.currency || storedCurrency;
+            } else if (Array.isArray(wrapper)) {
+              parsedItems = wrapper;
+            } else {
+              parsedItems = [];
+            }
+          } catch (_) {
+            parsedItems = [];
+          }
+        } else if (parsedItems && !Array.isArray(parsedItems) && Array.isArray(parsedItems.lines)) {
+          // Already parsed object with wrapper
+          storedIssueDate = parsedItems.issueDate || storedIssueDate;
+          storedDueDate = parsedItems.dueDate || storedDueDate;
+          storedCurrency = parsedItems.currency || storedCurrency;
+          parsedItems = parsedItems.lines;
+        }
+        return {
+          id: d.id, number: d.number, type: d.type, status: d.status,
+          currency: storedCurrency,
+          clientId: d.client_id, clientName: d.client_name,
+          clientType: d.client_type, clientTaxId: d.client_tax_id,
+          clientEmail: d.client_email, clientPhone: d.client_phone,
+          issueDate: storedIssueDate, dueDate: storedDueDate,
+          items: parsedItems,
+          subtotal: parseFloat(d.subtotal) || 0,
+          discount: parseFloat(d.discount) || 0,
+          taxRate: parseFloat(d.tax_rate) || 0,
+          tax: parseFloat(d.tax_amount) || 0, // Supabase column is tax_amount
+          total: parseFloat(d.total) || 0,
+          amountPaid: parseFloat(d.amount_paid) || 0,
+          notes: d.notes || '',
+          terms: d.conditions || d.terms || '', // Supabase column is conditions
+          publicToken: d.public_token, viewsCount: d.views_count
+        };
+      });
 
       // Activities
       if (data.activities && data.activities.length > 0) {
@@ -395,14 +434,20 @@ window.KivoApp = {
       await window.KivoDb.saveDocument({
         id: doc.id, number: doc.number, type: doc.type, status: doc.status,
         currency: doc.currency || 'FCFA',
-        client_id: doc.clientId, client_name: doc.clientName, client_type: doc.clientType,
-        client_tax_id: doc.clientTaxId, client_email: doc.clientEmail, client_phone: doc.clientPhone,
-        issue_date: doc.issueDate, due_date: doc.dueDate,
-        items: JSON.stringify(doc.items || []),
-        subtotal: doc.subtotal, discount: doc.discount, tax_rate: doc.taxRate,
-        tax: doc.tax, total: doc.total, amount_paid: doc.amountPaid || 0,
-        notes: doc.notes, terms: doc.terms,
-        public_token: doc.publicToken, views_count: doc.viewsCount || 0
+        clientId: doc.clientId,       // saveDocument maps these internally
+        clientName: doc.clientName,
+        clientType: doc.clientType,
+        clientTaxId: doc.clientTaxId,
+        clientEmail: doc.clientEmail,
+        clientPhone: doc.clientPhone,
+        issueDate: doc.issueDate, dueDate: doc.dueDate,
+        items: doc.items,             // saveDocument wraps this in {lines:[...]}
+        subtotal: doc.subtotal, discount: doc.discount, taxRate: doc.taxRate,
+        taxAmount: doc.tax,           // saveDocument maps taxAmount → tax_amount
+        total: doc.total, amountPaid: doc.amountPaid || 0,
+        notes: doc.notes,
+        conditions: doc.terms,        // saveDocument uses conditions as primary
+        publicToken: doc.publicToken, viewsCount: doc.viewsCount || 0
       });
     } catch (e) {
       console.error('[KivoApp] Supabase doc sync error:', e);
@@ -617,8 +662,8 @@ window.KivoApp = {
       loginModal.style.display = viewName === 'auth' ? 'flex' : 'none';
     }
 
-    // Keep sidebar and app layout active for authenticated users visiting pricing
-    const isFullWidthView = !isAuthenticated ? publicViews.includes(viewName) : (viewName === 'landing' || viewName === 'public-doc');
+    // Keep sidebar and app layout active for authenticated users visiting pricing or viewing documents
+    const isFullWidthView = !isAuthenticated ? publicViews.includes(viewName) : (viewName === 'landing');
     const sidebar = document.getElementById('sidebar');
     const mobileBottomNav = document.querySelector('.mobile-bottom-nav');
     const mobileHeader = document.querySelector('.mobile-header');
@@ -694,8 +739,13 @@ window.KivoApp = {
     }
 
     // Auto close mobile drawer on view navigation (also clears backdrop + body scroll lock)
+    // NOTE: We skip the auto-close if the sidebar is already being closed by a touch handler
+    // (i.e. within 200ms of a touch-initiated close) to avoid race conditions.
     if (sidebar && sidebar.classList.contains('mobile-open')) {
-      this.toggleMobileSidebar(false);
+      const msSinceLastToggle = Date.now() - (this._lastToggleMobileSidebarTime || 0);
+      if (msSinceLastToggle > 200) {
+        this.toggleMobileSidebar(false);
+      }
     }
 
     this.renderCurrentView();
@@ -768,6 +818,16 @@ window.KivoApp = {
       document.body.style.overflow = 'hidden'; // prevent background scroll
       // Record open time for backdrop guard (prevents immediate close from synthetic click)
       this._lastToggleMobileSidebarTime = now;
+
+      // Auto-expand navigation groups so user sees all choices immediately on mobile
+      const billingGroup = document.getElementById('nav-group-billing-items');
+      const settingsGroup = document.getElementById('nav-group-settings-items');
+      const billingChevron = document.getElementById('chevron-billing');
+      const settingsChevron = document.getElementById('chevron-settings');
+      if (billingGroup) billingGroup.classList.add('open');
+      if (settingsGroup) settingsGroup.classList.add('open');
+      if (billingChevron) billingChevron.style.transform = 'rotate(180deg)';
+      if (settingsChevron) settingsChevron.style.transform = 'rotate(180deg)';
     } else {
       sidebar.classList.remove('mobile-open');
       if (backdrop) backdrop.classList.remove('active');
@@ -900,17 +960,67 @@ window.KivoApp = {
       });
     }
 
-    // 4. Close sidebar drawer when clicking/tapping on any nav link on mobile
-    const closeMobileSidebarOnNav = () => {
-      if (window.innerWidth <= 1024) {
-        this.toggleMobileSidebar(false);
-      }
-    };
-    const sidebarNavLinks = document.querySelectorAll('.sidebar-nav a, .sidebar-footer-section a, .sidebar-user-card');
+    // 4. Robust navigation handler for all sidebar links on mobile and desktop
+    // On iOS/Android, we fire navigation on touchstart (no 300ms delay) and close sidebar.
+    // The subsequent 'click' event is swallowed to prevent double-fire.
+    const sidebarNavLinks = document.querySelectorAll('.sidebar-nav a, .sidebar-footer-section a');
     sidebarNavLinks.forEach(link => {
-      link.addEventListener('click', closeMobileSidebarOnNav);
-      link.addEventListener('touchend', closeMobileSidebarOnNav, { passive: true });
+      // Apply touch-action: manipulation to remove 300ms click delay on mobile
+      link.style.touchAction = 'manipulation';
+
+      let _linkTouchFired = false;
+
+      const doNavigate = (e) => {
+        const customOnClick = link.getAttribute('onclick');
+        const view = link.getAttribute('data-view');
+        const href = link.getAttribute('href');
+
+        if (!customOnClick && (view || (href && href.startsWith('#')))) {
+          e.preventDefault();
+          const targetView = view || href.replace('#', '');
+          this.navigate(targetView);
+        } else if (customOnClick) {
+          // For links with inline onclick (like 'Devis'), let the onclick run
+          // but still close the sidebar
+        }
+
+        if (window.innerWidth <= 1024) {
+          // Small delay so the view transition starts before the drawer closes
+          setTimeout(() => this.toggleMobileSidebar(false), 80);
+        }
+      };
+
+      link.addEventListener('touchstart', (e) => {
+        // Don't preventDefault here (would break scroll on iOS)
+        _linkTouchFired = false;
+      }, { passive: true });
+
+      link.addEventListener('touchend', (e) => {
+        // Fire navigation immediately on touchend (before synthetic click)
+        e.preventDefault(); // Prevents the 300ms delayed synthetic click
+        _linkTouchFired = true;
+        doNavigate(e);
+        setTimeout(() => { _linkTouchFired = false; }, 500);
+      }, { passive: false });
+
+      link.addEventListener('click', (e) => {
+        if (_linkTouchFired) {
+          // Touch already handled this, swallow the synthetic click
+          e.preventDefault();
+          return;
+        }
+        doNavigate(e);
+      });
     });
+
+    const userCard = document.querySelector('.sidebar-user-card');
+    if (userCard) {
+      userCard.addEventListener('click', () => {
+        if (window.innerWidth <= 1024) {
+          this.toggleMobileSidebar(false);
+        }
+      });
+    }
 
     const filterPills = document.querySelectorAll('#doc-filter-pills button');
     filterPills.forEach(btn => {
@@ -927,6 +1037,67 @@ window.KivoApp = {
       searchInput.addEventListener('input', (e) => {
         this.renderDocumentsTable('all', e.target.value);
       });
+    }
+
+    // 5. Smart mobile header — hides on scroll-down, reappears on scroll-up
+    this._setupSmartMobileHeader();
+  },
+
+  /**
+   * Smart sticky mobile header: hides when scrolling down, shows when scrolling up.
+   * Only active on mobile (<= 1024px). Uses rAF for 60fps performance.
+   */
+  _setupSmartMobileHeader: function () {
+    const mobileHeader = document.querySelector('.mobile-header');
+    if (!mobileHeader) return;
+
+    let lastScrollY = window.scrollY;
+    let rafId = null;
+    let ticking = false;
+
+    const updateHeader = () => {
+      if (window.innerWidth > 1024) {
+        // Desktop: always show, no classes
+        mobileHeader.classList.remove('mobile-header--hidden', 'mobile-header--scrolled');
+        ticking = false;
+        return;
+      }
+
+      const currentScrollY = window.scrollY;
+      const delta = currentScrollY - lastScrollY;
+
+      if (currentScrollY > 8) {
+        mobileHeader.classList.add('mobile-header--scrolled');
+      } else {
+        mobileHeader.classList.remove('mobile-header--scrolled');
+      }
+
+      if (delta > 4 && currentScrollY > 60) {
+        // Scrolling down significantly — hide header
+        mobileHeader.classList.add('mobile-header--hidden');
+      } else if (delta < -4 || currentScrollY <= 10) {
+        // Scrolling up or near top — show header
+        mobileHeader.classList.remove('mobile-header--hidden');
+      }
+
+      lastScrollY = currentScrollY;
+      ticking = false;
+    };
+
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        ticking = true;
+        rafId = requestAnimationFrame(updateHeader);
+      }
+    }, { passive: true });
+
+    // Re-show header whenever a new view is navigated to
+    const origNavigate = this.navigate ? this.navigate.bind(this) : null;
+    if (origNavigate) {
+      this.navigate = function (...args) {
+        mobileHeader.classList.remove('mobile-header--hidden');
+        return origNavigate(...args);
+      };
     }
   },
 
@@ -1477,10 +1648,10 @@ window.KivoApp = {
 
 
   /**
-   * Helper to format table row for documents with Edit, Refund, and Delete options
+   * Helper to format table row for documents with modern SaaS layout and discrete kebab menu
    */
   createDocTableRowHtml: function (doc) {
-    const biz = this.state.business;
+    const biz = this.state.business || {};
     const currencyStr = doc.currency || biz.currency || 'FCFA';
 
     const badgeClass = {
@@ -1506,22 +1677,104 @@ window.KivoApp = {
     }[doc.status] || doc.status;
 
     return `
-      <tr>
-        <td><strong>${doc.number}</strong></td>
-        <td>${doc.clientName || 'Client anonyme'} ${doc.clientType ? `<span style="font-size: 0.7rem; color: var(--text-muted);">(${doc.clientType})</span>` : ''}</td>
+      <tr class="doc-table-row" onclick="KivoApp.viewPublicDoc('${doc.id}')" style="cursor: pointer;">
+        <td><strong style="color: var(--primary); font-weight: 700;">${doc.number}</strong></td>
+        <td>
+          <div style="font-weight: 600; color: var(--text-primary);">${doc.clientName || 'Client anonyme'}</div>
+          ${doc.clientType ? `<span style="font-size: 0.72rem; color: var(--text-muted);">${doc.clientType}</span>` : ''}
+        </td>
         <td><span class="badge ${doc.type === 'quote' ? 'badge-sent' : 'badge-draft'}">${doc.type === 'quote' ? 'Devis' : 'Facture'}</span></td>
-        <td>${doc.issueDate}</td>
-        <td><strong>${(doc.total || 0).toLocaleString('fr-FR')} ${currencyStr}</strong></td>
+        <td style="color: var(--text-secondary); font-size: 0.88rem;">${doc.issueDate || '-'}</td>
+        <td style="color: var(--text-secondary); font-size: 0.88rem;">${doc.dueDate || '-'}</td>
+        <td><strong style="color: var(--text-primary); font-size: 0.95rem;">${(doc.total || 0).toLocaleString('fr-FR')} ${currencyStr}</strong></td>
         <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
-        <td style="text-align: right; display: flex; gap: 0.35rem; justify-content: flex-end;">
-          <button class="btn btn-secondary btn-sm" onclick="KivoApp.viewPublicDoc('${doc.id}')" title="Voir l'aperçu"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-          <button class="btn btn-secondary btn-sm" onclick="KivoApp.editDocument('${doc.id}')" title="Modifier la facture"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-          <button class="btn btn-whatsapp btn-sm" onclick="KivoApp.shareOnWhatsApp('${doc.id}')" title="Partager WhatsApp"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></button>
-          ${doc.status === 'paid' ? `<button class="btn btn-secondary btn-sm" style="color: var(--danger-text);" onclick="KivoApp.refundInvoice('${doc.id}')" title="Rembourser la facture"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>` : ''}
-          <button class="btn btn-danger btn-sm" onclick="KivoApp.confirmDeleteDocument('${doc.id}')" title="Supprimer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+        <td style="text-align: right;" onclick="event.stopPropagation();">
+          <div style="display: inline-flex; align-items: center; gap: 0.35rem; justify-content: flex-end;">
+            <button class="btn btn-secondary btn-sm" onclick="KivoApp.editDocument('${doc.id}')" title="Modifier">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="KivoApp.downloadPdf('${doc.id}')" title="Télécharger PDF">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
+            <button class="btn-table-action-kebab" onclick="KivoApp.toggleDocRowMenu(event, '${doc.id}')" title="Plus d'actions" aria-label="Actions">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+            </button>
+          </div>
         </td>
       </tr>
     `;
+  },
+
+  /**
+   * Action menu dropdown anchored to the kebab button
+   */
+  toggleDocRowMenu: function (e, docId) {
+    e.stopPropagation();
+    const existing = document.getElementById('kivo-doc-action-menu');
+    if (existing) {
+      const prevId = existing.dataset.docId;
+      existing.remove();
+      if (prevId === docId) return;
+    }
+
+    const doc = (this.state.documents || []).find(d => d.id === docId);
+    if (!doc) return;
+
+    const btn = e.currentTarget;
+    const rect = btn.getBoundingClientRect();
+
+    const menu = document.createElement('div');
+    menu.id = 'kivo-doc-action-menu';
+    menu.dataset.docId = docId;
+    menu.className = 'doc-action-popup-menu';
+    menu.style.position = 'fixed';
+    menu.style.top = `${rect.bottom + 4}px`;
+    menu.style.left = `${Math.max(10, rect.right - 190)}px`;
+    menu.style.zIndex = '9999';
+
+    menu.innerHTML = `
+      <div class="action-menu-item" onclick="KivoApp.viewPublicDoc('${doc.id}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>Aperçu complet</span>
+      </div>
+      <div class="action-menu-item" onclick="KivoApp.editDocument('${doc.id}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <span>Modifier</span>
+      </div>
+      <div class="action-menu-item" onclick="KivoApp.downloadPdf('${doc.id}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Télécharger PDF (A4)</span>
+      </div>
+      <div class="action-menu-item" onclick="KivoApp.shareOnWhatsApp('${doc.id}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        <span>Partager WhatsApp</span>
+      </div>
+      ${doc.status === 'paid' ? `
+        <div class="action-menu-item" onclick="KivoApp.refundInvoice('${doc.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          <span>Marquer remboursée</span>
+        </div>
+      ` : ''}
+      <div class="action-menu-divider"></div>
+      <div class="action-menu-item text-danger" onclick="KivoApp.confirmDeleteDocument('${doc.id}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <span>Supprimer</span>
+      </div>
+    `;
+
+    document.body.appendChild(menu);
+
+    const closeHandler = (evt) => {
+      if (!menu.contains(evt.target) && evt.target !== btn && !btn.contains(evt.target)) {
+        menu.remove();
+        document.removeEventListener('click', closeHandler);
+        window.removeEventListener('scroll', closeHandler, true);
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener('click', closeHandler);
+      window.addEventListener('scroll', closeHandler, true);
+    }, 10);
   },
 
   /**
@@ -1765,15 +2018,25 @@ window.KivoApp = {
     setVal('builder-client-phone', doc.clientPhone || '');
 
     // Logo restoration
-    this.builderCustomLogoUrl = doc.logoUrl !== undefined ? doc.logoUrl : (biz.logoUrl || null);
+    if (doc.logoUrl === null) {
+      this.builderCustomLogoUrl = null;
+      this._invoiceLogoRemoved = true;
+    } else if (doc.logoUrl) {
+      this.builderCustomLogoUrl = doc.logoUrl;
+      this._invoiceLogoRemoved = false;
+    } else {
+      this.builderCustomLogoUrl = biz.logoUrl || null;
+      this._invoiceLogoRemoved = !biz.logoUrl;
+    }
     const logoImg = document.getElementById('builder-logo-preview-img');
     const previewBox = document.getElementById('builder-logo-preview-box');
     const uploadPrompt = document.getElementById('builder-logo-upload-prompt');
-    if (this.builderCustomLogoUrl) {
+    if (this.builderCustomLogoUrl && !this._invoiceLogoRemoved) {
       if (logoImg) { logoImg.src = this.builderCustomLogoUrl; logoImg.style.display = 'block'; }
       if (previewBox) previewBox.style.display = 'flex';
       if (uploadPrompt) uploadPrompt.style.display = 'none';
     } else {
+      if (logoImg) { logoImg.src = ''; logoImg.style.display = 'none'; }
       if (previewBox) previewBox.style.display = 'none';
       if (uploadPrompt) uploadPrompt.style.display = 'block';
     }
@@ -2446,7 +2709,7 @@ window.KivoApp = {
       amountPaid: status === 'paid' ? grandTotal : 0,
       notes: notes,
       terms: terms,
-      logoUrl: this.builderCustomLogoUrl !== undefined ? this.builderCustomLogoUrl : (this.state.business && this.state.business.logoUrl) || null,
+      logoUrl: this._invoiceLogoRemoved ? null : (this.builderCustomLogoUrl !== undefined && this.builderCustomLogoUrl !== null ? this.builderCustomLogoUrl : ((this.state.business && this.state.business.logoUrl) || null)),
       primaryColor: document.getElementById('builder-color-primary') ? document.getElementById('builder-color-primary').value : null,
       secondaryColor: document.getElementById('builder-color-secondary') ? document.getElementById('builder-color-secondary').value : null,
       publicToken: 'tok_' + Math.random().toString(36).substring(2, 8),
@@ -2492,8 +2755,13 @@ window.KivoApp = {
         status: docObj.status,
         currency: docObj.currency,
         client_id: docObj.clientId !== 'cli_anon' ? docObj.clientId : null,
+        client_name: docObj.clientName || '',
+        client_type: docObj.clientType || 'B2C',
+        client_tax_id: docObj.clientTaxId || '',
+        client_email: docObj.clientEmail || '',
+        client_phone: docObj.clientPhone || '',
         issue_date: docObj.issueDate,
-        date_due: docObj.dueDate,
+        due_date: docObj.dueDate,       // FIX: was 'date_due' (wrong column name)
         items: docObj.items,
         subtotal: docObj.subtotal,
         discount: docObj.discount,
@@ -2501,7 +2769,8 @@ window.KivoApp = {
         total: docObj.total,
         amount_paid: docObj.amountPaid || 0,
         notes: docObj.notes,
-        conditions: docObj.terms
+        conditions: docObj.terms,
+        public_token: docObj.publicToken
       }).catch(e => console.error('[KivoApp] Supabase saveDocument error:', e));
     }
 
@@ -2620,21 +2889,47 @@ window.KivoApp = {
           return;
         }
 
+        // Parse items — stored as {lines:[], issueDate, dueDate, currency} wrapper
+        let pubItems = cloudDoc.items || [];
+        let pubIssueDate = cloudDoc.issue_date || '';
+        let pubDueDate = cloudDoc.due_date || '';
+        let pubCurrency = cloudDoc.currency || 'FCFA';
+        if (typeof pubItems === 'string') {
+          try {
+            const w = JSON.parse(pubItems);
+            if (w && !Array.isArray(w) && Array.isArray(w.lines)) {
+              pubItems = w.lines;
+              pubIssueDate = w.issueDate || pubIssueDate;
+              pubDueDate = w.dueDate || pubDueDate;
+              pubCurrency = w.currency || pubCurrency;
+            } else if (Array.isArray(w)) {
+              pubItems = w;
+            } else {
+              pubItems = [];
+            }
+          } catch (_) { pubItems = []; }
+        } else if (pubItems && !Array.isArray(pubItems) && Array.isArray(pubItems.lines)) {
+          pubIssueDate = pubItems.issueDate || pubIssueDate;
+          pubDueDate = pubItems.dueDate || pubDueDate;
+          pubCurrency = pubItems.currency || pubCurrency;
+          pubItems = pubItems.lines;
+        }
+
         doc = {
           id: cloudDoc.id,
           number: cloudDoc.number,
           type: cloudDoc.type,
           status: cloudDoc.status,
-          currency: cloudDoc.currency,
+          currency: pubCurrency,
           clientId: cloudDoc.client_id,
           clientName: cloudDoc.client_name || 'Client Destinataire',
           clientType: cloudDoc.client_type || 'B2C',
           clientTaxId: cloudDoc.client_tax_id || '',
           clientEmail: cloudDoc.client_email || '',
           clientPhone: cloudDoc.client_phone || '',
-          issueDate: cloudDoc.issue_date,
-          dueDate: cloudDoc.due_date,
-          items: typeof cloudDoc.items === 'string' ? JSON.parse(cloudDoc.items) : (cloudDoc.items || []),
+          issueDate: pubIssueDate,
+          dueDate: pubDueDate,
+          items: pubItems,
           subtotal: parseFloat(cloudDoc.subtotal) || 0,
           discount: parseFloat(cloudDoc.discount) || 0,
           taxRate: parseFloat(cloudDoc.tax_rate) || 0,
@@ -2681,6 +2976,25 @@ window.KivoApp = {
     if (!doc) {
       this.showToast("Document non trouvé.", "danger");
       return;
+    }
+    this._currentPublicDoc = doc;
+
+    // Top action bar inside public doc view
+    const topActions = document.getElementById('pub-top-actions');
+    const isAuth = !!(window.KivoAuth && window.KivoAuth.user);
+    if (topActions) {
+      topActions.innerHTML = `
+        ${isAuth ? `
+          <button class="btn btn-secondary btn-sm" onclick="KivoApp.editDocument('${doc.id}')" style="display: inline-flex; align-items: center; gap: 5px;" title="Modifier le document">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <span>Modifier</span>
+          </button>
+        ` : ''}
+        <button class="btn btn-secondary btn-sm" onclick="KivoApp.downloadPdf('${doc.id}')" style="display: inline-flex; align-items: center; gap: 5px;" title="Télécharger le PDF">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>PDF</span>
+        </button>
+      `;
     }
 
     const currencyStr = doc.currency || biz.currency || 'FCFA';
@@ -2774,7 +3088,7 @@ window.KivoApp = {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:middle; margin-right:5px;"><polyline points="20 6 9 17 4 12"/></svg>
           Accepter le devis
         </button>
-        <button class="btn btn-secondary" onclick="KivoApp.downloadPdf()">
+        <button class="btn btn-secondary" onclick="KivoApp.downloadPdf('${doc.id}')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Télécharger PDF
         </button>
@@ -2785,7 +3099,7 @@ window.KivoApp = {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:5px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           Payer en ligne (${(doc.total).toLocaleString('fr-FR')} ${currencyStr})
         </button>
-        <button class="btn btn-secondary" onclick="KivoApp.downloadPdf()">
+        <button class="btn btn-secondary" onclick="KivoApp.downloadPdf('${doc.id}')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Télécharger PDF
         </button>
@@ -2800,7 +3114,7 @@ window.KivoApp = {
       `;
     } else {
       btnContainer.innerHTML = `
-        <button class="btn btn-secondary" onclick="KivoApp.downloadPdf()">
+        <button class="btn btn-secondary" onclick="KivoApp.downloadPdf('${doc.id}')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Télécharger PDF
         </button>
@@ -3844,7 +4158,7 @@ window.KivoApp = {
     }
   },
 
-  completeOnboarding: function () {
+  completeOnboarding: async function () {
     const bizName = document.getElementById('onboard-biz-name').value.trim();
     const bizOwner = document.getElementById('onboard-biz-owner').value.trim();
     const bizIndustry = document.getElementById('onboard-biz-industry').value;
@@ -3892,26 +4206,32 @@ window.KivoApp = {
     this.saveState();
     this.updateUserBrandingUI();
 
-    // Sync to Supabase immediately after onboarding
+    // Sync to Supabase BEFORE navigating to dashboard (await ensures isOnboarded is persisted)
     if (window.KivoDb && this.supabaseConnected) {
-      window.KivoDb.saveSettings({
-        company_name: bizName,
-        owner: bizOwner,
-        email: bizEmail,
-        phone: fullPhone,
-        industry: bizIndustry,
-        country: bizCountry,
-        currency: bizCurrency,
-        fiscal_id: bizTaxId,
-        current_plan: this.selectedOnboardPlan || 'Gratuit',
-        invoice_prefix: biz.invoicePrefix || 'FAC-2026-',
-        quote_prefix: biz.quotePrefix || 'DEV-2026-',
-        default_vat_rate: biz.defaultVatRate || 18,
-        logo_url: biz.logoUrl || '',
-        visual_template: biz.visualTemplate || 'classic',
-        primary_color: biz.primaryColor || '#4F46E5',
-        secondary_color: biz.secondaryColor || '#7C3AED'
-      }).catch(e => console.error('[KivoApp] Supabase onboarding saveSettings error:', e));
+      try {
+        await window.KivoDb.saveSettings({
+          company_name: bizName,
+          owner: bizOwner,
+          email: bizEmail,
+          phone: fullPhone,
+          industry: bizIndustry,
+          country: bizCountry,
+          currency: bizCurrency,
+          fiscal_id: bizTaxId,
+          current_plan: this.selectedOnboardPlan || 'Gratuit',
+          invoice_prefix: biz.invoicePrefix || 'FAC-2026-',
+          quote_prefix: biz.quotePrefix || 'DEV-2026-',
+          default_vat_rate: biz.defaultVatRate || 18,
+          logo_url: biz.logoUrl || '',
+          visual_template: biz.visualTemplate || 'classic',
+          primary_color: biz.primaryColor || '#4F46E5',
+          secondary_color: biz.secondaryColor || '#7C3AED'
+        });
+        console.log('[KivoApp] Onboarding settings saved to Supabase.');
+      } catch (e) {
+        console.error('[KivoApp] Supabase onboarding saveSettings error:', e);
+        // Even if Supabase fails, we keep local state as onboarded
+      }
     }
 
     this.showToast(`Bienvenue sur KIVO MATIQUE, ${bizOwner} ! Espace prêt.`, "success");
@@ -4744,6 +5064,7 @@ window.KivoApp = {
       
       // Store strictly for this builder document session
       this.builderCustomLogoUrl = dataUrl;
+      this._invoiceLogoRemoved = false;
 
       // Update builder preview elements
       const preview = document.getElementById('builder-logo-preview-img');
@@ -5018,80 +5339,172 @@ window.KivoApp = {
    * Fonctionne meme sur mobile ou quand l'apercu est cache (offsetParent===null)
    * Pas de zIndex negatif, pas de canvas blanc, garantit 1 page A4 exacte
    */
-  downloadPdf: function () {
-    const docNum = (document.getElementById('builder-doc-number') || document.getElementById('pub-doc-number'));
-    const filename = ((docNum ? docNum.value || docNum.textContent : '') || 'facture_KIVO').trim().replace(/[^a-zA-Z0-9-_]/g, '_') + '.pdf';
-
+  /**
+   * Telechargement PDF reel via html2pdf.js — generation directe depuis KivoTemplates
+   * Fonctionne pour le builder et pour tout document existant (vue publique ou liste)
+   * Pas de canvas blanc, capture fidèlement 1 page A4 complète
+   */
+  downloadPdf: function (targetDocOrId) {
     if (typeof html2pdf === 'undefined') {
-      this.showToast('Bibliothèque PDF non chargée — réessayez dans quelques secondes.', 'error');
+      this.showToast('Bibliothèque PDF non disponible — vérifiez votre connexion.', 'error');
       return;
     }
 
-    this.showToast('Génération du PDF (1 page A4)...', 'info');
+    // 1. Identifier le document cible
+    let targetDoc = null;
+    if (targetDocOrId && typeof targetDocOrId === 'object') {
+      targetDoc = targetDocOrId;
+    } else if (typeof targetDocOrId === 'string') {
+      targetDoc = (this.state.documents || []).find(d => d.id === targetDocOrId);
+      if (!targetDoc && this._currentPublicDoc && this._currentPublicDoc.id === targetDocOrId) {
+        targetDoc = this._currentPublicDoc;
+      }
+    } else {
+      // Si on est sur la vue public-doc, lire l'id dans le hash URL
+      const hashParts = (window.location.hash || '').split('?');
+      const urlParams = new URLSearchParams(hashParts[1] || '');
+      const currentDocId = urlParams.get('id');
+      if (this.activeView === 'public-doc' && currentDocId) {
+        targetDoc = (this.state.documents || []).find(d => d.id === currentDocId) || this._currentPublicDoc;
+      } else if (this._currentPublicDoc) {
+        targetDoc = this._currentPublicDoc;
+      }
+    }
 
-    // --- Strategy: generate HTML directly from KivoTemplates (avoids DOM visibility issues) ---
+    let filename = 'facture_KIVO.pdf';
     let renderedHtml = '';
+    const biz = this.state.business || {};
     const tSelect = document.getElementById('builder-visual-template');
-    const templateId = (tSelect && tSelect.value) ? tSelect.value : (this.state.business.visualTemplate || 'minimalist');
+    const templateId = (tSelect && tSelect.value) ? tSelect.value : (biz.visualTemplate || 'minimalist');
 
-    if (window.KivoTemplates && typeof window.KivoTemplates.render === 'function') {
-      const data = window.KivoTemplates.collectData(this.state);
-      data.templateId = templateId;
-      renderedHtml = window.KivoTemplates.render(templateId, data) || '';
+    if (targetDoc) {
+      // Génération pour un document existant (ex: FAC-2026-1006)
+      filename = ((targetDoc.number || 'facture_KIVO').trim().replace(/[^a-zA-Z0-9-_]/g, '_')) + '.pdf';
+      const currencyStr = targetDoc.currency || biz.currency || 'FCFA';
+
+      let rawDocItems = targetDoc.items;
+      if (rawDocItems && typeof rawDocItems === 'object' && !Array.isArray(rawDocItems) && Array.isArray(rawDocItems.lines)) {
+        rawDocItems = rawDocItems.lines;
+      } else if (typeof rawDocItems === 'string') {
+        try {
+          const parsed = JSON.parse(rawDocItems);
+          rawDocItems = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.lines) ? parsed.lines : []);
+        } catch (_) {
+          rawDocItems = [];
+        }
+      }
+      if (!Array.isArray(rawDocItems)) rawDocItems = [];
+
+      const docData = {
+        biz: biz,
+        docType: targetDoc.type || 'invoice',
+        docNum: targetDoc.number || 'FAC-2026-0001',
+        issueDate: targetDoc.issueDate || new Date().toISOString().split('T')[0],
+        dueDate: targetDoc.dueDate || '',
+        status: targetDoc.status || 'draft',
+        paymentMethod: targetDoc.paymentMethod || 'Virement bancaire',
+        terms: targetDoc.terms || targetDoc.conditions || 'À réception',
+        notes: targetDoc.notes || '',
+        client: {
+          name: targetDoc.clientName || 'Client Destinataire',
+          company: targetDoc.clientCompany || '',
+          phone: targetDoc.clientPhone || '',
+          email: targetDoc.clientEmail || '',
+          address: targetDoc.clientAddress || '',
+          taxId: targetDoc.clientTaxId || ''
+        },
+        items: rawDocItems.map(it => ({
+          name: it.name || 'Article',
+          quantity: Number(it.quantity) || 1,
+          price: Number(it.price) || 0,
+          taxRate: (it.taxRate !== undefined && it.taxRate !== null) ? Number(it.taxRate) : (biz.defaultVatRate || 18),
+          total: Number(it.total) || (Number(it.quantity || 1) * Number(it.price || 0))
+        })),
+        subtotal: Number(targetDoc.subtotal) || Number(targetDoc.total) || 0,
+        discount: Number(targetDoc.discount) || 0,
+        taxAmount: Number(targetDoc.tax) || Number(targetDoc.taxAmount) || Number(targetDoc.tax_amount) || 0,
+        grandTotal: Number(targetDoc.total) || 0,
+        currency: currencyStr,
+        primaryColor: biz.primaryColor || '#0F172A',
+        secondaryColor: biz.secondaryColor || '#64748B'
+      };
+
+      if (window.KivoTemplates && typeof window.KivoTemplates.render === 'function') {
+        renderedHtml = window.KivoTemplates.render(templateId, docData);
+      }
+    } else {
+      // Génération depuis le formulaire du builder
+      const docNum = (document.getElementById('builder-doc-number') || document.getElementById('pub-doc-number'));
+      filename = (((docNum ? docNum.value || docNum.textContent : '') || 'facture_KIVO').trim().replace(/[^a-zA-Z0-9-_]/g, '_')) + '.pdf';
+      if (window.KivoTemplates && typeof window.KivoTemplates.render === 'function') {
+        const data = window.KivoTemplates.collectData(this.state);
+        data.templateId = templateId;
+        renderedHtml = window.KivoTemplates.render(templateId, data) || '';
+      }
     }
 
-    // Fallback: clone whatever is visible in the DOM
-    let sourceEl = document.getElementById('live-paper-preview-container');
-    if (!sourceEl || !sourceEl.innerHTML.trim()) {
-      sourceEl = document.getElementById('public-doc-printable-area');
+    if (!renderedHtml) {
+      const sourceEl = document.getElementById('live-paper-preview-container') || document.getElementById('public-doc-printable-area');
+      if (sourceEl && sourceEl.innerHTML.trim()) {
+        renderedHtml = sourceEl.innerHTML;
+      } else {
+        this.showToast('Aucun document disponible pour le téléchargement.', 'error');
+        return;
+      }
     }
 
-    // Build off-screen A4 sandbox: absolute position far off-left, full white background
+    // Création d'un bac à sable A4 fixe (largeur standard 794px, min-height 1122px)
     const sandbox = document.createElement('div');
     sandbox.id = 'kivo-pdf-sandbox';
-    sandbox.style.position = 'absolute';
-    sandbox.style.left = '-9999px';
+    sandbox.style.position = 'fixed';
+    sandbox.style.left = '0';
     sandbox.style.top = '0';
     sandbox.style.width = '794px';
     sandbox.style.minHeight = '1122px';
     sandbox.style.background = (templateId === 'premium') ? '#181A20' : '#FFFFFF';
-    sandbox.style.overflow = 'hidden';
-    sandbox.style.zIndex = '1';
+    sandbox.style.zIndex = '99999';
     sandbox.style.pointerEvents = 'none';
     sandbox.style.boxSizing = 'border-box';
     sandbox.style.margin = '0';
     sandbox.style.padding = '0';
+    sandbox.innerHTML = renderedHtml;
 
-    // Inject content: prefer fresh template HTML, fallback to DOM clone
-    if (renderedHtml) {
-      sandbox.innerHTML = renderedHtml;
-    } else if (sourceEl && sourceEl.innerHTML.trim()) {
-      const clone = sourceEl.cloneNode(true);
-      clone.style.width = '794px';
-      clone.style.minHeight = '1122px';
-      clone.style.overflow = 'hidden';
-      clone.style.margin = '0';
-      clone.style.boxShadow = 'none';
-      clone.style.border = 'none';
-      clone.style.borderRadius = '0';
-      clone.style.transform = 'none';
-      clone.style.boxSizing = 'border-box';
-      clone.querySelectorAll('.paper-curl-corner, .mock-paper-stack').forEach(el => el.remove());
-      sandbox.appendChild(clone);
-    } else {
-      this.showToast('Aucun document à télécharger.', 'error');
-      return;
-    }
+    // Overlay de progression élégant
+    const overlay = document.createElement('div');
+    overlay.id = 'kivo-pdf-loading-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.right = '0';
+    overlay.style.bottom = '0';
+    overlay.style.background = 'rgba(15, 23, 42, 0.75)';
+    overlay.style.zIndex = '100000';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.color = '#FFFFFF';
+    overlay.style.fontFamily = 'Inter, sans-serif';
+    overlay.innerHTML = `
+      <div style="background:#1E293B;padding:22px 30px;border-radius:12px;display:flex;align-items:center;gap:14px;box-shadow:0 20px 40px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.1);">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round" style="animation:spin 0.9s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        <span style="font-size:14px;font-weight:600;">Génération de votre facture A4...</span>
+      </div>
+    `;
 
     document.body.appendChild(sandbox);
+    document.body.appendChild(overlay);
 
-    // Preload images to avoid blank logo in PDF
+    const cleanup = () => {
+      if (sandbox.parentNode) sandbox.parentNode.removeChild(sandbox);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    };
+
+    // Pré-chargement des images (logo, signatures) pour éviter tout logo blanc
     const images = Array.from(sandbox.querySelectorAll('img'));
     const imagePromises = images.map(img => new Promise(resolve => {
       if (img.complete && img.naturalWidth > 0) { resolve(); return; }
       img.onload = resolve;
       img.onerror = resolve;
-      // Force reload if needed
       const src = img.getAttribute('src');
       if (src) img.src = src;
     }));
@@ -5106,14 +5519,7 @@ window.KivoApp = {
           useCORS: true,
           allowTaint: true,
           logging: false,
-          scrollX: 0,
-          scrollY: 0,
-          x: 0,
-          y: 0,
-          width: 794,
-          height: 1122,
-          windowWidth: 794,
-          windowHeight: 1122
+          backgroundColor: (templateId === 'premium') ? '#181A20' : '#FFFFFF'
         },
         jsPDF: {
           unit: 'mm',
@@ -5129,13 +5535,13 @@ window.KivoApp = {
         .from(sandbox)
         .save()
         .then(() => {
-          if (sandbox.parentNode) document.body.removeChild(sandbox);
-          this.showToast('Facture téléchargée sur 1 page A4 !', 'success');
+          cleanup();
+          this.showToast('Facture téléchargée avec succès sur 1 page A4 !', 'success');
         })
         .catch(e => {
-          if (sandbox.parentNode) document.body.removeChild(sandbox);
+          cleanup();
           console.error('[KivoApp] Erreur PDF:', e);
-          this.showToast('Erreur PDF : ' + e.message, 'error');
+          this.showToast('Erreur lors du téléchargement : ' + (e.message || e), 'error');
         });
     });
   },
