@@ -766,10 +766,17 @@ window.KivoApp = {
       sidebar.classList.add('mobile-open');
       if (backdrop) backdrop.classList.add('active');
       document.body.style.overflow = 'hidden'; // prevent background scroll
+      // Record open time for backdrop guard (prevents immediate close from synthetic click)
+      this._lastToggleMobileSidebarTime = now;
     } else {
       sidebar.classList.remove('mobile-open');
       if (backdrop) backdrop.classList.remove('active');
       document.body.style.overflow = '';
+      // Remove inline display style so CSS media queries resume control
+      // Desktop: sidebar remains visible via CSS; Mobile: hidden by default (no .mobile-open)
+      if (window.innerWidth <= 1024) {
+        sidebar.style.display = '';
+      }
     }
   },
 
@@ -820,49 +827,77 @@ window.KivoApp = {
    * Setup event listeners
    */
   setupEventListeners: function () {
-    // 1. Mobile menu toggle button (click + touchend for Android / iPhone Safari)
+    // 1. Mobile menu toggle button
+    // Strategy: on touch devices, we listen to `touchend` only and call preventDefault()
+    // to prevent the subsequent synthetic `click` from firing a second toggle.
+    // On non-touch devices (desktop), `click` fires normally.
     const toggleBtn = document.getElementById('mobile-menu-toggle');
     if (toggleBtn && !toggleBtn.dataset.bound) {
       toggleBtn.dataset.bound = 'true';
-      const handleToggle = (e) => {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
+      let _touchHandled = false;
+      toggleBtn.addEventListener('touchend', (e) => {
+        e.preventDefault(); // Stops synthetic click generation
+        e.stopPropagation();
+        _touchHandled = true;
         this.toggleMobileSidebar();
-      };
-      toggleBtn.addEventListener('click', handleToggle);
-      toggleBtn.addEventListener('touchend', handleToggle, { passive: false });
+        setTimeout(() => { _touchHandled = false; }, 400);
+      }, { passive: false });
+      toggleBtn.addEventListener('click', (e) => {
+        if (_touchHandled) { return; } // Swallow synthetic click after touchend
+        e.stopPropagation();
+        this.toggleMobileSidebar();
+      });
     }
 
     // 2. Sidebar drawer mobile close button (X)
     const closeBtn = document.querySelector('.sidebar-mobile-close-btn');
     if (closeBtn && !closeBtn.dataset.bound) {
       closeBtn.dataset.bound = 'true';
-      const handleClose = (e) => {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
+      let _cbTouchHandled = false;
+      closeBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        _cbTouchHandled = true;
         this.toggleMobileSidebar(false);
-      };
-      closeBtn.addEventListener('click', handleClose);
-      closeBtn.addEventListener('touchend', handleClose, { passive: false });
+        setTimeout(() => { _cbTouchHandled = false; }, 400);
+      }, { passive: false });
+      closeBtn.addEventListener('click', (e) => {
+        if (_cbTouchHandled) { return; }
+        e.stopPropagation();
+        this.toggleMobileSidebar(false);
+      });
     }
 
-    // 3. Sidebar backdrop overlay (click or tap outside to close)
+    // 3. Sidebar backdrop overlay
+    // Guard: ignore any event fired within 400ms of the sidebar opening
+    // to prevent the trailing synthetic click from immediately closing it.
     const backdropEl = document.getElementById('sidebar-backdrop');
     if (backdropEl && !backdropEl.dataset.bound) {
       backdropEl.dataset.bound = 'true';
+      let _bdTouchHandled = false;
       const handleBackdrop = (e) => {
         if (e) {
           e.preventDefault();
           e.stopPropagation();
         }
+        // Guard: sidebar was just opened — ignore trailing event
+        const now = Date.now();
+        if (now - this._lastToggleMobileSidebarTime < 400) { return; }
         this.toggleMobileSidebar(false);
       };
-      backdropEl.addEventListener('click', handleBackdrop);
-      backdropEl.addEventListener('touchend', handleBackdrop, { passive: false });
+      backdropEl.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        _bdTouchHandled = true;
+        const now = Date.now();
+        if (now - this._lastToggleMobileSidebarTime < 400) { return; }
+        this.toggleMobileSidebar(false);
+        setTimeout(() => { _bdTouchHandled = false; }, 400);
+      }, { passive: false });
+      backdropEl.addEventListener('click', (e) => {
+        if (_bdTouchHandled) { return; }
+        handleBackdrop(e);
+      });
     }
 
     // 4. Close sidebar drawer when clicking/tapping on any nav link on mobile
@@ -919,6 +954,9 @@ window.KivoApp = {
         break;
       case 'analytics':
         this.renderAnalytics();
+        break;
+      case 'team':
+        this.renderTeam();
         break;
       case 'public-doc':
         this.renderPublicDocView();
@@ -1015,6 +1053,23 @@ window.KivoApp = {
       this.saveSettings();
     }
     this.showToast("Logo supprimé.", "info");
+  },
+
+  /**
+   * Supprime le logo uniquement de la facture en cours d'édition
+   * Ne touche PAS au logo du profil d'entreprise
+   */
+  removeBuilderLogo: function () {
+    this.builderCustomLogoUrl = null;
+    this._invoiceLogoRemoved = true;
+    const logoImg = document.getElementById('builder-logo-preview-img');
+    const previewBox = document.getElementById('builder-logo-preview-box');
+    const uploadPrompt = document.getElementById('builder-logo-upload-prompt');
+    if (logoImg) { logoImg.src = ''; logoImg.style.display = 'none'; }
+    if (previewBox) previewBox.style.display = 'none';
+    if (uploadPrompt) uploadPrompt.style.display = 'block';
+    this.updateLiveInvoicePreview();
+    this.showToast('Logo retiré de cette facture (profil d\'entreprise inchangé).', 'info');
   },
 
   /**
@@ -1620,10 +1675,13 @@ window.KivoApp = {
     }
 
     // Clear client overrides
+    setVal('builder-client-name', '');
+    setVal('builder-client-email', '');
     setVal('builder-client-address', '');
     setVal('builder-client-phone', '');
 
-    // Logo from business settings or builder session
+    // Reset invoice logo state for new document session
+    this._invoiceLogoRemoved = false;
     this.builderCustomLogoUrl = biz.logoUrl || null;
     if (this.builderCustomLogoUrl) {
       const logoImg = document.getElementById('builder-logo-preview-img');
@@ -1742,7 +1800,7 @@ window.KivoApp = {
         this.addBuilderLineItem(it.name, it.quantity, it.price, it.taxRate || 18);
       });
     } else {
-      this.addBuilderLineItem('Prestation de service', 1, doc.subtotal || doc.total || 50000);
+      this.addBuilderLineItem('', 1, 0);
     }
 
     this.populateBuilderCatalogDropdown();
@@ -1754,7 +1812,7 @@ window.KivoApp = {
   /**
    * Adds a line item row in builder
    */
-  addBuilderLineItem: function (name = 'Prestation / Article', qty = 1, price = 50000, tax = 18) {
+  addBuilderLineItem: function (name = '', qty = 1, price = '', tax = 18) {
     const tbody = document.getElementById('builder-items-tbody');
     if (!tbody) return;
 
@@ -1782,7 +1840,7 @@ window.KivoApp = {
         </select>
       </td>
       <td style="text-align: right; vertical-align: middle; padding-bottom: 0.5rem;">
-        <strong class="item-total-display" style="font-size: 0.85rem; color: #0F172A;">${(qty * price).toLocaleString('fr-FR')} FCFA</strong>
+        <strong class="item-total-display" style="font-size: 0.85rem; color: #0F172A;">${(qty * (parseFloat(price) || 0)).toLocaleString('fr-FR')} FCFA</strong>
       </td>
       <td style="text-align: center; vertical-align: middle; padding-bottom: 0.5rem;">
         <button class="btn btn-danger btn-sm" onclick="this.closest('tr').remove(); KivoApp.recalculateBuilderTotals(); KivoApp.updateLiveInvoicePreview();" style="background: transparent; border: none; color: #EF4444; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 4px;" title="Supprimer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -3183,7 +3241,191 @@ window.KivoApp = {
     });
   },
 
+  // ─────────────────────────────────────────────────────────────
+  // TEAM MANAGEMENT (Business Plan — 5 seats, Directeur/Membre)
+  // ─────────────────────────────────────────────────────────────
+
+  openInviteMemberModal: function () {
+    const tier = (this.state.business && this.state.business.subscriptionTier) || 'Gratuit';
+    if (tier !== 'Business') {
+      this.showToast('L\'invitation de membres est réservée au plan Business (9 990 FCFA/mois).', 'info');
+      this.navigate('settings');
+      return;
+    }
+    const members = (this.state.business.teamMembers) || [];
+    if (members.length >= 5) {
+      this.showToast('Limite atteinte : 5 sièges inclus dans le plan Business. Ajoutez +1 500 FCFA/mois par siège supplémentaire.', 'info');
+      return;
+    }
+    const emailInput = document.getElementById('invite-member-email');
+    if (emailInput) emailInput.value = '';
+    this.openModal('modal-invite-member');
+  },
+
+  sendMemberInvite: function () {
+    const email = (document.getElementById('invite-member-email') || {}).value || '';
+    const role = (document.getElementById('invite-member-role') || {}).value || 'membre';
+    if (!email || !email.includes('@')) {
+      this.showToast('Veuillez saisir une adresse e-mail valide.', 'error');
+      return;
+    }
+    if (!this.state.business.teamMembers) this.state.business.teamMembers = [];
+    // Check duplicate
+    if (this.state.business.teamMembers.find(m => m.email === email)) {
+      this.showToast('Ce membre est déjà dans l\'équipe.', 'error');
+      return;
+    }
+    const initials = email.split('@')[0].substring(0, 2).toUpperCase();
+    this.state.business.teamMembers.push({
+      id: 'mbr_' + Date.now(),
+      email: email,
+      role: role,
+      status: 'pending',
+      invitedAt: new Date().toISOString(),
+      initials: initials
+    });
+    this.saveState();
+    this.closeModal('modal-invite-member');
+    this.showToast(`Invitation envoyée à ${email} (${role}).`, 'success');
+    this.renderTeam();
+  },
+
+  renderTeam: function () {
+    const biz = this.state.business || {};
+    const owner = biz.owner || biz.name || 'Propriétaire';
+    const ownerEmail = biz.email || (window.KivoAuth && window.KivoAuth.user ? window.KivoAuth.user.email : '');
+    const members = biz.teamMembers || [];
+    const totalSeats = 1 + members.length;
+
+    // KPIs
+    const seatsEl = document.getElementById('team-kpi-seats');
+    if (seatsEl) seatsEl.innerHTML = `${totalSeats} <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">/ 5 (Plan Business)</span>`;
+    const countEl = document.getElementById('team-active-count');
+    if (countEl) countEl.textContent = `${totalSeats} actif${totalSeats > 1 ? 's' : ''}`;
+
+    // Owner row identity
+    const ownerAvatarEl = document.getElementById('team-owner-avatar');
+    const ownerNameEl = document.getElementById('team-owner-name');
+    const ownerEmailEl = document.getElementById('team-owner-email');
+    if (ownerAvatarEl) ownerAvatarEl.textContent = owner.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() || 'KM';
+    if (ownerNameEl) ownerNameEl.textContent = owner;
+    if (ownerEmailEl) ownerEmailEl.textContent = ownerEmail;
+
+    // Extra member rows
+    const tbody = document.getElementById('team-members-tbody');
+    if (tbody) {
+      // Keep first row (owner), rebuild the rest
+      const ownerRow = tbody.querySelector('tr');
+      tbody.innerHTML = '';
+      if (ownerRow) tbody.appendChild(ownerRow);
+
+      members.forEach(m => {
+        const tr = document.createElement('tr');
+        const statusBadge = m.status === 'pending'
+          ? `<span class="badge" style="background:#FFF7ED;color:#C2410C;">En attente</span>`
+          : `<span class="badge badge-paid">Actif</span>`;
+        const roleBadge = m.role === 'directeur'
+          ? `<span class="badge" style="background:#EEF2FF;color:#4F46E5;">Directeur</span>`
+          : `<span class="badge" style="background:#F0FDF4;color:#166534;">Membre</span>`;
+        tr.innerHTML = `
+          <td>
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+              <div class="avatar" style="width:34px;height:34px;font-size:0.85rem;background:#F0FDF4;color:#166534;font-weight:600;">${m.initials || '??'}</div>
+              <div>
+                <div style="font-weight:600;color:var(--text-primary);">${m.email}</div>
+                <div style="font-size:0.8rem;color:var(--text-muted);">Invité le ${new Date(m.invitedAt).toLocaleDateString('fr-FR')}</div>
+              </div>
+            </div>
+          </td>
+          <td>${roleBadge}</td>
+          <td>${statusBadge}</td>
+          <td style="color:var(--text-muted);font-size:0.85rem;">
+            <button class="btn btn-danger btn-sm" onclick="KivoApp.removeMember('${m.id}')" style="font-size:0.75rem;padding:0.25rem 0.5rem;">Retirer</button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Show draft invoices by team members
+    const drafts = this.state.documents.filter(d => d.status === 'draft' && d.memberEmail);
+    const draftsCard = document.getElementById('team-drafts-card');
+    const draftsList = document.getElementById('team-drafts-list');
+    if (draftsCard) draftsCard.style.display = drafts.length > 0 ? 'block' : 'none';
+    if (draftsList) {
+      if (drafts.length === 0) {
+        draftsList.textContent = 'Aucun brouillon en cours.';
+      } else {
+        draftsList.innerHTML = drafts.map(d => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 0;border-bottom:1px solid var(--border-color);">
+            <div>
+              <strong>${d.number}</strong> — ${d.clientName || 'Client non défini'}
+              <div style="font-size:0.8rem;color:var(--text-muted);">Par ${d.memberEmail}</div>
+            </div>
+            <span class="badge badge-draft">Brouillon</span>
+          </div>`).join('');
+      }
+    }
+  },
+
+  removeMember: function (memberId) {
+    if (!this.state.business.teamMembers) return;
+    this.state.business.teamMembers = this.state.business.teamMembers.filter(m => m.id !== memberId);
+    this.saveState();
+    this.showToast('Membre retiré de l\'équipe.', 'info');
+    this.renderTeam();
+  },
+
+  /**
+   * Auto-save builder as draft (debounced 1.5s) for collaborative workflows
+   * The draft is flagged with status:'draft' and the member's email for Director visibility
+   */
+  _autoSaveDraftTimer: null,
+  scheduleDraftAutoSave: function () {
+    clearTimeout(this._autoSaveDraftTimer);
+    this._autoSaveDraftTimer = setTimeout(() => {
+      const userEmail = window.KivoAuth && window.KivoAuth.user ? window.KivoAuth.user.email : null;
+      const role = this.state.business && this.state.business.teamMembers
+        ? (this.state.business.teamMembers.find(m => m.email === userEmail) || {}).role
+        : 'directeur';
+      // Only auto-save members' work as drafts (Directors save explicitly)
+      if (role !== 'membre') return;
+
+      const num = (document.getElementById('builder-doc-number') || {}).value;
+      if (!num) return;
+
+      const existingId = (document.getElementById('builder-doc-id') || {}).value;
+      const draftDoc = {
+        id: existingId || ('draft_' + Date.now()),
+        number: num,
+        type: (document.getElementById('builder-doc-type') || {}).value || 'invoice',
+        status: 'draft',
+        memberEmail: userEmail,
+        clientName: (() => {
+          const sel = document.getElementById('builder-doc-client-select');
+          if (!sel || !sel.value) return (document.getElementById('builder-client-name') || {}).value || '';
+          const client = this.state.clients.find(c => c.id === sel.value);
+          return client ? client.name : '';
+        })(),
+        total: (() => {
+          const ttcEl = document.getElementById('builder-calc-total');
+          return parseFloat((ttcEl ? ttcEl.textContent : '0').replace(/[^0-9.]/g, '')) || 0;
+        })(),
+        issueDate: new Date().toISOString().split('T')[0],
+        updatedAt: new Date().toISOString()
+      };
+
+      const idx = this.state.documents.findIndex(d => d.id === draftDoc.id);
+      if (idx !== -1) {
+        this.state.documents[idx] = { ...this.state.documents[idx], ...draftDoc };
+      } else {
+        this.state.documents.unshift(draftDoc);
+      }
+      this.saveState();
+    }, 1500);
+  },
+
   renderAnalytics: function () {
+
     const container = document.getElementById('analytics-content');
     if (!container) return;
 
@@ -4772,21 +5014,13 @@ window.KivoApp = {
   },
 
   /**
-   * Telechargement PDF reel via html2pdf.js - GARANTI SUR 1 SEULE PAGE A4
-   * Utilise un conteneur sandbox isole sans decalage de scroll ni debordement
+   * Telechargement PDF reel via html2pdf.js — generation directe depuis KivoTemplates
+   * Fonctionne meme sur mobile ou quand l'apercu est cache (offsetParent===null)
+   * Pas de zIndex negatif, pas de canvas blanc, garantit 1 page A4 exacte
    */
   downloadPdf: function () {
     const docNum = (document.getElementById('builder-doc-number') || document.getElementById('pub-doc-number'));
     const filename = ((docNum ? docNum.value || docNum.textContent : '') || 'facture_KIVO').trim().replace(/[^a-zA-Z0-9-_]/g, '_') + '.pdf';
-
-    let element = document.getElementById('live-paper-preview-container');
-    if (!element || element.offsetParent === null) {
-      element = document.getElementById('public-doc-printable-area');
-    }
-    if (!element) {
-      this.showToast('Aucun document à télécharger.', 'error');
-      return;
-    }
 
     if (typeof html2pdf === 'undefined') {
       this.showToast('Bibliothèque PDF non chargée — réessayez dans quelques secondes.', 'error');
@@ -4795,87 +5029,117 @@ window.KivoApp = {
 
     this.showToast('Génération du PDF (1 page A4)...', 'info');
 
-    // Create an isolated sandbox at (0,0) with zIndex -99999 so html2canvas renders
-    // the content at exact origin without negative offset (which caused the blank page bug)
+    // --- Strategy: generate HTML directly from KivoTemplates (avoids DOM visibility issues) ---
+    let renderedHtml = '';
+    const tSelect = document.getElementById('builder-visual-template');
+    const templateId = (tSelect && tSelect.value) ? tSelect.value : (this.state.business.visualTemplate || 'minimalist');
+
+    if (window.KivoTemplates && typeof window.KivoTemplates.render === 'function') {
+      const data = window.KivoTemplates.collectData(this.state);
+      data.templateId = templateId;
+      renderedHtml = window.KivoTemplates.render(templateId, data) || '';
+    }
+
+    // Fallback: clone whatever is visible in the DOM
+    let sourceEl = document.getElementById('live-paper-preview-container');
+    if (!sourceEl || !sourceEl.innerHTML.trim()) {
+      sourceEl = document.getElementById('public-doc-printable-area');
+    }
+
+    // Build off-screen A4 sandbox: absolute position far off-left, full white background
     const sandbox = document.createElement('div');
     sandbox.id = 'kivo-pdf-sandbox';
-    sandbox.style.position = 'fixed';
+    sandbox.style.position = 'absolute';
+    sandbox.style.left = '-9999px';
     sandbox.style.top = '0';
-    sandbox.style.left = '0';
     sandbox.style.width = '794px';
-    sandbox.style.height = '1122px';
     sandbox.style.minHeight = '1122px';
-    sandbox.style.maxHeight = '1122px';
+    sandbox.style.background = (templateId === 'premium') ? '#181A20' : '#FFFFFF';
     sandbox.style.overflow = 'hidden';
-    sandbox.style.background = (element.style.backgroundColor && element.style.backgroundColor !== 'transparent')
-      ? element.style.backgroundColor
-      : (element.id === 'public-doc-printable-area' ? '#FFFFFF' : (element.style.background || '#FFFFFF'));
+    sandbox.style.zIndex = '1';
+    sandbox.style.pointerEvents = 'none';
     sandbox.style.boxSizing = 'border-box';
     sandbox.style.margin = '0';
     sandbox.style.padding = '0';
-    sandbox.style.zIndex = '-99999';
-    sandbox.style.pointerEvents = 'none';
 
-    const clone = element.cloneNode(true);
-    clone.style.width = '794px';
-    clone.style.height = '1122px';
-    clone.style.minHeight = '1122px';
-    clone.style.maxHeight = '1122px';
-    clone.style.overflow = 'hidden';
-    clone.style.margin = '0';
-    clone.style.boxShadow = 'none';
-    clone.style.border = 'none';
-    clone.style.borderRadius = '0';
-    clone.style.transform = 'none';
-    clone.style.boxSizing = 'border-box';
+    // Inject content: prefer fresh template HTML, fallback to DOM clone
+    if (renderedHtml) {
+      sandbox.innerHTML = renderedHtml;
+    } else if (sourceEl && sourceEl.innerHTML.trim()) {
+      const clone = sourceEl.cloneNode(true);
+      clone.style.width = '794px';
+      clone.style.minHeight = '1122px';
+      clone.style.overflow = 'hidden';
+      clone.style.margin = '0';
+      clone.style.boxShadow = 'none';
+      clone.style.border = 'none';
+      clone.style.borderRadius = '0';
+      clone.style.transform = 'none';
+      clone.style.boxSizing = 'border-box';
+      clone.querySelectorAll('.paper-curl-corner, .mock-paper-stack').forEach(el => el.remove());
+      sandbox.appendChild(clone);
+    } else {
+      this.showToast('Aucun document à télécharger.', 'error');
+      return;
+    }
 
-    // Remove decorative mock paper curl or stack shadows
-    clone.querySelectorAll('.paper-curl-corner, .mock-paper-stack').forEach(el => el.remove());
-
-    sandbox.appendChild(clone);
     document.body.appendChild(sandbox);
 
-    const opt = {
-      margin: 0,
-      filename: filename,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        scrollX: 0,
-        scrollY: 0,
-        x: 0,
-        y: 0,
-        width: 794,
-        height: 1122,
-        windowWidth: 794,
-        windowHeight: 1122
-      },
-      jsPDF: {
-        unit: 'mm',
-        format: 'a4',
-        orientation: 'portrait',
-        compress: true
-      },
-      pagebreak: { mode: 'avoid-all' }
-    };
+    // Preload images to avoid blank logo in PDF
+    const images = Array.from(sandbox.querySelectorAll('img'));
+    const imagePromises = images.map(img => new Promise(resolve => {
+      if (img.complete && img.naturalWidth > 0) { resolve(); return; }
+      img.onload = resolve;
+      img.onerror = resolve;
+      // Force reload if needed
+      const src = img.getAttribute('src');
+      if (src) img.src = src;
+    }));
 
-    html2pdf()
-      .set(opt)
-      .from(sandbox)
-      .save()
-      .then(() => {
-        if (sandbox.parentNode) document.body.removeChild(sandbox);
-        this.showToast('Facture téléchargée sur 1 page A4 !', 'success');
-      })
-      .catch(e => {
-        if (sandbox.parentNode) document.body.removeChild(sandbox);
-        console.error('[KivoApp] Erreur PDF:', e);
-        this.showToast('Erreur PDF : ' + e.message, 'error');
-      });
+    Promise.all(imagePromises).then(() => {
+      const opt = {
+        margin: 0,
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+          scrollX: 0,
+          scrollY: 0,
+          x: 0,
+          y: 0,
+          width: 794,
+          height: 1122,
+          windowWidth: 794,
+          windowHeight: 1122
+        },
+        jsPDF: {
+          unit: 'mm',
+          format: 'a4',
+          orientation: 'portrait',
+          compress: true
+        },
+        pagebreak: { mode: 'avoid-all' }
+      };
+
+      html2pdf()
+        .set(opt)
+        .from(sandbox)
+        .save()
+        .then(() => {
+          if (sandbox.parentNode) document.body.removeChild(sandbox);
+          this.showToast('Facture téléchargée sur 1 page A4 !', 'success');
+        })
+        .catch(e => {
+          if (sandbox.parentNode) document.body.removeChild(sandbox);
+          console.error('[KivoApp] Erreur PDF:', e);
+          this.showToast('Erreur PDF : ' + e.message, 'error');
+        });
+    });
   },
+
 
   /**
    * Impression via fenetre du navigateur (1 seule page A4)

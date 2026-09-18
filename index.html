@@ -25,11 +25,11 @@
     <div class="app-wrapper">
 
       <!-- Mobile Backdrop Overlay for sidebar drawer -->
-      <div id="sidebar-backdrop" class="sidebar-backdrop" onclick="KivoApp.toggleMobileSidebar(false)" aria-label="Fermer le menu mobile"></div>
+      <div id="sidebar-backdrop" class="sidebar-backdrop" aria-label="Fermer le menu mobile"></div>
 
       <!-- Mobile Topbar / Header (Sticky on Mobile, hidden on desktop) -->
       <header class="mobile-header no-print" id="mobile-header">
-        <button id="mobile-menu-toggle" type="button" class="mobile-menu-btn" onclick="KivoApp.toggleMobileSidebar()" aria-label="Ouvrir le menu de navigation">
+        <button id="mobile-menu-toggle" type="button" class="mobile-menu-btn" aria-label="Ouvrir le menu de navigation">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
         <a href="#dashboard" class="mobile-brand-link">
@@ -2400,9 +2400,9 @@
           <div class="view-header">
             <div>
               <h1 class="page-title">Gestion de l'équipe</h1>
-              <p class="page-subtitle">Collaborez avec vos associés, commerciaux et comptables sur KIVO MATIQUE.</p>
+              <p class="page-subtitle">Invitez vos collaborateurs sur KIVO MATIQUE (Plan Business — 5 sièges inclus).</p>
             </div>
-            <button class="btn btn-primary" onclick="KivoApp.showToast('L\'invitation de collaborateurs avec gestion des rôles (Admin, Éditeur, Comptable) est réservée au plan Business.', 'info')">
+            <button class="btn btn-primary" onclick="KivoApp.openInviteMemberModal()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
               <span>Inviter un membre</span>
             </button>
@@ -2411,11 +2411,11 @@
           <div class="team-kpi-grid">
             <div class="card" style="padding: 1.5rem;">
               <div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.35rem;">Sièges occupés</div>
-              <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-heading);">1 <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">/ 5 (Plan Business)</span></div>
+              <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-heading);" id="team-kpi-seats">1 <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">/ 5 (Plan Business)</span></div>
             </div>
             <div class="card" style="padding: 1.5rem;">
               <div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.35rem;">Rôles disponibles</div>
-              <div style="font-size: 1.75rem; font-weight: 700; color: var(--primary); font-family: var(--font-heading);">3 <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">(Admin, Éditeur, Comptable)</span></div>
+              <div style="font-size: 1.75rem; font-weight: 700; color: var(--primary); font-family: var(--font-heading);">2 <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">(Directeur, Membre)</span></div>
             </div>
             <div class="card" style="padding: 1.5rem;">
               <div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.35rem;">Siège additionnel</div>
@@ -2426,7 +2426,7 @@
           <div class="card" style="padding: 0; overflow: hidden;">
             <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
               <h3 style="margin: 0; font-size: 1.05rem;">Membres actuels</h3>
-              <span class="badge badge-paid">1 actif</span>
+              <span class="badge badge-paid" id="team-active-count">1 actif</span>
             </div>
             <div class="table-responsive">
               <table class="table" style="margin: 0;">
@@ -2435,21 +2435,21 @@
                     <th>Membre</th>
                     <th>Rôle</th>
                     <th>Statut</th>
-                    <th>Dernière connexion</th>
+                    <th>Dernière activité</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="team-members-tbody">
                   <tr>
                     <td>
                       <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <div class="avatar" style="width: 34px; height: 34px; font-size: 0.85rem; background: #EEF2FF; color: #4F46E5; font-weight: 600;">KM</div>
+                        <div class="avatar" style="width: 34px; height: 34px; font-size: 0.85rem; background: #EEF2FF; color: #4F46E5; font-weight: 600;" id="team-owner-avatar">KM</div>
                         <div>
                           <div style="font-weight: 600; color: var(--text-primary);" id="team-owner-name">Propriétaire</div>
                           <div style="font-size: 0.8rem; color: var(--text-muted);" id="team-owner-email">contact@kivo.app</div>
                         </div>
                       </div>
                     </td>
-                    <td><span class="badge" style="background: #EEF2FF; color: #4F46E5;">Propriétaire</span></td>
+                    <td><span class="badge" style="background: #EEF2FF; color: #4F46E5;">Directeur</span></td>
                     <td><span class="badge badge-paid">Actif</span></td>
                     <td style="color: var(--text-muted); font-size: 0.85rem;">En ligne</td>
                   </tr>
@@ -2457,7 +2457,42 @@
               </table>
             </div>
           </div>
+
+          <!-- Draft invoices by team members -->
+          <div class="card" style="padding: 1.5rem; margin-top: 1.5rem;" id="team-drafts-card" style="display:none;">
+            <h3 style="margin: 0 0 1rem; font-size: 1rem;">Factures en cours (Brouillons membres)</h3>
+            <div id="team-drafts-list" style="color: var(--text-muted); font-size: 0.85rem;">Aucun brouillon en cours.</div>
+          </div>
         </section>
+
+        <!-- Modal: Inviter un membre (Business) -->
+        <div id="modal-invite-member" class="modal-overlay" style="display:none;" onclick="if(event.target===this)KivoApp.closeModal('modal-invite-member')">
+          <div class="modal-box" style="max-width: 420px;">
+            <div class="modal-header">
+              <h2 class="modal-title">Inviter un collaborateur</h2>
+              <button class="modal-close-btn" onclick="KivoApp.closeModal('modal-invite-member')" aria-label="Fermer">&times;</button>
+            </div>
+            <div class="modal-body">
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">Réservé au plan <strong>Business</strong>. Le membre recevra un e-mail d'invitation.</p>
+              <div class="form-group">
+                <label class="form-label">Adresse e-mail</label>
+                <input type="email" id="invite-member-email" class="form-input" placeholder="collaborateur@entreprise.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Rôle</label>
+                <select id="invite-member-role" class="form-select">
+                  <option value="membre">Membre (Création/édition de ses propres factures)</option>
+                  <option value="directeur">Directeur (Accès complet)</option>
+                </select>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="KivoApp.closeModal('modal-invite-member')">Annuler</button>
+              <button class="btn btn-primary" onclick="KivoApp.sendMemberInvite()">Envoyer l'invitation</button>
+            </div>
+          </div>
+        </div>
+
 
         <!-- ==================== INTÉGRATIONS VIEW ==================== -->
         <section id="view-integrations" class="view-section" style="display: none;">
