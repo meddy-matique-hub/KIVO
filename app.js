@@ -620,7 +620,7 @@ window.KivoApp = {
     }
 
     const publicViews = ['landing', 'auth', 'public-doc', 'pricing'];
-    const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'catalog', 'reminders', 'analytics', 'settings', 'ai', 'team', 'integrations'];
+    const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'services', 'products-services', 'catalog', 'reminders', 'analytics', 'settings', 'ai', 'team', 'integrations'];
     const validViews = [...publicViews, ...appViews, 'onboarding'];
 
     if (!validViews.includes(viewName)) {
@@ -667,7 +667,11 @@ window.KivoApp = {
       sec.style.display = 'none';
     });
 
-    const targetSection = document.getElementById(`view-${viewName}`);
+    let targetSectionId = `view-${viewName}`;
+    if (viewName === 'services' || viewName === 'products-services') {
+      targetSectionId = 'view-services';
+    }
+    const targetSection = document.getElementById(targetSectionId);
     if (targetSection) {
       targetSection.style.display = 'block';
     }
@@ -723,7 +727,8 @@ window.KivoApp = {
 
     document.querySelectorAll('.nav-item, .mobile-nav-item, .nav-sub-item').forEach(item => {
       item.classList.remove('active');
-      if (item.getAttribute('data-view') === viewName) {
+      const itemDataView = item.getAttribute('data-view');
+      if (itemDataView === viewName || ((viewName === 'services' || viewName === 'products-services') && itemDataView === 'services')) {
         item.classList.add('active');
       }
     });
@@ -1131,6 +1136,10 @@ window.KivoApp = {
         break;
       case 'clients':
         this.renderClients();
+        break;
+      case 'services':
+      case 'products-services':
+        this.renderServices();
         break;
       case 'catalog':
         this.renderCatalog();
@@ -2682,9 +2691,9 @@ window.KivoApp = {
     let subtotal = 0;
     let totalTaxAmount = 0;
     document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
-      const name = tr.querySelector('.item-name').value;
-      const qty = parseFloat(tr.querySelector('.item-qty').value) || 1;
-      const price = parseFloat(tr.querySelector('.item-price').value) || 0;
+      const name = (tr.querySelector('.item-name')?.value || '').trim();
+      const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 1;
+      const price = parseFloat(tr.querySelector('.item-price')?.value) || 0;
       const taxRate = parseFloat(tr.querySelector('.item-tax') ? tr.querySelector('.item-tax').value : 18) || 0;
       const totalHT = qty * price;
       const taxAmount = totalHT * (taxRate / 100);
@@ -2694,6 +2703,11 @@ window.KivoApp = {
         totalTaxAmount += taxAmount;
       }
     });
+
+    if (items.length === 0) {
+      this.showToast("Veuillez ajouter au moins un article avec une désignation avant d'enregistrer.", "warning");
+      return;
+    }
 
     const grandTotal = Math.max(0, subtotal + totalTaxAmount);
     const discount = 0;
@@ -3432,6 +3446,231 @@ window.KivoApp = {
       }
     }
     this.startNewDocument('invoice');
+  },
+
+  // ── Services & Prestations (Catalogue Articles & Prestations) ───────────
+
+  /**
+   * Rend la liste des articles et prestations du catalogue
+   */
+  renderServices: function () {
+    const tbody = document.getElementById('services-list-tbody');
+    if (!tbody) return;
+
+    const catalog = (this.state && this.state.catalog) || [];
+    const currency = this.state?.business?.currency || 'FCFA';
+
+    if (catalog.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 3rem 1.5rem;">
+            <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">Votre catalogue d'articles & prestations est vide</div>
+            <p style="font-size: 0.85rem; margin-bottom: 1rem;">Ajoutez vos prestations ou produits pour les insérer directement dans vos factures et devis.</p>
+            <button class="btn btn-primary btn-sm" onclick="KivoApp.openNewCatalogItemModal()">+ Ajouter votre premier article</button>
+          </td>
+        </tr>`;
+      return;
+    }
+
+    tbody.innerHTML = catalog.map(item => {
+      const priceFmt = Number(item.price || 0).toLocaleString('fr-FR') + ' ' + currency;
+      const taxLabel = (item.taxRate !== undefined && item.taxRate !== null && item.taxRate !== '') 
+        ? `${item.taxRate} %` 
+        : '-';
+      const unitLabel = item.unit || 'unité';
+
+      return `
+        <tr>
+          <td>
+            <strong style="color: var(--text-primary); font-size: 0.95rem;">${item.name || 'Article sans nom'}</strong>
+          </td>
+          <td style="color: var(--text-muted); font-size: 0.85rem; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            ${item.description || '<span style="opacity: 0.5;">—</span>'}
+          </td>
+          <td style="text-align: right; font-weight: 700; color: var(--text-primary);">
+            ${priceFmt}
+          </td>
+          <td style="text-align: center;">
+            <span class="badge" style="background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-color); font-size: 0.75rem; text-transform: uppercase;">
+              ${unitLabel}
+            </span>
+          </td>
+          <td style="text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
+            ${taxLabel}
+          </td>
+          <td style="text-align: right;">
+            <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
+              <button class="btn btn-secondary btn-sm" onclick="KivoApp.openEditCatalogItemModal('${item.id}')" title="Modifier cet article" style="padding: 4px 8px; font-size: 0.8rem;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                <span>Modifier</span>
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="KivoApp.confirmDeleteCatalogItem('${item.id}')" title="Supprimer cet article" style="padding: 4px 8px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  },
+
+  /**
+   * Ouvre la modale d'ajout d'un nouvel article dans le catalogue
+   */
+  openNewCatalogItemModal: function () {
+    const title = document.getElementById('modal-catalog-title');
+    if (title) title.textContent = "Ajouter un article / prestation";
+
+    const idInput = document.getElementById('item-modal-id');
+    const nameInput = document.getElementById('item-modal-name');
+    const descInput = document.getElementById('item-modal-desc');
+    const priceInput = document.getElementById('item-modal-price');
+    const unitSelect = document.getElementById('item-modal-unit');
+    const taxInput = document.getElementById('item-modal-tax');
+
+    if (idInput) idInput.value = '';
+    if (nameInput) nameInput.value = '';
+    if (descInput) descInput.value = '';
+    if (priceInput) priceInput.value = '';
+    if (unitSelect) unitSelect.value = 'unité';
+
+    const defaultVat = this.state.business?.defaultVatRate !== undefined 
+      ? this.state.business.defaultVatRate 
+      : (this.state.business?.taxRate || 18);
+    if (taxInput) taxInput.value = defaultVat;
+
+    this.openModal('modal-catalog-item');
+    if (nameInput) setTimeout(() => nameInput.focus(), 100);
+  },
+
+  /**
+   * Ouvre la modale de modification d'un article existant
+   */
+  openEditCatalogItemModal: function (itemId) {
+    const item = (this.state.catalog || []).find(it => String(it.id) === String(itemId));
+    if (!item) return;
+
+    const title = document.getElementById('modal-catalog-title');
+    if (title) title.textContent = "Modifier l'article / prestation";
+
+    const idInput = document.getElementById('item-modal-id');
+    const nameInput = document.getElementById('item-modal-name');
+    const descInput = document.getElementById('item-modal-desc');
+    const priceInput = document.getElementById('item-modal-price');
+    const unitSelect = document.getElementById('item-modal-unit');
+    const taxInput = document.getElementById('item-modal-tax');
+
+    if (idInput) idInput.value = item.id;
+    if (nameInput) nameInput.value = item.name || '';
+    if (descInput) descInput.value = item.description || '';
+    if (priceInput) priceInput.value = (item.price !== undefined && item.price !== null) ? item.price : '';
+    if (unitSelect) unitSelect.value = item.unit || 'unité';
+    if (taxInput) {
+      taxInput.value = (item.taxRate !== undefined && item.taxRate !== null && item.taxRate !== '')
+        ? item.taxRate
+        : (this.state.business?.defaultVatRate || 18);
+    }
+
+    this.openModal('modal-catalog-item');
+    if (nameInput) setTimeout(() => nameInput.focus(), 100);
+  },
+
+  /**
+   * Enregistre un article (ajout ou modification) dans le state et Supabase
+   */
+  saveCatalogItemForm: async function () {
+    const nameEl = document.getElementById('item-modal-name');
+    const priceEl = document.getElementById('item-modal-price');
+    const descEl = document.getElementById('item-modal-desc');
+    const unitEl = document.getElementById('item-modal-unit');
+    const taxEl = document.getElementById('item-modal-tax');
+    const idEl = document.getElementById('item-modal-id');
+
+    const name = nameEl ? nameEl.value.trim() : '';
+    if (!name) {
+      this.showToast("Veuillez saisir le nom de l'article ou service.", "error");
+      if (nameEl) nameEl.focus();
+      return;
+    }
+
+    const priceRaw = priceEl ? priceEl.value : '';
+    const price = parseFloat(priceRaw);
+    if (isNaN(price) || price < 0) {
+      this.showToast("Veuillez saisir un prix unitaire valide.", "error");
+      if (priceEl) priceEl.focus();
+      return;
+    }
+
+    const desc = descEl ? descEl.value.trim() : '';
+    const unit = unitEl ? unitEl.value : 'unité';
+    let taxRate = parseFloat(taxEl ? taxEl.value : 0);
+    if (isNaN(taxRate)) {
+      taxRate = this.state.business?.defaultVatRate !== undefined 
+        ? this.state.business.defaultVatRate 
+        : (this.state.business?.taxRate || 18);
+    }
+
+    const existingId = idEl ? idEl.value : '';
+    const itemId = existingId || this.generateUUID();
+
+    const itemObj = {
+      id: itemId,
+      name: name,
+      description: desc,
+      price: price,
+      unit: unit,
+      taxRate: taxRate
+    };
+
+    this.state.catalog = this.state.catalog || [];
+    const existingIdx = this.state.catalog.findIndex(it => String(it.id) === String(itemId));
+    if (existingIdx >= 0) {
+      this.state.catalog[existingIdx] = itemObj;
+    } else {
+      this.state.catalog.unshift(itemObj);
+    }
+
+    this.saveState();
+
+    // Synchronisation Supabase via saveCatalogItem (table catalog)
+    if (window.KivoDb && this.supabaseConnected) {
+      window.KivoDb.saveCatalogItem({
+        id: itemObj.id,
+        name: itemObj.name,
+        description: itemObj.description,
+        price: itemObj.price,
+        unit: itemObj.unit,
+        tax_rate: itemObj.taxRate
+      }).catch(e => console.error('[KivoApp] Supabase saveCatalogItem error:', e));
+    }
+
+    this.closeModal('modal-catalog-item');
+    this.populateBuilderCatalogDropdown();
+    this.renderServices();
+    this.showToast(`Article "${name}" enregistré au catalogue.`, "success");
+  },
+
+  /**
+   * Supprime un article du catalogue
+   */
+  confirmDeleteCatalogItem: async function (itemId) {
+    const item = (this.state.catalog || []).find(it => String(it.id) === String(itemId));
+    const itemName = item ? item.name : 'cet article';
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${itemName}" du catalogue ?`)) {
+      return;
+    }
+
+    this.state.catalog = (this.state.catalog || []).filter(it => String(it.id) !== String(itemId));
+    this.saveState();
+
+    if (window.KivoDb && this.supabaseConnected) {
+      window.KivoDb.deleteCatalogItem(itemId).catch(e => console.error('[KivoApp] Supabase deleteCatalogItem error:', e));
+    }
+
+    this.populateBuilderCatalogDropdown();
+    this.renderServices();
+    this.showToast(`"${itemName}" a été supprimé du catalogue.`, "info");
   },
 
   renderCatalog: function () {

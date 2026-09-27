@@ -14,16 +14,17 @@ while ($listener.IsListening) {
             $filePath = Join-Path $PSScriptRoot "index.html"
         }
         $bytes = [System.IO.File]::ReadAllBytes($filePath)
-        $res.ContentLength64 = $bytes.Length
         $ext = [System.IO.Path]::GetExtension($filePath).ToLower()
         if ($ext -eq ".html") { $res.ContentType = "text/html; charset=utf-8" }
         elseif ($ext -eq ".css") { $res.ContentType = "text/css" }
         elseif ($ext -eq ".js") { $res.ContentType = "application/javascript" }
         elseif ($ext -eq ".svg") { $res.ContentType = "image/svg+xml" }
         elseif ($ext -eq ".png") { $res.ContentType = "image/png" }
+        $res.ContentLength64 = $bytes.Length
         $res.OutputStream.Write($bytes, 0, $bytes.Length)
-        $res.OutputStream.Close()
     } catch {
         Write-Host "Request error: $_"
+    } finally {
+        try { if ($res) { $res.Close() } } catch {}
     }
 }
