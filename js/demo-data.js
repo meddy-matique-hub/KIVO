@@ -8,7 +8,7 @@ window.KIVO_DEMO_DATA = {
     name: "MD Creative Studio",
     owner: "Marc Koffi",
     email: "marc.koffi@mdcreative.design",
-    phone: "+221 77 842 19 02",
+    phone: "+242 06 82 86 376",
     industry: "Design & Digital Marketing",
     country: "Sénégal",
     currency: "FCFA",
@@ -29,7 +29,7 @@ window.KIVO_DEMO_DATA = {
       iban: "SN123 01001 001234567890 12",
       mobileMoney: {
         wave: "+221 77 842 19 02",
-        orangeMoney: "+221 77 842 19 02",
+        orangeMoney: "+242 06 82 86 376",
         mtn: "+225 07 89 12 34 56"
       }
     },

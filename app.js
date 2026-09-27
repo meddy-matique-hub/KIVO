@@ -5488,7 +5488,7 @@ window.KivoApp = {
       'width: 794px',
       'min-height: 1122px',
       'background: ' + ((templateId === 'premium') ? '#181A20' : '#FFFFFF'),
-      'z-index: -1',
+      'z-index: 1',
       'pointer-events: none',
       'box-sizing: border-box',
       'margin: 0',
@@ -5541,11 +5541,7 @@ window.KivoApp = {
             logging: false,
             backgroundColor: (templateId === 'premium') ? '#181A20' : '#FFFFFF',
             width: 794,
-            windowWidth: 794,
-            x: 0,
-            y: 0,
-            scrollX: 0,
-            scrollY: 0
+            windowWidth: 794
           },
           jsPDF: {
             unit: 'mm',
@@ -5697,7 +5693,7 @@ window.KivoApp = {
    */
   contactEnterpriseSupport: function () {
     const msg = encodeURIComponent("Bonjour, je suis intéressé par l'offre Enterprise KIVO MATIQUE. Pouvez-vous me contacter ?");
-    window.open(`https://wa.me/221778421902?text=${msg}`, '_blank');
+    window.open(`https://wa.me/242068286376?text=${msg}`, '_blank');
   }
 };
 
