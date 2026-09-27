@@ -2777,29 +2777,32 @@ window.KivoApp = {
 
     // Sync to Supabase
     if (window.KivoDb && this.supabaseConnected) {
+      // FIX: saveDocument() attend des clés camelCase — ne pas envoyer snake_case
       window.KivoDb.saveDocument({
         id: docObj.id,
         number: docObj.number,
         type: docObj.type,
         status: docObj.status,
         currency: docObj.currency,
-        client_id: docObj.clientId !== 'cli_anon' ? docObj.clientId : null,
-        client_name: docObj.clientName || '',
-        client_type: docObj.clientType || 'B2C',
-        client_tax_id: docObj.clientTaxId || '',
-        client_email: docObj.clientEmail || '',
-        client_phone: docObj.clientPhone || '',
-        issue_date: docObj.issueDate,
-        due_date: docObj.dueDate,       // FIX: was 'date_due' (wrong column name)
+        clientId: docObj.clientId !== 'cli_anon' ? docObj.clientId : null,
+        clientName: docObj.clientName || '',
+        clientType: docObj.clientType || 'B2C',
+        clientTaxId: docObj.clientTaxId || '',
+        clientEmail: docObj.clientEmail || '',
+        clientPhone: docObj.clientPhone || '',
+        issueDate: docObj.issueDate,
+        dueDate: docObj.dueDate,
         items: docObj.items,
         subtotal: docObj.subtotal,
         discount: docObj.discount,
-        tax_amount: docObj.tax,
+        taxRate: docObj.taxRate || 0,
+        taxAmount: docObj.tax,
         total: docObj.total,
-        amount_paid: docObj.amountPaid || 0,
+        amountPaid: docObj.amountPaid || 0,
         notes: docObj.notes,
         conditions: docObj.terms,
-        public_token: docObj.publicToken
+        publicToken: docObj.publicToken,
+        viewsCount: docObj.viewsCount || 0
       }).catch(e => console.error('[KivoApp] Supabase saveDocument error:', e));
     }
 
@@ -5185,14 +5188,12 @@ window.KivoApp = {
         type: newClient.clientType,
         company: newClient.company,
         contact_name: newClient.contactName,
-        tax_id: newClient.taxId,
         email: newClient.email,
         phone: newClient.phone,
-        address: newClient.address,
-        total_invoiced: newClient.totalInvoiced,
-        total_paid: newClient.totalPaid,
-        balance_due: newClient.balanceDue
-      }).catch(e => console.error(e));
+        address: newClient.address
+        // NOTE: tax_id / total_invoiced / total_paid / balance_due
+        // ne sont pas des colonnes Supabase valides → exclus volontairement
+      }).catch(e => console.error('[KivoApp] saveClient error:', e));
     }
 
     this.closeModal('modal-new-client');
