@@ -5477,13 +5477,13 @@ window.KivoApp = {
       }
     }
 
-    // Création d'un bac à sable A4 hors-écran (position absolute, hors du viewport)
-    // html2canvas nécessite que l'élément soit dans le DOM et rendu — pas forcément visible
+    // Création d'un bac à sable A4 hors-écran (position fixed, recouvert par l'overlay de chargement)
+    // html2canvas nécessite que l'élément soit dans le DOM et rendu à coordonnées visibles
     const sandbox = document.createElement('div');
     sandbox.id = 'kivo-pdf-sandbox';
     sandbox.style.cssText = [
-      'position: absolute',
-      'left: -9999px',
+      'position: fixed',
+      'left: 0',
       'top: 0',
       'width: 794px',
       'min-height: 1122px',
@@ -5541,7 +5541,11 @@ window.KivoApp = {
             logging: false,
             backgroundColor: (templateId === 'premium') ? '#181A20' : '#FFFFFF',
             width: 794,
-            windowWidth: 794
+            windowWidth: 794,
+            x: 0,
+            y: 0,
+            scrollX: 0,
+            scrollY: 0
           },
           jsPDF: {
             unit: 'mm',
