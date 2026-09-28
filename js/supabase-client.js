@@ -181,7 +181,7 @@ if (window.KivoDb) {
       const lines = Array.isArray(rawLines) ? rawLines : [];
 
       const resolvedIssueDate = doc.issueDate || doc.issue_date || new Date().toISOString().split('T')[0];
-      const resolvedDueDate   = doc.dueDate   || doc.due_date   || '';
+      const resolvedDueDate   = doc.dueDate   || doc.due_date   || doc.date_due || '';
       const resolvedCurrency  = doc.currency  || 'FCFA';
 
       const itemsPayload = JSON.stringify({
@@ -191,8 +191,13 @@ if (window.KivoDb) {
         currency: resolvedCurrency
       });
 
-      // Strict mapping to valid Supabase columns
-      // issue_date and due_date are stored BOTH as top-level columns and inside items JSON
+      // Strict mapping to valid Supabase columns discovered from schema probe:
+      // id, user_id, number, type, status, client_id, client_name, client_type,
+      // client_tax_id, client_email, client_phone, date_due, items, subtotal,
+      // discount, tax_rate, tax_amount, total, amount_paid, notes, conditions,
+      // public_token, views_count
+      // NOTE: 'issue_date' and 'currency' DO NOT EXIST as columns in documents table
+      // (they are stored inside items JSON). 'due_date' is named 'date_due'.
       const payload = {
         id: doc.id,
         user_id: user.id,
@@ -205,9 +210,7 @@ if (window.KivoDb) {
         client_tax_id: doc.clientTaxId || doc.client_tax_id || '',
         client_email: doc.clientEmail || doc.client_email || '',
         client_phone: doc.clientPhone || doc.client_phone || '',
-        issue_date: resolvedIssueDate,
-        due_date: resolvedDueDate || null,
-        currency: resolvedCurrency,
+        date_due: resolvedDueDate || null,
         items: itemsPayload,
         subtotal: Number(doc.subtotal) || 0,
         discount: Number(doc.discount) || 0,
@@ -239,7 +242,8 @@ if (window.KivoDb) {
       }
       if (!user) throw new Error("Utilisateur non authentifié.");
 
-      // Strict mapping to valid Supabase columns only (no invalid tax_id/total_invoiced)
+      // Valid Supabase columns for clients:
+      // id, user_id, name, type, company, contact_name, email, phone, address
       const payload = {
         id: client.id,
         user_id: user.id,

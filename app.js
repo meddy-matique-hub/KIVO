@@ -304,21 +304,10 @@ window.KivoApp = {
     const s = (data.settings && data.settings.length > 0) ? data.settings[0] : null;
     const hasValidProfile = !!(s && s.company_name && s.company_name.trim() !== '' && s.owner && s.owner.trim() !== '');
 
-    if (!hasValidProfile) {
-      // Brand new or unconfigured account — strictly not onboarded!
-      this.state.isOnboarded = false;
-      const authUser = window.KivoAuth?.user;
-      this.state.business = JSON.parse(JSON.stringify(this.BLANK_STATE.business));
-      this.state.business.owner = authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || '';
-      this.state.business.email = authUser?.email || '';
-      this.state.clients = [];
-      this.state.documents = [];
-      this.state.catalog = [];
-      this.state.activities = [];
-    } else {
-      // Existing user — merge cloud settings
-      this.state.isOnboarded = true;
-      const s = data.settings[0];
+    this.state.isOnboarded = hasValidProfile;
+
+    if (s) {
+      // Existing cloud settings
       this.state.business = {
         ...this.state.business,
         name: s.company_name || this.state.business.name,
@@ -345,99 +334,145 @@ window.KivoApp = {
         logoPosition: s.logo_position || this.state.business.logoPosition || 'right',
         invoicePageSize: s.invoice_page_size || this.state.business.invoicePageSize || 'a4',
       };
-
-      // Update the visual UI elements with loaded settings
-      const tSelect = document.getElementById('builder-visual-template');
-      if (tSelect) tSelect.value = this.state.business.visualTemplate;
-      const pColor = document.getElementById('builder-color-primary');
-      if (pColor) pColor.value = this.state.business.primaryColor;
-      const sColor = document.getElementById('builder-color-secondary');
-      if (sColor) sColor.value = this.state.business.secondaryColor;
-      if (typeof this.updateDocumentPreviewVisuals === 'function') {
-        this.updateDocumentPreviewVisuals();
+    } else {
+      const authUser = window.KivoAuth?.user;
+      if (authUser) {
+        this.state.business.owner = this.state.business.owner || authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || '';
+        this.state.business.email = this.state.business.email || authUser.email || '';
       }
+    }
 
-      // Replace (not merge) clients — only cloud truth, new user = []
-      // NOTE: Supabase column is 'type', not 'client_type'
-      this.state.clients = (data.clients || []).map(c => ({
-        id: c.id, name: c.name, type: c.type || c.client_type, company: c.company,
-        contactName: c.contact_name, taxId: c.tax_id, email: c.email,
-        phone: c.phone, address: c.address,
-        totalInvoiced: c.total_invoiced, totalPaid: c.total_paid, balanceDue: c.balance_due
-      }));
+    // Update UI elements with current settings
+    const tSelect = document.getElementById('builder-visual-template');
+    if (tSelect) tSelect.value = this.state.business.visualTemplate;
+    const pColor = document.getElementById('builder-color-primary');
+    if (pColor) pColor.value = this.state.business.primaryColor;
+    const sColor = document.getElementById('builder-color-secondary');
+    if (sColor) sColor.value = this.state.business.secondaryColor;
+    if (typeof this.updateDocumentPreviewVisuals === 'function') {
+      this.updateDocumentPreviewVisuals();
+    }
 
-      // Replace catalog
-      this.state.catalog = (data.catalog || []).map(p => ({
-        id: p.id, name: p.name, description: p.description,
-        price: p.price, unit: p.unit, taxRate: p.tax_rate
-      }));
+    // 1. Sync & Merge Clients (Cloud + local un-synced)
+    const cloudClients = (data.clients || []).map(c => ({
+      id: c.id,
+      name: c.name,
+      type: c.type || c.client_type || 'B2B',
+      clientType: c.type || c.client_type || 'B2B',
+      company: c.company || '',
+      contactName: c.contact_name || '',
+      taxId: c.tax_id || '',
+      email: c.email || '',
+      phone: c.phone || '',
+      address: c.address || '',
+      totalInvoiced: Number(c.total_invoiced) || 0,
+      totalPaid: Number(c.total_paid) || 0,
+      balanceDue: Number(c.balance_due) || 0
+    }));
+    const cloudClientIds = new Set(cloudClients.map(c => c.id));
+    const pendingLocalClients = (this.state.clients || []).filter(c => c && c.id && !cloudClientIds.has(c.id));
+    this.state.clients = [...cloudClients, ...pendingLocalClients];
 
-      // Replace documents
-      // NOTE: items is stored as JSON wrapper {lines:[], issueDate, dueDate, currency}
-      // tax_amount (not tax), conditions (not terms)
-      this.state.documents = (data.documents || []).map(d => {
-        let parsedItems = d.items || [];
-        let storedIssueDate = d.issue_date || '';
-        let storedDueDate = d.due_date || '';
-        let storedCurrency = d.currency || 'FCFA';
-        if (typeof parsedItems === 'string') {
-          try {
-            const wrapper = JSON.parse(parsedItems);
-            // items is {lines:[], issueDate, dueDate, currency} or a raw array
-            if (wrapper && !Array.isArray(wrapper) && Array.isArray(wrapper.lines)) {
-              parsedItems = wrapper.lines;
-              storedIssueDate = wrapper.issueDate || storedIssueDate;
-              storedDueDate = wrapper.dueDate || storedDueDate;
-              storedCurrency = wrapper.currency || storedCurrency;
-            } else if (Array.isArray(wrapper)) {
-              parsedItems = wrapper;
-            } else {
-              parsedItems = [];
-            }
-          } catch (_) {
+    // Background push any pending local clients to Supabase
+    if (pendingLocalClients.length > 0 && window.KivoDb && typeof window.KivoDb.saveClient === 'function') {
+      pendingLocalClients.forEach(c => {
+        window.KivoDb.saveClient(c).catch(e => console.warn('[KivoApp] Background sync client error:', e));
+      });
+    }
+
+    // 2. Sync & Merge Catalog / Services & Prestations
+    const cloudCatalog = (data.catalog || []).map(p => ({
+      id: p.id,
+      name: p.name,
+      description: p.description || '',
+      price: Number(p.price) || 0,
+      unit: p.unit || 'unité',
+      taxRate: p.tax_rate !== undefined ? Number(p.tax_rate) : 18
+    }));
+    const cloudCatalogIds = new Set(cloudCatalog.map(p => p.id));
+    const pendingLocalCatalog = (this.state.catalog || []).filter(p => p && p.id && !cloudCatalogIds.has(p.id));
+    this.state.catalog = [...cloudCatalog, ...pendingLocalCatalog];
+
+    // 3. Sync & Merge Documents
+    const cloudDocs = (data.documents || []).map(d => {
+      let parsedItems = d.items || [];
+      let storedIssueDate = d.issue_date || (d.created_at ? d.created_at.split('T')[0] : '') || '';
+      let storedDueDate = d.date_due || d.due_date || '';
+      let storedCurrency = d.currency || 'FCFA';
+
+      if (typeof parsedItems === 'string') {
+        try {
+          const wrapper = JSON.parse(parsedItems);
+          if (wrapper && !Array.isArray(wrapper) && Array.isArray(wrapper.lines)) {
+            parsedItems = wrapper.lines;
+            storedIssueDate = wrapper.issueDate || storedIssueDate;
+            storedDueDate = wrapper.dueDate || storedDueDate;
+            storedCurrency = wrapper.currency || storedCurrency;
+          } else if (Array.isArray(wrapper)) {
+            parsedItems = wrapper;
+          } else {
             parsedItems = [];
           }
-        } else if (parsedItems && !Array.isArray(parsedItems) && Array.isArray(parsedItems.lines)) {
-          // Already parsed object with wrapper
-          storedIssueDate = parsedItems.issueDate || storedIssueDate;
-          storedDueDate = parsedItems.dueDate || storedDueDate;
-          storedCurrency = parsedItems.currency || storedCurrency;
-          parsedItems = parsedItems.lines;
-        }
-        return {
-          id: d.id, number: d.number, type: d.type, status: d.status,
-          currency: storedCurrency,
-          clientId: d.client_id, clientName: d.client_name,
-          clientType: d.client_type, clientTaxId: d.client_tax_id,
-          clientEmail: d.client_email, clientPhone: d.client_phone,
-          issueDate: storedIssueDate, dueDate: storedDueDate,
-          items: parsedItems,
-          subtotal: parseFloat(d.subtotal) || 0,
-          discount: parseFloat(d.discount) || 0,
-          taxRate: parseFloat(d.tax_rate) || 0,
-          tax: parseFloat(d.tax_amount) || 0, // Supabase column is tax_amount
-          total: parseFloat(d.total) || 0,
-          amountPaid: parseFloat(d.amount_paid) || 0,
-          notes: d.notes || '',
-          terms: d.conditions || d.terms || '', // Supabase column is conditions
-          publicToken: d.public_token, viewsCount: d.views_count
-        };
-      });
-
-      // Activities
-      if (data.activities && data.activities.length > 0) {
-        this.state.activities = data.activities.map(a => ({
-          id: a.id, timestamp: a.timestamp, type: a.type,
-          icon: a.icon, title: a.title, details: a.details
-        }));
+        } catch (_) { parsedItems = []; }
+      } else if (parsedItems && !Array.isArray(parsedItems) && Array.isArray(parsedItems.lines)) {
+        storedIssueDate = parsedItems.issueDate || storedIssueDate;
+        storedDueDate = parsedItems.dueDate || storedDueDate;
+        storedCurrency = parsedItems.currency || storedCurrency;
+        parsedItems = parsedItems.lines;
       }
+
+      return {
+        id: d.id,
+        number: d.number,
+        type: d.type || 'invoice',
+        status: d.status || 'draft',
+        currency: storedCurrency,
+        clientId: d.client_id,
+        clientName: d.client_name,
+        clientType: d.client_type,
+        clientTaxId: d.client_tax_id,
+        clientEmail: d.client_email,
+        clientPhone: d.client_phone,
+        issueDate: storedIssueDate,
+        dueDate: storedDueDate,
+        items: parsedItems,
+        subtotal: parseFloat(d.subtotal) || 0,
+        discount: parseFloat(d.discount) || 0,
+        taxRate: parseFloat(d.tax_rate) || 0,
+        tax: parseFloat(d.tax_amount) || 0,
+        total: parseFloat(d.total) || 0,
+        amountPaid: parseFloat(d.amount_paid) || 0,
+        notes: d.notes || '',
+        terms: d.conditions || d.terms || '',
+        publicToken: d.public_token,
+        viewsCount: d.views_count || 0
+      };
+    });
+
+    const cloudDocIds = new Set(cloudDocs.map(d => d.id));
+    const pendingLocalDocs = (this.state.documents || []).filter(d => d && d.id && !cloudDocIds.has(d.id));
+    this.state.documents = [...cloudDocs, ...pendingLocalDocs];
+
+    // Background push any pending local documents to Supabase
+    if (pendingLocalDocs.length > 0 && window.KivoDb && typeof window.KivoDb.saveDocument === 'function') {
+      pendingLocalDocs.forEach(d => {
+        window.KivoDb.saveDocument(d).catch(e => console.warn('[KivoApp] Background sync doc error:', e));
+      });
+    }
+
+    // 4. Activities
+    if (data.activities && data.activities.length > 0) {
+      this.state.activities = data.activities.map(a => ({
+        id: a.id, timestamp: a.timestamp, type: a.type,
+        icon: a.icon, title: a.title, details: a.details
+      }));
     }
 
     this.saveState();
     if (this.activeView && this.activeView !== 'landing' && this.activeView !== 'auth') {
       this.renderCurrentView();
     }
-    console.log('[KivoApp] Supabase sync complete. isOnboarded:', this.state.isOnboarded);
+    console.log('[KivoApp] Supabase sync complete. isOnboarded:', this.state.isOnboarded, 'Clients:', this.state.clients.length, 'Docs:', this.state.documents.length);
   },
 
   /**
@@ -3467,9 +3502,9 @@ window.KivoApp = {
       tbody.innerHTML = `
         <tr>
           <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 3rem 1.5rem;">
-            <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">Votre catalogue d'articles & prestations est vide</div>
+            <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">Votre liste de services &amp; prestations est vide</div>
             <p style="font-size: 0.85rem; margin-bottom: 1rem;">Ajoutez vos prestations ou produits pour les insérer directement dans vos factures et devis.</p>
-            <button class="btn btn-primary btn-sm" onclick="KivoApp.openNewCatalogItemModal()">+ Ajouter votre premier article</button>
+            <button class="btn btn-primary btn-sm" onclick="KivoApp.openNewCatalogItemModal()">+ Ajouter votre premier service / prestation</button>
           </td>
         </tr>`;
       return;
@@ -3650,17 +3685,17 @@ window.KivoApp = {
     this.closeModal('modal-catalog-item');
     this.populateBuilderCatalogDropdown();
     this.renderServices();
-    this.showToast(`Article "${name}" enregistré au catalogue.`, "success");
+    this.showToast(`Service / prestation "${name}" enregistré avec succès.`, "success");
   },
 
   /**
-   * Supprime un article du catalogue
+   * Supprime un article/prestation du catalogue
    */
   confirmDeleteCatalogItem: async function (itemId) {
     const item = (this.state.catalog || []).find(it => String(it.id) === String(itemId));
-    const itemName = item ? item.name : 'cet article';
+    const itemName = item ? item.name : 'cette prestation';
 
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${itemName}" du catalogue ?`)) {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${itemName}" de vos services & prestations ?`)) {
       return;
     }
 
@@ -3673,7 +3708,7 @@ window.KivoApp = {
 
     this.populateBuilderCatalogDropdown();
     this.renderServices();
-    this.showToast(`"${itemName}" a été supprimé du catalogue.`, "info");
+    this.showToast(`"${itemName}" a été supprimé de vos services & prestations.`, "info");
   },
 
   renderCatalog: function () {
@@ -5718,7 +5753,7 @@ window.KivoApp = {
     }
 
     // Création d'un bac à sable A4 hors-écran (position fixed, recouvert par l'overlay de chargement)
-    // html2canvas nécessite que l'élément soit dans le DOM et rendu à coordonnées visibles
+    // 794px x 1122px correspond exactement au ratio standard A4 (210mm x 297mm à 96 DPI)
     const sandbox = document.createElement('div');
     sandbox.id = 'kivo-pdf-sandbox';
     sandbox.style.cssText = [
@@ -5726,17 +5761,31 @@ window.KivoApp = {
       'left: 0',
       'top: 0',
       'width: 794px',
+      'height: 1122px',
       'min-height: 1122px',
+      'max-height: 1122px',
       'background: ' + ((templateId === 'premium') ? '#181A20' : '#FFFFFF'),
       'z-index: 1',
       'pointer-events: none',
       'box-sizing: border-box',
       'margin: 0',
       'padding: 0',
-      'overflow: visible',
+      'overflow: hidden',
       'font-family: Arial, sans-serif'
     ].join(';');
     sandbox.innerHTML = renderedHtml;
+
+    // Forcer le conteneur racine du template à occuper 100% de la page A4 (haut en bas)
+    if (sandbox.firstElementChild) {
+      sandbox.firstElementChild.style.width = '794px';
+      sandbox.firstElementChild.style.height = '1122px';
+      sandbox.firstElementChild.style.minHeight = '1122px';
+      sandbox.firstElementChild.style.maxHeight = '1122px';
+      sandbox.firstElementChild.style.boxSizing = 'border-box';
+      sandbox.firstElementChild.style.display = 'flex';
+      sandbox.firstElementChild.style.flexDirection = 'column';
+      sandbox.firstElementChild.style.justifyContent = 'space-between';
+    }
 
     // Overlay de progression élégant
     const overlay = document.createElement('div');
@@ -5745,7 +5794,7 @@ window.KivoApp = {
     overlay.innerHTML = `
       <div style="background:#1E293B;padding:22px 30px;border-radius:12px;display:flex;align-items:center;gap:14px;box-shadow:0 20px 40px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.1);">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round" style="animation:spin 0.9s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-        <span style="font-size:14px;font-weight:600;">Génération de votre facture A4...</span>
+        <span style="font-size:14px;font-weight:600;">Génération de votre facture A4 plein format...</span>
       </div>
     `;
 
@@ -5781,7 +5830,11 @@ window.KivoApp = {
             logging: false,
             backgroundColor: (templateId === 'premium') ? '#181A20' : '#FFFFFF',
             width: 794,
-            windowWidth: 794
+            height: 1122,
+            windowWidth: 794,
+            windowHeight: 1122,
+            scrollX: 0,
+            scrollY: 0
           },
           jsPDF: {
             unit: 'mm',
@@ -5798,7 +5851,7 @@ window.KivoApp = {
           .save()
           .then(() => {
             cleanup();
-            this.showToast('Facture téléchargée avec succès sur 1 page A4 !', 'success');
+            this.showToast('Facture téléchargée avec succès sur 1 page A4 complète !', 'success');
           })
           .catch(e => {
             cleanup();
