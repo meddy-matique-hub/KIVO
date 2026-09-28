@@ -5936,8 +5936,8 @@ window.KivoApp = {
     });
     await Promise.race([Promise.all(imgPromises), new Promise(r => setTimeout(r, 2000))]);
 
-    // Double RAF pour s'assurer que le rendu CSS est calculé
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    // Délai pour s'assurer que le rendu CSS et le layout sont calculés
+    await new Promise(r => setTimeout(r, 100));
 
     return { iframe, iframeDoc, bgColor };
   },
@@ -5998,7 +5998,7 @@ window.KivoApp = {
       });
 
       // 5. Découpe en pages A4
-      const pageHeightPx = Math.floor(canvas.width * (297 / 210));
+      const pageHeightPx = Math.round(canvas.width * (297 / 210));
       const bodyRect = iframeDoc.body.getBoundingClientRect();
       const rows = Array.from(iframeDoc.querySelectorAll('tr')).map(tr => {
         const r = tr.getBoundingClientRect();
@@ -6021,6 +6021,12 @@ window.KivoApp = {
 
       while (currentY < totalHeight) {
         const remainingHeight = totalHeight - currentY;
+
+        // Éviter une page vide finale (artefact ou marge résiduelle < 45px)
+        if (pageIndex > 0 && remainingHeight < 45) {
+          break;
+        }
+
         let nextCutY = currentY + pageHeightPx;
         let sliceHeight = pageHeightPx;
 
