@@ -5759,42 +5759,27 @@ window.KivoApp = {
    * Fonctionne pour le builder et pour tout document existant (vue publique ou liste)
    * Pas de canvas blanc, capture fidèlement 1 page A4 complète
    */
-  downloadPdf: function (targetDocOrId) {
-    if (typeof html2pdf === 'undefined') {
-      this.showToast('Bibliothèque PDF non disponible — vérifiez votre connexion.', 'error');
-      return;
-    }
-
-    // 1. Identifier le document cible
+  /**
+   * Résout les données et le HTML de rendu pour un document
+   * Sans argument : état courant du builder (y compris avant sauvegarde ou généré par l'IA)
+   * Avec un id / doc : le document correspondant dans le state
+   */
+  _getDocForRender: function (targetDocOrId) {
+    const biz = this.state.business || {};
     let targetDoc = null;
+    let templateId = (document.getElementById('builder-visual-template') || {}).value || biz.visualTemplate || 'minimalist';
+
     if (targetDocOrId && typeof targetDocOrId === 'object') {
       targetDoc = targetDocOrId;
-    } else if (typeof targetDocOrId === 'string') {
-      targetDoc = (this.state.documents || []).find(d => d.id === targetDocOrId);
-      if (!targetDoc && this._currentPublicDoc && this._currentPublicDoc.id === targetDocOrId) {
-        targetDoc = this._currentPublicDoc;
-      }
-    } else {
-      // Si on est sur la vue public-doc, lire l'id dans le hash URL
-      const hashParts = (window.location.hash || '').split('?');
-      const urlParams = new URLSearchParams(hashParts[1] || '');
-      const currentDocId = urlParams.get('id');
-      if (this.activeView === 'public-doc' && currentDocId) {
-        targetDoc = (this.state.documents || []).find(d => d.id === currentDocId) || this._currentPublicDoc;
-      } else if (this._currentPublicDoc) {
+    } else if (typeof targetDocOrId === 'string' && targetDocOrId.trim()) {
+      targetDoc = (this.state.documents || []).find(d => d.id === targetDocOrId || d.number === targetDocOrId);
+      if (!targetDoc && this._currentPublicDoc && (this._currentPublicDoc.id === targetDocOrId || this._currentPublicDoc.number === targetDocOrId)) {
         targetDoc = this._currentPublicDoc;
       }
     }
 
-    let filename = 'facture_KIVO.pdf';
-    let renderedHtml = '';
-    const biz = this.state.business || {};
-    const tSelect = document.getElementById('builder-visual-template');
-    const templateId = (tSelect && tSelect.value) ? tSelect.value : (biz.visualTemplate || 'minimalist');
-
     if (targetDoc) {
-      // Génération pour un document existant (ex: FAC-2026-1006)
-      filename = ((targetDoc.number || 'facture_KIVO').trim().replace(/[^a-zA-Z0-9-_]/g, '_')) + '.pdf';
+      templateId = targetDoc.templateId || targetDoc.visualTemplate || templateId;
       const currencyStr = targetDoc.currency || biz.currency || 'FCFA';
 
       let rawDocItems = targetDoc.items;
@@ -5844,162 +5829,309 @@ window.KivoApp = {
         secondaryColor: biz.secondaryColor || '#64748B'
       };
 
-      if (window.KivoTemplates && typeof window.KivoTemplates.render === 'function') {
-        renderedHtml = window.KivoTemplates.render(templateId, docData);
-      }
-    } else {
-      // Génération depuis le formulaire du builder
-      const docNum = (document.getElementById('builder-doc-number') || document.getElementById('pub-doc-number'));
-      filename = (((docNum ? docNum.value || docNum.textContent : '') || 'facture_KIVO').trim().replace(/[^a-zA-Z0-9-_]/g, '_')) + '.pdf';
-      if (window.KivoTemplates && typeof window.KivoTemplates.render === 'function') {
-        const data = window.KivoTemplates.collectData(this.state);
-        data.templateId = templateId;
-        renderedHtml = window.KivoTemplates.render(templateId, data) || '';
-      }
+      const filename = ((targetDoc.number || 'facture_KIVO').trim().replace(/[^a-zA-Z0-9-_]/g, '_')) + '.pdf';
+      const renderedHtml = window.KivoTemplates ? window.KivoTemplates.render(templateId, docData) : '';
+      return { renderedHtml, filename, templateId };
     }
 
+    // Sans argument : état courant du builder (y compris avant d'enregistrer)
+    let builderData = null;
+    if (window.KivoTemplates && typeof window.KivoTemplates.collectData === 'function') {
+      builderData = window.KivoTemplates.collectData(this.state);
+    }
+    const builderNum = (builderData && builderData.docNum) || (document.getElementById('builder-doc-number') || {}).value || 'facture_KIVO';
+    const filename = (builderNum.trim().replace(/[^a-zA-Z0-9-_]/g, '_')) + '.pdf';
+    let renderedHtml = '';
+    if (window.KivoTemplates && typeof window.KivoTemplates.render === 'function') {
+      renderedHtml = window.KivoTemplates.render(templateId, builderData) || '';
+    }
     if (!renderedHtml) {
       const sourceEl = document.getElementById('live-paper-preview-container') || document.getElementById('public-doc-printable-area');
-      if (sourceEl && sourceEl.innerHTML.trim()) {
-        renderedHtml = sourceEl.innerHTML;
-      } else {
-        this.showToast('Aucun document disponible pour le téléchargement.', 'error');
-        return;
-      }
+      if (sourceEl) renderedHtml = sourceEl.innerHTML;
     }
-
-    // ── Bac à sable PDF ──────────────────────────────────────────────────────
-    // Placé hors de l'écran visible (left:-9999px) pour éviter tout décalage
-    // ou rognage lié à la position fixed left:0 qui interférait avec les templates.
-    // Pas de maxHeight ni overflow:hidden → les factures longues (15+ lignes)
-    // débordent naturellement sur plusieurs pages A4.
-    const isMultiPage = renderedHtml.length > 8000 ||
-      (renderedHtml.match(/<tr/g) || []).length > 12;
-
-    const sandbox = document.createElement('div');
-    sandbox.id = 'kivo-pdf-sandbox';
-    sandbox.style.cssText = [
-      'position: fixed',
-      'left: -9999px',   // ← hors écran : aucune interférence visuelle
-      'top: 0',
-      'width: 794px',    // ← A4 exact 96dpi
-      isMultiPage ? 'min-height: 1122px' : 'height: 1122px',
-      'background: ' + ((templateId === 'premium') ? '#181A20' : '#FFFFFF'),
-      'z-index: 1',
-      'pointer-events: none',
-      'box-sizing: border-box',
-      'margin: 0',
-      'padding: 0',
-      isMultiPage ? 'overflow: visible' : 'overflow: hidden',
-      'font-family: Arial, sans-serif'
-    ].join(';');
-    sandbox.innerHTML = renderedHtml;
-
-    // Normaliser le conteneur racine du template : largeur fixe 794px,
-    // mais NE PAS forcer la hauteur (→ pagination naturelle multi-pages).
-    if (sandbox.firstElementChild) {
-      const root = sandbox.firstElementChild;
-      root.style.width = '794px';
-      root.style.boxSizing = 'border-box';
-      root.style.margin = '0';
-      root.style.padding = root.style.padding || '0';
-      if (!isMultiPage) {
-        root.style.minHeight = '1122px';
-      }
-    }
-
-    // Overlay de progression
-    const overlay = document.createElement('div');
-    overlay.id = 'kivo-pdf-loading-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.75);z-index:100000;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Inter,sans-serif;';
-    overlay.innerHTML = `
-      <div style="background:#1E293B;padding:22px 30px;border-radius:12px;display:flex;align-items:center;gap:14px;box-shadow:0 20px 40px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.1);">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round" style="animation:spin 0.9s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-        <span style="font-size:14px;font-weight:600;">${isMultiPage ? 'Génération PDF multi-pages...' : 'Génération A4 plein format...'}</span>
-      </div>
-    `;
-
-    document.body.appendChild(sandbox);
-    document.body.appendChild(overlay);
-
-    const cleanup = () => {
-      if (sandbox.parentNode) sandbox.parentNode.removeChild(sandbox);
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-    };
-
-    // Pré-chargement des images (logo, signature) avant capture html2canvas
-    const images = Array.from(sandbox.querySelectorAll('img'));
-    const imagePromises = images.map(img => new Promise(resolve => {
-      if (img.complete && img.naturalWidth > 0) { resolve(); return; }
-      img.onload = resolve;
-      img.onerror = resolve;
-      const src = img.getAttribute('src');
-      if (src) img.src = src;
-    }));
-
-    Promise.all(imagePromises).then(() => {
-      // 2 ticks RAF : navigateur finalise le rendu avant capture
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        const sandboxHeight = sandbox.scrollHeight || 1122;
-
-        const opt = {
-          margin: 0,
-          filename: filename,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            allowTaint: true,
-            logging: false,
-            backgroundColor: (templateId === 'premium') ? '#181A20' : '#FFFFFF',
-            width: 794,
-            // Pour les documents courts : forcer 1 page exacte (794x1122).
-            // Pour les longs : laisser html2canvas mesurer la hauteur réelle.
-            ...(isMultiPage ? { windowWidth: 794 } : { height: 1122, windowWidth: 794, windowHeight: 1122 }),
-            scrollX: 0,
-            scrollY: 0
-          },
-          jsPDF: {
-            unit: 'mm',
-            format: 'a4',
-            orientation: 'portrait',
-            compress: true
-          },
-          // avoid-all pour courtes factures (1 page propre),
-          // css+legacy pour les longues (coupures naturelles entre lignes)
-          pagebreak: isMultiPage
-            ? { mode: ['css', 'legacy'], avoid: ['.invoice-totals', '.invoice-footer', '.invoice-notes'] }
-            : { mode: 'avoid-all' }
-        };
-
-        html2pdf()
-          .set(opt)
-          .from(sandbox)
-          .save()
-          .then(() => {
-            cleanup();
-            this.showToast(
-              isMultiPage
-                ? 'PDF multi-pages téléchargé avec succès !'
-                : 'Facture téléchargée sur 1 page A4 complète !',
-              'success'
-            );
-          })
-          .catch(e => {
-            cleanup();
-            console.error('[KivoApp] Erreur PDF:', e);
-            this.showToast('Erreur lors du téléchargement : ' + (e.message || e), 'error');
-          });
-      }));
-    });
+    return { renderedHtml, filename, templateId };
   },
 
+  /**
+   * Crée et prépare l'iframe hors écran pour html2canvas / impression
+   */
+  _preparePdfIframe: async function (renderedHtml, templateId) {
+    const isDark = (templateId === 'premium');
+    const bgColor = isDark ? '#181A20' : '#FFFFFF';
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'kivo-pdf-render-frame';
+    iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;margin:0;padding:0;overflow:visible;';
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write('<!DOCTYPE html><html><head></head><body></body></html>');
+    iframeDoc.close();
+
+    // Copier les feuilles de style et polices du document principal
+    const headElements = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'));
+    const linkPromises = [];
+    headElements.forEach(el => {
+      if (el.tagName.toLowerCase() === 'link') {
+        const link = iframeDoc.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = el.href;
+        linkPromises.push(new Promise(res => { link.onload = res; link.onerror = res; }));
+        iframeDoc.head.appendChild(link);
+      } else if (el.tagName.toLowerCase() === 'style') {
+        const style = iframeDoc.createElement('style');
+        style.textContent = el.textContent;
+        iframeDoc.head.appendChild(style);
+      }
+    });
+
+    const resetStyle = iframeDoc.createElement('style');
+    resetStyle.textContent = `
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: ${bgColor} !important;
+        color: ${bgColor === '#181A20' ? '#F1F5F9' : '#0F172A'};
+        font-family: Inter, sans-serif;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      body {
+        width: 794px !important;
+        min-width: 794px !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+      tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+    `;
+    iframeDoc.head.appendChild(resetStyle);
+
+    iframeDoc.body.innerHTML = renderedHtml;
+    if (iframeDoc.body.firstElementChild) {
+      iframeDoc.body.firstElementChild.style.width = '794px';
+      iframeDoc.body.firstElementChild.style.boxSizing = 'border-box';
+    }
+
+    // Attendre le chargement des feuilles avec timeout max 1.5s
+    await Promise.race([Promise.all(linkPromises), new Promise(r => setTimeout(r, 1500))]);
+
+    // Attendre les polices
+    if (iframeDoc.fonts && iframeDoc.fonts.ready) {
+      try { await iframeDoc.fonts.ready; } catch (_) {}
+    }
+
+    // Attendre le décodage de toutes les images (logo compris)
+    const imgs = Array.from(iframeDoc.images || []);
+    const imgPromises = imgs.map(img => {
+      if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+      if (typeof img.decode === 'function') return img.decode().catch(() => {});
+      return new Promise(res => { img.onload = res; img.onerror = res; });
+    });
+    await Promise.race([Promise.all(imgPromises), new Promise(r => setTimeout(r, 2000))]);
+
+    // Double RAF pour s'assurer que le rendu CSS est calculé
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    return { iframe, iframeDoc, bgColor };
+  },
 
   /**
-   * Impression via fenetre du navigateur (1 seule page A4)
+   * Téléchargement PDF haute fidélité via html2canvas 1.4.1 + jsPDF 2.5.1
    */
-  printPdf: function () {
-    window.print();
+  downloadPdf: async function (targetDocOrId) {
+    let iframe = null;
+    let overlay = null;
+
+    try {
+      if (typeof html2canvas === 'undefined') {
+        this.showToast("html2canvas non disponible — vérifiez votre connexion.", "error");
+        return;
+      }
+      const JsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : window.jsPDF;
+      if (!JsPDF) {
+        this.showToast("jsPDF non disponible — vérifiez votre connexion.", "error");
+        return;
+      }
+
+      // 1. Overlay de chargement
+      overlay = document.createElement('div');
+      overlay.id = 'kivo-pdf-loading-overlay';
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.8);z-index:999999;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Inter,sans-serif;backdrop-filter:blur(2px);';
+      overlay.innerHTML = `
+        <div style="background:#1E293B;padding:22px 30px;border-radius:12px;display:flex;align-items:center;gap:14px;box-shadow:0 20px 40px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round" style="animation:spin 0.9s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+          <span style="font-size:14px;font-weight:600;">Génération du PDF haute résolution...</span>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      // 2. Extraire données et HTML du document
+      const { renderedHtml, filename, templateId } = this._getDocForRender(targetDocOrId);
+      if (!renderedHtml) {
+        this.showToast("Aucun document disponible pour le téléchargement.", "error");
+        return;
+      }
+
+      // 3. Monter dans l'iframe hors écran et attendre les ressources
+      const prep = await this._preparePdfIframe(renderedHtml, templateId);
+      iframe = prep.iframe;
+      const iframeDoc = prep.iframeDoc;
+      const bgColor = prep.bgColor;
+
+      // 4. Capture html2canvas
+      const canvas = await html2canvas(iframeDoc.body, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: bgColor,
+        width: 794,
+        windowWidth: 794,
+        scrollX: 0,
+        scrollY: 0
+      });
+
+      // 5. Découpe en pages A4
+      const pageHeightPx = Math.floor(canvas.width * (297 / 210));
+      const bodyRect = iframeDoc.body.getBoundingClientRect();
+      const rows = Array.from(iframeDoc.querySelectorAll('tr')).map(tr => {
+        const r = tr.getBoundingClientRect();
+        return {
+          top: (r.top - bodyRect.top) * 2,
+          bottom: (r.bottom - bodyRect.top) * 2
+        };
+      });
+
+      const pdf = new JsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true
+      });
+
+      let currentY = 0;
+      let pageIndex = 0;
+      const totalHeight = canvas.height;
+
+      while (currentY < totalHeight) {
+        const remainingHeight = totalHeight - currentY;
+        let nextCutY = currentY + pageHeightPx;
+        let sliceHeight = pageHeightPx;
+
+        if (nextCutY >= totalHeight) {
+          sliceHeight = remainingHeight;
+          nextCutY = totalHeight;
+        } else {
+          // Coupe intelligente : chercher si la coupe traverse une ligne <tr>
+          for (const row of rows) {
+            if (nextCutY > row.top + 4 && nextCutY < row.bottom - 4) {
+              if (row.top > currentY + (pageHeightPx * 0.35)) {
+                nextCutY = Math.floor(row.top);
+                sliceHeight = nextCutY - currentY;
+                break;
+              }
+            }
+          }
+        }
+
+        // Éviter une page vide finale
+        if (sliceHeight <= 15 && pageIndex > 0) {
+          break;
+        }
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = pageHeightPx;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        // Remplir le fond avec la couleur du template
+        tempCtx.fillStyle = bgColor;
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+        tempCtx.drawImage(
+          canvas,
+          0, currentY, canvas.width, sliceHeight,
+          0, 0, canvas.width, sliceHeight
+        );
+
+        const pageData = tempCanvas.toDataURL('image/jpeg', 0.95);
+        if (pageIndex > 0) {
+          pdf.addPage('a4', 'portrait');
+        }
+        pdf.addImage(pageData, 'JPEG', 0, 0, 210, 297);
+
+        pageIndex++;
+        currentY = nextCutY;
+      }
+
+      pdf.save(filename);
+      this.showToast("Facture téléchargée avec succès !", "success");
+
+    } catch (err) {
+      console.error('[KivoApp] Erreur downloadPdf:', err);
+      this.showToast("Erreur lors du téléchargement : " + (err.message || err), "error");
+    } finally {
+      if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+  },
+
+  /**
+   * Impression via iframe dédié A4 (seule la facture apparaît)
+   */
+  printPdf: async function (targetDocOrId) {
+    let iframe = null;
+    let overlay = null;
+
+    try {
+      if (!window.KivoTemplates) {
+        this.showToast("Moteur de modèle indisponible.", "error");
+        return;
+      }
+
+      overlay = document.createElement('div');
+      overlay.id = 'kivo-pdf-loading-overlay';
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.8);z-index:999999;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Inter,sans-serif;';
+      overlay.innerHTML = `
+        <div style="background:#1E293B;padding:22px 30px;border-radius:12px;display:flex;align-items:center;gap:14px;box-shadow:0 20px 40px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round" style="animation:spin 0.9s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+          <span style="font-size:14px;font-weight:600;">Préparation de l'impression...</span>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const { renderedHtml, templateId } = this._getDocForRender(targetDocOrId);
+      if (!renderedHtml) {
+        this.showToast("Aucun document à imprimer.", "error");
+        return;
+      }
+
+      const prep = await this._preparePdfIframe(renderedHtml, templateId);
+      iframe = prep.iframe;
+
+      if (overlay && overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+        overlay = null;
+      }
+
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+
+    } catch (err) {
+      console.error('[KivoApp] Erreur printPdf:', err);
+      this.showToast("Erreur lors de l'impression : " + (err.message || err), "error");
+    } finally {
+      if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      setTimeout(() => {
+        if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      }, 4000);
+    }
   },
 
   /**
