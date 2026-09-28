@@ -68,8 +68,24 @@ window.KivoAuth = {
         if (!prevUserId || prevUserId !== session.user.id) {
           await this.handlePostLogin(session);
         }
+      } else if (event === 'PASSWORD_RECOVERY') {
+        console.log('[KivoAuth] Auth event: PASSWORD_RECOVERY');
+        this.session = session;
+        this.user = session?.user;
+        if (window.KivoApp && typeof window.KivoApp.showResetPasswordView === 'function') {
+          window.KivoApp.showResetPasswordView();
+        }
       }
     });
+
+    // Check if user landed from a password recovery link
+    if (window.location.hash && window.location.hash.includes('type=recovery')) {
+      setTimeout(() => {
+        if (window.KivoApp && typeof window.KivoApp.showResetPasswordView === 'function') {
+          window.KivoApp.showResetPasswordView();
+        }
+      }, 500);
+    }
   },
 
   /**
