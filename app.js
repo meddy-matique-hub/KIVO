@@ -1,4 +1,4 @@
-/**
+﻿/**
  * KIVO MATIQUE - Main Application Controller & Router
  * Single Page Application (SPA) Engine with Real-Time Split Preview, VAT, Stripe, and i18n
  */
@@ -259,19 +259,29 @@ window.KivoApp = {
   },
 
   /**
-   * Pre-fills onboarding form with the real authenticated user's details
+   * Pre-fills wizard fields with the real authenticated user's details.
+   * Called after OAuth/email sign-in when onboarding is needed.
    */
   prefillOnboardingWithAuthUser: function (user) {
     if (!user) return;
+    // Legacy hidden compat fields
     const emailEl = document.getElementById('onboard-biz-email');
-    if (emailEl) {
-      emailEl.value = user.email || '';
-    }
+    if (emailEl) emailEl.value = user.email || '';
     const ownerEl = document.getElementById('onboard-biz-owner');
     if (ownerEl && !ownerEl.value) {
       const metaName = user.user_metadata?.full_name || user.user_metadata?.name || '';
       ownerEl.value = metaName || (user.email ? user.email.split('@')[0] : '');
     }
+    // Wizard fields
+    const wzEmail = document.getElementById('wz-email');
+    if (wzEmail && !wzEmail.value) wzEmail.value = user.email || '';
+    const wzOwner = document.getElementById('wz-owner');
+    if (wzOwner && !wzOwner.value) {
+      const metaName = user.user_metadata?.full_name || user.user_metadata?.name || '';
+      wzOwner.value = metaName || (user.email ? user.email.split('@')[0] : '');
+    }
+    // Init wizard state if not already set
+    if (!this._wizard) this.wizardInit();
   },
 
   /**
@@ -293,8 +303,8 @@ window.KivoApp = {
 
   /**
    * Loads all data from Supabase and merges into local state.
-   * A user is strictly considered onboarded ONLY if they have a business_settings record
-   * with a non-empty company_name and owner!
+   * A user is considered onboarded if they have a business_settings record with a non-empty owner.
+   * company_name is OPTIONAL (independants/particuliers may not have one).
    */
   syncFromSupabase: async function () {
     if (!window.KivoDb || !this.supabaseConnected) return;
@@ -302,7 +312,7 @@ window.KivoApp = {
     if (!data) return;
 
     const s = (data.settings && data.settings.length > 0) ? data.settings[0] : null;
-    const hasValidProfile = !!(s && s.company_name && s.company_name.trim() !== '' && s.owner && s.owner.trim() !== '');
+    const hasValidProfile = !!(s && s.owner && s.owner.trim() !== '');
 
     this.state.isOnboarded = hasValidProfile;
 
@@ -723,7 +733,7 @@ window.KivoApp = {
     }
 
     // Keep sidebar and app layout active for authenticated users visiting pricing or viewing documents
-    const isFullWidthView = !isAuthenticated ? publicViews.includes(viewName) : (viewName === 'landing');
+    const isFullWidthView = !isAuthenticated ? publicViews.includes(viewName) : (viewName === 'landing' || viewName === 'onboarding');
     const sidebar = document.getElementById('sidebar');
     const mobileBottomNav = document.querySelector('.mobile-bottom-nav');
     const mobileHeader = document.querySelector('.mobile-header');
@@ -1169,6 +1179,9 @@ window.KivoApp = {
     this.updateUserBrandingUI();
 
     switch (this.activeView) {
+      case 'onboarding':
+        if (!this._wizard) this.wizardInit();
+        break;
       case 'dashboard':
         this.renderDashboard();
         break;
@@ -4493,14 +4506,14 @@ window.KivoApp = {
         if (msgEl) {
           msgEl.style.display = 'block';
           msgEl.style.color = 'var(--danger-text)';
-          msgEl.textContent = error.message;
+                    msgEl.textContent = error.message;
         }
       } else {
-        this.showToast("Mot de passe mis à jour avec succès !", "success");
+        this.showToast("Mot de passe mis a jour avec succes !", "success");
         if (msgEl) {
           msgEl.style.display = 'block';
           msgEl.style.color = '#10B981';
-          msgEl.textContent = "Mot de passe réinitialisé ! Redirection vers votre tableau de bord...";
+          msgEl.textContent = "Mot de passe reinitialise ! Redirection vers votre tableau de bord...";
         }
         setTimeout(() => {
           const resetSec = document.getElementById('view-reset-password');
@@ -4510,132 +4523,323 @@ window.KivoApp = {
       }
     } catch (err) {
       console.error('[KivoApp] submitPasswordReset exception:', err);
-      this.showToast("Erreur lors de la mise à jour du mot de passe.", "error");
+      this.showToast("Erreur lors de la mise a jour du mot de passe.", "error");
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = "Enregistrer le nouveau mot de passe"; }
     }
   },
 
-  onCountrySelectChange: function () {
-    const select = document.getElementById('onboard-biz-country');
-    const selectedOption = select.options[select.selectedIndex];
-    if (selectedOption) {
-      const code = selectedOption.getAttribute('data-code');
-      const curr = selectedOption.getAttribute('data-currency');
+  // --- Legacy compat (kept for references elsewhere) ---
+  onCountrySelectChange: function () { /* superseded by wizardOnCountryChange */ },
+  fillDemoOnboardingData: function () { this.prefillOnboardingWithAuthUser(window.KivoAuth?.user || null); },
+  selectedOnboardPlan: 'Gratuit',
+  selectOnboardingPlan: function (tier) { this.selectedOnboardPlan = tier; },
+  completeOnboarding: async function () { await this.wizardFinish(); },
 
-      if (code) {
-        const prefixSelect = document.getElementById('onboard-biz-phone-prefix');
-        if (prefixSelect) {
-          prefixSelect.value = code;
-          if (prefixSelect.value !== code) {
-            const opt = document.createElement('option');
-            opt.value = code;
-            opt.textContent = `${code}`;
-            prefixSelect.appendChild(opt);
-            prefixSelect.value = code;
-          }
-        }
+  // ─── ONBOARDING WIZARD ENGINE ─────────────────────────────────────────────
+
+  /**
+   * Initializes wizard state. Called when navigating to onboarding view.
+   * Steps 1-11 map to wz-step-1 through wz-step-11.
+   * Step 9 (company number) is skipped for Independant profiles.
+   */
+  wizardInit: function () {
+    const authUser = window.KivoAuth?.user;
+    const metaName = authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || '';
+    const defOwner = document.getElementById('wz-owner')?.value || metaName || (authUser?.email ? authUser.email.split('@')[0] : '') || '';
+    const defEmail = document.getElementById('wz-email')?.value || authUser?.email || '';
+
+    this._wizard = {
+      step: 1,
+      totalSteps: 11,
+      data: {
+        profileType: null,   // 'Entreprise' | 'Independant'
+        bizName: '',
+        owner: defOwner,
+        industry: 'Prestations de services',
+        country: 'Senegal',
+        phonePrefix: '+221',
+        phone: '',
+        currency: 'FCFA',
+        email: defEmail,
+        taxId: '',
+        goals: [],
+        volume: '6-20'
       }
+    };
+    if (defOwner && document.getElementById('wz-owner') && !document.getElementById('wz-owner').value) {
+      document.getElementById('wz-owner').value = defOwner;
+    }
+    if (defEmail && document.getElementById('wz-email') && !document.getElementById('wz-email').value) {
+      document.getElementById('wz-email').value = defEmail;
+    }
+    this._wizardRender();
+  },
 
-      if (curr) {
-        const currSelect = document.getElementById('onboard-biz-currency');
-        if (currSelect) {
-          currSelect.value = curr;
-        }
+  /** Returns the ordered list of visible step numbers based on wizard data */
+  _wizardSteps: function () {
+    const w = this._wizard;
+    // Step 9 only shown for Entreprise
+    const base = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11];
+    if (!w || !w.data.profileType || w.data.profileType === 'Entreprise') {
+      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    }
+    return base;
+  },
+
+  /** Updates progress bar and labels */
+  _wizardRender: function () {
+    const w = this._wizard;
+    if (!w) return;
+    const steps = this._wizardSteps();
+    const idx = steps.indexOf(w.step);
+    const position = idx + 1;
+    const total = steps.length;
+    const pct = Math.round(((position - 1) / (total - 1)) * 100) || 0;
+
+    const labelEl = document.getElementById('wizard-step-label');
+    const pctEl = document.getElementById('wizard-pct-label');
+    const fillEl = document.getElementById('wizard-progress-fill');
+    if (labelEl) labelEl.textContent = `Etape ${position} sur ${total}`;
+    if (pctEl) pctEl.textContent = `${pct}%`;
+    if (fillEl) fillEl.style.width = `${pct}%`;
+
+    // Show/hide step panels
+    for (let i = 1; i <= 11; i++) {
+      const el = document.getElementById(`wz-step-${i}`);
+      if (el) el.style.display = (i === w.step) ? '' : 'none';
+    }
+
+    // Navigation buttons
+    const backBtn = document.getElementById('wz-btn-back');
+    const nextBtn = document.getElementById('wz-btn-next');
+    const skipBtn = document.getElementById('wz-btn-skip');
+    const nextLabel = document.getElementById('wz-btn-next-label');
+
+    if (backBtn) backBtn.style.display = (idx > 0 && w.step !== 11) ? '' : 'none';
+    if (nextBtn) nextBtn.style.display = (w.step !== 11) ? 'flex' : 'none';
+    if (skipBtn) skipBtn.style.display = (w.step === 2 || w.step === 9) ? '' : 'none';
+    if (nextLabel) {
+      if (w.step === 10) nextLabel.textContent = 'Finaliser';
+      else nextLabel.textContent = 'Suivant';
+    }
+
+    // Pre-fill email on step 8
+    if (w.step === 8) {
+      const wzEmail = document.getElementById('wz-email');
+      if (wzEmail && !wzEmail.value) {
+        const authUser = window.KivoAuth?.user;
+        if (authUser) wzEmail.value = authUser.email || '';
       }
     }
   },
 
-  fillDemoOnboardingData: function () {
-    // NEUTRALIZED: no more fake accounts. Pre-fill from real auth user instead.
-    this.prefillOnboardingWithAuthUser(window.KivoAuth?.user || null);
+  /** Validates the current step; returns true if OK */
+  _wizardValidate: function () {
+    const w = this._wizard;
+    if (!w) return true;
+    // Clear all errors
+    ['wz-err-1','wz-err-3','wz-err-6','wz-err-8'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    if (w.step === 1) {
+      if (!w.data.profileType) {
+        const err = document.getElementById('wz-err-1');
+        if (err) err.style.display = '';
+        return false;
+      }
+    }
+    if (w.step === 3) {
+      const v = (document.getElementById('wz-owner')?.value || '').trim();
+      if (!v) {
+        const err = document.getElementById('wz-err-3');
+        if (err) err.style.display = '';
+        return false;
+      }
+    }
+    if (w.step === 6) {
+      const v = (document.getElementById('wz-phone')?.value || '').trim();
+      if (!v) {
+        const err = document.getElementById('wz-err-6');
+        if (err) err.style.display = '';
+        return false;
+      }
+    }
+    if (w.step === 8) {
+      const v = (document.getElementById('wz-email')?.value || '').trim();
+      if (!v || !v.includes('@')) {
+        const err = document.getElementById('wz-err-8');
+        if (err) err.style.display = '';
+        return false;
+      }
+    }
+    return true;
   },
 
-  selectedOnboardPlan: 'Pro',
+  /** Saves current step fields into wizard data */
+  _wizardSave: function () {
+    const w = this._wizard;
+    if (!w) return;
+    const g = (id) => document.getElementById(id);
+    if (w.step === 2) w.data.bizName = g('wz-biz-name')?.value.trim() || '';
+    if (w.step === 3) w.data.owner = g('wz-owner')?.value.trim() || '';
+    if (w.step === 4) w.data.industry = g('wz-industry')?.value || '';
+    if (w.step === 5) w.data.country = g('wz-country')?.value || '';
+    if (w.step === 6) {
+      w.data.phonePrefix = g('wz-phone-prefix')?.value || '+221';
+      w.data.phone = g('wz-phone')?.value.trim() || '';
+    }
+    if (w.step === 7) w.data.currency = g('wz-currency')?.value || 'FCFA';
+    if (w.step === 8) w.data.email = g('wz-email')?.value.trim() || '';
+    if (w.step === 9) w.data.taxId = g('wz-taxid')?.value.trim() || '';
+    if (w.step === 10) {
+      w.data.goals = ['wz-goal-invoices','wz-goal-quotes','wz-goal-clients','wz-goal-stats','wz-goal-other']
+        .filter(id => g(id)?.checked)
+        .map(id => g(id).value);
+      w.data.volume = g('wz-volume')?.value || '6-20';
+    }
+  },
 
-  selectOnboardingPlan: function (tier) {
-    this.selectedOnboardPlan = tier;
-    const cards = ['free', 'pro', 'business'];
-    cards.forEach(c => {
-      const el = document.getElementById(`onboard-plan-${c}`);
+  /** Advance to the next step */
+  wizardNext: function () {
+    if (!this._wizard) this.wizardInit();
+    if (!this._wizardValidate()) return;
+    this._wizardSave();
+    const steps = this._wizardSteps();
+    const idx = steps.indexOf(this._wizard.step);
+    if (idx < steps.length - 1) {
+      this._wizard.step = steps[idx + 1];
+      // On step 10, trigger async save
+      if (this._wizard.step === 11) {
+        this._wizardCommit();
+        return;
+      }
+      this._wizardRender();
+    }
+  },
+
+  /** Go back one step */
+  wizardBack: function () {
+    if (!this._wizard) return;
+    const steps = this._wizardSteps();
+    const idx = steps.indexOf(this._wizard.step);
+    if (idx > 0) {
+      this._wizard.step = steps[idx - 1];
+      this._wizardRender();
+    }
+  },
+
+  /** Skip optional steps (2 and 9) */
+  wizardSkip: function () {
+    if (!this._wizard) return;
+    const steps = this._wizardSteps();
+    const idx = steps.indexOf(this._wizard.step);
+    if (idx < steps.length - 1) {
+      this._wizard.step = steps[idx + 1];
+      this._wizardRender();
+    }
+  },
+
+  /** Handle profile type card selection */
+  wizardSelectType: function (type) {
+    if (!this._wizard) this.wizardInit();
+    this._wizard.data.profileType = type;
+    // Style cards
+    ['wz-type-entreprise','wz-type-independant'].forEach(id => {
+      const el = document.getElementById(id);
       if (el) {
         el.style.border = '2px solid var(--border-color)';
         el.style.background = 'var(--bg-card)';
-        const titleEl = el.querySelector('h4');
-        if (titleEl) titleEl.style.color = 'var(--text-primary)';
       }
     });
-
-    const activeEl = document.getElementById(`onboard-plan-${tier.toLowerCase()}`);
+    const activeId = type === 'Entreprise' ? 'wz-type-entreprise' : 'wz-type-independant';
+    const activeEl = document.getElementById(activeId);
     if (activeEl) {
       activeEl.style.border = '2px solid var(--primary)';
       activeEl.style.background = 'var(--primary-light)';
-      const titleEl = activeEl.querySelector('h4');
-      if (titleEl) titleEl.style.color = 'var(--primary)';
+    }
+    // Clear error
+    const err = document.getElementById('wz-err-1');
+    if (err) err.style.display = 'none';
+  },
+
+  /** Update phone prefix and currency when country changes in wizard */
+  wizardOnCountryChange: function () {
+    const select = document.getElementById('wz-country');
+    if (!select) return;
+    const opt = select.options[select.selectedIndex];
+    if (!opt) return;
+    const code = opt.getAttribute('data-code');
+    const curr = opt.getAttribute('data-currency');
+    if (code) {
+      const prefixSel = document.getElementById('wz-phone-prefix');
+      if (prefixSel) {
+        prefixSel.value = code;
+        if (prefixSel.value !== code) {
+          const o = document.createElement('option');
+          o.value = code; o.textContent = code;
+          prefixSel.appendChild(o);
+          prefixSel.value = code;
+        }
+      }
+    }
+    if (curr) {
+      const currSel = document.getElementById('wz-currency');
+      if (currSel) currSel.value = curr;
     }
   },
 
-  completeOnboarding: async function () {
-    const bizName = document.getElementById('onboard-biz-name').value.trim();
-    const bizOwner = document.getElementById('onboard-biz-owner').value.trim();
-    const bizIndustry = document.getElementById('onboard-biz-industry').value;
-    const bizCountry = document.getElementById('onboard-biz-country').value;
-    const bizCurrency = document.getElementById('onboard-biz-currency').value;
-    const phonePrefix = document.getElementById('onboard-biz-phone-prefix').value;
-    const rawPhone = document.getElementById('onboard-biz-phone').value.trim();
-    const bizEmail = document.getElementById('onboard-biz-email').value.trim();
-    const bizTaxId = document.getElementById('onboard-biz-taxid').value.trim();
+  /**
+   * Commits wizard data to Supabase + state, then renders step 11 (completion screen).
+   * Called after step 10 validation.
+   */
+  _wizardCommit: async function () {
+    const w = this._wizard;
+    if (!w) return;
+    const d = w.data;
+    const bizName = d.bizName || '';
+    const bizOwner = d.owner || '';
+    const fullPhone = `${d.phonePrefix} ${d.phone}`.trim();
 
-    if (!bizName || !bizOwner || !rawPhone || !bizEmail) {
-      this.showToast("Veuillez remplir tous les champs obligatoires (*).", "error");
-      return;
-    }
-
-    const fullPhone = `${phonePrefix} ${rawPhone}`;
-
-    if (!this.state) {
-      this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
-    }
-    if (!this.state.business) {
-      this.state.business = JSON.parse(JSON.stringify(this.BLANK_STATE.business));
-    }
+    if (!this.state) this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
+    if (!this.state.business) this.state.business = JSON.parse(JSON.stringify(this.BLANK_STATE.business));
 
     const biz = this.state.business;
     biz.name = bizName;
     biz.owner = bizOwner;
-    biz.industry = bizIndustry;
-    biz.country = bizCountry;
-    biz.currency = bizCurrency;
+    biz.industry = d.industry;
+    biz.country = d.country;
+    biz.currency = d.currency;
     biz.phone = fullPhone;
-    biz.email = bizEmail;
-    biz.taxId = bizTaxId;
-    biz.subscriptionTier = this.selectedOnboardPlan || 'Gratuit';
+    biz.email = d.email;
+    biz.taxId = d.taxId;
+    biz.subscriptionTier = 'Gratuit';
     biz.subscriptionStatus = 'active';
 
-    const words = bizName.split(' ').filter(w => w.length > 0);
-    biz.logoText = words.length > 1
-      ? (words[0][0] + words[1][0]).toUpperCase()
-      : bizName.substring(0, 2).toUpperCase();
+    if (bizName) {
+      const words = bizName.split(' ').filter(w => w.length > 0);
+      biz.logoText = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : bizName.substring(0, 2).toUpperCase();
+    } else if (bizOwner) {
+      biz.logoText = bizOwner.substring(0, 2).toUpperCase();
+    }
 
-    // Mark as onboarded to unlock app
     this.state.isOnboarded = true;
-
     this.saveState();
     this.updateUserBrandingUI();
 
-    // Sync to Supabase BEFORE navigating to dashboard (await ensures isOnboarded is persisted)
     if (window.KivoDb && this.supabaseConnected) {
       try {
         await window.KivoDb.saveSettings({
           company_name: bizName,
           owner: bizOwner,
-          email: bizEmail,
+          email: d.email,
           phone: fullPhone,
-          industry: bizIndustry,
-          country: bizCountry,
-          currency: bizCurrency,
-          fiscal_id: bizTaxId,
-          current_plan: this.selectedOnboardPlan || 'Gratuit',
+          industry: d.industry,
+          country: d.country,
+          currency: d.currency,
+          fiscal_id: d.taxId,
+          current_plan: 'Gratuit',
           invoice_prefix: biz.invoicePrefix || 'FAC-2026-',
           quote_prefix: biz.quotePrefix || 'DEV-2026-',
           default_vat_rate: biz.defaultVatRate || 18,
@@ -4644,14 +4848,22 @@ window.KivoApp = {
           primary_color: biz.primaryColor || '#4F46E5',
           secondary_color: biz.secondaryColor || '#7C3AED'
         });
-        console.log('[KivoApp] Onboarding settings saved to Supabase.');
+        console.log('[KivoWizard] Settings saved to Supabase.');
       } catch (e) {
-        console.error('[KivoApp] Supabase onboarding saveSettings error:', e);
-        // Even if Supabase fails, we keep local state as onboarded
+        console.error('[KivoWizard] Supabase save error:', e);
       }
     }
 
-    this.showToast(`Bienvenue sur KIVO MATIQUE, ${bizOwner} ! Espace prêt.`, "success");
+    // Show completion screen (step 11)
+    w.step = 11;
+    const readyMsg = document.getElementById('wz-ready-msg');
+    if (readyMsg) readyMsg.textContent = `Bienvenue, ${bizOwner || bizName || 'sur KIVO MATIQUE'} ! Votre espace est configure.`;
+    this._wizardRender();
+  },
+
+  /** Final button on step 11: navigate to dashboard */
+  wizardFinish: function () {
+    this.showToast('Espace pret. Bon depart sur KIVO MATIQUE !', 'success');
     this.navigate('dashboard');
   },
 
