@@ -2703,17 +2703,17 @@ window.KivoApp = {
     const existingDocId = document.getElementById('builder-doc-id').value;
     const type = document.getElementById('builder-doc-type').value;
 
-    // Enforce Free Tier limit of 3 invoices per month
-    if (type === 'invoice' && this.state.business.subscriptionTier === 'Gratuit' && !existingDocId) {
+    // Enforce Free Tier limit of 3 documents (factures + devis) per month
+    const currentTier = (this.state.business?.subscriptionTier || 'Gratuit').toLowerCase();
+    if (currentTier === 'gratuit' && !existingDocId) {
       const currentMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
-      const monthlyInvoices = this.state.documents.filter(d => 
-        d.type === 'invoice' && 
+      const monthlyDocs = (this.state.documents || []).filter(d => 
         d.issueDate && 
         d.issueDate.startsWith(currentMonth)
       );
-      if (monthlyInvoices.length >= 3) {
-        this.showToast("Limite atteinte : Le forfait Gratuit est limité à 3 factures par mois. Veuillez passer au forfait PRO.", "danger");
-        this.navigate('settings');
+      if (monthlyDocs.length >= 3) {
+        this.showToast("Limite atteinte : Le forfait Gratuit est limité à 3 documents (factures et devis) par mois. Passez au forfait PRO pour créer des documents en illimité.", "danger");
+        this.navigate('pricing');
         return;
       }
     }
@@ -4388,7 +4388,18 @@ window.KivoApp = {
     if (btn) { btn.disabled = false; btn.textContent = 'Créer mon compte'; }
 
     if (result.error) {
-      this.showToast(result.error.message || "Erreur lors de l'inscription.", "error");
+      const rawMsg = result.error.message || '';
+      let friendlyMsg = "Erreur lors de l'inscription.";
+      if (rawMsg.includes('User already registered') || rawMsg.includes('already registered')) {
+        friendlyMsg = "Un compte existe déjà avec cette adresse e-mail. Veuillez vous connecter.";
+      } else if (rawMsg.includes('Password should be at least')) {
+        friendlyMsg = "Le mot de passe doit comporter au moins 6 caractères.";
+      } else if (rawMsg.includes('invalid email') || rawMsg.includes('Invalid email')) {
+        friendlyMsg = "Veuillez entrer une adresse e-mail valide.";
+      } else if (rawMsg) {
+        friendlyMsg = rawMsg;
+      }
+      this.showToast(friendlyMsg, "error");
     } else {
       // Store the display name locally for onboarding prefill
       this.state.userEmail = email;
@@ -4403,6 +4414,105 @@ window.KivoApp = {
         this.showToast(`Compte créé ! Configurons votre entreprise...`, "success");
         setTimeout(() => this.navigate('onboarding'), 800);
       }
+    }
+  },
+
+  /**
+   * Envoi du lien de réinitialisation de mot de passe par e-mail
+   */
+  handleForgotPassword: async function () {
+    const inputEmail = document.getElementById('auth-login-email')?.value?.trim() || '';
+    const email = prompt("Veuillez saisir votre adresse e-mail pour recevoir le lien de réinitialisation :", inputEmail);
+    if (!email) return;
+
+    if (!window.KivoDb || !window.KivoDb.supabase) {
+      this.showToast("Erreur : Service d'authentification indisponible.", "error");
+      return;
+    }
+
+    try {
+      this.showToast("Envoi de l'e-mail de réinitialisation...", "info");
+      const { error } = await KivoDb.supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + window.location.pathname
+      });
+
+      if (error) {
+        console.error('[KivoApp] resetPasswordForEmail error:', error);
+        this.showToast("Erreur : " + (error.message || "Impossible d'envoyer l'email."), "error");
+      } else {
+        this.showToast("Lien envoyé ! Vérifiez votre boîte de réception (et vos spams).", "success");
+      }
+    } catch (e) {
+      console.error('[KivoApp] handleForgotPassword exception:', e);
+      this.showToast("Une erreur est survenue lors de la réinitialisation.", "error");
+    }
+  },
+
+  /**
+   * Affichage de la vue de saisie du nouveau mot de passe
+   */
+  showResetPasswordView: function () {
+    // Hide all view sections
+    document.querySelectorAll('.view-section').forEach(sec => sec.style.display = 'none');
+    const modalLogin = document.getElementById('modal-login');
+    if (modalLogin) modalLogin.style.display = 'none';
+
+    const resetSec = document.getElementById('view-reset-password');
+    if (resetSec) {
+      resetSec.style.display = 'block';
+      const newPwdInput = document.getElementById('reset-new-password');
+      if (newPwdInput) newPwdInput.focus();
+    }
+  },
+
+  /**
+   * Validation et soumission du nouveau mot de passe
+   */
+  submitPasswordReset: async function () {
+    const p1 = document.getElementById('reset-new-password')?.value;
+    const p2 = document.getElementById('reset-confirm-password')?.value;
+    const msgEl = document.getElementById('reset-password-msg');
+
+    if (!p1 || p1.length < 8) {
+      this.showToast("Le mot de passe doit comporter au moins 8 caractères.", "error");
+      return;
+    }
+    if (p1 !== p2) {
+      this.showToast("Les deux mots de passe ne correspondent pas.", "error");
+      return;
+    }
+
+    const btn = document.getElementById('btn-reset-password-submit');
+    if (btn) { btn.disabled = true; btn.textContent = "Enregistrement en cours..."; }
+
+    try {
+      const { error } = await KivoDb.supabase.auth.updateUser({ password: p1 });
+      if (error) {
+        console.error('[KivoApp] updateUser password error:', error);
+        this.showToast("Erreur : " + error.message, "error");
+        if (msgEl) {
+          msgEl.style.display = 'block';
+          msgEl.style.color = 'var(--danger-text)';
+          msgEl.textContent = error.message;
+        }
+      } else {
+        this.showToast("Mot de passe mis à jour avec succès !", "success");
+        if (msgEl) {
+          msgEl.style.display = 'block';
+          msgEl.style.color = '#10B981';
+          msgEl.textContent = "Mot de passe réinitialisé ! Redirection vers votre tableau de bord...";
+        }
+        setTimeout(() => {
+          const resetSec = document.getElementById('view-reset-password');
+          if (resetSec) resetSec.style.display = 'none';
+          this.navigate('dashboard');
+        }, 1500);
+      }
+    } catch (err) {
+      console.error('[KivoApp] submitPasswordReset exception:', err);
+      this.showToast("Erreur lors de la mise à jour du mot de passe.", "error");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "Enregistrer le nouveau mot de passe"; }
     }
   },
 
@@ -5758,49 +5868,54 @@ window.KivoApp = {
       }
     }
 
-    // Création d'un bac à sable A4 hors-écran (position fixed, recouvert par l'overlay de chargement)
-    // 794px x 1122px correspond exactement au ratio standard A4 (210mm x 297mm à 96 DPI)
+    // ── Bac à sable PDF ──────────────────────────────────────────────────────
+    // Placé hors de l'écran visible (left:-9999px) pour éviter tout décalage
+    // ou rognage lié à la position fixed left:0 qui interférait avec les templates.
+    // Pas de maxHeight ni overflow:hidden → les factures longues (15+ lignes)
+    // débordent naturellement sur plusieurs pages A4.
+    const isMultiPage = renderedHtml.length > 8000 ||
+      (renderedHtml.match(/<tr/g) || []).length > 12;
+
     const sandbox = document.createElement('div');
     sandbox.id = 'kivo-pdf-sandbox';
     sandbox.style.cssText = [
       'position: fixed',
-      'left: 0',
+      'left: -9999px',   // ← hors écran : aucune interférence visuelle
       'top: 0',
-      'width: 794px',
-      'height: 1122px',
-      'min-height: 1122px',
-      'max-height: 1122px',
+      'width: 794px',    // ← A4 exact 96dpi
+      isMultiPage ? 'min-height: 1122px' : 'height: 1122px',
       'background: ' + ((templateId === 'premium') ? '#181A20' : '#FFFFFF'),
       'z-index: 1',
       'pointer-events: none',
       'box-sizing: border-box',
       'margin: 0',
       'padding: 0',
-      'overflow: hidden',
+      isMultiPage ? 'overflow: visible' : 'overflow: hidden',
       'font-family: Arial, sans-serif'
     ].join(';');
     sandbox.innerHTML = renderedHtml;
 
-    // Forcer le conteneur racine du template à occuper 100% de la page A4 (haut en bas)
+    // Normaliser le conteneur racine du template : largeur fixe 794px,
+    // mais NE PAS forcer la hauteur (→ pagination naturelle multi-pages).
     if (sandbox.firstElementChild) {
-      sandbox.firstElementChild.style.width = '794px';
-      sandbox.firstElementChild.style.height = '1122px';
-      sandbox.firstElementChild.style.minHeight = '1122px';
-      sandbox.firstElementChild.style.maxHeight = '1122px';
-      sandbox.firstElementChild.style.boxSizing = 'border-box';
-      sandbox.firstElementChild.style.display = 'flex';
-      sandbox.firstElementChild.style.flexDirection = 'column';
-      sandbox.firstElementChild.style.justifyContent = 'space-between';
+      const root = sandbox.firstElementChild;
+      root.style.width = '794px';
+      root.style.boxSizing = 'border-box';
+      root.style.margin = '0';
+      root.style.padding = root.style.padding || '0';
+      if (!isMultiPage) {
+        root.style.minHeight = '1122px';
+      }
     }
 
-    // Overlay de progression élégant
+    // Overlay de progression
     const overlay = document.createElement('div');
     overlay.id = 'kivo-pdf-loading-overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.75);z-index:100000;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Inter,sans-serif;';
     overlay.innerHTML = `
       <div style="background:#1E293B;padding:22px 30px;border-radius:12px;display:flex;align-items:center;gap:14px;box-shadow:0 20px 40px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.1);">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round" style="animation:spin 0.9s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-        <span style="font-size:14px;font-weight:600;">Génération de votre facture A4 plein format...</span>
+        <span style="font-size:14px;font-weight:600;">${isMultiPage ? 'Génération PDF multi-pages...' : 'Génération A4 plein format...'}</span>
       </div>
     `;
 
@@ -5812,7 +5927,7 @@ window.KivoApp = {
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
     };
 
-    // Pré-chargement des images (logo, signatures) pour éviter tout logo blanc
+    // Pré-chargement des images (logo, signature) avant capture html2canvas
     const images = Array.from(sandbox.querySelectorAll('img'));
     const imagePromises = images.map(img => new Promise(resolve => {
       if (img.complete && img.naturalWidth > 0) { resolve(); return; }
@@ -5823,8 +5938,10 @@ window.KivoApp = {
     }));
 
     Promise.all(imagePromises).then(() => {
-      // Attendre 2 ticks de rendu pour que le navigateur peigne le contenu
+      // 2 ticks RAF : navigateur finalise le rendu avant capture
       requestAnimationFrame(() => requestAnimationFrame(() => {
+        const sandboxHeight = sandbox.scrollHeight || 1122;
+
         const opt = {
           margin: 0,
           filename: filename,
@@ -5836,9 +5953,9 @@ window.KivoApp = {
             logging: false,
             backgroundColor: (templateId === 'premium') ? '#181A20' : '#FFFFFF',
             width: 794,
-            height: 1122,
-            windowWidth: 794,
-            windowHeight: 1122,
+            // Pour les documents courts : forcer 1 page exacte (794x1122).
+            // Pour les longs : laisser html2canvas mesurer la hauteur réelle.
+            ...(isMultiPage ? { windowWidth: 794 } : { height: 1122, windowWidth: 794, windowHeight: 1122 }),
             scrollX: 0,
             scrollY: 0
           },
@@ -5848,7 +5965,11 @@ window.KivoApp = {
             orientation: 'portrait',
             compress: true
           },
-          pagebreak: { mode: 'avoid-all' }
+          // avoid-all pour courtes factures (1 page propre),
+          // css+legacy pour les longues (coupures naturelles entre lignes)
+          pagebreak: isMultiPage
+            ? { mode: ['css', 'legacy'], avoid: ['.invoice-totals', '.invoice-footer', '.invoice-notes'] }
+            : { mode: 'avoid-all' }
         };
 
         html2pdf()
@@ -5857,7 +5978,12 @@ window.KivoApp = {
           .save()
           .then(() => {
             cleanup();
-            this.showToast('Facture téléchargée avec succès sur 1 page A4 complète !', 'success');
+            this.showToast(
+              isMultiPage
+                ? 'PDF multi-pages téléchargé avec succès !'
+                : 'Facture téléchargée sur 1 page A4 complète !',
+              'success'
+            );
           })
           .catch(e => {
             cleanup();
