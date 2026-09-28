@@ -244,11 +244,19 @@ if (window.KivoDb) {
 
       // Valid Supabase columns for clients:
       // id, user_id, name, type, company, contact_name, email, phone, address
+      // NOTE: clients_type_check constraint — normalize KIVO B2B/B2C to DB values:
+      //   B2B / company / entreprise → 'company'
+      //   B2C / individual / particulier → 'individual'
+      const rawType = (client.type || client.clientType || 'B2B').toString().toUpperCase();
+      const dbType = (rawType === 'B2C' || rawType === 'INDIVIDUAL' || rawType === 'PARTICULIER' || rawType === 'PERSON')
+        ? 'individual'
+        : 'company'; // default: B2B → company
+
       const payload = {
         id: client.id,
         user_id: user.id,
         name: client.name,
-        type: client.type || client.clientType || 'B2B',
+        type: dbType,
         company: client.company || '',
         contact_name: client.contact_name || client.contactName || '',
         email: client.email || '',

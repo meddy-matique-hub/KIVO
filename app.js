@@ -354,21 +354,27 @@ window.KivoApp = {
     }
 
     // 1. Sync & Merge Clients (Cloud + local un-synced)
-    const cloudClients = (data.clients || []).map(c => ({
-      id: c.id,
-      name: c.name,
-      type: c.type || c.client_type || 'B2B',
-      clientType: c.type || c.client_type || 'B2B',
-      company: c.company || '',
-      contactName: c.contact_name || '',
-      taxId: c.tax_id || '',
-      email: c.email || '',
-      phone: c.phone || '',
-      address: c.address || '',
-      totalInvoiced: Number(c.total_invoiced) || 0,
-      totalPaid: Number(c.total_paid) || 0,
-      balanceDue: Number(c.balance_due) || 0
-    }));
+    const cloudClients = (data.clients || []).map(c => {
+      // Normalize DB type back to KIVO internal representation
+      const rawDbType = (c.type || '').toLowerCase();
+      const kivoType = (rawDbType === 'individual' || rawDbType === 'particulier' || rawDbType === 'person' || rawDbType === 'b2c')
+        ? 'B2C' : 'B2B';
+      return {
+        id: c.id,
+        name: c.name,
+        type: kivoType,
+        clientType: kivoType,
+        company: c.company || '',
+        contactName: c.contact_name || '',
+        taxId: c.tax_id || '',
+        email: c.email || '',
+        phone: c.phone || '',
+        address: c.address || '',
+        totalInvoiced: Number(c.total_invoiced) || 0,
+        totalPaid: Number(c.total_paid) || 0,
+        balanceDue: Number(c.balance_due) || 0
+      };
+    });
     const cloudClientIds = new Set(cloudClients.map(c => c.id));
     const pendingLocalClients = (this.state.clients || []).filter(c => c && c.id && !cloudClientIds.has(c.id));
     this.state.clients = [...cloudClients, ...pendingLocalClients];
