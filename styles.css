@@ -742,13 +742,18 @@ button {
   display: none;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 1.15rem;
+  padding: 0 1.15rem;
+  height: 56px;
+  max-height: 56px;
+  padding-top: env(safe-area-inset-top, 0px);
   background-color: #FFFFFF;
   border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
   z-index: 90;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 @media (min-width: 1025px) {
@@ -969,10 +974,12 @@ button {
     box-shadow: 4px 0 40px rgba(5, 11, 24, 0.45) !important;
   }
 
-  /* Mobile header: full-width smart fixed bar at top */
+  /* Mobile header: full-width smart fixed bar at top — max 56px */
   .mobile-header {
     display: flex !important;
     width: 100% !important;
+    height: 56px !important;
+    max-height: 56px !important;
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -981,6 +988,9 @@ button {
     box-sizing: border-box !important;
     transform: translateY(0);
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease !important;
+    padding: 0 1.15rem !important;
+    /* iOS safe-area: content does not clip under notch */
+    padding-top: max(env(safe-area-inset-top, 0px), 0px) !important;
   }
 
   .mobile-header.mobile-header--hidden {
@@ -991,13 +1001,15 @@ button {
     box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08) !important;
   }
 
-  /* Main content: fill all available space, with top padding for fixed header */
+  /* Main content: fill all available space, with top padding for fixed 56px header */
   .main-content {
     margin-left: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    padding: 5rem 1rem 4rem 1rem !important;
+    padding: calc(56px + 1.25rem) 1rem 5rem 1rem !important;
+    /* Extra space for iOS bottom bar */
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px)) !important;
     box-sizing: border-box !important;
     flex: 1 1 auto !important;
   }
@@ -5405,6 +5417,156 @@ html, body {
 
   .mock-paper-stack {
     max-width: 100% !important;
+  }
+}
+
+/* ==========================================================================
+   KIVO MATIQUE — Wizard Onboarding Premium Design (#4)
+   ========================================================================== */
+
+/* Wizard shell: full viewport, centered, no header overflow on mobile */
+#view-onboarding {
+  min-height: 100vh;
+  background: var(--bg-main);
+}
+
+/* Progress bar track — more visible */
+#wizard-progress-fill {
+  height: 6px !important;
+  background: linear-gradient(90deg, var(--primary) 0%, #7C3AED 100%) !important;
+  border-radius: 99px !important;
+  transition: width 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+/* Step label */
+#wizard-step-label {
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  color: var(--text-secondary) !important;
+  letter-spacing: 0.01em;
+}
+
+/* Inputs in wizard — 52px touch target */
+#view-onboarding .form-input,
+#view-onboarding .form-select,
+#view-onboarding input.form-input,
+#view-onboarding select.form-select {
+  height: 52px !important;
+  min-height: 52px !important;
+  font-size: 1rem !important;
+  padding: 0 1rem !important;
+  border-radius: var(--radius-md) !important;
+  border: 1.5px solid var(--border-color) !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+#view-onboarding .form-input:focus,
+#view-onboarding .form-select:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+  outline: none !important;
+}
+
+/* Wizard type-choice cards — bigger, premium feel */
+.wz-type-card {
+  min-height: 110px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: var(--radius-lg) !important;
+  border: 2px solid var(--border-color) !important;
+  background: var(--bg-card) !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  padding: 1.5rem 1rem !important;
+}
+
+.wz-type-card:hover {
+  border-color: var(--primary) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Wizard "Suivant" button — 52px, full gradient, bold */
+#wz-btn-next {
+  height: 52px !important;
+  min-height: 52px !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em !important;
+  border-radius: var(--radius-md) !important;
+  background: linear-gradient(135deg, var(--primary) 0%, #7C3AED 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+#wz-btn-next:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4) !important;
+}
+
+#wz-btn-next:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25) !important;
+}
+
+/* Wizard "Retour" button — 52px, outlined */
+#wz-btn-back {
+  height: 52px !important;
+  min-height: 52px !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  border-radius: var(--radius-md) !important;
+  border: 1.5px solid var(--border-color) !important;
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  transition: all 0.18s ease !important;
+}
+
+#wz-btn-back:hover {
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+/* ── Mobile wizard: navigation sticky at the bottom ── */
+@media (max-width: 768px) {
+  /* The wizard shell needs bottom padding so content isn't hidden under nav */
+  #wizard-shell {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 16px)) !important;
+    padding-top: calc(56px + 1.5rem) !important;
+  }
+
+  /* Nav bar stuck at bottom with safe area */
+  #wizard-nav {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 200 !important;
+    background: var(--bg-card) !important;
+    border-top: 1px solid var(--border-color) !important;
+    box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.07) !important;
+    padding: 0.75rem 1.15rem !important;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)) !important;
+    max-width: 100% !important;
+    margin-top: 0 !important;
+    box-sizing: border-box !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Wizard card: edge-to-edge on mobile */
+  #wizard-shell > div[style*="max-width:520px"],
+  #wizard-shell > div[style*="max-width: 520px"] {
+    max-width: 100% !important;
+    border-radius: var(--radius-lg) !important;
+  }
+
+  /* Resume banner */
+  #wz-resume-banner {
+    font-size: 0.8rem !important;
+    border-radius: var(--radius-md) !important;
   }
 }
 

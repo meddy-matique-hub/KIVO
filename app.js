@@ -11,6 +11,29 @@ window.KivoApp = {
   pendingDeleteAction: null,
 
   /**
+   * Hides the full-screen loading overlay with a smooth fade.
+   * Must be called AFTER handleRoute() to guarantee no content flash.
+   */
+  _hideLoadingOverlay: function () {
+    const overlay = document.getElementById('app-loading-overlay');
+    if (!overlay) return;
+    overlay.style.opacity = '0';
+    overlay.style.visibility = 'hidden';
+    overlay.style.pointerEvents = 'none';
+  },
+
+  /**
+   * Shows the full-screen loading overlay (used during auth transitions).
+   */
+  _showLoadingOverlay: function () {
+    const overlay = document.getElementById('app-loading-overlay');
+    if (!overlay) return;
+    overlay.style.opacity = '1';
+    overlay.style.visibility = 'visible';
+    overlay.style.pointerEvents = 'all';
+  },
+
+  /**
    * Génère un UUID v4 valide compatible avec le type uuid de PostgreSQL/Supabase.
    * Utilise crypto.randomUUID() natif si disponible, sinon un fallback RFC 4122.
    */
@@ -203,6 +226,7 @@ window.KivoApp = {
 
       this.isSessionLoading = false;
       this.handleRoute();
+      this._hideLoadingOverlay();
     } else {
       // Unauthenticated visitor: start with clean blank state, no fake data
       console.log('[KivoApp] Visitor session — rendering public landing view.');
@@ -211,6 +235,7 @@ window.KivoApp = {
       this.state.isOnboarded = false;
       this.isSessionLoading = false;
       this.handleRoute();
+      this._hideLoadingOverlay();
     }
   },
 
@@ -222,6 +247,7 @@ window.KivoApp = {
     if (this._isAuthenticating) return;
     this._isAuthenticating = true;
     this.isSessionLoading = true;
+    this._showLoadingOverlay(); // Block all UI until session + settings resolved
 
     try {
       console.log('[KivoApp] onUserAuthenticated for:', user.email);
@@ -245,6 +271,7 @@ window.KivoApp = {
         this.showToast("Bienvenue ! Configurez votre entreprise pour commencer.", "info");
         this.navigate('onboarding');
       }
+      this._hideLoadingOverlay();
     } finally {
       this.isSessionLoading = false;
       this._isAuthenticating = false;
@@ -305,9 +332,14 @@ window.KivoApp = {
     if (!data) return;
 
     const s = (data.settings && data.settings.length > 0) ? data.settings[0] : null;
-    const hasValidProfile = !!(s && s.owner && s.owner.trim() !== '');
+    const isCompleted = !!(s && (s.onboarding_completed === true || (s.onboarding_completed === undefined && s.owner && s.owner.trim() !== '' && !s.onboarding_answers?.step)));
 
-    this.state.isOnboarded = hasValidProfile;
+    this.state.isOnboarded = isCompleted;
+
+    if (s && s.onboarding_answers && !isCompleted) {
+      this._cloudWizardProgress = s.onboarding_answers;
+      console.log('[KivoApp] Cloud onboarding progress detected:', s.onboarding_answers);
+    }
 
     if (s) {
       // Existing cloud settings
@@ -4633,11 +4665,168 @@ window.KivoApp = {
    * Steps 1-11 map to wz-step-1 through wz-step-11.
    * Step 9 (company number) is skipped for Independant profiles.
    */
-  wizardInit: function () {
+  _getWizardStorageKey: function () {
+    const userId = window.KivoAuth?.user?.id || this.state?.userEmail || 'guest';
+    return `kivo_wizard_progress_${userId}`;
+  },
+
+  /**
+   * Persists the current wizard step and partial answers to localStorage and Supabase.
+   * Runs non-blockingly at every step change.
+   */
+  _wizardPersistProgress: async function () {
+    const w = this._wizard;
+    if (!w || w.step >= 11) return;
+    const progressData = {
+      step: w.step,
+      data: JSON.parse(JSON.stringify(w.data)),
+      updatedAt: new Date().toISOString()
+    };
+
+    // 1. Immediate synchronous localStorage backup
+    try {
+      localStorage.setItem(this._getWizardStorageKey(), JSON.stringify(progressData));
+      localStorage.setItem('kivo_wizard_progress_latest', JSON.stringify(progressData));
+    } catch (e) {
+      console.warn('[KivoWizard] localStorage save error:', e);
+    }
+
+    // 2. Cloud backup in Supabase if user is authenticated
+    if (window.KivoDb && this.supabaseConnected && window.KivoAuth?.user) {
+      try {
+        await window.KivoDb.saveSettings({
+          company_name: w.data.bizName || '',
+          owner: w.data.owner || '',
+          email: w.data.email || '',
+          phone: `${w.data.phonePrefix || '+221'} ${w.data.phone || ''}`.trim(),
+          industry: w.data.industry || 'Prestations de services',
+          country: w.data.country || 'Senegal',
+          currency: w.data.currency || 'FCFA',
+          fiscal_id: w.data.taxId || '',
+          current_plan: 'Gratuit',
+          onboarding_completed: false,
+          onboarding_answers: progressData
+        });
+        console.log(`[KivoWizard] Cloud progress saved at step ${w.step}.`);
+      } catch (cloudErr) {
+        console.warn('[KivoWizard] Non-blocking cloud progress save warning:', cloudErr);
+      }
+    }
+  },
+
+  /**
+   * Retrieves any existing in-progress wizard state from cloud or localStorage
+   */
+  _wizardGetSavedProgress: function () {
+    // 1. Cloud progress loaded by syncFromSupabase
+    if (this._cloudWizardProgress && this._cloudWizardProgress.step && this._cloudWizardProgress.step > 1) {
+      return this._cloudWizardProgress;
+    }
+    // 2. User-scoped localStorage
+    try {
+      const userScoped = localStorage.getItem(this._getWizardStorageKey());
+      if (userScoped) {
+        const parsed = JSON.parse(userScoped);
+        if (parsed && parsed.step && parsed.step > 1) return parsed;
+      }
+      const generic = localStorage.getItem('kivo_wizard_progress_latest');
+      if (generic) {
+        const parsed = JSON.parse(generic);
+        if (parsed && parsed.step && parsed.step > 1) return parsed;
+      }
+    } catch (e) {
+      console.warn('[KivoWizard] Error parsing saved progress:', e);
+    }
+    return null;
+  },
+
+  /**
+   * Applies restored wizard data to DOM inputs
+   */
+  _applyWizardDataToForm: function () {
+    const w = this._wizard;
+    if (!w) return;
+    const d = w.data;
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val !== undefined && val !== null) el.value = val;
+    };
+
+    setVal('wz-biz-name', d.bizName);
+    setVal('wz-owner', d.owner);
+    setVal('wz-industry', d.industry);
+    setVal('wz-country', d.country);
+    setVal('wz-phone-prefix', d.phonePrefix);
+    setVal('wz-phone', d.phone);
+    setVal('wz-currency', d.currency);
+    setVal('wz-email', d.email);
+    setVal('wz-taxid', d.taxId);
+    setVal('wz-volume', d.volume || '6-20');
+
+    if (d.profileType) {
+      this.wizardSelectType(d.profileType, false); // false = don't persist on populate
+    }
+
+    if (Array.isArray(d.goals)) {
+      ['wz-goal-invoices', 'wz-goal-quotes', 'wz-goal-clients', 'wz-goal-stats', 'wz-goal-other'].forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb) cb.checked = d.goals.includes(cb.value);
+      });
+    }
+  },
+
+  /**
+   * Displays an unobtrusive banner when progress is resumed with a reset link
+   */
+  _renderResumeBanner: function (visible, step = 1) {
+    let banner = document.getElementById('wz-resume-banner');
+    if (!banner) {
+      const card = document.querySelector('#view-onboarding .wz-step')?.parentElement;
+      if (card) {
+        banner = document.createElement('div');
+        banner.id = 'wz-resume-banner';
+        card.insertBefore(banner, card.firstChild);
+      }
+    }
+    if (!banner) return;
+
+    if (!visible || step <= 1 || step >= 11) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    banner.style.display = 'flex';
+    banner.style.alignItems = 'center';
+    banner.style.justifyContent = 'space-between';
+    banner.style.gap = '0.75rem';
+    banner.style.padding = '0.65rem 0.95rem';
+    banner.style.marginBottom = '1.25rem';
+    banner.style.background = 'rgba(37, 99, 235, 0.08)';
+    banner.style.border = '1px solid rgba(37, 99, 235, 0.25)';
+    banner.style.borderRadius = 'var(--radius-md)';
+    banner.style.fontSize = '0.82rem';
+    banner.style.color = 'var(--text-primary)';
+
+    banner.innerHTML = `
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span style="font-size:1.1rem; line-height:1;">🔄</span>
+        <span>Progression reprise (<strong>Étape ${step} sur 11</strong>)</span>
+      </div>
+      <button type="button" onclick="KivoApp.wizardInit(true)" style="background:none; border:none; color:var(--primary); font-weight:600; text-decoration:underline; cursor:pointer; font-size:0.8rem; padding:0;">
+        Recommencer
+      </button>
+    `;
+  },
+
+  /**
+   * Initializes wizard state. Called when navigating to onboarding view.
+   * Auto-restores saved progress from cloud or localStorage if present.
+   */
+  wizardInit: function (forceReset = false) {
     const authUser = window.KivoAuth?.user;
     const metaName = authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || '';
-    const defOwner = document.getElementById('wz-owner')?.value || metaName || (authUser?.email ? authUser.email.split('@')[0] : '') || '';
-    const defEmail = document.getElementById('wz-email')?.value || authUser?.email || '';
+    const defOwner = metaName || (authUser?.email ? authUser.email.split('@')[0] : '') || '';
+    const defEmail = authUser?.email || '';
 
     this._wizard = {
       step: 1,
@@ -4657,19 +4846,42 @@ window.KivoApp = {
         volume: '6-20'
       }
     };
-    if (defOwner && document.getElementById('wz-owner') && !document.getElementById('wz-owner').value) {
-      document.getElementById('wz-owner').value = defOwner;
+
+    if (forceReset) {
+      try {
+        localStorage.removeItem(this._getWizardStorageKey());
+        localStorage.removeItem('kivo_wizard_progress_latest');
+        this._cloudWizardProgress = null;
+      } catch (_) {}
+      this._applyWizardDataToForm();
+      this._wizardRender();
+      this._renderResumeBanner(false);
+      this.showToast('Assistant réinitialisé au début.', 'info');
+      return;
     }
-    if (defEmail && document.getElementById('wz-email') && !document.getElementById('wz-email').value) {
-      document.getElementById('wz-email').value = defEmail;
+
+    // Check for previous progress to restore
+    const saved = this._wizardGetSavedProgress();
+    if (saved && saved.step && saved.step > 1 && saved.step <= 10) {
+      console.log(`[KivoWizard] Restoring saved progress at step ${saved.step}`, saved.data);
+      if (saved.data) {
+        this._wizard.data = { ...this._wizard.data, ...saved.data };
+      }
+      this._wizard.step = saved.step;
+      this._applyWizardDataToForm();
+      this._wizardRender();
+      this._renderResumeBanner(true, saved.step);
+      return;
     }
+
+    this._applyWizardDataToForm();
     this._wizardRender();
+    this._renderResumeBanner(false);
   },
 
   /** Returns the ordered list of visible step numbers based on wizard data */
   _wizardSteps: function () {
     const w = this._wizard;
-    // Step 9 only shown for Entreprise
     const base = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11];
     if (!w || !w.data.profileType || w.data.profileType === 'Entreprise') {
       return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -4728,7 +4940,6 @@ window.KivoApp = {
   _wizardValidate: function () {
     const w = this._wizard;
     if (!w) return true;
-    // Clear all errors
     ['wz-err-1','wz-err-3','wz-err-6','wz-err-8'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
@@ -4800,11 +5011,11 @@ window.KivoApp = {
     const idx = steps.indexOf(this._wizard.step);
     if (idx < steps.length - 1) {
       this._wizard.step = steps[idx + 1];
-      // On step 10, trigger async save
       if (this._wizard.step === 11) {
         this._wizardCommit();
         return;
       }
+      this._wizardPersistProgress();
       this._wizardRender();
     }
   },
@@ -4816,6 +5027,7 @@ window.KivoApp = {
     const idx = steps.indexOf(this._wizard.step);
     if (idx > 0) {
       this._wizard.step = steps[idx - 1];
+      this._wizardPersistProgress();
       this._wizardRender();
     }
   },
@@ -4823,16 +5035,18 @@ window.KivoApp = {
   /** Skip optional steps (2 and 9) */
   wizardSkip: function () {
     if (!this._wizard) return;
+    this._wizardSave();
     const steps = this._wizardSteps();
     const idx = steps.indexOf(this._wizard.step);
     if (idx < steps.length - 1) {
       this._wizard.step = steps[idx + 1];
+      this._wizardPersistProgress();
       this._wizardRender();
     }
   },
 
   /** Handle profile type card selection */
-  wizardSelectType: function (type) {
+  wizardSelectType: function (type, persist = true) {
     if (!this._wizard) this.wizardInit();
     this._wizard.data.profileType = type;
     // Style cards
@@ -4849,9 +5063,12 @@ window.KivoApp = {
       activeEl.style.border = '2px solid var(--primary)';
       activeEl.style.background = 'var(--primary-light)';
     }
-    // Clear error
     const err = document.getElementById('wz-err-1');
     if (err) err.style.display = 'none';
+
+    if (persist) {
+      this._wizardPersistProgress();
+    }
   },
 
   /** Update phone prefix and currency when country changes in wizard */
@@ -4930,6 +5147,8 @@ window.KivoApp = {
           currency: d.currency,
           fiscal_id: d.taxId,
           current_plan: 'Gratuit',
+          onboarding_completed: true,
+          onboarding_answers: { step: 11, data: d, completedAt: new Date().toISOString() },
           invoice_prefix: biz.invoicePrefix || 'FAC-2026-',
           quote_prefix: biz.quotePrefix || 'DEV-2026-',
           default_vat_rate: biz.defaultVatRate || 18,
@@ -4938,16 +5157,24 @@ window.KivoApp = {
           primary_color: biz.primaryColor || '#4F46E5',
           secondary_color: biz.secondaryColor || '#7C3AED'
         });
-        console.log('[KivoWizard] Settings saved to Supabase.');
+        console.log('[KivoWizard] Completed onboarding settings saved to Supabase.');
       } catch (e) {
         console.error('[KivoWizard] Supabase save error:', e);
       }
     }
 
+    // Clean up in-progress cache
+    try {
+      localStorage.removeItem(this._getWizardStorageKey());
+      localStorage.removeItem('kivo_wizard_progress_latest');
+      this._cloudWizardProgress = null;
+    } catch (_) {}
+
     // Show completion screen (step 11)
     w.step = 11;
+    this._renderResumeBanner(false);
     const readyMsg = document.getElementById('wz-ready-msg');
-    if (readyMsg) readyMsg.textContent = `Bienvenue, ${bizOwner || bizName || 'sur KIVO MATIQUE'} ! Votre espace est configure.`;
+    if (readyMsg) readyMsg.textContent = `Bienvenue, ${bizOwner || bizName || 'sur KIVO MATIQUE'} ! Votre espace est configuré.`;
     this._wizardRender();
   },
 
