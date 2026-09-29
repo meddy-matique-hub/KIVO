@@ -1597,20 +1597,6 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
     border-radius: var(--radius-lg);
     width: 100%;
   }
-  #modal-login {
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-    align-items: flex-start !important;
-    padding: 1.5rem 0.5rem 3rem 0.5rem;
-  }
-  .auth-modal-inner {
-    padding: 0.5rem 0;
-  }
-  .auth-card {
-    padding: 1.5rem 1.15rem;
-    max-width: 100%;
-    border-radius: var(--radius-lg);
-  }
 }
 
 .modal-header {

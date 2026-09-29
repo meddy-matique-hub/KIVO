@@ -1,4 +1,4 @@
-﻿/**
+/**
  * KIVO MATIQUE - Main Application Controller & Router
  * Single Page Application (SPA) Engine with Real-Time Split Preview, VAT, Stripe, and i18n
  */
@@ -184,8 +184,6 @@ window.KivoApp = {
     }
 
     if (user) {
-      const loginModal = document.getElementById('modal-login');
-      if (loginModal) loginModal.style.display = 'none';
       localStorage.removeItem('kivo_app_state'); // Purge legacy unscoped state
       this.loadState();
       this.state.userEmail = user.email || '';
@@ -208,8 +206,6 @@ window.KivoApp = {
     } else {
       // Unauthenticated visitor: start with clean blank state, no fake data
       console.log('[KivoApp] Visitor session — rendering public landing view.');
-      const loginModal = document.getElementById('modal-login');
-      if (loginModal) loginModal.style.display = 'none';
       this.supabaseConnected = false;
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.state.isOnboarded = false;
@@ -229,9 +225,6 @@ window.KivoApp = {
 
     try {
       console.log('[KivoApp] onUserAuthenticated for:', user.email);
-      const loginModal = document.getElementById('modal-login');
-      if (loginModal) loginModal.style.display = 'none';
-
       this.loadState();
       this.state.userEmail = user.email || '';
       this.supabaseConnected = true;
@@ -613,9 +606,6 @@ window.KivoApp = {
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.state.isOnboarded = false;
 
-      const loginModal = document.getElementById('modal-login');
-      if (loginModal) loginModal.style.display = 'none';
-
       // 4. Perform Supabase SDK signOut with catch guard
       if (window.KivoDb && window.KivoDb.supabase) {
         try {
@@ -727,9 +717,18 @@ window.KivoApp = {
       targetSection.style.display = 'block';
     }
 
-    const loginModal = document.getElementById('modal-login');
-    if (loginModal) {
-      loginModal.style.display = viewName === 'auth' ? 'flex' : 'none';
+    // Handle view-auth tab selection based on hash query param
+    if (viewName === 'auth') {
+      const queryPart = hash.includes('?') ? hash.split('?')[1] : '';
+      const params = new URLSearchParams(queryPart);
+      const tab = params.get('tab');
+      if (tab === 'register' || tab === 'signup') {
+        this.switchAuthTab('register');
+      } else if (tab === 'forgot') {
+        this.switchAuthTab('forgot');
+      } else {
+        this.switchAuthTab('login');
+      }
     }
 
     // Keep sidebar and app layout active for authenticated users visiting pricing or viewing documents
@@ -4300,165 +4299,258 @@ window.KivoApp = {
   },
 
   switchAuthTab: function (tab) {
-    document.getElementById('auth-tab-login').classList.remove('active-pill');
-    document.getElementById('auth-tab-register').classList.remove('active-pill');
-    
-    if (tab === 'login') {
-      document.getElementById('auth-tab-login').classList.add('active-pill');
-      document.getElementById('auth-form-login').style.display = 'block';
-      document.getElementById('auth-form-register').style.display = 'none';
-    } else {
-      document.getElementById('auth-tab-register').classList.add('active-pill');
-      document.getElementById('auth-form-login').style.display = 'none';
-      document.getElementById('auth-form-register').style.display = 'block';
-    }
-  },
+    const tabLogin = document.getElementById('auth-tab-login');
+    const tabRegister = document.getElementById('auth-tab-register');
+    const formLogin = document.getElementById('auth-form-login');
+    const formRegister = document.getElementById('auth-form-register');
+    const formForgot = document.getElementById('auth-form-forgot');
+    const tabsBar = document.getElementById('auth-tabs-bar');
+    const googleBtn = document.getElementById('auth-google-btn');
+    const divider = document.getElementById('auth-divider');
+    const msgBox = document.getElementById('auth-status-message');
 
-  /**
-   * Google OAuth via Supabase — redirects to Google login page
-   */
-  simulateGoogleAuth: async function () {
-    if (!window.KivoDb || !window.KivoDb.supabase) {
-      this.showToast("Erreur : Supabase non initialisé.", "error");
+    // Reset status message
+    if (msgBox) {
+      msgBox.style.display = 'none';
+      msgBox.innerHTML = '';
+    }
+
+    if (tab === 'forgot') {
+      if (tabLogin) tabLogin.classList.remove('active-pill');
+      if (tabRegister) tabRegister.classList.remove('active-pill');
+      if (tabsBar) tabsBar.style.display = 'none';
+      if (googleBtn) googleBtn.style.display = 'none';
+      if (divider) divider.style.display = 'none';
+      if (formLogin) formLogin.style.display = 'none';
+      if (formRegister) formRegister.style.display = 'none';
+      if (formForgot) {
+        formForgot.style.display = 'block';
+        const loginEmail = document.getElementById('auth-login-email')?.value?.trim();
+        const forgotEmail = document.getElementById('auth-forgot-email');
+        if (forgotEmail) {
+          if (loginEmail) forgotEmail.value = loginEmail;
+          setTimeout(() => forgotEmail.focus(), 60);
+        }
+      }
       return;
     }
-    try {
-      const { error } = await KivoDb.supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin + window.location.pathname
-        }
-      });
-      if (error) {
-        console.error('[KivoApp] Google OAuth error:', error);
-        this.showToast("Connexion Google impossible : " + error.message, "error");
-      }
-    } catch(e) {
-      this.showToast("Connexion Google non disponible.", "error");
-      console.error('[KivoApp] Google OAuth exception:', e);
+
+    // Regular tabs: login or register
+    if (tabsBar) tabsBar.style.display = 'flex';
+    if (googleBtn) googleBtn.style.display = 'flex';
+    if (divider) divider.style.display = 'flex';
+    if (formForgot) formForgot.style.display = 'none';
+
+    if (tab === 'register') {
+      if (tabLogin) tabLogin.classList.remove('active-pill');
+      if (tabRegister) tabRegister.classList.add('active-pill');
+      if (formLogin) formLogin.style.display = 'none';
+      if (formRegister) formRegister.style.display = 'block';
+    } else {
+      if (tabLogin) tabLogin.classList.add('active-pill');
+      if (tabRegister) tabRegister.classList.remove('active-pill');
+      if (formLogin) formLogin.style.display = 'block';
+      if (formRegister) formRegister.style.display = 'none';
     }
   },
 
   /**
-   * Login via view-auth form — now uses real Supabase auth (not localStorage comparison)
+   * Display inline message inside the unified auth card
+   */
+  showAuthMessage: function (msg, type = 'error') {
+    const box = document.getElementById('auth-status-message');
+    if (box) {
+      const isError = type === 'error';
+      box.style.display = 'block';
+      box.style.padding = '0.85rem 1rem';
+      box.style.marginBottom = '1.25rem';
+      box.style.borderRadius = 'var(--radius-md)';
+      box.style.fontSize = '0.875rem';
+      box.style.lineHeight = '1.4';
+      box.style.textAlign = 'center';
+      if (isError) {
+        box.style.background = 'rgba(239, 68, 68, 0.08)';
+        box.style.border = '1px solid rgba(239, 68, 68, 0.25)';
+        box.style.color = 'var(--danger-text, #DC2626)';
+      } else {
+        box.style.background = 'rgba(16, 185, 129, 0.08)';
+        box.style.border = '1px solid rgba(16, 185, 129, 0.25)';
+        box.style.color = '#059669';
+      }
+      box.textContent = msg;
+    }
+    this.showToast(msg, type);
+  },
+
+  /**
+   * Google OAuth via Supabase — initiates real Google sign-in
+   */
+  signInWithGoogle: async function () {
+    if (window.KivoAuth && typeof window.KivoAuth.signInWithGoogle === 'function') {
+      const res = await window.KivoAuth.signInWithGoogle();
+      if (res && res.error) {
+        this.showAuthMessage("Connexion Google impossible : " + res.error.message, "error");
+      }
+    } else {
+      this.showAuthMessage("Le service de connexion Google n'est pas disponible.", "error");
+    }
+  },
+
+  /**
+   * Alias for backwards compatibility
+   */
+  simulateGoogleAuth: function () {
+    return this.signInWithGoogle();
+  },
+
+  /**
+   * Login via unified view-auth form
    */
   submitLogin: async function () {
-    const email = document.getElementById('auth-login-email').value.trim();
-    const pwd = document.getElementById('auth-login-password').value;
+    const email = document.getElementById('auth-login-email')?.value?.trim();
+    const pwd = document.getElementById('auth-login-password')?.value;
 
     if (!email || !pwd) {
-      this.showToast("Veuillez saisir votre email et mot de passe.", "error");
+      this.showAuthMessage("Veuillez saisir votre adresse email et votre mot de passe.", "error");
       return;
     }
 
     const btn = document.querySelector('#auth-form-login button[type=submit]');
-    if (btn) { btn.disabled = true; btn.textContent = 'Connexion...'; }
+    const originalText = btn ? btn.textContent : 'Se connecter';
+    if (btn) { btn.disabled = true; btn.textContent = 'Connexion en cours...'; }
 
     const result = await KivoAuth.signIn(email, pwd);
 
-    if (btn) { btn.disabled = false; btn.textContent = 'Se connecter'; }
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
 
     if (result.error) {
       const rawMsg = result.error.message || '';
       let friendlyMsg = "Email ou mot de passe incorrect.";
       if (rawMsg.includes('Email not confirmed')) {
-        friendlyMsg = "Votre email n'a pas encore été confirmé. Vérifiez votre boîte mail.";
-      } else if (rawMsg.includes('Too many requests')) {
-        friendlyMsg = "Trop de tentatives. Veuillez patienter quelques minutes.";
+        friendlyMsg = "Votre compte n'est pas encore confirmé. Vérifiez vos emails (et vos spams) pour valider votre compte.";
+      } else if (rawMsg.includes('Too many requests') || rawMsg.includes('rate limit')) {
+        friendlyMsg = "Trop de tentatives de connexion. Veuillez patienter quelques minutes.";
       } else if (rawMsg.includes('User not found') || rawMsg.includes('user not found')) {
         friendlyMsg = "Aucun compte trouvé avec cet email.";
+      } else if (rawMsg.includes('Invalid login credentials')) {
+        friendlyMsg = "Adresse email ou mot de passe incorrect.";
       }
-      this.showToast(friendlyMsg, "error");
+      this.showAuthMessage(friendlyMsg, "error");
     }
-    // On success, onAuthStateChange fires and handlePostLogin() is called automatically
+    // On success, onAuthStateChange fires and handlePostLogin() runs automatically
   },
 
   /**
-   * Register via view-auth form — uses real Supabase signUp
+   * Register via unified view-auth form
    */
   submitRegister: async function () {
-    const name = document.getElementById('auth-reg-name').value.trim();
-    const email = document.getElementById('auth-reg-email').value.trim();
-    const pwd = document.getElementById('auth-reg-password').value;
+    const name = document.getElementById('auth-reg-name')?.value?.trim();
+    const email = document.getElementById('auth-reg-email')?.value?.trim();
+    const pwd = document.getElementById('auth-reg-password')?.value;
     const pwd2 = document.getElementById('auth-reg-password2') ? document.getElementById('auth-reg-password2').value : pwd;
 
     if (!name || !email || !pwd) {
-      this.showToast("Veuillez remplir tous les champs obligatoires.", "error");
+      this.showAuthMessage("Veuillez remplir tous les champs obligatoires.", "error");
+      return;
+    }
+
+    if (pwd.length < 6) {
+      this.showAuthMessage("Le mot de passe doit comporter au moins 6 caractères.", "error");
       return;
     }
 
     if (pwd !== pwd2) {
-      this.showToast("Les mots de passe ne correspondent pas.", "error");
+      this.showAuthMessage("Les mots de passe ne correspondent pas.", "error");
       return;
     }
 
     const btn = document.querySelector('#auth-form-register button[type=submit]');
-    if (btn) { btn.disabled = true; btn.textContent = 'Création...'; }
+    const originalText = btn ? btn.textContent : 'Créer mon compte';
+    if (btn) { btn.disabled = true; btn.textContent = 'Création en cours...'; }
 
-    // Pass full_name so it's stored in Supabase user metadata & prefilled in onboarding
     const result = await KivoAuth.signUp(email, pwd, name);
 
-    if (btn) { btn.disabled = false; btn.textContent = 'Créer mon compte'; }
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
 
     if (result.error) {
       const rawMsg = result.error.message || '';
-      let friendlyMsg = "Erreur lors de l'inscription.";
-      if (rawMsg.includes('User already registered') || rawMsg.includes('already registered')) {
-        friendlyMsg = "Un compte existe déjà avec cette adresse e-mail. Veuillez vous connecter.";
+      let friendlyMsg = "Erreur lors de la création du compte.";
+      if (rawMsg.includes('User already registered') || rawMsg.includes('already registered') || rawMsg.includes('already exists')) {
+        friendlyMsg = "Un compte existe déjà avec cette adresse email. Veuillez vous connecter.";
       } else if (rawMsg.includes('Password should be at least')) {
         friendlyMsg = "Le mot de passe doit comporter au moins 6 caractères.";
       } else if (rawMsg.includes('invalid email') || rawMsg.includes('Invalid email')) {
-        friendlyMsg = "Veuillez entrer une adresse e-mail valide.";
-      } else if (rawMsg) {
-        friendlyMsg = rawMsg;
+        friendlyMsg = "Veuillez entrer une adresse email valide.";
+      } else if (rawMsg.includes('Too many requests') || rawMsg.includes('rate limit')) {
+        friendlyMsg = "Trop de requêtes. Veuillez patienter un instant.";
       }
-      this.showToast(friendlyMsg, "error");
+      this.showAuthMessage(friendlyMsg, "error");
     } else {
-      // Store the display name locally for onboarding prefill
       this.state.userEmail = email;
       this.state.business.owner = name;
       this.state.business.email = email;
       this.saveState();
 
-      const needsConfirmation = !result.data?.session; // Supabase email confirmation required
+      const needsConfirmation = !result.data?.session;
       if (needsConfirmation) {
-        this.showToast("Compte créé ! Vérifiez votre boîte email pour confirmer votre inscription, puis revenez vous connecter.", "success");
+        this.showAuthMessage("Compte créé avec succès ! Un email de confirmation vous a été envoyé. Cliquez sur le lien pour valider votre inscription, puis connectez-vous.", "success");
       } else {
-        this.showToast(`Compte créé ! Configurons votre entreprise...`, "success");
+        this.showAuthMessage("Compte créé avec succès ! Redirection en cours...", "success");
         setTimeout(() => this.navigate('onboarding'), 800);
       }
     }
   },
 
   /**
-   * Envoi du lien de réinitialisation de mot de passe par e-mail
+   * Submit inline forgot password form (no native prompt)
    */
-  handleForgotPassword: async function () {
-    const inputEmail = document.getElementById('auth-login-email')?.value?.trim() || '';
-    const email = prompt("Veuillez saisir votre adresse e-mail pour recevoir le lien de réinitialisation :", inputEmail);
-    if (!email) return;
+  submitForgotPassword: async function () {
+    const emailInput = document.getElementById('auth-forgot-email');
+    const email = emailInput?.value?.trim() || '';
 
-    if (!window.KivoDb || !window.KivoDb.supabase) {
-      this.showToast("Erreur : Service d'authentification indisponible.", "error");
+    if (!email) {
+      this.showAuthMessage("Veuillez saisir votre adresse email.", "error");
       return;
     }
 
+    if (!window.KivoDb || !window.KivoDb.supabase) {
+      this.showAuthMessage("Service d'authentification indisponible. Réessayez plus tard.", "error");
+      return;
+    }
+
+    const btn = document.getElementById('btn-submit-forgot');
+    const originalText = btn ? btn.textContent : 'Envoyer le lien';
+    if (btn) { btn.disabled = true; btn.textContent = 'Envoi en cours...'; }
+
     try {
-      this.showToast("Envoi de l'e-mail de réinitialisation...", "info");
       const { error } = await KivoDb.supabase.auth.resetPasswordForEmail(email, {
         redirectTo: window.location.origin + window.location.pathname
       });
 
       if (error) {
         console.error('[KivoApp] resetPasswordForEmail error:', error);
-        this.showToast("Erreur : " + (error.message || "Impossible d'envoyer l'email."), "error");
+        let msg = "Impossible d'envoyer l'email de réinitialisation.";
+        if (error.message.includes('rate limit') || error.message.includes('Too many requests')) {
+          msg = "Trop de demandes de réinitialisation. Veuillez patienter quelques minutes.";
+        }
+        this.showAuthMessage(msg, "error");
       } else {
-        this.showToast("Lien envoyé ! Vérifiez votre boîte de réception (et vos spams).", "success");
+        this.showAuthMessage("Lien de réinitialisation envoyé ! Vérifiez votre boîte de réception (et vos spams).", "success");
+        if (emailInput) emailInput.value = '';
       }
     } catch (e) {
-      console.error('[KivoApp] handleForgotPassword exception:', e);
-      this.showToast("Une erreur est survenue lors de la réinitialisation.", "error");
+      console.error('[KivoApp] submitForgotPassword exception:', e);
+      this.showAuthMessage("Une erreur inattendue est survenue. Veuillez réessayer.", "error");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = originalText; }
     }
+  },
+
+  /**
+   * Helper switching to forgot password form
+   */
+  handleForgotPassword: function () {
+    this.switchAuthTab('forgot');
   },
 
   /**
@@ -4467,8 +4559,6 @@ window.KivoApp = {
   showResetPasswordView: function () {
     // Hide all view sections
     document.querySelectorAll('.view-section').forEach(sec => sec.style.display = 'none');
-    const modalLogin = document.getElementById('modal-login');
-    if (modalLogin) modalLogin.style.display = 'none';
 
     const resetSec = document.getElementById('view-reset-password');
     if (resetSec) {

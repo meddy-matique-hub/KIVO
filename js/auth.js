@@ -50,8 +50,6 @@ window.KivoAuth = {
         this.session = null;
         this.user = null;
         this._isLoggingIn = false;
-        const loginModal = document.getElementById('modal-login');
-        if (loginModal) loginModal.style.display = 'none';
         if (window.KivoApp) {
           window.KivoApp.isSessionLoading = false;
           window.KivoApp._isAuthenticating = false;
@@ -101,16 +99,7 @@ window.KivoAuth = {
       this.session = session;
       this.user = session.user;
 
-      // 1. Close login modal
-      const loginModal = document.getElementById('modal-login');
-      if (loginModal) loginModal.style.display = 'none';
-
-      // 2. Hide auth messages
-      if (typeof window.hideAuthMessages === 'function') {
-        window.hideAuthMessages();
-      }
-
-      // 3. Delegate to KivoApp to sync data and determine route (onboarding vs dashboard)
+      // Delegate to KivoApp to sync data and determine route (onboarding vs dashboard)
       if (window.KivoApp) {
         await window.KivoApp.onUserAuthenticated(session.user);
       }
