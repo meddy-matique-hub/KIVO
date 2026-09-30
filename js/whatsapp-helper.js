@@ -13,7 +13,8 @@ window.WhatsAppHelper = {
     const docNum = document.number || `FAC-${document.id}`;
     const currencyStr = document.currency || "FCFA";
     const totalAmount = (document.total || 0).toLocaleString("fr-FR") + " " + currencyStr;
-    const publicUrl = `${window.location.origin}${window.location.pathname}#public-doc?id=${document.id}`;
+    const token = document.publicToken || document.public_token || document.id;
+    const publicUrl = `${window.location.origin}${window.location.pathname}#public-doc?token=${token}`;
 
     let message = `Bonjour ${document.clientName || "Cher client"},\n\n`;
     

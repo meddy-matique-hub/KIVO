@@ -3274,7 +3274,9 @@ window.KivoApp = {
    * Navigates to Public Document View
    */
   viewPublicDoc: function (docId) {
-    this.navigate('public-doc', `id=${docId}`);
+    const doc = (this.state && Array.isArray(this.state.documents)) ? this.state.documents.find(d => d.id === docId || d.publicToken === docId) : null;
+    const token = (doc && doc.publicToken) ? doc.publicToken : docId;
+    this.navigate('public-doc', `token=${token}`);
   },
 
   /**
@@ -3282,31 +3284,43 @@ window.KivoApp = {
    */
   renderPublicDocView: async function () {
     const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
-    const docId = urlParams.get('id') || urlParams.get('token');
+    const token = urlParams.get('token') || urlParams.get('id');
     
-    if (!docId) {
-      console.warn('[KivoApp] renderPublicDocView: No document ID provided.');
+    if (!token) {
+      console.warn('[KivoApp] renderPublicDocView: No document ID or token provided.');
       return;
     }
 
     let doc = (this.state && Array.isArray(this.state.documents)) 
-      ? this.state.documents.find(d => d.id === docId || d.publicToken === docId) 
+      ? this.state.documents.find(d => d.id === token || d.publicToken === token) 
       : null;
     let biz = (this.state && this.state.business) ? this.state.business : {};
 
     if (!doc && window.KivoDb && window.KivoDb.supabase) {
       try {
-        console.log('[KivoApp] Loading document from cloud database (identifier:', docId, ')');
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(docId);
-        let query = KivoDb.supabase.from('documents').select('*');
-        if (isUUID) {
-          query = query.eq('id', docId);
-        } else {
-          query = query.eq('public_token', docId);
-        }
-        const { data: cloudDoc, error: docErr } = await query.maybeSingle();
+        console.log('[KivoApp] Loading document via secure public RPC (token:', token, ')');
+        let cloudDoc = null;
 
-        if (docErr) throw docErr;
+        // 1. Appel sécurisé via fonction Postgres SECURITY DEFINER get_public_document
+        const { data: rpcData, error: rpcErr } = await KivoDb.supabase.rpc('get_public_document', { p_token: token });
+        if (rpcErr) {
+          console.warn('[KivoApp] get_public_document RPC error:', rpcErr);
+        }
+        if (rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
+          cloudDoc = rpcData[0];
+        } else if (rpcData && !Array.isArray(rpcData)) {
+          cloudDoc = rpcData;
+        }
+
+        // 2. Si non trouvé par token et que l'utilisateur est connecté, tentative de lecture propriétaire par UUID
+        if (!cloudDoc) {
+          const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
+          if (isUUID) {
+            const { data: ownDoc } = await KivoDb.supabase.from('documents').select('*').eq('id', token).maybeSingle();
+            if (ownDoc) cloudDoc = ownDoc;
+          }
+        }
+
         if (!cloudDoc) {
           this.showToast("Ce document n'existe pas ou a été supprimé.", "danger");
           return;

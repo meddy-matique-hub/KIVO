@@ -224,7 +224,8 @@ window.KivoAI = {
     const docNum = doc.number || `FAC-${doc.id}`;
     const amountStr = (doc.total || 0).toLocaleString("fr-FR") + " " + (doc.currency || "FCFA");
     const clientName = doc.clientName || "Cher client";
-    const publicUrl = `${window.location.origin}${window.location.pathname}#public-doc?id=${doc.id}`;
+    const token = doc.publicToken || doc.public_token || doc.id;
+    const publicUrl = `${window.location.origin}${window.location.pathname}#public-doc?token=${token}`;
 
     let message = "";
 
