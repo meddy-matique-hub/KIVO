@@ -727,6 +727,13 @@ window.KivoApp = {
       // Mandatory onboarding before accessing dashboard or document management
       if (viewName !== 'onboarding' && viewName !== 'public-doc') {
         viewName = 'onboarding';
+        if (window.location.hash !== '#onboarding') {
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', '#onboarding');
+          } else {
+            window.location.hash = '#onboarding';
+          }
+        }
       }
     } else {
       // 3. AUTHENTICATED AND ONBOARDED:
@@ -782,8 +789,11 @@ window.KivoApp = {
       }
     }
 
-    // Keep sidebar and app layout active for authenticated users visiting pricing or viewing documents
-    const isFullWidthView = !isAuthenticated ? publicViews.includes(viewName) : (viewName === 'landing' || viewName === 'onboarding');
+    // public-doc and onboarding are ALWAYS fullwidth — no sidebar, no account chrome — regardless of auth state
+    const alwaysFullWidth = ['public-doc', 'onboarding', 'landing', 'auth', 'pricing'];
+    const isFullWidthView = alwaysFullWidth.includes(viewName);
+    document.body.classList.toggle('full-width-view', isFullWidthView);
+
     const sidebar = document.getElementById('sidebar');
     const mobileBottomNav = document.querySelector('.mobile-bottom-nav');
     const mobileHeader = document.querySelector('.mobile-header');
@@ -1243,7 +1253,7 @@ window.KivoApp = {
 
     switch (this.activeView) {
       case 'onboarding':
-        if (!this._wizard) this.wizardInit();
+        this.wizardInit();
         break;
       case 'dashboard':
         this.renderDashboard();
@@ -3443,15 +3453,22 @@ window.KivoApp = {
     this._currentPublicDoc = doc;
     this._currentPublicBiz = biz;
 
+    const isAuth = !!(window.KivoAuth && window.KivoAuth.user);
+
     // Toggle back button visibility (only for authenticated users)
     const pubBackBtn = document.getElementById('pub-back-btn');
     if (pubBackBtn) {
       pubBackBtn.style.display = isAuth ? 'inline-flex' : 'none';
     }
 
+    // Toggle marketing CTA (visible only to visitors, hidden for authenticated owner)
+    const marketingCta = document.getElementById('pub-kivo-marketing-cta');
+    if (marketingCta) {
+      marketingCta.style.display = isAuth ? 'none' : 'block';
+    }
+
     // Top action bar inside public doc view
     const topActions = document.getElementById('pub-top-actions');
-    const isAuth = !!(window.KivoAuth && window.KivoAuth.user);
     if (topActions) {
       topActions.innerHTML = `
         ${isAuth ? `
@@ -5273,7 +5290,7 @@ window.KivoApp = {
 
     if (backBtn) backBtn.style.display = (idx > 0 && w.step !== 11) ? '' : 'none';
     if (nextBtn) nextBtn.style.display = (w.step !== 11) ? 'flex' : 'none';
-    if (skipBtn) skipBtn.style.display = (w.step === 2 || w.step === 9) ? '' : 'none';
+    if (skipBtn) skipBtn.style.display = 'none';
     if (nextLabel) {
       if (w.step === 10) nextLabel.textContent = 'Finaliser';
       else nextLabel.textContent = 'Suivant';

@@ -5606,6 +5606,24 @@ html, body {
   }
 }
 
+/* ==========================================================================
+   FULL-WIDTH VIEWS (public-doc, onboarding, landing, auth, pricing)
+   Strictly isolate from application layout: zero sidebar, zero mobile header
+   ========================================================================== */
+body.full-width-view #sidebar,
+body.full-width-view .sidebar,
+body.full-width-view #mobile-header,
+body.full-width-view .mobile-header,
+body.full-width-view #sidebar-backdrop,
+body.full-width-view .mobile-bottom-nav {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 
-
-
+body.full-width-view .main-content {
+  margin-left: 0 !important;
+  max-width: 100vw !important;
+  padding: 0 !important;
+  width: 100% !important;
+}
