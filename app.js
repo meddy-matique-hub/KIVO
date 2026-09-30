@@ -2075,6 +2075,7 @@ window.KivoApp = {
     this.recalculateBuilderTotals();
     this.updateLiveInvoicePreview();
     this.navigate('document-builder');
+    this.checkForBuilderDraft(false);
   },
 
   /**
@@ -2185,6 +2186,7 @@ window.KivoApp = {
     this.recalculateBuilderTotals();
     this.updateLiveInvoicePreview();
     this.navigate('document-builder');
+    this.checkForBuilderDraft(true);
   },
 
   /**
@@ -2294,6 +2296,7 @@ window.KivoApp = {
           pubArea.style.overflow = 'hidden';
           pubArea.style.background = (templateId === 'premium') ? '#181A20' : '#FFFFFF';
         }
+        this.triggerBuilderAutoSave();
         return;
       }
     }
@@ -2479,6 +2482,8 @@ window.KivoApp = {
         this.updateDocumentPreviewVisuals();
       } catch(e) {}
     }
+
+    this.triggerBuilderAutoSave();
   },
 
   /**
@@ -2494,6 +2499,292 @@ window.KivoApp = {
     const msg = `Bonjour ${client.name},\n\nVoici le document *${docNum}* d'un montant de *${grandTotal}* émis par *${this.state.business.name}*.\n\nN'hésitez pas si vous avez des questions !\nKIVO MATIQUE`;
     const url = window.WhatsAppHelper.getWhatsAppWebUrl(client.phone, msg);
     window.open(url, '_blank');
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // AUTO-SAVE DRAFT SYSTEM (Debounce 6s, reprise et suppression)
+  // ─────────────────────────────────────────────────────────────
+
+  _draftTimer: null,
+  _isDraftFinalizing: false,
+  _currentDraftDocId: null,
+
+  getDraftStorageKey: function () {
+    const userId = (window.KivoAuth && window.KivoAuth.user && window.KivoAuth.user.id) || 'guest';
+    return `kivo_builder_draft_${userId}`;
+  },
+
+  triggerBuilderAutoSave: function () {
+    if (this.activeView !== 'document-builder' || this._isDraftFinalizing) return;
+
+    // Critère : un client sélectionné/saisi OU au moins un article avec désignation
+    const clientSelect = document.getElementById('builder-doc-client-select');
+    const clientId = clientSelect ? clientSelect.value : '';
+    const customClientName = (document.getElementById('builder-client-name')?.value || '').trim();
+
+    let hasNamedItem = false;
+    document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
+      const name = (tr.querySelector('.item-name')?.value || '').trim();
+      if (name) hasNamedItem = true;
+    });
+
+    const isEligible = Boolean(clientId || customClientName || hasNamedItem);
+    const indicator = document.getElementById('builder-draft-indicator');
+    const dot = document.getElementById('builder-draft-dot');
+    const text = document.getElementById('builder-draft-text');
+
+    if (!isEligible) {
+      if (indicator) indicator.style.display = 'none';
+      return;
+    }
+
+    if (indicator) {
+      indicator.style.display = 'inline-flex';
+      if (dot) dot.style.background = '#F59E0B'; // Ambre : modifications en cours
+      if (text) text.textContent = 'Enregistrement automatique...';
+    }
+
+    if (this._draftTimer) clearTimeout(this._draftTimer);
+    this._draftTimer = setTimeout(() => {
+      this.executeBuilderDraftSave();
+    }, 6000); // 6 secondes de debounce (conforme : 5-10s)
+  },
+
+  executeBuilderDraftSave: async function (isSync = false) {
+    if (this.activeView !== 'document-builder' || this._isDraftFinalizing) return;
+
+    const getVal = id => (document.getElementById(id) ? document.getElementById(id).value : '');
+    const docId = getVal('builder-doc-id') || this._currentDraftDocId || ('draft_' + Date.now());
+    this._currentDraftDocId = docId;
+
+    const clientId = getVal('builder-doc-client-select');
+    const clientObj = this.state.clients.find(c => c.id === clientId) || {
+      id: clientId || 'cli_anon',
+      name: getVal('builder-client-name') || 'Client sans nom',
+      email: getVal('builder-client-email') || '',
+      phone: getVal('builder-client-phone') || '',
+      address: getVal('builder-client-address') || ''
+    };
+
+    const items = [];
+    let subtotal = 0;
+    let totalTaxAmount = 0;
+    document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
+      const name = (tr.querySelector('.item-name')?.value || '').trim();
+      const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 1;
+      const price = parseFloat(tr.querySelector('.item-price')?.value) || 0;
+      const taxRate = parseFloat(tr.querySelector('.item-tax')?.value || 18) || 0;
+      const totalHT = qty * price;
+      const taxAmount = totalHT * (taxRate / 100);
+      items.push({ name, quantity: qty, price, taxRate, total: totalHT + taxAmount, totalHT });
+      if (name) {
+        subtotal += totalHT;
+        totalTaxAmount += taxAmount;
+      }
+    });
+
+    const draftData = {
+      id: docId,
+      number: getVal('builder-doc-number') || 'BROUILLON',
+      type: getVal('builder-doc-type') || 'invoice',
+      status: 'draft',
+      currency: getVal('builder-doc-currency') || 'FCFA',
+      visualTemplate: getVal('builder-visual-template') || 'minimalist',
+      clientId: clientId,
+      clientName: clientObj.name,
+      clientEmail: clientObj.email,
+      clientPhone: clientObj.phone,
+      clientAddress: clientObj.address,
+      issueDate: getVal('builder-issue-date') || '',
+      dueDate: getVal('builder-due-date') || '',
+      items: items,
+      subtotal: subtotal,
+      tax: totalTaxAmount,
+      total: Math.max(0, subtotal + totalTaxAmount),
+      notes: getVal('builder-notes') || '',
+      terms: getVal('builder-terms') || 'À réception',
+      paymentMethod: getVal('builder-payment-method') || 'Virement bancaire',
+      savedAt: new Date().toISOString()
+    };
+
+    // 1. Sauvegarde locale persistante
+    try {
+      localStorage.setItem(this.getDraftStorageKey(), JSON.stringify(draftData));
+    } catch (e) {
+      console.warn('[KivoApp] Failed to save local draft:', e);
+    }
+
+    // 2. Sauvegarde Supabase en arrière-plan avec status='draft' si connecté
+    if (window.KivoDb && this.supabaseConnected && window.KivoAuth?.user) {
+      try {
+        const cloudDocId = (docId && !docId.startsWith('draft_')) ? docId : this.generateUUID();
+        draftData.cloudId = cloudDocId;
+        const cloudPayload = {
+          id: cloudDocId,
+          number: draftData.number,
+          type: draftData.type,
+          status: 'draft',
+          currency: draftData.currency,
+          client_id: clientId && clientId !== 'cli_anon' ? clientId : null,
+          client_name: draftData.clientName,
+          client_email: draftData.clientEmail,
+          client_phone: draftData.clientPhone,
+          issueDate: draftData.issueDate,
+          dueDate: draftData.dueDate,
+          items: draftData.items,
+          subtotal: draftData.subtotal,
+          taxRate: 0,
+          taxAmount: draftData.tax,
+          total: draftData.total,
+          amountPaid: 0,
+          notes: draftData.notes,
+          conditions: draftData.terms
+        };
+        window.KivoDb.saveDocument(cloudPayload).catch(e => console.warn('[KivoApp] Cloud draft push warning:', e));
+      } catch (e) {
+        console.warn('[KivoApp] Supabase draft auto-save error:', e);
+      }
+    }
+
+    // 3. Indicateur visuel temps réel
+    const indicator = document.getElementById('builder-draft-indicator');
+    const dot = document.getElementById('builder-draft-dot');
+    const text = document.getElementById('builder-draft-text');
+    if (indicator) {
+      indicator.style.display = 'inline-flex';
+      if (dot) dot.style.background = '#10B981'; // Vert : sauvegardé avec succès
+      const timeStr = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      if (text) text.textContent = `Brouillon auto-sauvegardé (${timeStr})`;
+    }
+  },
+
+  checkForBuilderDraft: function (isExistingDoc = false) {
+    const banner = document.getElementById('builder-draft-resume-banner');
+    if (!banner) return;
+
+    if (isExistingDoc) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(this.getDraftStorageKey());
+      if (!raw) {
+        banner.style.display = 'none';
+        return;
+      }
+      const draft = JSON.parse(raw);
+      if (!draft || (!draft.clientName && (!draft.items || draft.items.length === 0))) {
+        banner.style.display = 'none';
+        return;
+      }
+
+      // Si le builder édite déjà précisément ce document
+      const currentDocId = (document.getElementById('builder-doc-id') || {}).value;
+      if (currentDocId && currentDocId === draft.id) {
+        banner.style.display = 'none';
+        return;
+      }
+
+      const timeEl = document.getElementById('builder-draft-banner-time');
+      if (timeEl && draft.savedAt) {
+        const d = new Date(draft.savedAt);
+        const dateStr = d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        const clientStr = (draft.clientName && draft.clientName !== 'Client sans nom') ? `pour « ${draft.clientName} »` : '';
+        const totalStr = draft.total ? `(${draft.total.toLocaleString('fr-FR')} ${draft.currency || 'FCFA'})` : '';
+        timeEl.textContent = `Enregistré le ${dateStr} ${clientStr} ${totalStr}`.trim();
+      }
+
+      banner.style.display = 'flex';
+    } catch (e) {
+      console.warn('[KivoApp] checkForBuilderDraft error:', e);
+      banner.style.display = 'none';
+    }
+  },
+
+  restoreBuilderDraft: function () {
+    try {
+      const raw = localStorage.getItem(this.getDraftStorageKey());
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+      setVal('builder-doc-id', draft.id || '');
+      setVal('builder-doc-type', draft.type || 'invoice');
+      setVal('builder-doc-number', draft.number || '');
+      setVal('builder-doc-currency', draft.currency || 'FCFA');
+      setVal('builder-visual-template', draft.visualTemplate || 'minimalist');
+      setVal('builder-issue-date', draft.issueDate || '');
+      setVal('builder-due-date', draft.dueDate || '');
+      setVal('builder-notes', draft.notes || '');
+      setVal('builder-terms', draft.terms || 'À réception');
+      setVal('builder-payment-method', draft.paymentMethod || 'Virement bancaire');
+
+      // Client
+      const clientSelect = document.getElementById('builder-doc-client-select');
+      if (clientSelect && draft.clientId) {
+        clientSelect.value = draft.clientId;
+      }
+      setVal('builder-client-name', draft.clientName || '');
+      setVal('builder-client-email', draft.clientEmail || '');
+      setVal('builder-client-phone', draft.clientPhone || '');
+      setVal('builder-client-address', draft.clientAddress || '');
+
+      // Articles
+      const tbody = document.getElementById('builder-items-tbody');
+      if (tbody) {
+        tbody.innerHTML = '';
+        if (draft.items && draft.items.length > 0) {
+          draft.items.forEach(it => {
+            this.addBuilderLineItem(it.name || '', it.quantity || 1, it.price || '', it.taxRate || 18);
+          });
+        } else {
+          this.addBuilderLineItem('', 1, 0);
+        }
+      }
+
+      this._currentDraftDocId = draft.id;
+      const banner = document.getElementById('builder-draft-resume-banner');
+      if (banner) banner.style.display = 'none';
+
+      this.recalculateBuilderTotals();
+      this.updateLiveInvoicePreview();
+      this.showToast('Brouillon restauré ! Vous pouvez continuer votre saisie.', 'success');
+    } catch (e) {
+      console.error('[KivoApp] restoreBuilderDraft error:', e);
+      this.showToast('Erreur lors de la reprise du brouillon.', 'danger');
+    }
+  },
+
+  discardBuilderDraft: function () {
+    try {
+      localStorage.removeItem(this.getDraftStorageKey());
+    } catch (e) {}
+    this._currentDraftDocId = null;
+    const banner = document.getElementById('builder-draft-resume-banner');
+    if (banner) banner.style.display = 'none';
+    const indicator = document.getElementById('builder-draft-indicator');
+    if (indicator) indicator.style.display = 'none';
+    this.showToast('Brouillon supprimé.', 'info');
+  },
+
+  clearBuilderDraftOnFinalize: function () {
+    this._isDraftFinalizing = true;
+    if (this._draftTimer) {
+      clearTimeout(this._draftTimer);
+      this._draftTimer = null;
+    }
+    try {
+      localStorage.removeItem(this.getDraftStorageKey());
+    } catch (e) {}
+    this._currentDraftDocId = null;
+    const banner = document.getElementById('builder-draft-resume-banner');
+    if (banner) banner.style.display = 'none';
+    const indicator = document.getElementById('builder-draft-indicator');
+    if (indicator) indicator.style.display = 'none';
+    setTimeout(() => {
+      this._isDraftFinalizing = false;
+    }, 1200);
   },
 
   // ── TEMPLATES GALLERY LOGIC ──────────────────────────────────────────
@@ -2753,16 +3044,17 @@ window.KivoApp = {
     const existingDocId = document.getElementById('builder-doc-id').value;
     const type = document.getElementById('builder-doc-type').value;
 
-    // Enforce Free Tier limit of 3 documents (factures + devis) per month
+    // Enforce Free Tier limit of 3 documents (factures + devis) per month (seuls les documents finalisés comptent)
     const currentTier = (this.state.business?.subscriptionTier || 'Gratuit').toLowerCase();
     if (currentTier === 'gratuit' && !existingDocId) {
       const currentMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
       const monthlyDocs = (this.state.documents || []).filter(d => 
         d.issueDate && 
-        d.issueDate.startsWith(currentMonth)
+        d.issueDate.startsWith(currentMonth) &&
+        d.status !== 'draft' && d.status !== 'brouillon'
       );
       if (monthlyDocs.length >= 3) {
-        this.showToast("Limite atteinte : Le forfait Gratuit est limité à 3 documents (factures et devis) par mois. Passez au forfait PRO pour créer des documents en illimité.", "danger");
+        this.showToast("Limite atteinte : Le forfait Gratuit est limité à 3 documents (factures et devis finalisés) par mois. Passez au forfait PRO pour créer des documents en illimité.", "danger");
         this.navigate('pricing');
         return;
       }
@@ -2897,6 +3189,9 @@ window.KivoApp = {
       }).catch(e => console.error('[KivoApp] Supabase saveDocument error:', e));
     }
 
+    // Clear auto-saved draft: a finalized document is no longer a draft
+    this.clearBuilderDraftOnFinalize();
+
     this.showToast(`Document ${num} enregistré avec succès !`, "success");
     this.viewPublicDoc(docId);
   },
@@ -2987,24 +3282,29 @@ window.KivoApp = {
    */
   renderPublicDocView: async function () {
     const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
-    const docId = urlParams.get('id');
+    const docId = urlParams.get('id') || urlParams.get('token');
     
     if (!docId) {
       console.warn('[KivoApp] renderPublicDocView: No document ID provided.');
       return;
     }
 
-    let doc = this.state.documents.find(d => d.id === docId);
-    let biz = this.state.business;
+    let doc = (this.state && Array.isArray(this.state.documents)) 
+      ? this.state.documents.find(d => d.id === docId || d.publicToken === docId) 
+      : null;
+    let biz = (this.state && this.state.business) ? this.state.business : {};
 
-    if (!doc && this.supabaseConnected) {
+    if (!doc && window.KivoDb && window.KivoDb.supabase) {
       try {
-        console.log('[KivoApp] Loading document from cloud database (id:', docId, ')');
-        const { data: cloudDoc, error: docErr } = await KivoDb.supabase
-          .from('documents')
-          .select('*')
-          .eq('id', docId)
-          .maybeSingle();
+        console.log('[KivoApp] Loading document from cloud database (identifier:', docId, ')');
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(docId);
+        let query = KivoDb.supabase.from('documents').select('*');
+        if (isUUID) {
+          query = query.eq('id', docId);
+        } else {
+          query = query.eq('public_token', docId);
+        }
+        const { data: cloudDoc, error: docErr } = await query.maybeSingle();
 
         if (docErr) throw docErr;
         if (!cloudDoc) {
@@ -3101,6 +3401,13 @@ window.KivoApp = {
       return;
     }
     this._currentPublicDoc = doc;
+    this._currentPublicBiz = biz;
+
+    // Toggle back button visibility (only for authenticated users)
+    const pubBackBtn = document.getElementById('pub-back-btn');
+    if (pubBackBtn) {
+      pubBackBtn.style.display = isAuth ? 'inline-flex' : 'none';
+    }
 
     // Top action bar inside public doc view
     const topActions = document.getElementById('pub-top-actions');
@@ -6300,7 +6607,7 @@ window.KivoApp = {
    * Avec un id / doc : le document correspondant dans le state
    */
   _getDocForRender: function (targetDocOrId) {
-    const biz = this.state.business || {};
+    const biz = this._currentPublicBiz || this.state.business || {};
     let targetDoc = null;
     let templateId = (document.getElementById('builder-visual-template') || {}).value || biz.visualTemplate || 'minimalist';
 
