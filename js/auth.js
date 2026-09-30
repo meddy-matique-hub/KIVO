@@ -118,6 +118,10 @@ window.KivoAuth = {
       console.error('[KivoAuth] signUp error:', error.message);
       return { error };
     }
+    if (data && data.session) {
+      this.session = data.session;
+      this.user = data.user;
+    }
     return { data };
   },
 

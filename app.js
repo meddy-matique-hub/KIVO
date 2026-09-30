@@ -3461,10 +3461,10 @@ window.KivoApp = {
       pubBackBtn.style.display = isAuth ? 'inline-flex' : 'none';
     }
 
-    // Toggle marketing CTA (visible only to visitors, hidden for authenticated owner)
+    // Marketing CTA (propose creating an account at bottom of public invoice)
     const marketingCta = document.getElementById('pub-kivo-marketing-cta');
     if (marketingCta) {
-      marketingCta.style.display = isAuth ? 'none' : 'block';
+      marketingCta.style.display = 'block';
     }
 
     // Top action bar inside public doc view
@@ -3492,7 +3492,7 @@ window.KivoApp = {
       const newViews = (doc.viewsCount || 0) + 1;
       const newStatus = doc.status === 'sent' ? 'viewed' : doc.status;
       
-      const localDoc = this.state.documents.find(d => d.id === docId);
+      const localDoc = (this.state && Array.isArray(this.state.documents)) ? this.state.documents.find(d => d.id === doc.id) : null;
       if (localDoc) {
         localDoc.viewsCount = newViews;
         localDoc.status = newStatus;
@@ -5286,11 +5286,13 @@ window.KivoApp = {
     const backBtn = document.getElementById('wz-btn-back');
     const nextBtn = document.getElementById('wz-btn-next');
     const skipBtn = document.getElementById('wz-btn-skip');
+    const skipAllWrap = document.getElementById('wizard-skip-all-wrap');
     const nextLabel = document.getElementById('wz-btn-next-label');
 
     if (backBtn) backBtn.style.display = (idx > 0 && w.step !== 11) ? '' : 'none';
     if (nextBtn) nextBtn.style.display = (w.step !== 11) ? 'flex' : 'none';
-    if (skipBtn) skipBtn.style.display = 'none';
+    if (skipBtn) skipBtn.style.display = (w.step > 1 && w.step !== 11) ? '' : 'none';
+    if (skipAllWrap) skipAllWrap.style.display = (w.step !== 11) ? 'block' : 'none';
     if (nextLabel) {
       if (w.step === 10) nextLabel.textContent = 'Finaliser';
       else nextLabel.textContent = 'Suivant';
@@ -5402,7 +5404,7 @@ window.KivoApp = {
     }
   },
 
-  /** Skip optional steps (2 and 9) */
+  /** Skip current step */
   wizardSkip: function () {
     if (!this._wizard) return;
     this._wizardSave();
@@ -5410,9 +5412,32 @@ window.KivoApp = {
     const idx = steps.indexOf(this._wizard.step);
     if (idx < steps.length - 1) {
       this._wizard.step = steps[idx + 1];
+      if (this._wizard.step === 11) {
+        this._wizardCommit();
+        return;
+      }
       this._wizardPersistProgress();
       this._wizardRender();
     }
+  },
+
+  /** Skip entire onboarding and launch dashboard immediately with clean defaults */
+  wizardSkipAll: async function () {
+    if (!this._wizard) this.wizardInit();
+    const w = this._wizard;
+    const authUser = window.KivoAuth?.user;
+    const metaName = authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || '';
+    const defOwner = metaName || (authUser?.email ? authUser.email.split('@')[0] : '') || 'Utilisateur';
+
+    if (!w.data.profileType) w.data.profileType = 'Indépendant';
+    if (!w.data.owner) w.data.owner = defOwner;
+    if (!w.data.bizName) w.data.bizName = w.data.owner ? `${w.data.owner} Studio` : 'Mon Entreprise';
+    if (!w.data.email) w.data.email = authUser?.email || '';
+    if (!w.data.country) w.data.country = 'Sénégal';
+    if (!w.data.currency) w.data.currency = 'FCFA';
+
+    await this._wizardCommit();
+    this.wizardFinish();
   },
 
   /** Handle profile type card selection */
