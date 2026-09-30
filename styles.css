@@ -2490,6 +2490,25 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   margin: 0 auto 1.25rem auto;
 }
 
+.modal-logout-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1.5px solid rgba(239, 68, 68, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem auto;
+  box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.2);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-confirm-card:hover .modal-logout-icon {
+  transform: scale(1.06);
+}
+
 /* ==========================================================================
    INVOICE TEMPLATES & VISUAL SYSTEM
    ========================================================================== */

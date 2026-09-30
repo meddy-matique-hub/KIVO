@@ -603,7 +603,13 @@ window.KivoApp = {
    * FIX: Must call supabase.auth.signOut() to clear the session token from localStorage.
    * Without this, getSession() finds the old token and auto-logs in the user.
    */
-  logout: async function () {
+  logout: async function (confirmed = false) {
+    if (!confirmed) {
+      this.openModal('modal-confirm-logout');
+      return;
+    }
+    this.closeModal('modal-confirm-logout');
+
     console.log('[KivoApp] Logging out...');
     this.isSessionLoading = false;
     this._isAuthenticating = false;
