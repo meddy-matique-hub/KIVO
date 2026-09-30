@@ -734,6 +734,19 @@ window.KivoApp = {
       if (!viewName || viewName === 'landing' || viewName === 'auth' || viewName === 'onboarding') {
         viewName = 'dashboard';
       }
+
+      // Restrict AI view to Pro/Business plans only
+      if (viewName === 'ai') {
+        const tier = (this.state && this.state.business && this.state.business.subscriptionTier) || 'Gratuit';
+        const isPaid = (tier === 'Pro' || tier === 'Business');
+        if (!isPaid) {
+          viewName = 'dashboard';
+          // Show toast after render cycle
+          setTimeout(() => {
+            this.showToast('⭐ Création avec IA — disponible à partir du forfait PRO. Passez au niveau supérieur pour débloquer cette fonctionnalité.', 'info', 5000);
+          }, 100);
+        }
+      }
     }
 
     this.activeView = viewName;
@@ -820,6 +833,19 @@ window.KivoApp = {
         item.classList.add('active');
       }
     });
+
+    // Show/hide AI nav item and related buttons based on subscription plan
+    {
+      const tier = (this.state && this.state.business && this.state.business.subscriptionTier) || 'Gratuit';
+      const isPaid = (tier === 'Pro' || tier === 'Business');
+      // Sidebar / mobile nav items pointing to AI
+      document.querySelectorAll('[data-view="ai"]').forEach(el => {
+        el.style.display = isPaid ? '' : 'none';
+      });
+      // "Voir la page IA" button inside new-doc-choice modal
+      const modalAiBtn = document.getElementById('modal-new-doc-ai-btn');
+      if (modalAiBtn) modalAiBtn.style.display = isPaid ? '' : 'none';
+    }
 
     // Auto-expand and highlight Billing group when in documents or document-builder
     const billingGroup = document.getElementById('nav-group-billing-items');
