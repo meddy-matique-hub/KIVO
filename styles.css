@@ -974,12 +974,12 @@ button {
     box-shadow: 4px 0 40px rgba(5, 11, 24, 0.45) !important;
   }
 
-  /* Mobile header: full-width smart fixed bar at top — max 56px */
+  /* Mobile header: full-width smart fixed bar at top — max 56px + safe-area */
   .mobile-header {
     display: flex !important;
     width: 100% !important;
-    height: 56px !important;
-    max-height: 56px !important;
+    height: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    min-height: calc(56px + env(safe-area-inset-top, 0px)) !important;
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -990,7 +990,7 @@ button {
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease !important;
     padding: 0 1.15rem !important;
     /* iOS safe-area: content does not clip under notch */
-    padding-top: max(env(safe-area-inset-top, 0px), 0px) !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
   }
 
   .mobile-header.mobile-header--hidden {
@@ -1007,9 +1007,7 @@ button {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    padding: calc(56px + 1.25rem) 1rem 5rem 1rem !important;
-    /* Extra space for iOS bottom bar */
-    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px)) !important;
+    padding: calc(56px + env(safe-area-inset-top, 0px) + 1.25rem) 1rem calc(4rem + env(safe-area-inset-bottom, 0px)) 1rem !important;
     box-sizing: border-box !important;
     flex: 1 1 auto !important;
   }
@@ -1038,7 +1036,10 @@ button {
     width: 100% !important;
   }
   .main-content {
-    padding: 1rem 0.85rem 4rem 0.85rem !important;
+    padding-top: calc(56px + env(safe-area-inset-top, 0px) + 1.25rem) !important;
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px)) !important;
     overflow-x: hidden !important;
   }
 
