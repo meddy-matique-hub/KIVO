@@ -2391,14 +2391,14 @@ window.KivoApp = {
         if (previewContainer) {
           previewContainer.innerHTML = renderedHtml;
           previewContainer.style.padding = '0';
-          previewContainer.style.overflow = 'hidden';
+          previewContainer.style.overflow = (window.innerWidth <= 1024) ? 'visible' : 'hidden';
           previewContainer.style.background = (templateId === 'premium') ? '#181A20' : '#FFFFFF';
         }
         const pubArea = document.getElementById('public-doc-printable-area');
         if (pubArea) {
           pubArea.innerHTML = renderedHtml;
           pubArea.style.padding = '0';
-          pubArea.style.overflow = 'hidden';
+          pubArea.style.overflow = (window.innerWidth <= 1024) ? 'visible' : 'hidden';
           pubArea.style.background = (templateId === 'premium') ? '#181A20' : '#FFFFFF';
         }
         this.triggerBuilderAutoSave();

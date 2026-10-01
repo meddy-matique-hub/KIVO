@@ -5430,13 +5430,33 @@ html, body {
 
   /* Preview column: full width with proper centering */
   .builder-preview-column {
-    padding: 1rem !important;
+    padding: 0.75rem !important;
     background: #F8FAFC;
     border-radius: 12px;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .mock-paper-stack {
     max-width: 100% !important;
+  }
+
+  .clean-paper-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  #live-paper-preview-container {
+    aspect-ratio: auto !important;
+    height: auto !important;
+    min-height: 480px !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 }
 
