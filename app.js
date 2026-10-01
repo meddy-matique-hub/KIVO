@@ -605,6 +605,10 @@ window.KivoApp = {
    */
   logout: async function (confirmed = false) {
     if (!confirmed) {
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar && sidebar.classList.contains('mobile-open') && typeof this.toggleMobileSidebar === 'function') {
+        this.toggleMobileSidebar(false);
+      }
       this.openModal('modal-confirm-logout');
       return;
     }
@@ -5961,12 +5965,20 @@ window.KivoApp = {
 
   openModal: function (modalId) {
     const el = document.getElementById(modalId);
-    if (el) el.classList.add('active');
+    if (el) {
+      el.classList.add('active');
+      el.style.display = 'flex';
+      el.style.visibility = 'visible';
+    }
   },
 
   closeModal: function (modalId) {
     const el = document.getElementById(modalId);
-    if (el) el.classList.remove('active');
+    if (el) {
+      el.classList.remove('active');
+      el.style.display = '';
+      el.style.visibility = '';
+    }
   },
 
 
