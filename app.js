@@ -3439,8 +3439,8 @@ window.KivoApp = {
 
         // Parse items — stored as {lines:[], issueDate, dueDate, currency} wrapper
         let pubItems = cloudDoc.items || [];
-        let pubIssueDate = cloudDoc.issue_date || '';
-        let pubDueDate = cloudDoc.due_date || '';
+        let pubIssueDate = cloudDoc.date_issued || cloudDoc.issue_date || '';
+        let pubDueDate = cloudDoc.date_due || cloudDoc.due_date || '';
         let pubCurrency = cloudDoc.currency || 'FCFA';
         if (typeof pubItems === 'string') {
           try {
@@ -3463,6 +3463,23 @@ window.KivoApp = {
           pubItems = pubItems.lines;
         }
 
+        const rawSub = parseFloat(cloudDoc.subtotal) || 0;
+        const rawDisc = parseFloat(cloudDoc.discount) || 0;
+        const rawRate = parseFloat(cloudDoc.tax_rate) || 0;
+        let rawTax = parseFloat(cloudDoc.tax_amount) || 0;
+        let rawTot = parseFloat(cloudDoc.total) || 0;
+
+        let calcSub = rawSub;
+        if (calcSub === 0 && Array.isArray(pubItems) && pubItems.length > 0) {
+          calcSub = pubItems.reduce((acc, it) => acc + (parseFloat(it.total) || (parseFloat(it.price) * parseFloat(it.quantity)) || 0), 0);
+        }
+        if (rawTax === 0 && rawRate > 0 && calcSub > 0) {
+          rawTax = Math.round((calcSub - rawDisc) * (rawRate / 100));
+        }
+        if (rawTot === 0 && calcSub > 0) {
+          rawTot = Math.max(0, calcSub - rawDisc + rawTax);
+        }
+
         doc = {
           id: cloudDoc.id,
           number: cloudDoc.number,
@@ -3478,11 +3495,11 @@ window.KivoApp = {
           issueDate: pubIssueDate,
           dueDate: pubDueDate,
           items: pubItems,
-          subtotal: parseFloat(cloudDoc.subtotal) || 0,
-          discount: parseFloat(cloudDoc.discount) || 0,
-          taxRate: parseFloat(cloudDoc.tax_rate) || 0,
-          tax: parseFloat(cloudDoc.tax_amount) || 0,
-          total: parseFloat(cloudDoc.total) || 0,
+          subtotal: calcSub,
+          discount: rawDisc,
+          taxRate: rawRate,
+          tax: rawTax,
+          total: rawTot,
           amountPaid: parseFloat(cloudDoc.amount_paid) || 0,
           notes: cloudDoc.notes || '',
           terms: cloudDoc.conditions || '',
@@ -3525,6 +3542,20 @@ window.KivoApp = {
       this.showToast("Document non trouvé.", "danger");
       return;
     }
+
+    // Ensure fallback totals for local docs if missing
+    if (doc) {
+      if ((!doc.subtotal || doc.subtotal === 0) && Array.isArray(doc.items) && doc.items.length > 0) {
+        doc.subtotal = doc.items.reduce((acc, it) => acc + (parseFloat(it.total) || (parseFloat(it.price) * parseFloat(it.quantity)) || 0), 0);
+      }
+      if ((!doc.tax || doc.tax === 0) && doc.taxRate && doc.subtotal) {
+        doc.tax = Math.round(((doc.subtotal || 0) - (doc.discount || 0)) * ((doc.taxRate || 0) / 100));
+      }
+      if ((!doc.total || doc.total === 0) && doc.subtotal) {
+        doc.total = Math.max(0, (doc.subtotal || 0) - (doc.discount || 0) + (doc.tax || 0));
+      }
+    }
+
     this._currentPublicDoc = doc;
     this._currentPublicBiz = biz;
 
@@ -3643,8 +3674,26 @@ window.KivoApp = {
       </tr>
     `).join('');
 
-    document.getElementById('pub-subtotal').textContent = (doc.subtotal || doc.total).toLocaleString('fr-FR') + ' ' + currencyStr;
-    document.getElementById('pub-discount').textContent = '-' + (doc.discount || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
+    document.getElementById('pub-subtotal').textContent = (doc.subtotal || doc.total || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
+    const pubDiscRow = document.getElementById('pub-discount-row');
+    if (pubDiscRow) {
+      pubDiscRow.style.display = (doc.discount && doc.discount > 0) ? 'flex' : 'none';
+      document.getElementById('pub-discount').textContent = '-' + (doc.discount || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
+    }
+
+    const pubTaxRow = document.getElementById('pub-tax-row');
+    const pubTaxEl = document.getElementById('pub-tax');
+    const pubTaxLabel = document.getElementById('pub-tax-label');
+    if (pubTaxRow && pubTaxEl) {
+      if ((doc.tax && doc.tax > 0) || (doc.taxRate && doc.taxRate > 0)) {
+        pubTaxRow.style.display = 'flex';
+        if (pubTaxLabel) pubTaxLabel.textContent = `TVA (${doc.taxRate || 0}%) :`;
+        pubTaxEl.textContent = (doc.tax || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
+      } else {
+        pubTaxRow.style.display = 'none';
+      }
+    }
+
     document.getElementById('pub-total').textContent = (doc.total || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
     document.getElementById('pub-bar-total').textContent = (doc.total || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
 

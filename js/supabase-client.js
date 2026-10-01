@@ -180,37 +180,43 @@ if (window.KivoDb) {
       }
       const lines = Array.isArray(rawLines) ? rawLines : [];
 
-      const resolvedIssueDate = doc.issueDate || doc.issue_date || new Date().toISOString().split('T')[0];
-      const resolvedDueDate   = doc.dueDate   || doc.due_date   || doc.date_due || '';
-      const resolvedCurrency  = doc.currency  || 'FCFA';
+      const isUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+      const rawClientId = doc.clientId || doc.client_id || null;
+      const validClientId = (rawClientId && isUUID(rawClientId)) ? rawClientId : null;
 
-      const itemsPayload = JSON.stringify({
+      const rawIssueDate = doc.issueDate || doc.issue_date || doc.date_issued;
+      const resolvedIssueDate = rawIssueDate ? String(rawIssueDate).trim() : new Date().toISOString().split('T')[0];
+
+      const rawDueDate = doc.dueDate || doc.due_date || doc.date_due;
+      const resolvedDueDate = (rawDueDate && String(rawDueDate).trim()) ? String(rawDueDate).trim() : null;
+
+      const resolvedCurrency = doc.currency || 'FCFA';
+
+      const itemsPayload = {
         lines: lines,
         issueDate: resolvedIssueDate,
-        dueDate: resolvedDueDate,
+        dueDate: resolvedDueDate || '',
         currency: resolvedCurrency
-      });
+      };
 
-      // Strict mapping to valid Supabase columns discovered from schema probe:
+      // Strict mapping to valid Supabase columns:
       // id, user_id, number, type, status, client_id, client_name, client_type,
-      // client_tax_id, client_email, client_phone, date_due, items, subtotal,
-      // discount, tax_rate, tax_amount, total, amount_paid, notes, conditions,
-      // public_token, views_count
-      // NOTE: 'issue_date' and 'currency' DO NOT EXIST as columns in documents table
-      // (they are stored inside items JSON). 'due_date' is named 'date_due'.
+      // client_tax_id, client_email, client_phone, date_issued, date_due, items,
+      // subtotal, discount, tax_rate, tax_amount, total, amount_paid, notes,
+      // conditions, public_token, views_count
       const payload = {
-        id: doc.id,
         user_id: user.id,
-        number: doc.number,
+        number: doc.number || ('FAC-' + Date.now().toString().slice(-6)),
         type: doc.type || 'invoice',
         status: doc.status || 'draft',
-        client_id: doc.clientId || doc.client_id || null,
+        date_issued: resolvedIssueDate,
+        date_due: resolvedDueDate,
+        client_id: validClientId,
         client_name: doc.clientName || doc.client_name || '',
         client_type: doc.clientType || doc.client_type || 'B2B',
         client_tax_id: doc.clientTaxId || doc.client_tax_id || '',
         client_email: doc.clientEmail || doc.client_email || '',
         client_phone: doc.clientPhone || doc.client_phone || '',
-        date_due: resolvedDueDate || null,
         items: itemsPayload,
         subtotal: Number(doc.subtotal) || 0,
         discount: Number(doc.discount) || 0,
@@ -223,6 +229,10 @@ if (window.KivoDb) {
         public_token: doc.publicToken || doc.public_token || ('tok_' + Math.random().toString(36).substring(2, 12)),
         views_count: Number(doc.viewsCount !== undefined ? doc.viewsCount : doc.views_count) || 0
       };
+
+      if (doc.id && isUUID(doc.id)) {
+        payload.id = doc.id;
+      }
 
       const { data: upserted, error } = await _kivoClient.from('documents').upsert(payload).select();
       if (error) {
