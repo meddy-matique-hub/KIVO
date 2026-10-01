@@ -5698,8 +5698,14 @@ window.KivoApp = {
 
     // Restore logo in the upload box
     const previewArea = document.getElementById('profile-logo-preview');
+    const profileSizeControls = document.getElementById('profile-logo-size-controls');
+    const profileSizeDisplay = document.getElementById('profile-logo-size-display');
     if (previewArea && biz.logoUrl) {
       previewArea.innerHTML = `<img src="${biz.logoUrl}" style="width:100%;height:100%;object-fit:contain;border-radius:8px;" alt="Logo">`;
+      if (profileSizeControls) profileSizeControls.style.display = 'flex';
+      if (profileSizeDisplay) profileSizeDisplay.textContent = (biz.logoSize || 70) + 'px';
+    } else if (profileSizeControls) {
+      profileSizeControls.style.display = 'none';
     }
 
     // Status badge — show subscription tier
@@ -5865,8 +5871,16 @@ window.KivoApp = {
 
       // Update the logo upload box preview
       const previewArea = document.getElementById('profile-logo-preview');
+      const profileSizeControls = document.getElementById('profile-logo-size-controls');
+      const profileSizeDisplay = document.getElementById('profile-logo-size-display');
       if (previewArea) {
         previewArea.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:contain;border-radius:8px;" alt="Logo">`;
+      }
+      if (profileSizeControls) {
+        profileSizeControls.style.display = 'flex';
+      }
+      if (profileSizeDisplay) {
+        profileSizeDisplay.textContent = (this.state.business?.logoSize || 70) + 'px';
       }
 
       // Update the avatar circle in the identity card
@@ -6720,15 +6734,42 @@ window.KivoApp = {
   },
 
   /**
-   * Slider taille du logo (30px - 180px)
+   * Ajuste la taille du logo par pas de +/- delta (ex: +10 ou -10)
+   */
+  adjustLogoSize: function (delta) {
+    const currentSize = (this.state.business && this.state.business.logoSize) ? parseInt(this.state.business.logoSize) : 70;
+    const newSize = currentSize + delta;
+    this.onLogoSizeChange(newSize);
+  },
+
+  /**
+   * Slider / Boutons taille du logo (40px - 200px)
    */
   onLogoSizeChange: function (val) {
-    const size = parseInt(val) || 70;
+    let size = parseInt(val) || 70;
+    if (size < 40) size = 40;
+    if (size > 200) size = 200;
+
     const displayEl = document.getElementById('logo-size-display');
     if (displayEl) displayEl.textContent = size + 'px';
+    const badgeEl = document.getElementById('builder-logo-size-badge');
+    if (badgeEl) badgeEl.textContent = size + 'px';
+    const profileDisplay = document.getElementById('profile-logo-size-display');
+    if (profileDisplay) profileDisplay.textContent = size + 'px';
+    const rangeInput = document.getElementById('builder-logo-size');
+    if (rangeInput) rangeInput.value = size;
+
     if (!this.state.business) this.state.business = {};
     this.state.business.logoSize = size;
     this.saveState();
+
+    // Persist to Supabase business_settings.logo_size
+    if (window.KivoDb && window.KivoAuth && window.KivoAuth.user) {
+      window.KivoDb.saveSettings({ logo_size: size }).catch(err => {
+        console.error('[KivoApp] Erreur sauvegarde logo_size cloud:', err);
+      });
+    }
+
     this.updateLiveInvoicePreview();
   },
 

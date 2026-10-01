@@ -1488,9 +1488,12 @@
                     
                     <div id="builder-logo-preview-box" style="display: none; align-items: center; justify-content: center; flex-direction: column; gap: 0.75rem;">
                       <img id="builder-logo-preview-img" style="max-height: 60px; max-width: 200px; object-fit: contain;">
-                      <div style="display: flex; gap: 0.5rem;">
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); document.getElementById('builder-logo-upload').click();" style="font-size: 0.75rem; padding: 0.35rem 0.75rem; background: #FFF; border: 1px solid #CBD5E1;">Remplacer</button>
-                        <button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation(); KivoApp.removeBuilderLogo();" style="font-size: 0.75rem; padding: 0.35rem 0.75rem; background: #FFF; border: 1px solid #EF4444; color: #EF4444;">Supprimer</button>
+                      <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; justify-content: center;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); KivoApp.adjustLogoSize(-10);" style="width: 26px; height: 26px; min-width: 26px; padding: 0; font-weight: 700; font-size: 1rem; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;" title="Réduire taille">-</button>
+                        <span id="builder-logo-size-badge" style="font-size: 0.75rem; font-weight: 700; color: #4F46E5; min-width: 38px; text-align: center;">70px</span>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); KivoApp.adjustLogoSize(10);" style="width: 26px; height: 26px; min-width: 26px; padding: 0; font-weight: 700; font-size: 1rem; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;" title="Augmenter taille">+</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); document.getElementById('builder-logo-upload').click();" style="font-size: 0.75rem; padding: 0.35rem 0.65rem; background: #FFF; border: 1px solid #CBD5E1;">Remplacer</button>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation(); KivoApp.removeBuilderLogo();" style="font-size: 0.75rem; padding: 0.35rem 0.65rem; background: #FFF; border: 1px solid #EF4444; color: #EF4444;">Supprimer</button>
                       </div>
                     </div>
                   </div>
@@ -1502,10 +1505,10 @@
                         <span>Taille du logo</span>
                         <span id="logo-size-display" style="color: #4F46E5; font-weight: 700;">70px</span>
                       </label>
-                      <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="font-size: 0.75rem; color: #64748B;">S</span>
-                        <input type="range" id="builder-logo-size" min="30" max="180" value="70" style="flex: 1; accent-color: #4F46E5; cursor: pointer;" oninput="KivoApp.onLogoSizeChange(this.value)">
-                        <span style="font-size: 0.75rem; color: #64748B;">XL</span>
+                      <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.adjustLogoSize(-10)" style="width: 28px; height: 28px; min-width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; border-radius: 6px;" title="Réduire la taille">-</button>
+                        <input type="range" id="builder-logo-size" min="40" max="200" step="5" value="70" style="flex: 1; accent-color: #4F46E5; cursor: pointer;" oninput="KivoApp.onLogoSizeChange(this.value)">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.adjustLogoSize(10)" style="width: 28px; height: 28px; min-width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; border-radius: 6px;" title="Augmenter la taille">+</button>
                       </div>
                     </div>
                     <div>
@@ -2603,11 +2606,18 @@
 
                   <!-- Row: Logo upload box + Address -->
                   <div class="profile-logo-address-row">
-                    <div class="profile-logo-upload-box" onclick="document.getElementById('profile-logo-input').click()" title="Importer ou changer le logo de l'entreprise">
-                      <input type="file" id="profile-logo-input" accept="image/*" style="display:none;" onchange="KivoApp.handleProfileLogoUpload(this.files)">
-                      <div id="profile-logo-preview" class="profile-logo-preview-area">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                        <span class="profile-upload-text">Importer logo</span>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 0.35rem;">
+                      <div class="profile-logo-upload-box" onclick="document.getElementById('profile-logo-input').click()" title="Importer ou changer le logo de l'entreprise">
+                        <input type="file" id="profile-logo-input" accept="image/*" style="display:none;" onchange="KivoApp.handleProfileLogoUpload(this.files)">
+                        <div id="profile-logo-preview" class="profile-logo-preview-area">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                          <span class="profile-upload-text">Importer logo</span>
+                        </div>
+                      </div>
+                      <div id="profile-logo-size-controls" style="display: none; align-items: center; justify-content: center; gap: 0.35rem;" onclick="event.stopPropagation()">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.adjustLogoSize(-10)" style="width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: 700; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center;" title="Réduire taille">-</button>
+                        <span id="profile-logo-size-display" style="font-size: 0.72rem; font-weight: 600; color: #4F46E5; min-width: 36px; text-align: center;">70px</span>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.adjustLogoSize(10)" style="width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: 700; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center;" title="Augmenter taille">+</button>
                       </div>
                     </div>
 
