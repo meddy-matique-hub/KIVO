@@ -114,26 +114,11 @@
             <span class="nav-label">Tableau de bord</span>
           </a>
 
-          <!-- Facturation (collapsible group) -->
-          <div class="nav-group" id="nav-group-billing">
-            <button class="nav-group-trigger" onclick="KivoApp.toggleNavGroup('billing')" data-group="billing">
-              <div class="nav-group-trigger-left">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                <span class="nav-label">Facturation</span>
-              </div>
-              <svg class="nav-group-chevron" id="chevron-billing" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="nav-group-items" id="nav-group-billing-items">
-              <a href="#documents" class="nav-sub-item" data-view="documents">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 12h6M9 16h4M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
-                <span class="nav-label">Factures</span>
-              </a>
-              <a href="#documents" class="nav-sub-item" data-view="quotes" onclick="KivoApp.navigate('documents'); setTimeout(()=>{const q=document.querySelector('[data-filter=quote]'); if(q) q.click();},120);">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
-                <span class="nav-label">Devis</span>
-              </a>
-            </div>
-          </div>
+          <!-- Facturation (Documents Unifiés) -->
+          <a href="#documents" class="nav-item" data-view="documents">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span class="nav-label">Facturation</span>
+          </a>
 
           <!-- Clients -->
           <a href="#clients" class="nav-item" data-view="clients">

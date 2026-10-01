@@ -839,7 +839,7 @@ window.KivoApp = {
     document.querySelectorAll('.nav-item, .mobile-nav-item, .nav-sub-item').forEach(item => {
       item.classList.remove('active');
       const itemDataView = item.getAttribute('data-view');
-      if (itemDataView === viewName || ((viewName === 'services' || viewName === 'products-services') && itemDataView === 'services')) {
+      if (itemDataView === viewName || ((viewName === 'documents' || viewName === 'document-builder') && itemDataView === 'documents') || ((viewName === 'services' || viewName === 'products-services') && itemDataView === 'services')) {
         item.classList.add('active');
       }
     });
@@ -1896,14 +1896,20 @@ window.KivoApp = {
       refunded: 'Remboursée'
     }[doc.status] || doc.status;
 
+    const isQuote = doc.type === 'quote';
+    const rowClass = isQuote ? 'doc-row-quote' : 'doc-row-invoice';
+    const numClass = isQuote ? 'doc-num-quote' : 'doc-num-invoice';
+    const typeBadgeClass = isQuote ? 'badge-doc-quote' : 'badge-doc-invoice';
+    const typeLabel = isQuote ? 'Devis' : 'Facture';
+
     return `
-      <tr class="doc-table-row" onclick="KivoApp.viewPublicDoc('${doc.id}')" style="cursor: pointer;">
-        <td><strong style="color: var(--primary); font-weight: 700;">${doc.number}</strong></td>
+      <tr class="doc-table-row ${rowClass}" onclick="KivoApp.viewPublicDoc('${doc.id}')" style="cursor: pointer;">
+        <td><strong class="${numClass}">${doc.number}</strong></td>
         <td>
           <div style="font-weight: 600; color: var(--text-primary);">${doc.clientName || 'Client anonyme'}</div>
           ${doc.clientType ? `<span style="font-size: 0.72rem; color: var(--text-muted);">${doc.clientType}</span>` : ''}
         </td>
-        <td><span class="badge ${doc.type === 'quote' ? 'badge-sent' : 'badge-draft'}">${doc.type === 'quote' ? 'Devis' : 'Facture'}</span></td>
+        <td><span class="badge ${typeBadgeClass}">${typeLabel}</span></td>
         <td style="color: var(--text-secondary); font-size: 0.88rem;">${doc.issueDate || '-'}</td>
         <td style="color: var(--text-secondary); font-size: 0.88rem;">${doc.dueDate || '-'}</td>
         <td><strong style="color: var(--text-primary); font-size: 0.95rem;">${(doc.total || 0).toLocaleString('fr-FR')} ${currencyStr}</strong></td>

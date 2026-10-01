@@ -1233,6 +1233,41 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   color: var(--text-secondary);
 }
 
+/* Document Type Distinct Colors (Point #5: Facture=Blue, Devis=Orange) */
+.badge-doc-invoice {
+  background-color: #EFF6FF !important;
+  color: #1D4ED8 !important;
+  border: 1px solid #BFDBFE !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em;
+}
+
+.badge-doc-quote {
+  background-color: #FFFBEB !important;
+  color: #B45309 !important;
+  border: 1px solid #FDE68A !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em;
+}
+
+.doc-row-invoice td:first-child {
+  border-left: 3px solid #3B82F6 !important;
+}
+
+.doc-row-quote td:first-child {
+  border-left: 3px solid #F59E0B !important;
+}
+
+.doc-num-invoice {
+  color: #2563EB !important;
+  font-weight: 700;
+}
+
+.doc-num-quote {
+  color: #D97706 !important;
+  font-weight: 700;
+}
+
 /* Metric KPI Grid — Bento Style */
 .kpi-grid {
   display: grid;
