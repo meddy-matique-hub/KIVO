@@ -4919,7 +4919,8 @@ window.KivoApp = {
     if (window.KivoAuth && typeof window.KivoAuth.signInWithGoogle === 'function') {
       const res = await window.KivoAuth.signInWithGoogle();
       if (res && res.error) {
-        this.showAuthMessage("Connexion Google impossible : " + res.error.message, "error");
+        this.showAuthMessage("Connexion Google impossible. Veuillez réessayer ou utiliser un autre mode de connexion.", "error");
+        console.error('[KivoApp] Google sign-in error:', res.error);
       }
     } else {
       this.showAuthMessage("Le service de connexion Google n'est pas disponible.", "error");
@@ -5122,11 +5123,11 @@ window.KivoApp = {
       const { error } = await KivoDb.supabase.auth.updateUser({ password: p1 });
       if (error) {
         console.error('[KivoApp] updateUser password error:', error);
-        this.showToast("Erreur : " + error.message, "error");
+        this.showToast("Une erreur est survenue lors de la mise à jour du mot de passe. Réessayez.", "error");
         if (msgEl) {
           msgEl.style.display = 'block';
           msgEl.style.color = 'var(--danger-text)';
-                    msgEl.textContent = error.message;
+          msgEl.textContent = "Impossible de mettre à jour le mot de passe. Réessayez.";
         }
       } else {
         this.showToast("Mot de passe mis a jour avec succes !", "success");
@@ -5902,7 +5903,8 @@ window.KivoApp = {
       this.closeModal('modal-change-password');
       this.showToast('Mot de passe mis à jour avec succès !', 'success');
     } catch (err) {
-      showError(err.message || 'Erreur lors de la mise à jour du mot de passe.');
+      console.error('[KivoApp] submitChangePassword error:', err);
+      showError('Une erreur est survenue. Réessayez ou contactez le support.');
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Mettre à jour'; }
     }
@@ -7182,7 +7184,8 @@ window.KivoApp = {
 
     } catch (err) {
       console.error('[KivoApp] Erreur downloadPdf:', err);
-      this.showToast("Erreur lors du téléchargement : " + (err.message || err), "error");
+      console.error('[KivoApp] downloadPdf error:', err);
+      this.showToast("Une erreur est survenue lors du téléchargement. Réessayez.", "error");
     } finally {
       if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
       if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
@@ -7232,7 +7235,8 @@ window.KivoApp = {
 
     } catch (err) {
       console.error('[KivoApp] Erreur printPdf:', err);
-      this.showToast("Erreur lors de l'impression : " + (err.message || err), "error");
+      console.error('[KivoApp] printPdf error:', err);
+      this.showToast("Une erreur est survenue lors de l'impression. Réessayez.", "error");
     } finally {
       if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
       setTimeout(() => {
