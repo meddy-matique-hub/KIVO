@@ -1039,7 +1039,23 @@ window.KivoApp = {
     if (toggleBtn && !toggleBtn.dataset.bound) {
       toggleBtn.dataset.bound = 'true';
       let _touchHandled = false;
+      let _tbStartX = 0, _tbStartY = 0, _tbIsScroll = false;
+      toggleBtn.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches.length > 0) {
+          _tbStartX = e.touches[0].clientX;
+          _tbStartY = e.touches[0].clientY;
+        }
+        _tbIsScroll = false;
+      }, { passive: true });
+      toggleBtn.addEventListener('touchmove', (e) => {
+        if (e.touches && e.touches.length > 0) {
+          if (Math.abs(e.touches[0].clientX - _tbStartX) > 8 || Math.abs(e.touches[0].clientY - _tbStartY) > 8) {
+            _tbIsScroll = true;
+          }
+        }
+      }, { passive: true });
       toggleBtn.addEventListener('touchend', (e) => {
+        if (_tbIsScroll) return; // User was scrolling, ignore
         e.preventDefault(); // Stops synthetic click generation
         e.stopPropagation();
         _touchHandled = true;
@@ -1058,7 +1074,23 @@ window.KivoApp = {
     if (closeBtn && !closeBtn.dataset.bound) {
       closeBtn.dataset.bound = 'true';
       let _cbTouchHandled = false;
+      let _cbStartX = 0, _cbStartY = 0, _cbIsScroll = false;
+      closeBtn.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches.length > 0) {
+          _cbStartX = e.touches[0].clientX;
+          _cbStartY = e.touches[0].clientY;
+        }
+        _cbIsScroll = false;
+      }, { passive: true });
+      closeBtn.addEventListener('touchmove', (e) => {
+        if (e.touches && e.touches.length > 0) {
+          if (Math.abs(e.touches[0].clientX - _cbStartX) > 8 || Math.abs(e.touches[0].clientY - _cbStartY) > 8) {
+            _cbIsScroll = true;
+          }
+        }
+      }, { passive: true });
       closeBtn.addEventListener('touchend', (e) => {
+        if (_cbIsScroll) return;
         e.preventDefault();
         e.stopPropagation();
         _cbTouchHandled = true;
@@ -1079,6 +1111,7 @@ window.KivoApp = {
     if (backdropEl && !backdropEl.dataset.bound) {
       backdropEl.dataset.bound = 'true';
       let _bdTouchHandled = false;
+      let _bdStartX = 0, _bdStartY = 0, _bdIsScroll = false;
       const handleBackdrop = (e) => {
         if (e) {
           e.preventDefault();
@@ -1089,7 +1122,22 @@ window.KivoApp = {
         if (now - this._lastToggleMobileSidebarTime < 400) { return; }
         this.toggleMobileSidebar(false);
       };
+      backdropEl.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches.length > 0) {
+          _bdStartX = e.touches[0].clientX;
+          _bdStartY = e.touches[0].clientY;
+        }
+        _bdIsScroll = false;
+      }, { passive: true });
+      backdropEl.addEventListener('touchmove', (e) => {
+        if (e.touches && e.touches.length > 0) {
+          if (Math.abs(e.touches[0].clientX - _bdStartX) > 8 || Math.abs(e.touches[0].clientY - _bdStartY) > 8) {
+            _bdIsScroll = true;
+          }
+        }
+      }, { passive: true });
       backdropEl.addEventListener('touchend', (e) => {
+        if (_bdIsScroll) return; // User was scrolling, do not close menu
         e.preventDefault();
         e.stopPropagation();
         _bdTouchHandled = true;
@@ -1105,7 +1153,7 @@ window.KivoApp = {
     }
 
     // 4. Robust navigation handler for all sidebar links on mobile and desktop
-    // On iOS/Android, we fire navigation on touchstart (no 300ms delay) and close sidebar.
+    // On iOS/Android, we fire navigation on touchend ONLY IF it was a true tap (not a scroll).
     // The subsequent 'click' event is swallowed to prevent double-fire.
     const sidebarNavLinks = document.querySelectorAll('.sidebar-nav a, .sidebar-footer-section a');
     sidebarNavLinks.forEach(link => {
@@ -1113,6 +1161,7 @@ window.KivoApp = {
       link.style.touchAction = 'manipulation';
 
       let _linkTouchFired = false;
+      let _linkStartX = 0, _linkStartY = 0, _linkIsScroll = false;
 
       const doNavigate = (e) => {
         const customOnClick = link.getAttribute('onclick');
@@ -1135,12 +1184,32 @@ window.KivoApp = {
       };
 
       link.addEventListener('touchstart', (e) => {
-        // Don't preventDefault here (would break scroll on iOS)
+        // Track start position to distinguish scroll gesture from intentional tap
+        if (e.touches && e.touches.length > 0) {
+          _linkStartX = e.touches[0].clientX;
+          _linkStartY = e.touches[0].clientY;
+        }
+        _linkIsScroll = false;
         _linkTouchFired = false;
       }, { passive: true });
 
+      link.addEventListener('touchmove', (e) => {
+        // If movement exceeds threshold, user is scrolling the drawer, NOT tapping
+        if (e.touches && e.touches.length > 0) {
+          const dx = Math.abs(e.touches[0].clientX - _linkStartX);
+          const dy = Math.abs(e.touches[0].clientY - _linkStartY);
+          if (dx > 8 || dy > 8) {
+            _linkIsScroll = true;
+          }
+        }
+      }, { passive: true });
+
       link.addEventListener('touchend', (e) => {
-        // Fire navigation immediately on touchend (before synthetic click)
+        if (_linkIsScroll) {
+          // User was scrolling the sidebar, do not navigate or close drawer!
+          return;
+        }
+        // Fire navigation immediately on deliberate tap (before synthetic click)
         e.preventDefault(); // Prevents the 300ms delayed synthetic click
         _linkTouchFired = true;
         doNavigate(e);
