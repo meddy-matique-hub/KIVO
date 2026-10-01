@@ -790,8 +790,8 @@ window.KivoApp = {
     }
 
     // public-doc and onboarding are ALWAYS fullwidth — no sidebar, no account chrome — regardless of auth state
-    const alwaysFullWidth = ['public-doc', 'onboarding', 'landing', 'auth', 'pricing'];
-    const isFullWidthView = alwaysFullWidth.includes(viewName);
+    const alwaysFullWidth = ['public-doc', 'onboarding', 'landing', 'auth'];
+    const isFullWidthView = alwaysFullWidth.includes(viewName) || (!isAuthenticated && viewName === 'pricing');
     document.body.classList.toggle('full-width-view', isFullWidthView);
 
     const sidebar = document.getElementById('sidebar');
