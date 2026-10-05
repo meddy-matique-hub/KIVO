@@ -575,6 +575,7 @@ window.KivoApp = {
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.saveState();
     }
+    this.applyLanguage(this.state.language || 'fr');
   },
 
   /**
@@ -1479,12 +1480,101 @@ window.KivoApp = {
    * Multi-language switcher helper
    */
   setLanguage: function (lang) {
-    if (this.translations[lang]) {
-      this.state.language = lang;
-      this.saveState();
-      this.showToast(`Langue modifiée : ${lang.toUpperCase()}`, "info");
-      this.renderCurrentView();
+    const targetLang = (this.translations && this.translations[lang]) ? lang : 'fr';
+    this.state.language = targetLang;
+    this.saveState();
+    this.applyLanguage(targetLang);
+
+    if (window.KivoDb && this.supabaseConnected) {
+      window.KivoDb.saveSettings({ language: targetLang }).catch(() => {});
     }
+
+    const langNames = { fr: 'Français', en: 'English', es: 'Español' };
+    this.showToast(`Langue appliquée : ${langNames[targetLang] || targetLang.toUpperCase()}`, "success");
+    this.renderCurrentView();
+  },
+
+  applyLanguage: function (lang) {
+    const l = lang || (this.state && this.state.language) || 'fr';
+    const dict = {
+      fr: {
+        dashboard: 'Tableau de bord',
+        documents: 'Facturation',
+        clients: 'Clients',
+        services: 'Services / Prestations',
+        catalog: 'Modèles',
+        ai: 'Création avec IA',
+        analytics: 'Rapports',
+        settings: 'Paramètres',
+        profile: 'Mon profil',
+        pricing: 'Abonnement & Paiement',
+        team: 'Équipe',
+        integrations: 'Intégrations',
+        newDoc: '+ Nouveau document'
+      },
+      en: {
+        dashboard: 'Dashboard',
+        documents: 'Billing & Invoices',
+        clients: 'Clients & CRM',
+        services: 'Services & Items',
+        catalog: 'Templates',
+        ai: 'AI Assistant',
+        analytics: 'Reports & Analytics',
+        settings: 'Settings',
+        profile: 'My Profile',
+        pricing: 'Plans & Billing',
+        team: 'Team Members',
+        integrations: 'Integrations',
+        newDoc: '+ New Document'
+      },
+      es: {
+        dashboard: 'Panel de Control',
+        documents: 'Facturación',
+        clients: 'Clientes y CRM',
+        services: 'Servicios y Artículos',
+        catalog: 'Plantillas',
+        ai: 'Asistente IA',
+        analytics: 'Informes y Estadísticas',
+        settings: 'Ajustes',
+        profile: 'Mi Perfil',
+        pricing: 'Suscripciones y Pagos',
+        team: 'Equipo',
+        integrations: 'Integraciones',
+        newDoc: '+ Nuevo Documento'
+      }
+    };
+
+    const t = dict[l] || dict.fr;
+
+    // Update sidebar navigation items
+    const navMap = {
+      dashboard: t.dashboard,
+      documents: t.documents,
+      clients: t.clients,
+      services: t.services,
+      catalog: t.catalog,
+      ai: t.ai,
+      analytics: t.analytics,
+      settings: t.profile,
+      pricing: t.pricing,
+      team: t.team,
+      integrations: t.integrations
+    };
+
+    Object.keys(navMap).forEach(view => {
+      const el = document.querySelector(`.nav-item[data-view="${view}"] .nav-label, .nav-sub-item[data-view="${view}"] .nav-label`);
+      if (el) el.textContent = navMap[view];
+    });
+
+    const settingsTrigger = document.querySelector('.nav-group-trigger[data-group="settings"] .nav-label');
+    if (settingsTrigger) settingsTrigger.textContent = t.settings;
+
+    const langSelect = document.getElementById('setting-biz-language');
+    if (langSelect && langSelect.value !== l) {
+      langSelect.value = l;
+    }
+
+    document.documentElement.lang = l;
   },
 
   t: function (key) {
@@ -5993,7 +6083,10 @@ window.KivoApp = {
     if (document.getElementById('setting-stripe-key')) biz.stripeKey = document.getElementById('setting-stripe-key').value;
 
     const langSelect = document.getElementById('setting-biz-language');
-    if (langSelect) this.state.language = langSelect.value;
+    if (langSelect) {
+      this.state.language = langSelect.value;
+      this.applyLanguage(this.state.language);
+    }
 
     this.saveState();
 
