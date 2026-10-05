@@ -6582,7 +6582,19 @@ window.KivoApp = {
         address: newClient.address
         // NOTE: tax_id / total_invoiced / total_paid / balance_due
         // ne sont pas des colonnes Supabase valides → exclus volontairement
-      }).catch(e => console.error('[KivoApp] saveClient error:', e));
+      }).catch(e => {
+        console.error('[KivoApp] saveClient error:', e);
+        const rawMsg = (e && e.message) ? e.message : '';
+        let friendlyMsg = 'Erreur lors de l\'enregistrement du client. Réessayez.';
+        if (rawMsg.includes('violates row-level security') || rawMsg.includes('RLS') || rawMsg.includes('permission denied')) {
+          friendlyMsg = 'Accès refusé (politique de sécurité). Reconnectez-vous et réessayez.';
+        } else if (rawMsg.includes('duplicate') || rawMsg.includes('unique')) {
+          friendlyMsg = 'Ce client existe déjà dans votre base de données.';
+        } else if (rawMsg.includes('network') || rawMsg.includes('fetch')) {
+          friendlyMsg = 'Erreur réseau. Vérifiez votre connexion internet.';
+        }
+        this.showToast(friendlyMsg, 'error');
+      });
     }
 
     this.closeModal('modal-new-client');
