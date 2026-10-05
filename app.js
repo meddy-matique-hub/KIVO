@@ -146,7 +146,7 @@ window.KivoApp = {
       country: "Sénégal",
       currency: "FCFA",
       currencySymbol: "FCFA",
-      defaultVatRate: 18,
+      defaultVatRate: 0,
       address: "",
       taxId: "",
       logoText: "KM",
@@ -564,7 +564,7 @@ window.KivoApp = {
           this.state.business.nextQuoteNumber = 1001;
         }
         if (this.state.business.defaultVatRate === undefined) {
-          this.state.business.defaultVatRate = 18;
+          this.state.business.defaultVatRate = 0;
         }
       } catch (e) {
         console.error("[KivoApp] State parse error, resetting.", e);
@@ -2192,7 +2192,7 @@ window.KivoApp = {
     // Items - Clean state: 1 blank row ready for input
     const tbody = document.getElementById('builder-items-tbody');
     if (tbody) tbody.innerHTML = '';
-    const defaultVat = this.state.business?.defaultVatRate !== undefined ? this.state.business.defaultVatRate : (this.state.business?.taxRate || 18);
+    const defaultVat = this.state.business?.defaultVatRate !== undefined ? this.state.business.defaultVatRate : (this.state.business?.taxRate !== undefined ? this.state.business.taxRate : 0);
     this.addBuilderLineItem('', 1, 0, defaultVat);
     this.populateBuilderCatalogDropdown();
 
@@ -2303,7 +2303,7 @@ window.KivoApp = {
 
     if (doc.items && doc.items.length > 0) {
       doc.items.forEach(it => {
-        this.addBuilderLineItem(it.name, it.quantity, it.price, it.taxRate || 18);
+        this.addBuilderLineItem(it.name, it.quantity, it.price, it.taxRate !== undefined ? it.taxRate : 0);
       });
     } else {
       this.addBuilderLineItem('', 1, 0);
@@ -2319,7 +2319,7 @@ window.KivoApp = {
   /**
    * Adds a line item row in builder
    */
-  addBuilderLineItem: function (name = '', qty = 1, price = '', tax = 18) {
+  addBuilderLineItem: function (name = '', qty = 1, price = '', tax = 0) {
     const tbody = document.getElementById('builder-items-tbody');
     if (!tbody) return;
 
@@ -2339,11 +2339,11 @@ window.KivoApp = {
       </td>
       <td style="padding-bottom: 0.5rem; padding-right: 0.5rem;">
         <select class="form-select item-tax" onchange="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;">
+          <option value="0" ${tax == 0 ? 'selected' : ''}>0%</option>
           <option value="18" ${tax == 18 ? 'selected' : ''}>18%</option>
           <option value="20" ${tax == 20 ? 'selected' : ''}>20%</option>
           <option value="10" ${tax == 10 ? 'selected' : ''}>10%</option>
           <option value="5" ${tax == 5 ? 'selected' : ''}>5%</option>
-          <option value="0" ${tax == 0 ? 'selected' : ''}>0%</option>
         </select>
       </td>
       <td style="text-align: right; vertical-align: middle; padding-bottom: 0.5rem;">
@@ -2700,7 +2700,7 @@ window.KivoApp = {
       const name = (tr.querySelector('.item-name')?.value || '').trim();
       const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 1;
       const price = parseFloat(tr.querySelector('.item-price')?.value) || 0;
-      const taxRate = parseFloat(tr.querySelector('.item-tax')?.value || 18) || 0;
+      const taxRate = parseFloat(tr.querySelector('.item-tax')?.value !== undefined ? tr.querySelector('.item-tax').value : 0) || 0;
       const totalHT = qty * price;
       const taxAmount = totalHT * (taxRate / 100);
       items.push({ name, quantity: qty, price, taxRate, total: totalHT + taxAmount, totalHT });
@@ -2869,7 +2869,7 @@ window.KivoApp = {
         tbody.innerHTML = '';
         if (draft.items && draft.items.length > 0) {
           draft.items.forEach(it => {
-            this.addBuilderLineItem(it.name || '', it.quantity || 1, it.price || '', it.taxRate || 18);
+            this.addBuilderLineItem(it.name || '', it.quantity || 1, it.price || '', it.taxRate !== undefined ? it.taxRate : 0);
           });
         } else {
           this.addBuilderLineItem('', 1, 0);
@@ -3223,7 +3223,7 @@ window.KivoApp = {
       const name = (tr.querySelector('.item-name')?.value || '').trim();
       const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 1;
       const price = parseFloat(tr.querySelector('.item-price')?.value) || 0;
-      const taxRate = parseFloat(tr.querySelector('.item-tax') ? tr.querySelector('.item-tax').value : 18) || 0;
+      const taxRate = parseFloat(tr.querySelector('.item-tax') ? tr.querySelector('.item-tax').value : 0) || 0;
       const totalHT = qty * price;
       const taxAmount = totalHT * (taxRate / 100);
       if (name) {
@@ -4096,7 +4096,7 @@ window.KivoApp = {
 
     const defaultVat = this.state.business?.defaultVatRate !== undefined 
       ? this.state.business.defaultVatRate 
-      : (this.state.business?.taxRate || 18);
+      : (this.state.business?.taxRate !== undefined ? this.state.business.taxRate : 0);
     if (taxInput) taxInput.value = defaultVat;
 
     this.openModal('modal-catalog-item');
@@ -4128,7 +4128,7 @@ window.KivoApp = {
     if (taxInput) {
       taxInput.value = (item.taxRate !== undefined && item.taxRate !== null && item.taxRate !== '')
         ? item.taxRate
-        : (this.state.business?.defaultVatRate || 18);
+        : (this.state.business?.defaultVatRate !== undefined ? this.state.business.defaultVatRate : 0);
     }
 
     this.openModal('modal-catalog-item');
@@ -4167,7 +4167,7 @@ window.KivoApp = {
     if (isNaN(taxRate)) {
       taxRate = this.state.business?.defaultVatRate !== undefined 
         ? this.state.business.defaultVatRate 
-        : (this.state.business?.taxRate || 18);
+        : (this.state.business?.taxRate !== undefined ? this.state.business.taxRate : 0);
     }
 
     const existingId = idEl ? idEl.value : '';
@@ -5803,7 +5803,7 @@ window.KivoApp = {
           onboarding_answers: { step: 11, data: d, completedAt: new Date().toISOString() },
           invoice_prefix: biz.invoicePrefix || 'FAC-2026-',
           quote_prefix: biz.quotePrefix || 'DEV-2026-',
-          default_vat_rate: biz.defaultVatRate || 18,
+          default_vat_rate: biz.defaultVatRate !== undefined ? biz.defaultVatRate : 0,
           logo_url: biz.logoUrl || '',
           visual_template: biz.visualTemplate || 'classic',
           primary_color: biz.primaryColor || '#4F46E5',
@@ -5857,7 +5857,7 @@ window.KivoApp = {
     if (document.getElementById('setting-biz-currency')) document.getElementById('setting-biz-currency').value = biz.currency || 'FCFA';
     if (document.getElementById('setting-biz-prefix')) document.getElementById('setting-biz-prefix').value = biz.invoicePrefix || "FAC-2026-";
     if (document.getElementById('setting-biz-quote-prefix')) document.getElementById('setting-biz-quote-prefix').value = biz.quotePrefix || "DEV-2026-";
-    if (document.getElementById('setting-biz-vat')) document.getElementById('setting-biz-vat').value = biz.defaultVatRate || 18;
+    if (document.getElementById('setting-biz-vat')) document.getElementById('setting-biz-vat').value = biz.defaultVatRate !== undefined ? biz.defaultVatRate : 0;
     if (document.getElementById('setting-stripe-key')) document.getElementById('setting-stripe-key').value = biz.stripeKey || "pk_test_51KivoMastiqueDemoStripeKey998";
     if (document.getElementById('setting-biz-language')) document.getElementById('setting-biz-language').value = this.state.language || "fr";
 
@@ -5958,7 +5958,7 @@ window.KivoApp = {
         current_plan: biz.subscriptionTier || 'Gratuit',
         invoice_prefix: biz.invoicePrefix || 'FAC-2026-',
         quote_prefix: biz.quotePrefix || 'DEV-2026-',
-        default_vat_rate: biz.defaultVatRate || 18,
+        default_vat_rate: biz.defaultVatRate !== undefined ? biz.defaultVatRate : 0,
         logo_url: biz.logoUrl || '',
         visual_template: biz.visualTemplate || 'classic',
         primary_color: biz.primaryColor || '#4F46E5',
@@ -6993,7 +6993,7 @@ window.KivoApp = {
       }
     }
 
-    const defaultVat = this.state.business?.defaultVatRate !== undefined ? this.state.business.defaultVatRate : (this.state.business?.taxRate || 18);
+    const defaultVat = this.state.business?.defaultVatRate !== undefined ? this.state.business.defaultVatRate : (this.state.business?.taxRate !== undefined ? this.state.business.taxRate : 0);
     const tax = (item.taxRate !== undefined && item.taxRate !== null) ? Number(item.taxRate) : defaultVat;
     this.addBuilderLineItem(item.name || 'Article', 1, Number(item.price) || 0, tax);
     this.showToast(`Article "${item.name}" ajouté`, 'success');
@@ -7126,7 +7126,7 @@ window.KivoApp = {
           name: it.name || 'Article',
           quantity: Number(it.quantity) || 1,
           price: Number(it.price) || 0,
-          taxRate: (it.taxRate !== undefined && it.taxRate !== null) ? Number(it.taxRate) : (biz.defaultVatRate || 18),
+          taxRate: (it.taxRate !== undefined && it.taxRate !== null) ? Number(it.taxRate) : (biz.defaultVatRate !== undefined ? biz.defaultVatRate : 0),
           total: Number(it.total) || (Number(it.quantity || 1) * Number(it.price || 0))
         })),
         subtotal: Number(targetDoc.subtotal) || Number(targetDoc.total) || 0,

@@ -7,7 +7,7 @@ window.KivoAI = {
    * Parses natural text input into structured invoice/quote items and metadata
    * Example input: "Vidéo promo pour Restaurant La Paix, 150 000 FCFA avec 2 flyers à 15 000 FCFA chacun, TVA 18%"
    */
-  parseTextToDocument: function (textInput, availableClients = [], defaultCurrency = "FCFA", defaultTaxRate = 18) {
+  parseTextToDocument: function (textInput, availableClients = [], defaultCurrency = "FCFA", defaultTaxRate = 0) {
     if (!textInput || textInput.trim().length === 0) {
       return null;
     }
