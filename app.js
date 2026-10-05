@@ -5663,25 +5663,51 @@ window.KivoApp = {
   wizardSelectType: function (type, persist = true) {
     if (!this._wizard) this.wizardInit();
     this._wizard.data.profileType = type;
+
     // Style cards
-    ['wz-type-entreprise','wz-type-independant'].forEach(id => {
+    ['wz-type-entreprise', 'wz-type-independant'].forEach(id => {
       const el = document.getElementById(id);
       if (el) {
-        el.style.border = '2px solid var(--border-color)';
-        el.style.background = 'var(--bg-card)';
+        el.style.borderColor = 'var(--border-color, #E2E8F0)';
+        el.style.background = 'var(--bg-card, #FFFFFF)';
+        el.style.boxShadow = 'none';
+        el.style.transform = 'none';
+        const check = el.querySelector('.wz-card-check');
+        if (check) check.style.display = 'none';
       }
     });
+
     const activeId = type === 'Entreprise' ? 'wz-type-entreprise' : 'wz-type-independant';
     const activeEl = document.getElementById(activeId);
     if (activeEl) {
-      activeEl.style.border = '2px solid var(--primary)';
-      activeEl.style.background = 'var(--primary-light)';
+      activeEl.style.borderColor = 'var(--primary, #4F46E5)';
+      activeEl.style.background = 'rgba(79, 70, 229, 0.08)';
+      activeEl.style.boxShadow = '0 6px 16px rgba(79, 70, 229, 0.16)';
+      activeEl.style.transform = 'translateY(-2px)';
+      const check = activeEl.querySelector('.wz-card-check');
+      if (check) check.style.display = 'flex';
     }
+
     const err = document.getElementById('wz-err-1');
     if (err) err.style.display = 'none';
 
     if (persist) {
       this._wizardPersistProgress();
+    }
+  },
+
+  /** Visual toggle for wizard goal checkboxes */
+  toggleGoalCheckboxStyle: function (cb) {
+    const parent = cb.closest('.wz-goal-card');
+    if (!parent) return;
+    if (cb.checked) {
+      parent.style.borderColor = 'var(--primary, #4F46E5)';
+      parent.style.background = 'rgba(79, 70, 229, 0.06)';
+      parent.style.boxShadow = '0 2px 8px rgba(79, 70, 229, 0.12)';
+    } else {
+      parent.style.borderColor = 'var(--border-color, #E2E8F0)';
+      parent.style.background = 'transparent';
+      parent.style.boxShadow = 'none';
     }
   },
 
