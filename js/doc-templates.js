@@ -159,7 +159,8 @@ window.KivoTemplates = {
         phone:   get('builder-client-phone')   || clientFound.phone   || '',
         email:   get('builder-client-email')   || clientFound.email   || '',
         address: get('builder-client-address') || clientFound.address || '',
-        taxId:   clientFound.taxId || ''
+        taxId:   clientFound.taxId || '',
+        legalFieldName: clientFound.legalFieldName || ''
       },
       items, subtotal, discount, taxAmount: totalTaxAmount, grandTotal, currency,
       primaryColor:   (document.getElementById('builder-color-primary')   || {}).value || biz.primaryColor   || '#0F172A',
@@ -269,7 +270,7 @@ window.KivoTemplates = {
         <div style="text-align:right;">
           <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">Contact &amp; Identifiants</div>
           <div style="font-size:12px;font-weight:600;color:${titleColor};margin-top:3px;">${d.client.email || '--'}</div>
-          ${d.client.taxId ? `<div style="font-size:10px;color:${subtitleColor};margin-top:3px;">NINEA / SIRET : ${d.client.taxId}</div>` : '' }
+          ${d.client.taxId ? `<div style="font-size:10px;color:${subtitleColor};margin-top:3px;">${d.client.legalFieldName || 'NINEA / SIRET'} : ${d.client.taxId}</div>` : '' }
           ${(d.client.address && !d.client.phone && !d.client.email) ? '' : (d.client.address ? '' : '')}
         </div>
       </div>

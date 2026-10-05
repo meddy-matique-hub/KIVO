@@ -3238,6 +3238,7 @@ window.KivoApp = {
       clientName: customClientName || clientObj.name || 'Client Destinataire',
       clientType: clientObj.clientType || 'B2C',
       clientTaxId: clientObj.taxId || '',
+      clientLegalFieldName: clientObj.legalFieldName || '',
       clientEmail: customClientEmail || clientObj.email || '',
       clientPhone: customClientPhone || clientObj.phone || '',
       clientAddress: customClientAddress || clientObj.address || '',
@@ -3936,7 +3937,7 @@ window.KivoApp = {
       if (client.email) parts.push(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> ${client.email}`);
       if (client.phone) parts.push(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> ${client.phone}`);
       if (client.address) parts.push(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> ${client.address}`);
-      if (client.taxId) parts.push(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> SIRET/NINEA : ${client.taxId}`);
+      if (client.taxId) parts.push(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> ${client.legalFieldName || 'NINEA / SIRET'} : ${client.taxId}`);
       if (client.company) parts.push(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> ${client.company}`);
       contactEl.innerHTML = parts.map(p => `<span style="display:inline-flex;align-items:center;gap:4px;">${p}</span>`).join('');
     }
@@ -6324,6 +6325,48 @@ window.KivoApp = {
     this.openModal('modal-new-client');
   },
 
+  /**
+   * Country-to-legal-field mapping for client registration
+   */
+  _countryLegalMap: {
+    SN:    { label: 'NINEA',        full: 'NINEA (Numéro d\'Identification Nationale des Entreprises)', placeholder: 'Ex: SN-NINEA-8849201' },
+    CG:    { label: 'RCCM / NIU',   full: 'RCCM + NIU (Congo-Brazzaville)',                             placeholder: 'Ex: RCCM CG/BZV-2024-B-00123 / NIU 0012345' },
+    CD:    { label: 'RCCM',         full: 'RCCM (RD Congo)',                                             placeholder: 'Ex: CD/KIN-2024-M-12345' },
+    CM:    { label: 'RCCM / NIU',   full: 'RCCM + NIU (Cameroun)',                                      placeholder: 'Ex: RC 2023/B/00456 / NIU P012T0000012345' },
+    CI:    { label: 'RCCM',         full: 'RCCM (Côte d\'Ivoire)',                                    placeholder: 'Ex: CI-ABJ-2023-B-12345' },
+    ML:    { label: 'RCCM',         full: 'RCCM (Mali)',                                                 placeholder: 'Ex: ML/BAM-2023-B-00789' },
+    BF:    { label: 'RCCM',         full: 'RCCM (Burkina Faso)',                                         placeholder: 'Ex: BF/OUA-2023-B-01234' },
+    TG:    { label: 'RCCM',         full: 'RCCM (Togo)',                                                 placeholder: 'Ex: TG/LOM-2023-B-00567' },
+    BJ:    { label: 'RCCM',         full: 'RCCM (Bénin)',                                              placeholder: 'Ex: BJ/COT-2023-B-01111' },
+    GN:    { label: 'RCCM / NIF',   full: 'RCCM + NIF (Guinée)',                                       placeholder: 'Ex: RCCM GN-CON-2023-B-0001' },
+    FR:    { label: 'SIRET',        full: 'SIRET (France)',                                              placeholder: 'Ex: 123 456 789 00012' },
+    BE:    { label: 'BCE',          full: 'Numéro BCE (Belgique)',                                     placeholder: 'Ex: BE 0123.456.789' },
+    CH:    { label: 'IDE',          full: 'Numéro IDE / CHE (Suisse)',                                  placeholder: 'Ex: CHE-123.456.789' },
+    CA:    { label: 'NE',           full: 'Numéro d\'entreprise (Canada)',                              placeholder: 'Ex: 123456789' },
+    MA:    { label: 'RC / IF',      full: 'RC + Identifiant Fiscal (Maroc)',                              placeholder: 'Ex: RC 12345 / IF 12345678' },
+    TN:    { label: 'MF',           full: 'Matricule Fiscal (Tunisie)',                                  placeholder: 'Ex: 1234567/A/P/000' },
+    DZ:    { label: 'NIF',          full: 'NIF (Algérie)',                                             placeholder: 'Ex: 001234567890123' },
+    OTHER: { label: 'N° Registre', full: 'Numéro de registre / identification légale',              placeholder: 'Numéro d\'enregistrement officiel' }
+  },
+
+  /**
+   * Update legal ID label/placeholder when country changes in client modal
+   */
+  onClientCountryChange: function () {
+    const countryEl = document.getElementById('new-cli-country');
+    const labelEl   = document.getElementById('new-cli-taxid-label');
+    const inputEl   = document.getElementById('new-cli-taxid');
+    const hiddenEl  = document.getElementById('new-cli-country-legalname');
+    if (!countryEl) return;
+
+    const code = countryEl.value || 'SN';
+    const info = this._countryLegalMap[code] || this._countryLegalMap['OTHER'];
+
+    if (labelEl) labelEl.textContent = info.full;
+    if (inputEl) inputEl.placeholder = info.placeholder;
+    if (hiddenEl) hiddenEl.value = info.label;
+  },
+
   saveNewClient: function () {
     const name = document.getElementById('new-cli-name').value.trim();
     const contact = document.getElementById('new-cli-contact').value.trim();
@@ -6331,6 +6374,8 @@ window.KivoApp = {
     const email = document.getElementById('new-cli-email').value.trim();
     const taxId = document.getElementById('new-cli-taxid') ? document.getElementById('new-cli-taxid').value.trim() : '';
     const address = document.getElementById('new-cli-address') ? document.getElementById('new-cli-address').value.trim() : '';
+    const country = document.getElementById('new-cli-country') ? document.getElementById('new-cli-country').value : 'SN';
+    const legalFieldName = document.getElementById('new-cli-country-legalname') ? document.getElementById('new-cli-country-legalname').value : 'NINEA';
     
     let type = 'B2B';
     const typeRadios = document.getElementsByName('new-cli-type');
@@ -6348,6 +6393,8 @@ window.KivoApp = {
       company: type === 'B2B' ? name : '',
       contactName: contact,
       taxId: taxId,
+      legalFieldName: legalFieldName,
+      country: country,
       email: email,
       phone: phone,
       address: address,
@@ -6883,7 +6930,8 @@ window.KivoApp = {
           phone: targetDoc.clientPhone || '',
           email: targetDoc.clientEmail || '',
           address: targetDoc.clientAddress || '',
-          taxId: targetDoc.clientTaxId || ''
+          taxId: targetDoc.clientTaxId || (targetDoc.client && targetDoc.client.taxId) || '',
+          legalFieldName: targetDoc.clientLegalFieldName || (targetDoc.client && targetDoc.client.legalFieldName) || ''
         },
         items: rawDocItems.map(it => ({
           name: it.name || 'Article',

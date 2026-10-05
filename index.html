@@ -3062,8 +3062,35 @@
       </div>
 
       <div class="form-group" id="new-cli-taxid-group">
-        <label class="form-label">Numéro SIRET / NINEA / TVA Intracommunautaire</label>
+        <!-- Country selector drives the legal ID label -->
+        <div style="display:flex;gap:0.75rem;align-items:flex-end;margin-bottom:0.75rem;">
+          <div style="flex:1;">
+            <label class="form-label">Pays du client</label>
+            <select id="new-cli-country" class="form-input" onchange="KivoApp.onClientCountryChange()">
+              <option value="SN">🇸🇳 Sénégal</option>
+              <option value="CG">🇨🇬 Congo-Brazzaville</option>
+              <option value="CD">🇨🇩 RD Congo</option>
+              <option value="CM">🇨🇲 Cameroun</option>
+              <option value="CI">🇨🇮 Côte d'Ivoire</option>
+              <option value="ML">🇲🇱 Mali</option>
+              <option value="BF">🇧🇫 Burkina Faso</option>
+              <option value="TG">🇹🇬 Togo</option>
+              <option value="BJ">🇧🇯 Bénin</option>
+              <option value="GN">🇬🇳 Guinée</option>
+              <option value="FR">🇫🇷 France</option>
+              <option value="BE">🇧🇪 Belgique</option>
+              <option value="CH">🇨🇭 Suisse</option>
+              <option value="CA">🇨🇦 Canada</option>
+              <option value="MA">🇲🇦 Maroc</option>
+              <option value="TN">🇹🇳 Tunisie</option>
+              <option value="DZ">🇩🇿 Algérie</option>
+              <option value="OTHER">🌍 Autre pays</option>
+            </select>
+          </div>
+        </div>
+        <label class="form-label" id="new-cli-taxid-label">NINEA (Numéro d'Identification Nationale des Entreprises et Associations)</label>
         <input type="text" id="new-cli-taxid" class="form-input" placeholder="Ex: SN-NINEA-8849201">
+        <input type="hidden" id="new-cli-country-legalname" value="NINEA">
       </div>
 
       <div class="form-group">
