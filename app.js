@@ -3858,11 +3858,52 @@ window.KivoApp = {
 
   shareOnWhatsApp: function (docId) {
     const doc = this.state.documents.find(d => d.id === docId);
-    if (doc) {
-      const msg = window.WhatsAppHelper.buildShareMessage(doc, this.state.business.name);
-      const url = window.WhatsAppHelper.getWhatsAppWebUrl(doc.clientPhone, msg);
-      window.open(url, '_blank');
+    if (!doc) return;
+
+    this._waCurrentDocId = docId;
+    const clientPhone = doc.clientPhone || (doc.client && doc.client.phone) || '';
+    const bizName = (this.state.business && (this.state.business.name || this.state.business.owner)) || 'Mon Entreprise';
+    const msg = window.WhatsAppHelper.buildShareMessage(doc, bizName);
+
+    const docInfoEl = document.getElementById('wa-share-doc-info');
+    if (docInfoEl) {
+      docInfoEl.textContent = `${doc.type === 'quote' ? 'Devis' : 'Facture'} ${doc.number} · ${doc.clientName || 'Client'}`;
     }
+
+    const phoneInput = document.getElementById('wa-recipient-phone');
+    if (phoneInput) {
+      phoneInput.value = clientPhone;
+    }
+
+    const previewEl = document.getElementById('wa-share-message-preview');
+    if (previewEl) {
+      previewEl.textContent = msg;
+    }
+
+    this.openModal('modal-whatsapp-share');
+    if (phoneInput) {
+      setTimeout(() => phoneInput.focus(), 100);
+    }
+  },
+
+  confirmWhatsAppShare: function () {
+    const docId = this._waCurrentDocId;
+    const doc = this.state.documents.find(d => d.id === docId);
+    if (!doc) {
+      this.closeModal('modal-whatsapp-share');
+      return;
+    }
+
+    const phoneInput = document.getElementById('wa-recipient-phone');
+    const recipientPhone = phoneInput ? phoneInput.value.trim() : '';
+
+    const bizName = (this.state.business && (this.state.business.name || this.state.business.owner)) || 'Mon Entreprise';
+    const msg = window.WhatsAppHelper.buildShareMessage(doc, bizName);
+    const url = window.WhatsAppHelper.getWhatsAppWebUrl(recipientPhone, msg);
+
+    window.open(url, '_blank');
+    this.closeModal('modal-whatsapp-share');
+    this.showToast('Ouverture de WhatsApp...', 'success');
   },
 
   /**
