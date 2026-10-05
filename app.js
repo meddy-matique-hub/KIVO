@@ -2511,14 +2511,22 @@ window.KivoApp = {
         if (previewContainer) {
           previewContainer.innerHTML = renderedHtml;
           previewContainer.style.padding = '0';
-          previewContainer.style.overflow = (window.innerWidth <= 1024) ? 'visible' : 'hidden';
+          previewContainer.style.overflow = 'hidden'; // always hidden — CSS handles scroll on desktop
           previewContainer.style.background = (templateId === 'premium') ? '#181A20' : '#FFFFFF';
+          // FIX point5: compute scale for A4 miniature on mobile
+          if (window.innerWidth <= 1024) {
+            const containerW = previewContainer.offsetWidth || window.innerWidth;
+            const scale = Math.min(containerW / 794, 1);
+            previewContainer.style.setProperty('--paper-scale', scale.toFixed(4));
+          } else {
+            previewContainer.style.removeProperty('--paper-scale');
+          }
         }
         const pubArea = document.getElementById('public-doc-printable-area');
         if (pubArea) {
           pubArea.innerHTML = renderedHtml;
           pubArea.style.padding = '0';
-          pubArea.style.overflow = (window.innerWidth <= 1024) ? 'visible' : 'hidden';
+          pubArea.style.overflow = 'hidden';
           pubArea.style.background = (templateId === 'premium') ? '#181A20' : '#FFFFFF';
         }
         this.triggerBuilderAutoSave();

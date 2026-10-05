@@ -5496,12 +5496,26 @@ html, body {
   }
 
   #live-paper-preview-container {
-    /* FIX point5: conserver le ratio A4 en miniature sur mobile */
+    /* FIX point5: maintain true A4 ratio (1:√2) on mobile */
     aspect-ratio: 1 / 1.4142 !important;
+    width: 100% !important;
     height: auto !important;
     min-height: unset !important;
     max-height: none !important;
     overflow: hidden !important;
+    position: relative !important;
+  }
+
+  /* Scale inner paper to fit the A4 container on mobile.
+     .paper-invoice-preview is designed at ~794px wide (A4 at 96dpi).
+     We use zoom + transform fallback to shrink it proportionally. */
+  #live-paper-preview-container > .paper-invoice-preview,
+  #live-paper-preview-container > div > .paper-invoice-preview {
+    min-height: unset !important;
+    width: 794px !important;
+    transform-origin: top left !important;
+    transform: scale(calc(100vw / 794)) !important;
+    transform: scale(var(--paper-scale, 0.44)) !important;
   }
 }
 
