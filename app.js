@@ -391,8 +391,9 @@ window.KivoApp = {
     // 1. Sync & Merge Clients (Cloud + local un-synced)
     const cloudClients = (data.clients || []).map(c => {
       // Normalize DB type back to KIVO internal representation
+      // DB stores 'Particulier' or 'Entreprise' (French, enforced by CHECK constraint)
       const rawDbType = (c.type || '').toLowerCase();
-      const kivoType = (rawDbType === 'individual' || rawDbType === 'particulier' || rawDbType === 'person' || rawDbType === 'b2c')
+      const kivoType = (rawDbType === 'particulier' || rawDbType === 'individual' || rawDbType === 'person' || rawDbType === 'b2c')
         ? 'B2C' : 'B2B';
       return {
         id: c.id,
