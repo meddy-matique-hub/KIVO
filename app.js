@@ -1260,6 +1260,280 @@ window.KivoApp = {
 
     // 5. Smart mobile header — hides on scroll-down, reappears on scroll-up
     this._setupSmartMobileHeader();
+
+    // 6. Phone formatting & prefix selectors
+    this.setupPhoneInputs();
+  },
+
+  /**
+   * Country ISO to phone prefix map
+   */
+  _countryPhonePrefixMap: {
+    SN: '+221', CG: '+242', CD: '+243', CM: '+237', CI: '+225',
+    ML: '+223', BF: '+226', TG: '+228', BJ: '+229', GN: '+224',
+    GA: '+241', NE: '+227', TD: '+235', CF: '+236', MG: '+261',
+    MR: '+222', FR: '+33',  BE: '+32',  CH: '+41',  CA: '+1',
+    MA: '+212', TN: '+216', DZ: '+213', RW: '+250', KE: '+254',
+    NG: '+234', GH: '+233'
+  },
+
+  /**
+   * Formats a raw phone string into standardized spaced groups according to country prefix
+   */
+  formatPhoneNumber: function (rawVal, prefix) {
+    if (!rawVal) return '';
+    const digits = String(rawVal).replace(/\D/g, '');
+    if (!digits) return '';
+
+    const cleanPrefix = (prefix || '').replace(/\D/g, '');
+
+    // France (+33)
+    if (cleanPrefix === '33') {
+      if (digits.startsWith('0')) {
+        const parts = [];
+        for (let i = 0; i < Math.min(digits.length, 10); i += 2) {
+          parts.push(digits.slice(i, i + 2));
+        }
+        return parts.join(' ');
+      } else {
+        const parts = [digits.slice(0, 1)];
+        for (let i = 1; i < Math.min(digits.length, 9); i += 2) {
+          parts.push(digits.slice(i, i + 2));
+        }
+        return parts.join(' ');
+      }
+    }
+
+    // Congo-Brazzaville (+242): ex prompt: "06 812 3456"
+    if (cleanPrefix === '242') {
+      if (digits.startsWith('0')) {
+        const parts = [
+          digits.slice(0, 2),
+          digits.slice(2, 5),
+          digits.slice(5, 9)
+        ].filter(Boolean);
+        return parts.join(' ');
+      } else {
+        if (digits.length <= 8) {
+          const parts = [
+            digits.slice(0, 1),
+            digits.slice(1, 4),
+            digits.slice(4, 8)
+          ].filter(Boolean);
+          return parts.join(' ');
+        } else {
+          const parts = [
+            digits.slice(0, 2),
+            digits.slice(2, 5),
+            digits.slice(5, 9)
+          ].filter(Boolean);
+          return parts.join(' ');
+        }
+      }
+    }
+
+    // Senegal (+221): ex: 77 123 45 67
+    if (cleanPrefix === '221') {
+      const parts = [
+        digits.slice(0, 2),
+        digits.slice(2, 5),
+        digits.slice(5, 7),
+        digits.slice(7, 9)
+      ].filter(Boolean);
+      return parts.join(' ');
+    }
+
+    // Cameroon (+237): ex: 6 77 12 34 56
+    if (cleanPrefix === '237') {
+      if (digits.length >= 9) {
+        const parts = [
+          digits.slice(0, 1),
+          digits.slice(1, 3),
+          digits.slice(3, 5),
+          digits.slice(5, 7),
+          digits.slice(7, 9)
+        ].filter(Boolean);
+        return parts.join(' ');
+      }
+    }
+
+    // Ivory Coast (+225) & Benin (+229): 10 digits in pairs (07 12 34 56 78)
+    if (cleanPrefix === '225' || cleanPrefix === '229') {
+      const parts = [];
+      for (let i = 0; i < Math.min(digits.length, 10); i += 2) {
+        parts.push(digits.slice(i, i + 2));
+      }
+      return parts.join(' ');
+    }
+
+    // DR Congo (+243): ex: 81 234 5678
+    if (cleanPrefix === '243') {
+      const parts = [
+        digits.slice(0, 2),
+        digits.slice(2, 5),
+        digits.slice(5, 9)
+      ].filter(Boolean);
+      return parts.join(' ');
+    }
+
+    // USA / Canada (+1): ex: 202 555 0123
+    if (cleanPrefix === '1') {
+      const parts = [
+        digits.slice(0, 3),
+        digits.slice(3, 6),
+        digits.slice(6, 10)
+      ].filter(Boolean);
+      return parts.join(' ');
+    }
+
+    // 8-digit African countries (Mali 223, Burkina 226, Togo 228, Niger 227, etc.)
+    if (['223', '226', '228', '227', '235', '236', '222'].includes(cleanPrefix)) {
+      const parts = [];
+      for (let i = 0; i < Math.min(digits.length, 8); i += 2) {
+        parts.push(digits.slice(i, i + 2));
+      }
+      return parts.join(' ');
+    }
+
+    // Belgium (+32) / Switzerland (+41)
+    if (cleanPrefix === '32' || cleanPrefix === '41') {
+      const parts = [];
+      for (let i = 0; i < Math.min(digits.length, 10); i += 2) {
+        parts.push(digits.slice(i, i + 2));
+      }
+      return parts.join(' ');
+    }
+
+    // General fallback
+    if (digits.length <= 8) {
+      const parts = [];
+      for (let i = 0; i < digits.length; i += 2) {
+        parts.push(digits.slice(i, i + 2));
+      }
+      return parts.join(' ');
+    } else {
+      const parts = [
+        digits.slice(0, 2),
+        digits.slice(2, 5),
+        digits.slice(5, 7),
+        digits.slice(7, 10)
+      ].filter(Boolean);
+      return parts.join(' ');
+    }
+  },
+
+  /**
+   * Helper to format an input element value and keep cursor position intact
+   */
+  formatPhoneInput: function (inputEl, prefix) {
+    if (!inputEl) return;
+    let raw = inputEl.value;
+    if (!raw) return;
+
+    // Detect pasted international prefix
+    const prefixMatch = raw.match(/^\s*(\+\d{1,4})/);
+    if (prefixMatch) {
+      const detected = prefixMatch[1];
+      const group = inputEl.closest('.phone-input-group');
+      const select = group ? group.querySelector('.phone-prefix-select') : null;
+      if (select) {
+        for (let i = 0; i < select.options.length; i++) {
+          if (select.options[i].value === detected) {
+            select.selectedIndex = i;
+            prefix = detected;
+            break;
+          }
+        }
+      } else {
+        prefix = detected;
+      }
+      raw = raw.replace(prefixMatch[0], '');
+    }
+
+    const formatted = this.formatPhoneNumber(raw, prefix);
+    if (formatted !== inputEl.value) {
+      const oldLen = inputEl.value.length;
+      const oldPos = inputEl.selectionStart || 0;
+      inputEl.value = formatted;
+      const newPos = Math.max(0, oldPos + (formatted.length - oldLen));
+      inputEl.setSelectionRange(newPos, newPos);
+    }
+  },
+
+  /**
+   * Parses a phone string like "+33 6 12 34 56 78" into prefix and number
+   */
+  parsePhoneAndPrefix: function (phoneStr) {
+    if (!phoneStr) return { prefix: '+221', number: '' };
+    const trimmed = String(phoneStr).trim();
+    const prefixes = [
+      '+243', '+242', '+241', '+237', '+229', '+228', '+227', '+226', '+225',
+      '+224', '+223', '+222', '+221', '+216', '+213', '+212', '+254', '+250',
+      '+234', '+233', '+33', '+32', '+41', '+1'
+    ];
+    for (const p of prefixes) {
+      if (trimmed.startsWith(p)) {
+        return {
+          prefix: p,
+          number: trimmed.slice(p.length).trim()
+        };
+      }
+    }
+    return { prefix: '+221', number: trimmed };
+  },
+
+  /**
+   * Attaches auto-spacing and prefix synchronization to all phone inputs
+   */
+  setupPhoneInputs: function () {
+    const bindPhone = (inputId, selectId) => {
+      const input = document.getElementById(inputId);
+      const select = selectId ? document.getElementById(selectId) : null;
+      if (!input) return;
+
+      if (!input.dataset.phoneBound) {
+        input.dataset.phoneBound = 'true';
+
+        const getPrefix = () => select ? select.value : '';
+
+        input.addEventListener('input', () => {
+          this.formatPhoneInput(input, getPrefix());
+        });
+
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Backspace') {
+            const pos = input.selectionStart;
+            if (pos > 1 && input.value[pos - 1] === ' ') {
+              e.preventDefault();
+              const val = input.value;
+              const newVal = val.slice(0, pos - 2) + val.slice(pos);
+              input.value = newVal;
+              input.setSelectionRange(pos - 2, pos - 2);
+              input.dispatchEvent(new Event('input'));
+            }
+          }
+        });
+      }
+
+      if (select && !select.dataset.phoneBound) {
+        select.dataset.phoneBound = 'true';
+        select.addEventListener('change', () => {
+          this.formatPhoneInput(input, select.value);
+        });
+      }
+    };
+
+    // 1. Wizard phone
+    bindPhone('wz-phone', 'wz-phone-prefix');
+    // 2. Client modal phone
+    bindPhone('new-cli-phone', 'new-cli-phone-prefix');
+    // 3. Settings business phone
+    bindPhone('setting-biz-phone', 'setting-biz-phone-prefix');
+    // 4. WhatsApp modal recipient phone
+    bindPhone('wa-recipient-phone', null);
+    // 5. Builder phones
+    bindPhone('builder-biz-phone', null);
+    bindPhone('builder-client-phone', null);
   },
 
   /**
@@ -5901,6 +6175,10 @@ window.KivoApp = {
           prefixSel.value = code;
         }
       }
+      const wzPhone = document.getElementById('wz-phone');
+      if (wzPhone && wzPhone.value) {
+        this.formatPhoneInput(wzPhone, code);
+      }
     }
     if (curr) {
       const currSel = document.getElementById('wz-currency');
@@ -6007,7 +6285,20 @@ window.KivoApp = {
     const biz = this.state.business;
     if (document.getElementById('setting-biz-name')) document.getElementById('setting-biz-name').value = biz.name || '';
     if (document.getElementById('setting-biz-owner')) document.getElementById('setting-biz-owner').value = biz.owner || '';
-    if (document.getElementById('setting-biz-phone')) document.getElementById('setting-biz-phone').value = biz.phone || '';
+    
+    // Parse biz.phone into prefix + local number
+    const phoneInput = document.getElementById('setting-biz-phone');
+    const prefixSel = document.getElementById('setting-biz-phone-prefix');
+    if (phoneInput) {
+      if (prefixSel) {
+        const parsed = this.parsePhoneAndPrefix(biz.phone || '');
+        prefixSel.value = parsed.prefix;
+        phoneInput.value = this.formatPhoneNumber(parsed.number, parsed.prefix);
+      } else {
+        phoneInput.value = biz.phone || '';
+      }
+    }
+    this.setupPhoneInputs();
     if (document.getElementById('setting-biz-email')) document.getElementById('setting-biz-email').value = biz.email || '';
     if (document.getElementById('setting-biz-pro-email')) document.getElementById('setting-biz-pro-email').value = biz.proEmail || biz.email || '';
     if (document.getElementById('setting-biz-website')) document.getElementById('setting-biz-website').value = biz.website || '';
@@ -6086,7 +6377,20 @@ window.KivoApp = {
     const biz = this.state.business;
     if (document.getElementById('setting-biz-name')) biz.name = document.getElementById('setting-biz-name').value;
     if (document.getElementById('setting-biz-owner')) biz.owner = document.getElementById('setting-biz-owner').value;
-    if (document.getElementById('setting-biz-phone')) biz.phone = document.getElementById('setting-biz-phone').value;
+    const settingPhoneInput = document.getElementById('setting-biz-phone');
+    const settingPrefixSel = document.getElementById('setting-biz-phone-prefix');
+    if (settingPhoneInput) {
+      const rawVal = settingPhoneInput.value.trim();
+      if (!rawVal) {
+        biz.phone = '';
+      } else if (rawVal.startsWith('+')) {
+        biz.phone = rawVal;
+      } else if (settingPrefixSel && settingPrefixSel.value) {
+        biz.phone = `${settingPrefixSel.value} ${rawVal}`.trim();
+      } else {
+        biz.phone = rawVal;
+      }
+    }
     if (document.getElementById('setting-biz-email')) biz.email = document.getElementById('setting-biz-email').value;
     if (document.getElementById('setting-biz-pro-email')) biz.proEmail = document.getElementById('setting-biz-pro-email').value;
     if (document.getElementById('setting-biz-website')) biz.website = document.getElementById('setting-biz-website').value;
@@ -6660,6 +6964,15 @@ window.KivoApp = {
 
   openNewClientModal: function () {
     this.openModal('modal-new-client');
+    this.setupPhoneInputs();
+    const phoneInput = document.getElementById('new-cli-phone');
+    if (phoneInput) phoneInput.value = '';
+    const countryEl = document.getElementById('new-cli-country');
+    const prefixSel = document.getElementById('new-cli-phone-prefix');
+    if (countryEl && prefixSel) {
+      const code = countryEl.value || 'SN';
+      prefixSel.value = this._countryPhonePrefixMap[code] || '+221';
+    }
   },
 
   /**
@@ -6702,12 +7015,27 @@ window.KivoApp = {
     if (labelEl) labelEl.textContent = info.full;
     if (inputEl) inputEl.placeholder = info.placeholder;
     if (hiddenEl) hiddenEl.value = info.label;
+
+    const prefix = this._countryPhonePrefixMap[code];
+    if (prefix) {
+      const prefixSel = document.getElementById('new-cli-phone-prefix');
+      if (prefixSel) prefixSel.value = prefix;
+      const phoneInput = document.getElementById('new-cli-phone');
+      if (phoneInput && phoneInput.value) {
+        this.formatPhoneInput(phoneInput, prefix);
+      }
+    }
   },
 
   saveNewClient: function () {
     const name = document.getElementById('new-cli-name').value.trim();
     const contact = document.getElementById('new-cli-contact').value.trim();
-    const phone = document.getElementById('new-cli-phone').value.trim();
+    const rawPhone = document.getElementById('new-cli-phone').value.trim();
+    const phonePrefix = document.getElementById('new-cli-phone-prefix')?.value || '';
+    let phone = rawPhone;
+    if (rawPhone && !rawPhone.startsWith('+') && phonePrefix) {
+      phone = `${phonePrefix} ${rawPhone}`.trim();
+    }
     const email = document.getElementById('new-cli-email').value.trim();
     const taxId = document.getElementById('new-cli-taxid') ? document.getElementById('new-cli-taxid').value.trim() : '';
     const address = document.getElementById('new-cli-address') ? document.getElementById('new-cli-address').value.trim() : '';

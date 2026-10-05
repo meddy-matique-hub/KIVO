@@ -1469,10 +1469,11 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 }
 
 .phone-prefix-select {
-  width: 110px !important;
-  min-width: 90px !important;
+  width: 122px !important;
+  min-width: 110px !important;
   flex-shrink: 0;
-  padding: 0.65rem 0.5rem !important;
+  padding: 0.65rem 0.4rem !important;
+  cursor: pointer;
 }
 
 .phone-number-input {
@@ -1493,12 +1494,12 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
     align-items: stretch;
   }
   .phone-prefix-select {
-    width: 95px !important;
-    min-width: 85px !important;
-    max-width: 105px !important;
+    width: 105px !important;
+    min-width: 95px !important;
+    max-width: 115px !important;
     flex-shrink: 0;
-    padding: 0.65rem 0.35rem !important;
-    font-size: 0.85rem !important;
+    padding: 0.65rem 0.25rem !important;
+    font-size: 0.82rem !important;
   }
   .phone-number-input {
     flex: 1;
