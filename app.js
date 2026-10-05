@@ -1377,6 +1377,14 @@ window.KivoApp = {
   },
 
   /**
+   * Helper pour obtenir le nom commercial ou personnel de l'utilisateur
+   */
+  getBusinessName: function () {
+    const biz = (this.state && this.state.business) || {};
+    return biz.name || biz.owner || (window.KivoAuth?.user?.user_metadata?.full_name) || 'Mon Entreprise';
+  },
+
+  /**
    * Updates sidebar and header branding elements
    */
   updateUserBrandingUI: function () {
@@ -1386,7 +1394,7 @@ window.KivoApp = {
     }
     const biz = (this.state && this.state.business) || {};
     const bizEl = document.getElementById('sidebar-business-name');
-    if (bizEl) bizEl.textContent = biz.name || 'KIVO MATIQUE';
+    if (bizEl) bizEl.textContent = this.getBusinessName();
     
     const teamOwnerName = document.getElementById('team-owner-name');
     const teamOwnerEmail = document.getElementById('team-owner-email');
@@ -2473,7 +2481,7 @@ window.KivoApp = {
     }
 
     const bizNameEl = document.getElementById('paper-biz-name');
-    if (bizNameEl) bizNameEl.textContent = bizName || "KIVO MATIQUE";
+    if (bizNameEl) bizNameEl.textContent = bizName || this.getBusinessName();
 
     const bizAddrEl = document.getElementById('paper-biz-address');
     if (bizAddrEl) bizAddrEl.textContent = bizAddress || "";
@@ -3234,6 +3242,7 @@ window.KivoApp = {
       type: type,
       status: status,
       currency: currency,
+      bizName: (document.getElementById('builder-biz-name') || {}).value || this.getBusinessName(),
       clientId: clientObj.id,
       clientName: customClientName || clientObj.name || 'Client Destinataire',
       clientType: clientObj.clientType || 'B2C',
@@ -3538,7 +3547,7 @@ window.KivoApp = {
 
           if (!bizErr && cloudBiz) {
             biz = {
-              name: cloudBiz.company_name || 'KIVO MATIQUE',
+              name: cloudBiz.company_name || cloudBiz.owner || 'Mon Entreprise',
               owner: cloudBiz.owner || '',
               email: cloudBiz.email || '',
               phone: cloudBiz.phone || '',
@@ -5718,7 +5727,7 @@ window.KivoApp = {
     if (!this.state.business) this.state.business = JSON.parse(JSON.stringify(this.BLANK_STATE.business));
 
     const biz = this.state.business;
-    biz.name = bizName;
+    biz.name = bizName || bizOwner || 'Mon Entreprise';
     biz.owner = bizOwner;
     biz.industry = d.industry;
     biz.country = d.country;
@@ -6090,7 +6099,7 @@ window.KivoApp = {
 
     const biz = (this.state && this.state.business) || {};
     const logoUrl = biz.logoUrl || null;
-    const bizName = biz.name || 'KIVO MATIQUE';
+    const bizName = this.getBusinessName();
     const bizAddress = biz.address || 'Plateau, Abidjan';
     const bizPhone = biz.phone || '+225 07 48 12 34 56';
     const bizEmail = biz.email || 'contact@kivo.com';
@@ -6226,7 +6235,7 @@ window.KivoApp = {
       </div>
 
       <!-- Signature & Certification -->
-      <div style="margin-bottom:0.25rem;font-size:0.6rem;color:#94A3B8;font-weight:500;">Bon pour accord & certification KIVO MATIQUE</div>
+      <div style="margin-bottom:0.25rem;font-size:0.6rem;color:#94A3B8;font-weight:500;">Bon pour accord</div>
       <div style="font-family:'Dancing Script',cursive,Georgia,serif;font-size:1.35rem;color:#0F172A;line-height:1;margin-bottom:0.85rem;">${bizOwner}</div>
 
       <!-- Footer -->
@@ -7036,7 +7045,9 @@ window.KivoApp = {
       }
       if (!Array.isArray(rawDocItems)) rawDocItems = [];
 
+      const defaultBizName = targetDoc.bizName || biz.name || biz.owner || (window.KivoAuth?.user?.user_metadata?.full_name) || 'Mon Entreprise';
       const docBiz = Object.assign({}, biz, {
+        name: defaultBizName,
         logoUrl: (targetDoc.logoUrl !== undefined && targetDoc.logoUrl !== null) ? targetDoc.logoUrl : biz.logoUrl,
         primaryColor: targetDoc.primaryColor || biz.primaryColor || '#0F172A',
         secondaryColor: targetDoc.secondaryColor || biz.secondaryColor || '#64748B'

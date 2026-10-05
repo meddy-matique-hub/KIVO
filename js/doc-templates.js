@@ -91,7 +91,7 @@ window.KivoTemplates = {
     const liveLogoPos  = posSelect ? posSelect.value : (biz.logoPosition || 'right');
 
     const activeBiz = Object.assign({}, biz, {
-      name:         get('builder-biz-name')    || biz.name    || '',
+      name:         get('builder-biz-name')    || biz.name    || biz.owner || 'Mon Entreprise',
       address:      get('builder-biz-address') || biz.address || '',
       phone:        get('builder-biz-phone')   || biz.phone   || '',
       email:        get('builder-biz-email')   || biz.email   || '',
@@ -173,6 +173,7 @@ window.KivoTemplates = {
     const lbl = d.docType === 'quote' ? 'DEVIS' : 'FACTURE';
     const pos = (d.biz && d.biz.logoPosition) || 'right';
     const logo = this.logoHtml(d.biz, 70, 'square', isDark);
+    const bizDisplayName = (d.biz && d.biz.name) ? d.biz.name : ((d.biz && d.biz.owner) || 'Mon Entreprise');
 
     const paidBadge = (d.status === 'paid' && d.docType !== 'quote') ? `
       <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 14px;background:#ECFDF5;border:1.5px solid #10B981;border-radius:20px;font-size:11px;font-weight:800;color:#047857;letter-spacing:0.04em;text-transform:uppercase;margin-top:6px;">
@@ -189,7 +190,7 @@ window.KivoTemplates = {
           <div style="display:flex;align-items:flex-start;gap:16px;">
             ${logo}
             <div>
-              <div style="font-size:19px;font-weight:900;color:${titleColor};">${d.biz.name}</div>
+              <div style="font-size:19px;font-weight:900;color:${titleColor};">${bizDisplayName}</div>
               <div style="font-size:11px;color:${subtitleColor};line-height:1.5;margin-top:3px;">
                 ${d.biz.address ? d.biz.address + '<br>' : ''}
                 ${d.biz.phone ? 'Tél.: ' + d.biz.phone + '<br>' : ''}
@@ -214,7 +215,7 @@ window.KivoTemplates = {
           <div style="margin-bottom:10px;">${logo}</div>
           <div style="font-size:22px;font-weight:900;color:${titleColor};">${lbl} · ${d.docNum}</div>
           ${paidBadge ? `<div style="margin:4px 0;">${paidBadge}</div>` : ''}
-          <div style="font-size:13px;font-weight:700;color:${titleColor};margin-top:3px;">${d.biz.name}</div>
+          <div style="font-size:13px;font-weight:700;color:${titleColor};margin-top:3px;">${bizDisplayName}</div>
           <div style="font-size:10.5px;color:${subtitleColor};margin-top:3px;">
             ${d.biz.address} · ${d.biz.phone} · ${d.biz.email}
           </div>
@@ -230,7 +231,7 @@ window.KivoTemplates = {
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">
         <div>
           <div style="font-size:28px;font-weight:900;color:${titleColor};letter-spacing:-0.02em;margin-bottom:4px;">${lbl}</div>
-          <div style="font-size:15px;font-weight:800;color:${titleColor};">${d.biz.name}</div>
+          <div style="font-size:15px;font-weight:800;color:${titleColor};">${bizDisplayName}</div>
           <div style="font-size:11px;color:${subtitleColor};line-height:1.5;margin-top:3px;">
             ${d.biz.address ? d.biz.address + '<br>' : ''}
             ${d.biz.phone ? 'Tél.: ' + d.biz.phone + '<br>' : ''}
@@ -314,7 +315,7 @@ window.KivoTemplates = {
 
         <!-- Footer -->
         <div style="text-align:center;font-size:10px;color:${isDark ? '#64748B' : '#94A3B8'};padding-top:8px;border-top:1px solid ${isDark ? '#2D323F' : '#F1F5F9'};">
-          ${[d.biz.name, d.biz.address, d.biz.taxId].filter(Boolean).join(' · ')}
+          ${[(d.biz && d.biz.name) || (d.biz && d.biz.owner) || 'Mon Entreprise', d.biz && d.biz.address, d.biz && d.biz.taxId].filter(Boolean).join(' · ')}
         </div>
       </div>
     `;
