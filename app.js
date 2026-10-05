@@ -3717,7 +3717,10 @@ window.KivoApp = {
         conditions: docObj.terms,
         publicToken: docObj.publicToken,
         viewsCount: docObj.viewsCount || 0
-      }).catch(e => console.error('[KivoApp] Supabase saveDocument error:', e));
+      }).catch(e => {
+        console.error('[KivoApp] Supabase saveDocument error:', e);
+        this.showToast(this.friendlySupabaseError(e, "Document enregistré localement (synchronisation cloud échouée)."), "warning");
+      });
     }
 
     // Clear auto-saved draft: a finalized document is no longer a draft
@@ -3774,7 +3777,10 @@ window.KivoApp = {
         this.state.documents = this.state.documents.filter(d => d.id !== docId);
         this.saveState();
         if (window.KivoDb && this.supabaseConnected) {
-          window.KivoDb.deleteDocument(docId).catch(e => console.error(e));
+          window.KivoDb.deleteDocument(docId).catch(e => {
+            console.error('[KivoApp] deleteDocument error:', e);
+            this.showToast(this.friendlySupabaseError(e, "Erreur lors de la suppression sur le serveur."), "error");
+          });
         }
         this.showToast(`Document ${num} supprimé.`, "info");
         this.renderCurrentView();
@@ -3793,7 +3799,10 @@ window.KivoApp = {
         this.state.clients = this.state.clients.filter(c => c.id !== clientId);
         this.saveState();
         if (window.KivoDb && this.supabaseConnected) {
-          window.KivoDb.deleteClient(clientId).catch(e => console.error(e));
+          window.KivoDb.deleteClient(clientId).catch(e => {
+            console.error('[KivoApp] deleteClient error:', e);
+            this.showToast(this.friendlySupabaseError(e, "Erreur lors de la suppression du client sur le serveur."), "error");
+          });
         }
         this.showToast(`Client ${name} supprimé.`, "info");
         this.renderClients();
@@ -4634,7 +4643,10 @@ window.KivoApp = {
         price: itemObj.price,
         unit: itemObj.unit,
         tax_rate: itemObj.taxRate
-      }).catch(e => console.error('[KivoApp] Supabase saveCatalogItem error:', e));
+      }).catch(e => {
+        console.error('[KivoApp] Supabase saveCatalogItem error:', e);
+        this.showToast(this.friendlySupabaseError(e, "Erreur lors de la synchronisation de l'article sur le serveur."), "warning");
+      });
     }
 
     this.closeModal('modal-catalog-item');
@@ -4658,7 +4670,10 @@ window.KivoApp = {
     this.saveState();
 
     if (window.KivoDb && this.supabaseConnected) {
-      window.KivoDb.deleteCatalogItem(itemId).catch(e => console.error('[KivoApp] Supabase deleteCatalogItem error:', e));
+      window.KivoDb.deleteCatalogItem(itemId).catch(e => {
+        console.error('[KivoApp] Supabase deleteCatalogItem error:', e);
+        this.showToast(this.friendlySupabaseError(e, "Erreur lors de la suppression de l'article sur le serveur."), "error");
+      });
     }
 
     this.populateBuilderCatalogDropdown();
@@ -5295,9 +5310,10 @@ window.KivoApp = {
    * Display inline message inside the unified auth card
    */
   showAuthMessage: function (msg, type = 'error') {
+    const isError = (type === 'error' || type === 'danger');
+    const safeMsg = isError ? this.friendlySupabaseError(msg, typeof msg === 'string' ? msg : "Une erreur est survenue.") : msg;
     const box = document.getElementById('auth-status-message');
     if (box) {
-      const isError = type === 'error';
       box.style.display = 'block';
       box.style.padding = '0.85rem 1rem';
       box.style.marginBottom = '1.25rem';
@@ -5314,9 +5330,9 @@ window.KivoApp = {
         box.style.border = '1px solid rgba(16, 185, 129, 0.25)';
         box.style.color = '#059669';
       }
-      box.textContent = msg;
+      box.textContent = safeMsg;
     }
-    this.showToast(msg, type);
+    this.showToast(safeMsg, type);
   },
 
   /**
@@ -5362,18 +5378,7 @@ window.KivoApp = {
     if (btn) { btn.disabled = false; btn.textContent = originalText; }
 
     if (result.error) {
-      const rawMsg = result.error.message || '';
-      let friendlyMsg = "Email ou mot de passe incorrect.";
-      if (rawMsg.includes('Email not confirmed')) {
-        friendlyMsg = "Votre compte n'est pas encore confirmé. Vérifiez vos emails (et vos spams) pour valider votre compte.";
-      } else if (rawMsg.includes('Too many requests') || rawMsg.includes('rate limit')) {
-        friendlyMsg = "Trop de tentatives de connexion. Veuillez patienter quelques minutes.";
-      } else if (rawMsg.includes('User not found') || rawMsg.includes('user not found')) {
-        friendlyMsg = "Aucun compte trouvé avec cet email.";
-      } else if (rawMsg.includes('Invalid login credentials')) {
-        friendlyMsg = "Adresse email ou mot de passe incorrect.";
-      }
-      this.showAuthMessage(friendlyMsg, "error");
+      this.showAuthMessage(this.friendlySupabaseError(result.error, "Email ou mot de passe incorrect."), "error");
     }
     // On success, onAuthStateChange fires and handlePostLogin() runs automatically
   },
@@ -5411,18 +5416,7 @@ window.KivoApp = {
     if (btn) { btn.disabled = false; btn.textContent = originalText; }
 
     if (result.error) {
-      const rawMsg = result.error.message || '';
-      let friendlyMsg = "Erreur lors de la création du compte.";
-      if (rawMsg.includes('User already registered') || rawMsg.includes('already registered') || rawMsg.includes('already exists')) {
-        friendlyMsg = "Un compte existe déjà avec cette adresse email. Veuillez vous connecter.";
-      } else if (rawMsg.includes('Password should be at least')) {
-        friendlyMsg = "Le mot de passe doit comporter au moins 6 caractères.";
-      } else if (rawMsg.includes('invalid email') || rawMsg.includes('Invalid email')) {
-        friendlyMsg = "Veuillez entrer une adresse email valide.";
-      } else if (rawMsg.includes('Too many requests') || rawMsg.includes('rate limit')) {
-        friendlyMsg = "Trop de requêtes. Veuillez patienter un instant.";
-      }
-      this.showAuthMessage(friendlyMsg, "error");
+      this.showAuthMessage(this.friendlySupabaseError(result.error, "Erreur lors de la création du compte."), "error");
     } else {
       this.state.userEmail = email;
       this.state.business.owner = name;
@@ -5467,11 +5461,7 @@ window.KivoApp = {
 
       if (error) {
         console.error('[KivoApp] resetPasswordForEmail error:', error);
-        let msg = "Impossible d'envoyer l'email de réinitialisation.";
-        if (error.message.includes('rate limit') || error.message.includes('Too many requests')) {
-          msg = "Trop de demandes de réinitialisation. Veuillez patienter quelques minutes.";
-        }
-        this.showAuthMessage(msg, "error");
+        this.showAuthMessage(this.friendlySupabaseError(error, "Impossible d'envoyer l'email de réinitialisation."), "error");
       } else {
         this.showAuthMessage("Lien de réinitialisation envoyé ! Vérifiez votre boîte de réception (et vos spams).", "success");
         if (emailInput) emailInput.value = '';
@@ -5646,9 +5636,7 @@ window.KivoApp = {
         const { error } = await KivoDb.supabase.auth.updateUser({ password: p1 });
         if (error) {
           console.error('[KivoApp] updateUser password error:', error);
-          const friendlyMsg = error.message && error.message.includes('Auth session missing')
-            ? "Le lien de réinitialisation a expiré ou est invalide. Veuillez refaire une demande."
-            : "Une erreur est survenue lors de la mise à jour du mot de passe.";
+          const friendlyMsg = this.friendlySupabaseError(error, "Une erreur est survenue lors de la mise à jour du mot de passe.");
           this.showToast(friendlyMsg, "error");
           if (msgEl) {
             msgEl.style.display = 'block';
@@ -6432,7 +6420,10 @@ window.KivoApp = {
         logo_size: biz.logoSize || 100,
         logo_position: biz.logoPosition || 'right',
         invoice_page_size: biz.invoicePageSize || 'a4'
-      }).catch(e => console.error('[KivoApp] Supabase saveSettings error:', e));
+      }).catch(e => {
+        console.error('[KivoApp] Supabase saveSettings error:', e);
+        this.showToast(this.friendlySupabaseError(e, "Paramètres enregistrés localement (synchronisation cloud échouée)."), "warning");
+      });
     }
 
     this.showToast("Paramètres KIVO MATIQUE enregistrés !", "success");
@@ -6498,7 +6489,7 @@ window.KivoApp = {
       this.showToast('Mot de passe mis à jour avec succès !', 'success');
     } catch (err) {
       console.error('[KivoApp] submitChangePassword error:', err);
-      showError('Une erreur est survenue. Réessayez ou contactez le support.');
+      showError(this.friendlySupabaseError(err, 'Une erreur est survenue. Réessayez ou contactez le support.'));
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Mettre à jour'; }
     }
@@ -7086,16 +7077,7 @@ window.KivoApp = {
         // ne sont pas des colonnes Supabase valides → exclus volontairement
       }).catch(e => {
         console.error('[KivoApp] saveClient error:', e);
-        const rawMsg = (e && e.message) ? e.message : '';
-        let friendlyMsg = 'Erreur lors de l\'enregistrement du client. Réessayez.';
-        if (rawMsg.includes('violates row-level security') || rawMsg.includes('RLS') || rawMsg.includes('permission denied')) {
-          friendlyMsg = 'Accès refusé (politique de sécurité). Reconnectez-vous et réessayez.';
-        } else if (rawMsg.includes('duplicate') || rawMsg.includes('unique')) {
-          friendlyMsg = 'Ce client existe déjà dans votre base de données.';
-        } else if (rawMsg.includes('network') || rawMsg.includes('fetch')) {
-          friendlyMsg = 'Erreur réseau. Vérifiez votre connexion internet.';
-        }
-        this.showToast(friendlyMsg, 'error');
+        this.showToast(this.friendlySupabaseError(e, "Erreur lors de l'enregistrement du client sur le serveur."), 'error');
       });
     }
 
@@ -7120,11 +7102,129 @@ window.KivoApp = {
     }
   },
 
-  showToast: function (message, type = 'info') {
-    if (!message || (typeof message === 'string' && !message.trim())) {
-      return;
+  /**
+   * Centralized mapping of any Supabase / PostgreSQL / Network error into a French user-friendly message.
+   * Prevents raw technical messages (RLS, constraint names, SQL codes) from ever reaching the user.
+   */
+  friendlySupabaseError: function (err, fallback) {
+    if (!err) return fallback || "Une erreur est survenue. Veuillez réessayer.";
+
+    let raw = '';
+    let code = '';
+    if (typeof err === 'string') {
+      raw = err;
+    } else if (typeof err === 'object') {
+      code = (err.code || err.statusCode || err.status || '').toString();
+      raw = (err.message || err.error_description || err.details || err.hint || JSON.stringify(err) || '');
     }
-    const cleanMsg = typeof message === 'string' ? message.trim() : String(message);
+
+    const lower = (raw + ' ' + code).toLowerCase();
+
+    // 1. RLS / Permissions
+    if (lower.includes('row-level security') || lower.includes('42501') || lower.includes('permission denied') || lower.includes('not authorized')) {
+      return "Accès refusé par les règles de sécurité. Reconnectez-vous pour actualiser vos autorisations.";
+    }
+
+    // 2. Constraints: Check constraint
+    if (lower.includes('check constraint') || lower.includes('23514')) {
+      return "Certaines informations ne respectent pas le format attendu. Vérifiez vos saisies.";
+    }
+
+    // 3. Constraints: Unique constraint / duplicates
+    if (lower.includes('duplicate key') || lower.includes('unique constraint') || lower.includes('23505') || lower.includes('already exists')) {
+      return "Cet élément existe déjà dans votre compte.";
+    }
+
+    // 4. Constraints: Foreign key
+    if (lower.includes('foreign key') || lower.includes('23503')) {
+      return "Action impossible : cet élément est lié à d'autres données existantes.";
+    }
+
+    // 5. Constraints: Not null
+    if (lower.includes('not-null') || lower.includes('null value') || lower.includes('23502')) {
+      return "Veuillez renseigner tous les champs obligatoires.";
+    }
+
+    // 6. Auth errors
+    if (lower.includes('invalid login credentials') || lower.includes('invalid_credentials')) {
+      return "Adresse email ou mot de passe incorrect.";
+    }
+    if (lower.includes('email not confirmed') || lower.includes('email_not_confirmed')) {
+      return "Votre compte n'est pas encore confirmé. Vérifiez vos emails pour valider votre compte.";
+    }
+    if (lower.includes('user already registered') || lower.includes('user_already_exists') || lower.includes('already registered')) {
+      return "Un compte existe déjà avec cette adresse email. Veuillez vous connecter.";
+    }
+    if (lower.includes('auth session missing') || lower.includes('jwt expired') || lower.includes('token is expired') || lower.includes('session_not_found') || lower.includes('pgrst301')) {
+      return "Votre session a expiré. Veuillez vous reconnecter.";
+    }
+    if (lower.includes('password should be at least') || lower.includes('password is too short')) {
+      return "Le mot de passe doit comporter au moins 6 caractères.";
+    }
+    if (lower.includes('user not found')) {
+      return "Aucun compte trouvé avec ces identifiants.";
+    }
+    if (lower.includes('invalid email') || lower.includes('invalid_email')) {
+      return "Veuillez entrer une adresse email valide.";
+    }
+
+    // 7. Rate limits
+    if (lower.includes('too many requests') || lower.includes('rate limit') || lower.includes('429')) {
+      return "Trop de requêtes. Veuillez patienter un instant avant de réessayer.";
+    }
+
+    // 8. Network errors
+    if (lower.includes('failed to fetch') || lower.includes('networkerror') || lower.includes('network request failed') || lower.includes('err_connection')) {
+      return "Erreur de connexion. Vérifiez votre connexion internet.";
+    }
+
+    // 9. Database / Query syntax or internal errors
+    if (
+      lower.includes('pgrst') ||
+      lower.includes('relation') ||
+      lower.includes('column') ||
+      lower.includes('syntax error') ||
+      lower.includes('schema cache') ||
+      lower.includes('internal server error') ||
+      lower.includes('500') ||
+      lower.includes('[object object]')
+    ) {
+      return fallback || "Une erreur est survenue lors de l'opération sur le serveur. Veuillez réessayer.";
+    }
+
+    // If message is already a clean French string without code artifacts, keep it
+    if (/^[A-ZÀ-Ÿ0-9][a-zà-ÿA-Z0-9\s'’.,!?:;()\-éèêëàâäôöîïùûüçÉÈÊËÀÂÄÔÖÎÏÙÛÜÇ]+$/.test(raw.trim()) && !/[{}_=<>$\\/]/.test(raw)) {
+      return raw.trim();
+    }
+
+    return fallback || "Une erreur est survenue. Veuillez réessayer.";
+  },
+
+  showToast: function (message, type = 'info') {
+    if (!message) return;
+    let cleanMsg = '';
+    const isErrorType = type === 'error' || type === 'danger' || type === 'warning';
+    if (typeof message === 'object') {
+      cleanMsg = this.friendlySupabaseError(message, isErrorType ? "Une erreur est survenue lors de l'opération." : "");
+    } else {
+      const str = String(message).trim();
+      if (!str) return;
+      if (
+        str.includes('violates') ||
+        str.includes('constraint') ||
+        str.includes('row-level security') ||
+        str.includes('permission denied') ||
+        str.includes('JWT') ||
+        str.includes('PGRST') ||
+        str.includes('Failed to fetch') ||
+        str.includes('[object Object]') ||
+        (isErrorType && (str.includes('{') || str.includes('Error') || str.includes('column') || str.includes('relation')))
+      ) {
+        cleanMsg = this.friendlySupabaseError(str, "Une erreur est survenue lors de l'opération.");
+      } else {
+        cleanMsg = str;
+      }
+    }
     if (!cleanMsg) return;
 
     const container = document.getElementById('toast-container');
