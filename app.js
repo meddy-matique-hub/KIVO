@@ -2220,7 +2220,11 @@ window.KivoApp = {
     // Core fields
     const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
     setVal('builder-doc-id', '');
-    this._cloudDraftId = null; // FIX point2: reset draft cloud ID for each new document
+    // FIX point2: reset and pre-generate stable draft IDs for each new document session.
+    // _currentDraftDocId persists the local draft key; _cloudDraftId is the fixed Supabase UUID.
+    // Both must be reset here so stale values from a previous session never bleed into a new doc.
+    this._currentDraftDocId = null;
+    this._cloudDraftId = this.generateUUID(); // generate NOW — same UUID for all subsequent autosaves
     setVal('builder-doc-type', type);
     setVal('builder-doc-number', nextNum);
     setVal('builder-issue-date', today);
@@ -2304,6 +2308,9 @@ window.KivoApp = {
     const titleEl = document.getElementById('builder-page-title');
     if (titleEl) titleEl.textContent = (doc.type === 'quote') ? 'Modifier le devis' : 'Modifier la facture';
     setVal('builder-doc-id', doc.id);
+    // FIX point2: lock draft IDs to the existing doc so autosave always upserts (never inserts a new row)
+    this._cloudDraftId = doc.id;
+    this._currentDraftDocId = doc.id;
     setVal('builder-doc-type', doc.type || 'invoice');
     setVal('builder-doc-number', doc.number);
     setVal('builder-doc-currency', doc.currency || this.state.business.currency || 'FCFA');
@@ -2835,13 +2842,13 @@ window.KivoApp = {
     // 2. Sauvegarde Supabase en arrière-plan avec status='draft' si connecté
     if (window.KivoDb && this.supabaseConnected && window.KivoAuth?.user) {
       try {
-        // FIX: conserver le même UUID cloud d'un brouillon à l'autre pour éviter les doublons.
-        // On génère l'UUID une seule fois et on le réutilise (_cloudDraftId est réinitialisé
-        // quand le builder est chargé avec un nouveau document vide ou un existant réel).
+        // FIX point2: _cloudDraftId is pre-generated in startNewDocument for new docs.
+        // For existing docs (docId is a real UUID), we use docId directly (upsert updates it).
+        // We never generate a new UUID lazily here to prevent duplicate rows.
         if (!this._cloudDraftId) {
           this._cloudDraftId = (docId && !docId.startsWith('draft_')) ? docId : this.generateUUID();
         }
-        const cloudDocId = (docId && !docId.startsWith('draft_')) ? docId : this._cloudDraftId;
+        const cloudDocId = this._cloudDraftId;
         draftData.cloudId = cloudDocId;
         const cloudPayload = {
           id: cloudDocId,
