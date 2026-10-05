@@ -32,7 +32,10 @@ window.KivoTemplates = {
     const szVal = (biz && biz.logoSize) ? biz.logoSize : (defaultSize || 70);
     const sz = typeof szVal === 'number' ? `${szVal}px` : szVal;
     const br = shape === 'circle' ? '50%' : (shape === 'none' ? '0' : '6px');
-    return `<img src="${biz.logoUrl}" style="max-height:${sz};max-width:220px;height:auto;object-fit:contain;border-radius:${br};display:inline-block;" alt="Logo">`;
+    // Neutral white container ensures logo stays visible on ANY theme color
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;background:#FFFFFF;border-radius:${br};padding:3px;box-shadow:0 0 0 1px rgba(0,0,0,0.07);">
+      <img src="${biz.logoUrl}" style="max-height:${sz};max-width:220px;height:auto;object-fit:contain;border-radius:${br};display:block;" alt="Logo">
+    </span>`;
   },
 
   rows: function (items, currency, accBg, isDark = false) {
@@ -249,8 +252,11 @@ window.KivoTemplates = {
   // ── Client Box Renderer Helper ────────────────────────────────────────
   renderClient: function (d, titleColor, subtitleColor, isDark = false) {
     const hasClient = d.client && d.client.name;
+    // Secondary color used for client-box border accent
+    const secColor = d.secondaryColor || (isDark ? '#94A3B8' : '#64748B');
+    const borderStyle = isDark ? '#2D323F' : (d.secondaryColor || '#E2E8F0');
     return `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;background:${isDark ? '#222631' : '#F8FAFC'};padding:14px 18px;border-radius:8px;border:1px solid ${isDark ? '#2D323F' : '#E2E8F0'};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;background:${isDark ? '#222631' : '#F8FAFC'};padding:14px 18px;border-radius:8px;border:1px solid ${borderStyle};border-left:3px solid ${secColor};">
         <div>
           <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">Client / Facturé à</div>
           <div style="font-size:15px;font-weight:800;color:${titleColor};margin-top:3px;">${hasClient ? d.client.name : '<span style="font-size:12px;font-weight:400;color:' + subtitleColor + ';font-style:italic;">(Sélectionnez un client)</span>'}</div>
@@ -263,7 +269,8 @@ window.KivoTemplates = {
         <div style="text-align:right;">
           <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">Contact &amp; Identifiants</div>
           <div style="font-size:12px;font-weight:600;color:${titleColor};margin-top:3px;">${d.client.email || '--'}</div>
-          ${d.client.taxId ? `<div style="font-size:10px;color:${subtitleColor};margin-top:3px;">NINEA / SIRET : ${d.client.taxId}</div>` : ''}
+          ${d.client.taxId ? `<div style="font-size:10px;color:${subtitleColor};margin-top:3px;">NINEA / SIRET : ${d.client.taxId}</div>` : '' }
+          ${(d.client.address && !d.client.phone && !d.client.email) ? '' : (d.client.address ? '' : '')}
         </div>
       </div>
     `;
