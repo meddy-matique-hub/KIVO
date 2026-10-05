@@ -3327,11 +3327,17 @@
         <p style="color: var(--text-muted); text-align: center; padding: 1rem;">Chargement…</p>
       </div>
 
-      <div style="text-align: right; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-        <button class="btn btn-primary" onclick="KivoApp.startNewDocumentForClient(); KivoApp.closeModal('modal-client-details')">
-          + Nouvelle facture pour ce client
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.5rem;">
+        <button class="btn btn-secondary" onclick="KivoApp.filterInvoicesByClient();" style="display: inline-flex; align-items: center; gap: 6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>Voir dans Facturation</span>
         </button>
-        <button class="btn btn-secondary" onclick="KivoApp.closeModal('modal-client-details')" style="margin-left: 0.5rem;">Fermer</button>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-primary" onclick="KivoApp.startNewDocumentForClient(); KivoApp.closeModal('modal-client-details')">
+            + Nouvelle facture pour ce client
+          </button>
+          <button class="btn btn-secondary" onclick="KivoApp.closeModal('modal-client-details')">Fermer</button>
+        </div>
       </div>
     </div>
   </div>

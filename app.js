@@ -3904,7 +3904,7 @@ window.KivoApp = {
 
       return `
       <tr>
-        <td><strong>${c.name}</strong> ${c.clientType ? `<span class="badge badge-accepted" style="font-size: 0.65rem;">${c.clientType}</span>` : ''}</td>
+        <td><strong style="cursor: pointer; color: var(--primary);" onclick="KivoApp.openClientDetails('${c.id}')" title="Voir les détails et factures de ce client">${c.name}</strong> ${c.clientType ? `<span class="badge badge-accepted" style="font-size: 0.65rem;">${c.clientType}</span>` : ''}</td>
         <td>${c.company || c.taxId || '-'}</td>
         <td>${c.phone || '-'}</td>
         <td><strong>${totalInvoiced.toLocaleString('fr-FR')} ${currency}</strong></td>
@@ -3974,14 +3974,15 @@ window.KivoApp = {
         listEl.innerHTML = clientDocs
           .sort((a, b) => new Date(b.issueDate || 0) - new Date(a.issueDate || 0))
           .map(doc => `
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--bg-subtle); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--bg-subtle); border-radius: var(--radius-md); border: 1px solid var(--border-color); cursor: pointer; transition: all 0.15s ease;" onmouseover="this.style.borderColor='var(--primary)';this.style.background='var(--primary-light)'" onmouseout="this.style.borderColor='var(--border-color)';this.style.background='var(--bg-subtle)'" onclick="KivoApp.closeModal('modal-client-details'); KivoApp.viewPublicDoc('${doc.id}');" title="Afficher cette facture">
             <div>
-              <strong style="font-size: 0.95rem;">${doc.number}</strong>
+              <strong style="font-size: 0.95rem; color: var(--primary);">${doc.number}</strong>
               <div style="font-size: 0.8rem; color: var(--text-secondary);">${doc.type === 'quote' ? 'Devis' : 'Facture'} · Émis le ${doc.issueDate || '—'}</div>
             </div>
             <div style="text-align: right; display: flex; align-items: center; gap: 0.75rem;">
               <span class="badge ${statusClass[doc.status] || ''}">${statusLabel[doc.status] || doc.status}</span>
               <strong>${(doc.total || 0).toLocaleString('fr-FR')} ${doc.currency || currency}</strong>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
             </div>
           </div>
         `).join('');
@@ -3992,6 +3993,17 @@ window.KivoApp = {
     this._crmCurrentClientId = clientId;
 
     this.openModal('modal-client-details');
+  },
+
+  filterInvoicesByClient: function (clientName) {
+    const name = clientName || (this._crmCurrentClientId ? (this.state.clients.find(c => c.id === this._crmCurrentClientId)?.name) : '');
+    this.closeModal('modal-client-details');
+    this.navigate('billing');
+    const searchInput = document.getElementById('search-docs-input');
+    if (searchInput && name) {
+      searchInput.value = name;
+    }
+    this.renderDocumentsTable('all', name || '');
   },
 
   startNewDocumentForClient: function (clientId) {
