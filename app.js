@@ -5038,6 +5038,105 @@ window.KivoApp = {
   },
 
   /**
+   * Afficher / masquer un mot de passe
+   */
+  togglePasswordVisibility: function (inputId, btnId) {
+    const input = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
+    if (!input) return;
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    if (btn) {
+      btn.innerHTML = isPassword
+        ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+        : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+    }
+  },
+
+  /**
+   * Évaluation en direct de la force du mot de passe
+   */
+  checkResetPasswordStrength: function (pwd) {
+    const p = pwd || '';
+    const hasLen = p.length >= 8;
+    const hasDigit = /[0-9]/.test(p);
+    const hasUpper = /[A-Z]/.test(p);
+
+    const updateRule = (id, valid) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.style.color = valid ? '#10B981' : 'var(--text-muted)';
+      const icon = el.querySelector('.pwd-rule-icon');
+      if (icon) icon.textContent = valid ? '✅' : '⚪';
+    };
+
+    updateRule('pwd-rule-len', hasLen);
+    updateRule('pwd-rule-digit', hasDigit);
+    updateRule('pwd-rule-upper', hasUpper);
+
+    const score = (hasLen ? 1 : 0) + (hasDigit ? 1 : 0) + (hasUpper ? 1 : 0);
+    const b1 = document.getElementById('pwd-strength-bar-1');
+    const b2 = document.getElementById('pwd-strength-bar-2');
+    const b3 = document.getElementById('pwd-strength-bar-3');
+    const label = document.getElementById('pwd-strength-label');
+
+    const colors = {
+      empty: '#E2E8F0',
+      red: '#EF4444',
+      yellow: '#F59E0B',
+      green: '#10B981'
+    };
+
+    if (score === 0) {
+      if (b1) b1.style.background = colors.empty;
+      if (b2) b2.style.background = colors.empty;
+      if (b3) b3.style.background = colors.empty;
+      if (label) { label.textContent = 'Non renseigné'; label.style.color = 'var(--text-muted)'; }
+    } else if (score === 1) {
+      if (b1) b1.style.background = colors.red;
+      if (b2) b2.style.background = colors.empty;
+      if (b3) b3.style.background = colors.empty;
+      if (label) { label.textContent = 'Faible'; label.style.color = colors.red; }
+    } else if (score === 2) {
+      if (b1) b1.style.background = colors.yellow;
+      if (b2) b2.style.background = colors.yellow;
+      if (b3) b3.style.background = colors.empty;
+      if (label) { label.textContent = 'Moyen'; label.style.color = colors.yellow; }
+    } else {
+      if (b1) b1.style.background = colors.green;
+      if (b2) b2.style.background = colors.green;
+      if (b3) b3.style.background = colors.green;
+      if (label) { label.textContent = 'Fort & Sécurisé'; label.style.color = colors.green; }
+    }
+
+    this.checkResetPasswordMatch();
+  },
+
+  /**
+   * Vérifie la concordance des deux mots de passe
+   */
+  checkResetPasswordMatch: function () {
+    const p1 = document.getElementById('reset-new-password')?.value || '';
+    const p2 = document.getElementById('reset-confirm-password')?.value || '';
+    const matchEl = document.getElementById('pwd-match-indicator');
+    if (!matchEl) return;
+
+    if (!p2) {
+      matchEl.style.display = 'none';
+      return;
+    }
+
+    matchEl.style.display = 'block';
+    if (p1 === p2) {
+      matchEl.style.color = '#10B981';
+      matchEl.textContent = '✓ Les mots de passe correspondent.';
+    } else {
+      matchEl.style.color = '#EF4444';
+      matchEl.textContent = '✗ Les mots de passe ne correspondent pas.';
+    }
+  },
+
+  /**
    * Affichage de la vue de saisie du nouveau mot de passe
    */
   showResetPasswordView: function () {
@@ -5048,7 +5147,15 @@ window.KivoApp = {
     if (resetSec) {
       resetSec.style.display = 'block';
       const newPwdInput = document.getElementById('reset-new-password');
-      if (newPwdInput) newPwdInput.focus();
+      if (newPwdInput) {
+        newPwdInput.value = '';
+        newPwdInput.focus();
+      }
+      const confirmPwdInput = document.getElementById('reset-confirm-password');
+      if (confirmPwdInput) confirmPwdInput.value = '';
+      const msgEl = document.getElementById('reset-password-msg');
+      if (msgEl) msgEl.style.display = 'none';
+      this.checkResetPasswordStrength('');
     }
   },
 
@@ -5056,12 +5163,20 @@ window.KivoApp = {
    * Validation et soumission du nouveau mot de passe
    */
   submitPasswordReset: async function () {
-    const p1 = document.getElementById('reset-new-password')?.value;
-    const p2 = document.getElementById('reset-confirm-password')?.value;
+    const p1 = document.getElementById('reset-new-password')?.value || '';
+    const p2 = document.getElementById('reset-confirm-password')?.value || '';
     const msgEl = document.getElementById('reset-password-msg');
 
-    if (!p1 || p1.length < 8) {
+    if (p1.length < 8) {
       this.showToast("Le mot de passe doit comporter au moins 8 caractères.", "error");
+      return;
+    }
+    if (!/[0-9]/.test(p1)) {
+      this.showToast("Le mot de passe doit contenir au moins un chiffre.", "error");
+      return;
+    }
+    if (!/[A-Z]/.test(p1)) {
+      this.showToast("Le mot de passe doit contenir au moins une lettre majuscule.", "error");
       return;
     }
     if (p1 !== p2) {
@@ -5073,31 +5188,44 @@ window.KivoApp = {
     if (btn) { btn.disabled = true; btn.textContent = "Enregistrement en cours..."; }
 
     try {
-      const { error } = await KivoDb.supabase.auth.updateUser({ password: p1 });
-      if (error) {
-        console.error('[KivoApp] updateUser password error:', error);
-        this.showToast("Une erreur est survenue lors de la mise à jour du mot de passe. Réessayez.", "error");
-        if (msgEl) {
-          msgEl.style.display = 'block';
-          msgEl.style.color = 'var(--danger-text)';
-          msgEl.textContent = "Impossible de mettre à jour le mot de passe. Réessayez.";
+      if (window.KivoDb && window.KivoDb.supabase) {
+        const { error } = await KivoDb.supabase.auth.updateUser({ password: p1 });
+        if (error) {
+          console.error('[KivoApp] updateUser password error:', error);
+          const friendlyMsg = error.message && error.message.includes('Auth session missing')
+            ? "Le lien de réinitialisation a expiré ou est invalide. Veuillez refaire une demande."
+            : "Une erreur est survenue lors de la mise à jour du mot de passe.";
+          this.showToast(friendlyMsg, "error");
+          if (msgEl) {
+            msgEl.style.display = 'block';
+            msgEl.style.background = '#FEF2F2';
+            msgEl.style.border = '1px solid #FCA5A5';
+            msgEl.style.color = '#B91C1C';
+            msgEl.textContent = friendlyMsg;
+          }
+          return;
         }
-      } else {
-        this.showToast("Mot de passe mis a jour avec succes !", "success");
-        if (msgEl) {
-          msgEl.style.display = 'block';
-          msgEl.style.color = '#10B981';
-          msgEl.textContent = "Mot de passe reinitialise ! Redirection vers votre tableau de bord...";
-        }
-        setTimeout(() => {
-          const resetSec = document.getElementById('view-reset-password');
-          if (resetSec) resetSec.style.display = 'none';
-          this.navigate('dashboard');
-        }, 1500);
       }
+
+      this.showToast("Mot de passe mis à jour avec succès !", "success");
+      if (msgEl) {
+        msgEl.style.display = 'block';
+        msgEl.style.background = '#ECFDF5';
+        msgEl.style.border = '1px solid #6EE7B7';
+        msgEl.style.color = '#047857';
+        msgEl.textContent = "✓ Mot de passe réinitialisé avec succès ! Redirection vers votre tableau de bord dans 2 secondes...";
+      }
+
+      // Redirection automatique vers le dashboard après 2 secondes
+      setTimeout(() => {
+        const resetSec = document.getElementById('view-reset-password');
+        if (resetSec) resetSec.style.display = 'none';
+        this.navigate('dashboard');
+      }, 2000);
+
     } catch (err) {
       console.error('[KivoApp] submitPasswordReset exception:', err);
-      this.showToast("Erreur lors de la mise a jour du mot de passe.", "error");
+      this.showToast("Erreur lors de la mise à jour du mot de passe.", "error");
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = "Enregistrer le nouveau mot de passe"; }
     }
