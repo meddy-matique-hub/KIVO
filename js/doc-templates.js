@@ -270,10 +270,8 @@ window.KivoTemplates = {
           </div>` : ''}
         </div>
         <div style="text-align:right;">
-          <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">Contact &amp; Identifiants</div>
+          <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">Contact</div>
           <div style="font-size:12px;font-weight:600;color:${titleColor};margin-top:3px;">${d.client.email || '--'}</div>
-          ${d.client.taxId ? `<div style="font-size:10px;color:${subtitleColor};margin-top:3px;">${d.client.legalFieldName || 'NINEA / SIRET'} : ${d.client.taxId}</div>` : '' }
-          ${(d.client.address && !d.client.phone && !d.client.email) ? '' : (d.client.address ? '' : '')}
         </div>
       </div>
     `;
@@ -314,9 +312,11 @@ window.KivoTemplates = {
           </div>
         </div>
 
-        <!-- Footer -->
-        <div style="text-align:center;font-size:10px;color:${isDark ? '#64748B' : '#94A3B8'};padding-top:8px;border-top:1px solid ${isDark ? '#2D323F' : '#F1F5F9'};">
-          ${[(d.biz && d.biz.name) || (d.biz && d.biz.owner) || 'Mon Entreprise', d.biz && d.biz.address, d.biz && d.biz.taxId].filter(Boolean).join(' · ')}
+        <!-- Footer: Mentions légales en pied de page -->
+        <div style="text-align:center;font-size:9.5px;color:${isDark ? '#64748B' : '#94A3B8'};padding-top:8px;border-top:1px solid ${isDark ? '#2D323F' : '#F1F5F9'};line-height:1.6;">
+          <div>${[(d.biz && d.biz.name) || (d.biz && d.biz.owner) || 'Mon Entreprise', d.biz && d.biz.address, d.biz && d.biz.phone, d.biz && d.biz.email].filter(Boolean).join(' · ')}</div>
+          ${(d.biz && d.biz.taxId) ? `<div style="font-size:9px;color:${isDark ? '#94A3B8' : '#64748B'};">${(d.biz && d.biz.legalFieldName) || 'N° d\'enregistrement / Identifiant fiscal'} : <strong>${d.biz.taxId}</strong></div>` : ''}
+          ${(d.client && d.client.taxId) ? `<div style="font-size:8.5px;color:${isDark ? '#94A3B8' : '#64748B'};">Client : ${d.client.name || ''} · ${d.client.legalFieldName || 'N° Fiscal'} : <strong>${d.client.taxId}</strong></div>` : ''}
         </div>
       </div>
     `;
