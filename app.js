@@ -2129,6 +2129,7 @@ window.KivoApp = {
     // Core fields
     const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
     setVal('builder-doc-id', '');
+    this._cloudDraftId = null; // FIX point2: reset draft cloud ID for each new document
     setVal('builder-doc-type', type);
     setVal('builder-doc-number', nextNum);
     setVal('builder-issue-date', today);
@@ -2743,7 +2744,13 @@ window.KivoApp = {
     // 2. Sauvegarde Supabase en arrière-plan avec status='draft' si connecté
     if (window.KivoDb && this.supabaseConnected && window.KivoAuth?.user) {
       try {
-        const cloudDocId = (docId && !docId.startsWith('draft_')) ? docId : this.generateUUID();
+        // FIX: conserver le même UUID cloud d'un brouillon à l'autre pour éviter les doublons.
+        // On génère l'UUID une seule fois et on le réutilise (_cloudDraftId est réinitialisé
+        // quand le builder est chargé avec un nouveau document vide ou un existant réel).
+        if (!this._cloudDraftId) {
+          this._cloudDraftId = (docId && !docId.startsWith('draft_')) ? docId : this.generateUUID();
+        }
+        const cloudDocId = (docId && !docId.startsWith('draft_')) ? docId : this._cloudDraftId;
         draftData.cloudId = cloudDocId;
         const cloudPayload = {
           id: cloudDocId,
@@ -2904,6 +2911,7 @@ window.KivoApp = {
       localStorage.removeItem(this.getDraftStorageKey());
     } catch (e) {}
     this._currentDraftDocId = null;
+    this._cloudDraftId = null; // FIX point2: reset cloud draft ID on finalize
     const banner = document.getElementById('builder-draft-resume-banner');
     if (banner) banner.style.display = 'none';
     const indicator = document.getElementById('builder-draft-indicator');
