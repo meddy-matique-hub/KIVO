@@ -3252,6 +3252,8 @@ window.KivoApp = {
       amountPaid: status === 'paid' ? grandTotal : 0,
       notes: notes,
       terms: terms,
+      visualTemplate: document.getElementById('builder-visual-template') ? document.getElementById('builder-visual-template').value : ((this.state.business && this.state.business.visualTemplate) || 'minimalist'),
+      templateId: document.getElementById('builder-visual-template') ? document.getElementById('builder-visual-template').value : ((this.state.business && this.state.business.visualTemplate) || 'minimalist'),
       logoUrl: this._invoiceLogoRemoved ? null : (this.builderCustomLogoUrl !== undefined && this.builderCustomLogoUrl !== null ? this.builderCustomLogoUrl : ((this.state.business && this.state.business.logoUrl) || null)),
       primaryColor: document.getElementById('builder-color-primary') ? document.getElementById('builder-color-primary').value : null,
       secondaryColor: document.getElementById('builder-color-secondary') ? document.getElementById('builder-color-secondary').value : null,
@@ -3639,86 +3641,20 @@ window.KivoApp = {
       })();
     }
 
-    const pubLogoEl = document.getElementById('pub-business-logo');
-    if (pubLogoEl) {
-      if (biz.logoUrl) {
-        pubLogoEl.style.overflow = 'hidden';
-        pubLogoEl.innerHTML = `<img src="${biz.logoUrl}" style="width: 100%; height: 100%; object-fit: cover;">`;
-      } else {
-        pubLogoEl.innerHTML = biz.logoText || "KM";
-      }
-    }
-    document.getElementById('pub-business-name').textContent = biz.name || "KIVO MATIQUE";
-    document.getElementById('pub-business-address').textContent = biz.address || "Avenue Cheikh Anta Diop, Dakar";
-
-    document.getElementById('pub-doc-title').textContent = doc.type === 'quote' ? 'DEVIS' : 'FACTURE';
-    document.getElementById('pub-doc-number').textContent = doc.number;
-
-    const badgeClass = {
-      paid: 'badge-paid',
-      accepted: 'badge-accepted',
-      overdue: 'badge-overdue',
-      sent: 'badge-sent',
-      viewed: 'badge-viewed',
-      refunded: 'badge-overdue'
-    }[doc.status] || 'badge-draft';
-
-    const statusLabel = {
-      paid: 'Payée',
-      accepted: 'Devis Accepté',
-      overdue: 'En retard',
-      sent: 'Envoyée',
-      viewed: 'Vue par le client',
-      refunded: 'Remboursée'
-    }[doc.status] || doc.status;
-
-    const badgeEl = document.getElementById('pub-doc-status-badge');
-    if (badgeEl) {
-      badgeEl.className = `badge ${badgeClass}`;
-      badgeEl.textContent = statusLabel;
+    // Unify rendering with builder and PDF via KivoTemplates.render
+    const { renderedHtml, templateId } = this._getDocForRender(doc);
+    const pubArea = document.getElementById('public-doc-printable-area');
+    if (pubArea && renderedHtml) {
+      pubArea.innerHTML = renderedHtml;
+      pubArea.style.padding = '0';
+      pubArea.style.overflow = (window.innerWidth <= 1024) ? 'visible' : 'hidden';
+      pubArea.style.background = (templateId === 'premium') ? '#181A20' : '#FFFFFF';
     }
 
-    document.getElementById('pub-client-name').textContent = doc.clientName;
-    document.getElementById('pub-client-contact').textContent = `${doc.clientType || 'B2C'} ${doc.clientTaxId ? '• ' + doc.clientTaxId : ''} ${doc.clientEmail ? '• ' + doc.clientEmail : ''}`;
-    document.getElementById('pub-client-phone').textContent = doc.clientPhone || '';
-    document.getElementById('pub-issue-date').textContent = doc.issueDate;
-    document.getElementById('pub-due-date').textContent = doc.dueDate;
-
-    const tbody = document.getElementById('pub-items-tbody');
-    tbody.innerHTML = (doc.items || []).map(it => `
-      <tr>
-        <td><strong>${it.name}</strong><br><span style="font-size: 0.8rem; color: var(--text-secondary);">${it.description || ''}</span></td>
-        <td style="text-align: center;">${it.quantity}</td>
-        <td style="text-align: right;">${(it.price || 0).toLocaleString('fr-FR')} ${currencyStr}</td>
-        <td style="text-align: right;"><strong>${(it.total || 0).toLocaleString('fr-FR')} ${currencyStr}</strong></td>
-      </tr>
-    `).join('');
-
-    document.getElementById('pub-subtotal').textContent = (doc.subtotal || doc.total || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
-    const pubDiscRow = document.getElementById('pub-discount-row');
-    if (pubDiscRow) {
-      pubDiscRow.style.display = (doc.discount && doc.discount > 0) ? 'flex' : 'none';
-      document.getElementById('pub-discount').textContent = '-' + (doc.discount || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
+    const pubBarTotal = document.getElementById('pub-bar-total');
+    if (pubBarTotal) {
+      pubBarTotal.textContent = (doc.total || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
     }
-
-    const pubTaxRow = document.getElementById('pub-tax-row');
-    const pubTaxEl = document.getElementById('pub-tax');
-    const pubTaxLabel = document.getElementById('pub-tax-label');
-    if (pubTaxRow && pubTaxEl) {
-      if ((doc.tax && doc.tax > 0) || (doc.taxRate && doc.taxRate > 0)) {
-        pubTaxRow.style.display = 'flex';
-        if (pubTaxLabel) pubTaxLabel.textContent = `TVA (${doc.taxRate || 0}%) :`;
-        pubTaxEl.textContent = (doc.tax || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
-      } else {
-        pubTaxRow.style.display = 'none';
-      }
-    }
-
-    document.getElementById('pub-total').textContent = (doc.total || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
-    document.getElementById('pub-bar-total').textContent = (doc.total || 0).toLocaleString('fr-FR') + ' ' + currencyStr;
-
-    document.getElementById('pub-terms').textContent = doc.terms || "À réception";
-    document.getElementById('pub-notes').textContent = doc.notes || "";
 
     const btnContainer = document.getElementById('pub-bar-buttons-container');
     
@@ -6925,8 +6861,14 @@ window.KivoApp = {
       }
       if (!Array.isArray(rawDocItems)) rawDocItems = [];
 
+      const docBiz = Object.assign({}, biz, {
+        logoUrl: (targetDoc.logoUrl !== undefined && targetDoc.logoUrl !== null) ? targetDoc.logoUrl : biz.logoUrl,
+        primaryColor: targetDoc.primaryColor || biz.primaryColor || '#0F172A',
+        secondaryColor: targetDoc.secondaryColor || biz.secondaryColor || '#64748B'
+      });
+
       const docData = {
-        biz: biz,
+        biz: docBiz,
         docType: targetDoc.type || 'invoice',
         docNum: targetDoc.number || 'FAC-2026-0001',
         issueDate: targetDoc.issueDate || new Date().toISOString().split('T')[0],
@@ -6955,13 +6897,13 @@ window.KivoApp = {
         taxAmount: Number(targetDoc.tax) || Number(targetDoc.taxAmount) || Number(targetDoc.tax_amount) || 0,
         grandTotal: Number(targetDoc.total) || 0,
         currency: currencyStr,
-        primaryColor: biz.primaryColor || '#0F172A',
-        secondaryColor: biz.secondaryColor || '#64748B'
+        primaryColor: targetDoc.primaryColor || biz.primaryColor || '#0F172A',
+        secondaryColor: targetDoc.secondaryColor || biz.secondaryColor || '#64748B'
       };
 
       const filename = ((targetDoc.number || 'facture_KIVO').trim().replace(/[^a-zA-Z0-9-_]/g, '_')) + '.pdf';
       const renderedHtml = window.KivoTemplates ? window.KivoTemplates.render(templateId, docData) : '';
-      return { renderedHtml, filename, templateId };
+      return { renderedHtml, filename, templateId, docData };
     }
 
     // Sans argument : état courant du builder (y compris avant d'enregistrer)
