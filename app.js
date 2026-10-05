@@ -1796,11 +1796,11 @@ window.KivoApp = {
           }
           
           return `
-            <tr>
-              <td>${doc.number}</td>
-              <td>${doc.clientName}</td>
-              <td>${docDate}</td>
-              <td>${formatCurrency(doc.total || 0)}</td>
+            <tr onclick="KivoApp.viewPublicDoc('${doc.id}')" style="cursor: pointer;" title="Afficher la facture ${doc.number}">
+              <td><strong style="color: var(--primary); font-weight: 600;">${doc.number}</strong></td>
+              <td>${doc.clientName || 'Client'}</td>
+              <td style="color: var(--text-secondary);">${docDate}</td>
+              <td><strong>${formatCurrency(doc.total || 0)}</strong></td>
               <td style="text-align: right;"><span class="kivo-dash-badge ${badgeClass}">${badgeText}</span></td>
             </tr>
           `;
