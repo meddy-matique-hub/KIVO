@@ -98,7 +98,7 @@ window.KivoTemplates = {
     });
 
     const clientId = get('builder-doc-client-select');
-    const clientFound = (state && state.clients) ? (state.clients.find(c => c.id === clientId) || {}) : {};
+    const clientFound = (state && state.clients) ? (state.clients.find(c => String(c.id) === String(clientId)) || {}) : {};
 
     const items = [];
     let subtotal = 0;

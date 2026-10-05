@@ -2239,12 +2239,15 @@ window.KivoApp = {
     // Client select
     const clientSelect = document.getElementById('builder-doc-client-select');
     if (clientSelect) {
-      clientSelect.innerHTML = `<option value="">-- Sélectionner un client --</option>` + this.state.clients.map(c => `
-        <option value="${c.id}" ${c.id === doc.clientId ? 'selected' : ''}>${c.name} (${c.company || c.contactName || 'Particulier'})</option>
+      clientSelect.innerHTML = `<option value="">-- Sélectionner un client --</option>` + (this.state.clients || []).map(c => `
+        <option value="${c.id}" ${String(c.id) === String(doc.clientId) ? 'selected' : ''}>${c.name} (${c.company || c.contactName || 'Particulier'})</option>
       `).join('');
+      if (doc.clientId) clientSelect.value = doc.clientId;
     }
 
     // Client override fields
+    setVal('builder-client-name', doc.clientName || '');
+    setVal('builder-client-email', doc.clientEmail || '');
     setVal('builder-client-address', doc.clientAddress || '');
     setVal('builder-client-phone', doc.clientPhone || '');
 
@@ -3177,8 +3180,20 @@ window.KivoApp = {
 
     const num = document.getElementById('builder-doc-number').value;
     const currency = document.getElementById('builder-doc-currency').value;
-    const clientId = document.getElementById('builder-doc-client-select').value;
-    const clientObj = this.state.clients.find(c => c.id === clientId) || { id: 'cli_anon', name: 'Client Anonyme', email: '', phone: '', clientType: 'B2C' };
+    const clientId = document.getElementById('builder-doc-client-select')?.value || '';
+    const customClientName = (document.getElementById('builder-client-name')?.value || '').trim();
+    const customClientEmail = (document.getElementById('builder-client-email')?.value || '').trim();
+    const customClientPhone = (document.getElementById('builder-client-phone')?.value || '').trim();
+    const customClientAddress = (document.getElementById('builder-client-address')?.value || '').trim();
+
+    const clientObj = (this.state.clients || []).find(c => String(c.id) === String(clientId)) || {
+      id: clientId || 'cli_anon',
+      name: customClientName || 'Client Destinataire',
+      email: customClientEmail,
+      phone: customClientPhone,
+      address: customClientAddress,
+      clientType: 'B2C'
+    };
     const issueDate = document.getElementById('builder-issue-date').value;
     const dueDate = document.getElementById('builder-due-date').value;
     const status = document.getElementById('builder-doc-status').value;
@@ -3220,11 +3235,12 @@ window.KivoApp = {
       status: status,
       currency: currency,
       clientId: clientObj.id,
-      clientName: clientObj.name,
+      clientName: customClientName || clientObj.name || 'Client Destinataire',
       clientType: clientObj.clientType || 'B2C',
       clientTaxId: clientObj.taxId || '',
-      clientEmail: clientObj.email || '',
-      clientPhone: clientObj.phone || '',
+      clientEmail: customClientEmail || clientObj.email || '',
+      clientPhone: customClientPhone || clientObj.phone || '',
+      clientAddress: customClientAddress || clientObj.address || '',
       issueDate: issueDate,
       dueDate: dueDate,
       items: items,
@@ -6429,13 +6445,16 @@ window.KivoApp = {
     if (this.activeView === 'document-builder') {
       const clientSelect = document.getElementById('builder-doc-client-select');
       if (clientSelect) {
-        const opt = document.createElement('option');
-        opt.value = newClient.id;
+        let opt = clientSelect.querySelector(`option[value="${newClient.id}"]`);
+        if (!opt) {
+          opt = document.createElement('option');
+          opt.value = newClient.id;
+          clientSelect.appendChild(opt);
+        }
         opt.textContent = `${newClient.name} (${newClient.company || newClient.contactName || 'Particulier'})`;
-        clientSelect.appendChild(opt);
         clientSelect.value = newClient.id;
-        this.updateLiveInvoicePreview();
       }
+      this.onBuilderClientSelect(newClient.id);
     } else {
       this.renderClients();
     }
@@ -6740,16 +6759,24 @@ window.KivoApp = {
    * Selection d'un client dans le constructeur
    */
   onBuilderClientSelect: function (clientId) {
-    if (!clientId) return;
-    const client = (this.state.clients || []).find(c => c.id === clientId);
-    if (!client) return;
-
     const setVal = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.value = val || '';
     };
 
-    setVal('builder-client-name', client.name || client.company || '');
+    if (!clientId) {
+      setVal('builder-client-name', '');
+      setVal('builder-client-address', '');
+      setVal('builder-client-phone', '');
+      setVal('builder-client-email', '');
+      this.updateLiveInvoicePreview();
+      return;
+    }
+
+    const client = (this.state && this.state.clients ? this.state.clients : []).find(c => String(c.id) === String(clientId));
+    if (!client) return;
+
+    setVal('builder-client-name', client.name || client.company || client.contactName || '');
     setVal('builder-client-address', client.address || '');
     setVal('builder-client-phone', client.phone || '');
     setVal('builder-client-email', client.email || '');
