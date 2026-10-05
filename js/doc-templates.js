@@ -32,9 +32,11 @@ window.KivoTemplates = {
     const szVal = (biz && biz.logoSize) ? biz.logoSize : (defaultSize || 70);
     const sz = typeof szVal === 'number' ? `${szVal}px` : szVal;
     const br = shape === 'circle' ? '50%' : (shape === 'none' ? '0' : '6px');
-    // FIX point6: fond gris très clair (#F1F5F9) au lieu de blanc pur (#FFFFFF) 
-    // garantit la visibilité du logo quelle que soit sa couleur (blanc, clair, transparent)
-    return `<span style="display:inline-flex;align-items:center;justify-content:center;background:#F1F5F9;border-radius:${br};padding:3px;box-shadow:0 0 0 1px rgba(0,0,0,0.09);">
+    // FIX point3: adapt container background to template color scheme:
+    // - dark header (isDark=true)  → white (#FFFFFF) so a light/transparent logo is visible
+    // - light header               → neutral gray (#F1F5F9) so a dark/colored logo is visible
+    const bgColor = fallbackDark ? '#FFFFFF' : '#F1F5F9';
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;background:${bgColor};border-radius:${br};padding:4px;box-shadow:0 0 0 1px rgba(0,0,0,0.10);">
       <img src="${biz.logoUrl}" style="max-height:${sz};max-width:220px;height:auto;object-fit:contain;border-radius:${br};display:block;" alt="Logo">
     </span>`;
   },
