@@ -775,7 +775,7 @@
               <div class="form-group">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
                   <label class="form-label" style="margin: 0;">Mot de passe</label>
-                  <a href="#" id="auth-forgot-link" style="font-size: 0.82rem; color: var(--primary); font-weight: 500;" onclick="event.preventDefault(); KivoApp.switchAuthTab('forgot');">Mot de passe oublié ?</a>
+                  <a href="#" id="auth-forgot-link" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 400; text-decoration: none;" onmouseover="this.style.color='var(--text-secondary)'" onmouseout="this.style.color='var(--text-muted)'" onclick="event.preventDefault(); KivoApp.switchAuthTab('forgot');">Mot de passe oublié ?</a>
                 </div>
                 <div style="position: relative;">
                   <input type="password" id="auth-login-password" class="form-input" placeholder="Votre mot de passe" required autocomplete="current-password">
