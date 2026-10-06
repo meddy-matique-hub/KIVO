@@ -196,7 +196,10 @@ if (window.KivoDb) {
         lines: lines,
         issueDate: resolvedIssueDate,
         dueDate: resolvedDueDate || '',
-        currency: resolvedCurrency
+        currency: resolvedCurrency,
+        primaryColor: doc.primaryColor || doc.primary_color || null,
+        secondaryColor: doc.secondaryColor || doc.secondary_color || null,
+        templateId: doc.templateId || doc.visualTemplate || doc.template_id || 'minimalist'
       };
 
       // Strict mapping to valid Supabase columns:

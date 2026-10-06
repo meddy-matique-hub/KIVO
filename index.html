@@ -1702,11 +1702,16 @@
 
               <!-- 5b. Couleurs & Personnalisation visuelle -->
               <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 1rem 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 1rem 0; flex-wrap: wrap; gap: 0.5rem;">
                   <h3 style="font-size: 1rem; font-weight: 700; color: #0F172A; margin: 0;">Couleurs de la facture</h3>
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.extractColorsFromLogo()" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;">
-                    Extraire depuis le logo
-                  </button>
+                  <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.applyTemplateDefaultColors()" style="font-size: 0.75rem; padding: 0.35rem 0.65rem;" title="Appliquer les teintes par défaut suggérées pour ce modèle">
+                      Couleurs par défaut du modèle
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.extractColorsFromLogo()" style="font-size: 0.75rem; padding: 0.35rem 0.65rem;">
+                      Extraire depuis le logo
+                    </button>
+                  </div>
                 </div>
                 <div style="background: #FFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1.25rem;">
                   <div class="builder-grid-2col" style="margin-bottom: 1rem;">
@@ -2723,6 +2728,27 @@
                       </div>
                       <div class="profile-form-group" style="margin-bottom:0;">
                         <input type="text" id="setting-biz-vat" class="profile-input profile-input-subtle" placeholder="TVA: FR 12 123456789">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Couleurs de la marque (Factures & Devis) -->
+                  <div class="profile-legal-section" style="margin-top: 1.25rem;">
+                    <label class="profile-label">Couleurs de la marque (Factures &amp; Devis)</label>
+                    <div class="profile-two-cols">
+                      <div class="profile-form-group" style="margin-bottom:0;">
+                        <label class="profile-label" style="font-size: 0.75rem; color: #64748B; margin-bottom: 0.25rem;" for="setting-biz-primary-color">Couleur principale</label>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                          <input type="color" id="setting-biz-primary-color" value="#4F46E5" style="width: 36px; height: 36px; padding: 2px; border-radius: 6px; border: 1px solid #CBD5E1; cursor: pointer;" onchange="document.getElementById('setting-biz-primary-color-text').value = this.value">
+                          <input type="text" id="setting-biz-primary-color-text" value="#4F46E5" style="flex: 1; padding: 0.45rem 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.78rem; font-family: monospace;" oninput="if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) document.getElementById('setting-biz-primary-color').value = this.value">
+                        </div>
+                      </div>
+                      <div class="profile-form-group" style="margin-bottom:0;">
+                        <label class="profile-label" style="font-size: 0.75rem; color: #64748B; margin-bottom: 0.25rem;" for="setting-biz-secondary-color">Couleur secondaire</label>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                          <input type="color" id="setting-biz-secondary-color" value="#7C3AED" style="width: 36px; height: 36px; padding: 2px; border-radius: 6px; border: 1px solid #CBD5E1; cursor: pointer;" onchange="document.getElementById('setting-biz-secondary-color-text').value = this.value">
+                          <input type="text" id="setting-biz-secondary-color-text" value="#7C3AED" style="flex: 1; padding: 0.45rem 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.78rem; font-family: monospace;" oninput="if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) document.getElementById('setting-biz-secondary-color').value = this.value">
+                        </div>
                       </div>
                     </div>
                   </div>

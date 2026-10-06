@@ -582,12 +582,13 @@ window.KivoTemplates = {
   // 4. MODERN
   renderModern: function (d) {
     const ac = d.primaryColor || '#7C3AED';
+    const sec = d.secondaryColor || '#EC4899';
     return `
       <div style="background:#FFFFFF;font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 40px;position:relative;">
         <div>
-          <div style="height:6px;background:linear-gradient(90deg,${ac},#8B5CF6,#EC4899);border-radius:3px;margin-bottom:20px;"></div>
-          ${this.renderHeader(d, '#1E1B4B', '#64748B')}
-          ${this.renderClient(d, '#1E1B4B', '#64748B')}
+          <div style="height:6px;background:linear-gradient(90deg,${ac},${sec});border-radius:3px;margin-bottom:20px;"></div>
+          ${this.renderHeader(d, ac, '#64748B')}
+          ${this.renderClient(d, ac, '#64748B')}
 
           <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px;">
             <thead>
@@ -672,16 +673,18 @@ window.KivoTemplates = {
 
   // 7. PREMIUM (Copper Metallic & Dark Matte)
   renderPremium: function (d) {
+    const ac = d.primaryColor || '#D49B7A';
+    const sec = d.secondaryColor || '#B87352';
     return `
       <div style="background:#181A20;font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 40px;color:#F1F5F9;position:relative;">
         <div>
-          ${this.renderHeader(d, '#F5D0B5', '#94A3B8', true)}
-          <div style="height:8px;background:linear-gradient(90deg,#D49B7A 0%,#F5D0B5 50%,#B87352 100%);border-radius:2px;margin-bottom:20px;box-shadow:0 3px 10px rgba(212,155,122,0.3);"></div>
+          ${this.renderHeader(d, ac, '#94A3B8', true)}
+          <div style="height:8px;background:linear-gradient(90deg,${ac} 0%,#FFFFFF 50%,${sec} 100%);border-radius:2px;margin-bottom:20px;box-shadow:0 3px 10px rgba(0,0,0,0.3);"></div>
           ${this.renderClient(d, '#FFFFFF', '#94A3B8', true)}
 
           <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px;">
             <thead>
-              <tr style="background:#222631;color:#F5D0B5;border-bottom:1.5px solid #D49B7A;">
+              <tr style="background:#222631;color:${ac};border-bottom:1.5px solid ${ac};">
                 <th style="padding:9px 12px;text-align:left;font-weight:700;">Description</th>
                 <th style="padding:9px 12px;text-align:center;width:10%;font-weight:700;">Quantité</th>
                 <th style="padding:9px 12px;text-align:right;width:18%;font-weight:700;">Prix Unitaire</th>
@@ -693,7 +696,7 @@ window.KivoTemplates = {
           </table>
         </div>
 
-        ${this.renderBottom(d, '#D49B7A', true)}
+        ${this.renderBottom(d, ac, true)}
       </div>
     `;
   },

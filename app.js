@@ -442,6 +442,10 @@ window.KivoApp = {
       let storedDueDate = d.date_due || d.due_date || '';
       let storedCurrency = d.currency || 'FCFA';
 
+      let storedPrimaryColor = null;
+      let storedSecondaryColor = null;
+      let storedTemplateId = null;
+
       if (typeof parsedItems === 'string') {
         try {
           const wrapper = JSON.parse(parsedItems);
@@ -450,6 +454,9 @@ window.KivoApp = {
             storedIssueDate = wrapper.issueDate || storedIssueDate;
             storedDueDate = wrapper.dueDate || storedDueDate;
             storedCurrency = wrapper.currency || storedCurrency;
+            storedPrimaryColor = wrapper.primaryColor || null;
+            storedSecondaryColor = wrapper.secondaryColor || null;
+            storedTemplateId = wrapper.templateId || null;
           } else if (Array.isArray(wrapper)) {
             parsedItems = wrapper;
           } else {
@@ -460,6 +467,9 @@ window.KivoApp = {
         storedIssueDate = parsedItems.issueDate || storedIssueDate;
         storedDueDate = parsedItems.dueDate || storedDueDate;
         storedCurrency = parsedItems.currency || storedCurrency;
+        storedPrimaryColor = parsedItems.primaryColor || null;
+        storedSecondaryColor = parsedItems.secondaryColor || null;
+        storedTemplateId = parsedItems.templateId || null;
         parsedItems = parsedItems.lines;
       }
 
@@ -487,7 +497,11 @@ window.KivoApp = {
         notes: d.notes || '',
         terms: d.conditions || d.terms || '',
         publicToken: d.public_token,
-        viewsCount: d.views_count || 0
+        viewsCount: d.views_count || 0,
+        primaryColor: storedPrimaryColor,
+        secondaryColor: storedSecondaryColor,
+        templateId: storedTemplateId || 'minimalist',
+        visualTemplate: storedTemplateId || 'minimalist'
       };
     });
 
@@ -2512,6 +2526,12 @@ window.KivoApp = {
     setVal('builder-payment-method', 'Virement bancaire');
     setVal('builder-doc-currency', this.state.business.currency || 'FCFA');
     setVal('builder-visual-template', this.state.business.visualTemplate || 'minimalist');
+    const initPrimaryColor = this.state.business.primaryColor || '#4F46E5';
+    const initSecondaryColor = this.state.business.secondaryColor || '#7C3AED';
+    setVal('builder-color-primary', initPrimaryColor);
+    setVal('builder-color-primary-text', initPrimaryColor);
+    setVal('builder-color-secondary', initSecondaryColor);
+    setVal('builder-color-secondary-text', initSecondaryColor);
     const titleEl = document.getElementById('builder-page-title');
     if (titleEl) titleEl.textContent = (type === 'quote') ? 'Créer un devis' : 'Créer une facture';
 
@@ -3722,7 +3742,10 @@ window.KivoApp = {
         notes: docObj.notes,
         conditions: docObj.terms,
         publicToken: docObj.publicToken,
-        viewsCount: docObj.viewsCount || 0
+        viewsCount: docObj.viewsCount || 0,
+        primaryColor: docObj.primaryColor,
+        secondaryColor: docObj.secondaryColor,
+        templateId: docObj.templateId
       }).catch(e => {
         console.error('[KivoApp] Supabase saveDocument error:', e);
         this.showToast(this.friendlySupabaseError(e, "Document enregistré localement (synchronisation cloud échouée)."), "warning");
@@ -4726,20 +4749,8 @@ window.KivoApp = {
     // 1. Update business template in state
     this.state.business = this.state.business || {};
     this.state.business.visualTemplate = templateId;
-    
-    // Set appropriate colors based on template selection
-    const colorMap = {
-      minimalist: '#0F172A',
-      corporate:  '#1E3A5F',
-      elegant:    '#B8860B',
-      modern:     '#8B5CF6',
-      clean:      '#0E7490',
-      editorial:  '#EF4444',
-      premium:    '#C87D55'
-    };
-    if (colorMap[templateId]) {
-      this.state.business.primaryColor = colorMap[templateId];
-    }
+    // Note: Ne jamais écraser automatiquement this.state.business.primaryColor
+    // Le choix du modèle change uniquement la mise en page.
     
     // 2. Save implicitly to localStorage (and Supabase if connected)
     this.saveState();
@@ -4764,6 +4775,23 @@ window.KivoApp = {
     if (tmplObj) {
       this.showToast(`Modèle "${tmplObj.name}" appliqué à cette facture`, 'success');
     }
+  },
+
+  applyTemplateDefaultColors: function () {
+    const tSelect = document.getElementById('builder-visual-template');
+    const templateId = (tSelect && tSelect.value) ? tSelect.value : (this.state.business?.visualTemplate || 'minimalist');
+    const defaultPaletteMap = {
+      minimalist: { primary: '#0F172A', secondary: '#475569' },
+      corporate:  { primary: '#1E3A5F', secondary: '#2563EB' },
+      elegant:    { primary: '#C9A84C', secondary: '#6B5C2A' },
+      modern:     { primary: '#7C3AED', secondary: '#EC4899' },
+      clean:      { primary: '#0E7490', secondary: '#06B6D4' },
+      editorial:  { primary: '#EF4444', secondary: '#111827' },
+      premium:    { primary: '#D49B7A', secondary: '#B87352' }
+    };
+    const palette = defaultPaletteMap[templateId] || defaultPaletteMap.minimalist;
+    this.setBuilderPresetColors(palette.primary, palette.secondary);
+    this.showToast(`Couleurs par défaut du modèle appliquées`, 'info');
   },
 
   openTemplateEditor: function () {
@@ -6293,8 +6321,15 @@ window.KivoApp = {
     if (document.getElementById('setting-biz-prefix')) document.getElementById('setting-biz-prefix').value = biz.invoicePrefix || "FAC-2026-";
     if (document.getElementById('setting-biz-quote-prefix')) document.getElementById('setting-biz-quote-prefix').value = biz.quotePrefix || "DEV-2026-";
     if (document.getElementById('setting-biz-vat')) document.getElementById('setting-biz-vat').value = biz.defaultVatRate !== undefined ? biz.defaultVatRate : 0;
-    if (document.getElementById('setting-stripe-key')) document.getElementById('setting-stripe-key').value = biz.stripeKey || "pk_test_51KivoMastiqueDemoStripeKey998";
     if (document.getElementById('setting-biz-language')) document.getElementById('setting-biz-language').value = this.state.language || "fr";
+
+    // Restore brand colors
+    const primCol = biz.primaryColor || '#4F46E5';
+    const secCol = biz.secondaryColor || '#7C3AED';
+    if (document.getElementById('setting-biz-primary-color')) document.getElementById('setting-biz-primary-color').value = primCol;
+    if (document.getElementById('setting-biz-primary-color-text')) document.getElementById('setting-biz-primary-color-text').value = primCol;
+    if (document.getElementById('setting-biz-secondary-color')) document.getElementById('setting-biz-secondary-color').value = secCol;
+    if (document.getElementById('setting-biz-secondary-color-text')) document.getElementById('setting-biz-secondary-color-text').value = secCol;
 
     // ── Profile Identity Card (Column 1) ─────────────────────────────────
     const displayName = biz.owner || biz.name || 'Mon Compte';
@@ -6386,6 +6421,25 @@ window.KivoApp = {
     if (document.getElementById('setting-biz-quote-prefix')) biz.quotePrefix = document.getElementById('setting-biz-quote-prefix').value;
     if (document.getElementById('setting-biz-vat')) biz.defaultVatRate = parseFloat(document.getElementById('setting-biz-vat').value) || 0;
     if (document.getElementById('setting-stripe-key')) biz.stripeKey = document.getElementById('setting-stripe-key').value;
+
+    const primSetting = document.getElementById('setting-biz-primary-color');
+    const secSetting = document.getElementById('setting-biz-secondary-color');
+    if (primSetting) biz.primaryColor = primSetting.value;
+    if (secSetting) biz.secondaryColor = secSetting.value;
+
+    // Sync to builder if present
+    const builderP = document.getElementById('builder-color-primary');
+    const builderS = document.getElementById('builder-color-secondary');
+    if (builderP && primSetting) {
+      builderP.value = primSetting.value;
+      const builderPT = document.getElementById('builder-color-primary-text');
+      if (builderPT) builderPT.value = primSetting.value;
+    }
+    if (builderS && secSetting) {
+      builderS.value = secSetting.value;
+      const builderST = document.getElementById('builder-color-secondary-text');
+      if (builderST) builderST.value = secSetting.value;
+    }
 
     const langSelect = document.getElementById('setting-biz-language');
     if (langSelect) {
