@@ -539,7 +539,7 @@ window.KivoApp = {
     try {
       await window.KivoDb.saveDocument({
         id: doc.id, number: doc.number, type: doc.type, status: doc.status,
-        currency: doc.currency || 'FCFA',
+        currency: doc.currency || (this.state && this.state.business && this.state.business.currency) || 'FCFA',
         clientId: doc.clientId,       // saveDocument maps these internally
         clientName: doc.clientName,
         clientType: doc.clientType,
@@ -1543,9 +1543,7 @@ window.KivoApp = {
     bindPhone('new-cli-phone', 'new-cli-phone-prefix');
     // 3. Settings business phone
     bindPhone('setting-biz-phone', 'setting-biz-phone-prefix');
-    // 4. WhatsApp modal recipient phone
-    bindPhone('wa-recipient-phone', null);
-    // 5. Builder phones
+    // 4. Builder phones
     bindPhone('builder-biz-phone', null);
     bindPhone('builder-client-phone', null);
   },
@@ -5109,8 +5107,12 @@ window.KivoApp = {
       if (!num) return;
 
       const existingId = (document.getElementById('builder-doc-id') || {}).value;
+      // Reuse _currentDraftDocId so we never create duplicate rows across auto-saves
+      if (!this._currentDraftDocId && !existingId) {
+        this._currentDraftDocId = 'draft_' + Date.now();
+      }
       const draftDoc = {
-        id: existingId || ('draft_' + Date.now()),
+        id: existingId || this._currentDraftDocId,
         number: num,
         type: (document.getElementById('builder-doc-type') || {}).value || 'invoice',
         status: 'draft',

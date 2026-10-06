@@ -190,7 +190,7 @@ if (window.KivoDb) {
       const rawDueDate = doc.dueDate || doc.due_date || doc.date_due;
       const resolvedDueDate = (rawDueDate && String(rawDueDate).trim()) ? String(rawDueDate).trim() : null;
 
-      const resolvedCurrency = doc.currency || 'FCFA';
+      const resolvedCurrency = doc.currency || (window.KivoApp && window.KivoApp.state && window.KivoApp.state.business && window.KivoApp.state.business.currency) || 'FCFA';
 
       const itemsPayload = {
         lines: lines,

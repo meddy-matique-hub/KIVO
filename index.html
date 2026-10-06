@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -3122,16 +3122,8 @@
       </div>
 
       <div style="margin: 1.25rem 0;">
-        <div class="form-group" style="margin-bottom: 1rem;">
-          <label class="form-label" for="wa-recipient-phone">Numéro WhatsApp du destinataire</label>
-          <div style="position: relative;">
-            <input type="tel" id="wa-recipient-phone" class="form-input" placeholder="Ex: +221 77 123 45 67 ou +33 6 12 34 56 78" style="padding-left: 2.5rem; width: 100%;">
-            <svg style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-          </div>
-          <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; display: block;">Modifiez le numéro si nécessaire ou laissez vide pour choisir un contact directement dans WhatsApp.</span>
-        </div>
-
-        <div style="background: var(--bg-subtle); border-radius: 8px; border: 1px solid var(--border-color); padding: 0.85rem; font-size: 0.82rem; color: var(--text-secondary);">
+                <!-- Point 4: pas de champ numéro — WhatsApp s'ouvre directement -->
+<div style="background: var(--bg-subtle); border-radius: 8px; border: 1px solid var(--border-color); padding: 0.85rem; font-size: 0.82rem; color: var(--text-secondary);">
           <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem; display: flex; align-items: center; gap: 5px;">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Aperçu du message :
@@ -3142,7 +3134,7 @@
 
       <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem;">
         <button type="button" class="btn btn-secondary" onclick="KivoApp.closeModal('modal-whatsapp-share')">Annuler</button>
-        <button type="button" class="btn btn-primary" onclick="KivoApp.confirmWhatsAppShare()" style="background: #25D366; border-color: #25D366; color: white; display: inline-flex; align-items: center; gap: 6px;">
+        <button type="button" class="btn btn-primary" onclick="KivoApp.closeModal('modal-whatsapp-share'); KivoApp.shareCurrentBuilderWhatsApp();" style="background: #25D366; border-color: #25D366; color: white; display: inline-flex; align-items: center; gap: 6px;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
           <span>Ouvrir WhatsApp</span>
         </button>
