@@ -171,12 +171,14 @@ window.KivoTemplates = {
       items, subtotal, discount, taxAmount: totalTaxAmount, grandTotal, currency,
       primaryColor:   (document.getElementById('builder-color-primary')   || {}).value || biz.primaryColor   || '#0F172A',
       secondaryColor: (document.getElementById('builder-color-secondary') || {}).value || biz.secondaryColor || '#64748B',
+      lang: (window.KivoApp && KivoApp.state && KivoApp.state.language) || 'fr',
     };
   },
 
   // ── Header Renderer Helper (Supports Logo Left, Center, Right) ─────────
   renderHeader: function (d, titleColor, subtitleColor, isDark = false) {
-    const lbl = d.docType === 'quote' ? 'DEVIS' : 'FACTURE';
+    const _t = (key) => (window.KivoI18n ? KivoI18n.t(key, d.lang || 'fr') : key);
+    const lbl = d.docType === 'quote' ? _t('doc_quote') : _t('doc_invoice');
     const pos = (d.biz && d.biz.logoPosition) || 'right';
     const logo = this.logoHtml(d.biz, 70, 'square', isDark);
     const bizDisplayName = (d.biz && d.biz.name) ? d.biz.name : ((d.biz && d.biz.owner) || 'Mon Entreprise');
@@ -184,10 +186,10 @@ window.KivoTemplates = {
     const paidBadge = (d.status === 'paid' && d.docType !== 'quote') ? `
       <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 14px;background:#ECFDF5;border:1.5px solid #10B981;border-radius:20px;font-size:11px;font-weight:800;color:#047857;letter-spacing:0.04em;text-transform:uppercase;margin-top:6px;">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="display:inline-block;"><polyline points="20 6 9 17 4 12"/></svg>
-        Facture Payée
+        ${_t('doc_paid_badge')}
       </div>` : (d.status === 'refunded' ? `
       <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 14px;background:#FEF2F2;border:1.5px solid #EF4444;border-radius:20px;font-size:11px;font-weight:800;color:#B91C1C;letter-spacing:0.04em;text-transform:uppercase;margin-top:6px;">
-        Remboursée
+        ${_t('doc_refunded_badge')}
       </div>` : '');
 
     if (pos === 'left') {
@@ -208,8 +210,8 @@ window.KivoTemplates = {
             <div style="font-size:28px;font-weight:900;color:${titleColor};letter-spacing:-0.02em;">${lbl}</div>
             <div style="font-size:14px;font-weight:800;color:${titleColor};margin-top:3px;">${d.docNum}</div>
             ${paidBadge ? `<div style="margin-top:3px;">${paidBadge}</div>` : ''}
-            <div style="font-size:11px;color:${subtitleColor};margin-top:5px;">Date d'émission : <strong>${d.issueDate}</strong></div>
-            ${d.dueDate ? `<div style="font-size:11px;color:${subtitleColor};">Date d'échéance : <strong>${d.dueDate}</strong></div>` : ''}
+            <div style="font-size:11px;color:${subtitleColor};margin-top:5px;">${_t('doc_issue_date_label')} <strong>${d.issueDate}</strong></div>
+            ${d.dueDate ? `<div style="font-size:11px;color:${subtitleColor};">${_t('doc_due_date_label')} <strong>${d.dueDate}</strong></div>` : ''}
           </div>
         </div>
       `;
@@ -226,7 +228,7 @@ window.KivoTemplates = {
             ${d.biz.address} · ${d.biz.phone} · ${d.biz.email}
           </div>
           <div style="font-size:11px;color:${subtitleColor};margin-top:5px;">
-            Date d'émission : <strong>${d.issueDate}</strong> ${d.dueDate ? `· Échéance : <strong>${d.dueDate}</strong>` : ''}
+            ${_t('doc_issue_date_label')} <strong>${d.issueDate}</strong> ${d.dueDate ? `· ${_t('doc_due_date_label')} <strong>${d.dueDate}</strong>` : ''}
           </div>
         </div>
       `;
@@ -250,8 +252,8 @@ window.KivoTemplates = {
           </div>
           <div style="font-size:15px;font-weight:800;color:${titleColor};">${d.docNum}</div>
           ${paidBadge ? `<div style="margin-top:3px;">${paidBadge}</div>` : ''}
-          <div style="font-size:11px;color:${subtitleColor};margin-top:5px;">Date d'émission : <span style="color:${titleColor};font-weight:600;">${d.issueDate}</span></div>
-          ${d.dueDate ? `<div style="font-size:11px;color:${subtitleColor};">Date d'échéance : <span style="color:${titleColor};font-weight:600;">${d.dueDate}</span></div>` : ''}
+          <div style="font-size:11px;color:${subtitleColor};margin-top:5px;">${_t('doc_issue_date_label')} <span style="color:${titleColor};font-weight:600;">${d.issueDate}</span></div>
+          ${d.dueDate ? `<div style="font-size:11px;color:${subtitleColor};">${_t('doc_due_date_label')} <span style="color:${titleColor};font-weight:600;">${d.dueDate}</span></div>` : ''}
         </div>
       </div>
     `;
@@ -259,6 +261,7 @@ window.KivoTemplates = {
 
   // ── Client Box Renderer Helper ────────────────────────────────────────
   renderClient: function (d, titleColor, subtitleColor, isDark = false) {
+    const _t = (key) => (window.KivoI18n ? KivoI18n.t(key, d.lang || 'fr') : key);
     const hasClient = d.client && d.client.name;
     // Secondary color used for client-box border accent
     const secColor = d.secondaryColor || (isDark ? '#94A3B8' : '#64748B');
@@ -266,8 +269,8 @@ window.KivoTemplates = {
     return `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;background:${isDark ? '#222631' : '#F8FAFC'};padding:14px 18px;border-radius:8px;border:1px solid ${borderStyle};border-left:3px solid ${secColor};">
         <div>
-          <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">Client / Facturé à</div>
-          <div style="font-size:15px;font-weight:800;color:${titleColor};margin-top:3px;">${hasClient ? d.client.name : '<span style="font-size:12px;font-weight:400;color:' + subtitleColor + ';font-style:italic;">(Sélectionnez un client)</span>'}</div>
+          <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">${_t('doc_billed_to')}</div>
+          <div style="font-size:15px;font-weight:800;color:${titleColor};margin-top:3px;">${hasClient ? d.client.name : '<span style="font-size:12px;font-weight:400;color:' + subtitleColor + ';font-style:italic;">' + _t('doc_select_client') + '</span>'}</div>
           ${d.client.address || d.client.phone ? `
           <div style="font-size:11px;color:${subtitleColor};line-height:1.4;margin-top:3px;">
             ${d.client.address ? d.client.address + '<br>' : ''}
@@ -275,7 +278,7 @@ window.KivoTemplates = {
           </div>` : ''}
         </div>
         <div style="text-align:right;">
-          <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">Contact</div>
+          <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">${_t('doc_contact')}</div>
           <div style="font-size:12px;font-weight:600;color:${titleColor};margin-top:3px;">${d.client.email || '--'}</div>
         </div>
       </div>
@@ -284,23 +287,24 @@ window.KivoTemplates = {
 
   // ── Totals, Payments & Footer Helper ──────────────────────────────────
   renderBottom: function (d, ac, isDark = false) {
+    const _t = (key) => (window.KivoI18n ? KivoI18n.t(key, d.lang || 'fr') : key);
     return `
       <div style="margin-top:auto;padding-top:16px;border-top:1.5px solid ${isDark ? '#2D323F' : '#E2E8F0'};">
         <!-- Totals Block -->
         <div style="display:flex;justify-content:flex-end;margin-bottom:18px;">
           <div style="width:280px;font-size:12px;">
             <div style="display:flex;justify-content:space-between;padding:4px 0;color:${isDark ? '#94A3B8' : '#64748B'};">
-              <span>Sous-total HT :</span><strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};">${this.fmt(d.subtotal, d.currency)}</strong>
+              <span>${_t('doc_subtotal_ht')}</span><strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};">${this.fmt(d.subtotal, d.currency)}</strong>
             </div>
             <div style="display:flex;justify-content:space-between;padding:4px 0;color:${isDark ? '#94A3B8' : '#64748B'};">
-              <span>Calcul de TVA :</span><strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};">${this.fmt(d.taxAmount, d.currency)}</strong>
+              <span>${_t('doc_vat_calc')}</span><strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};">${this.fmt(d.taxAmount, d.currency)}</strong>
             </div>
             ${d.discount > 0 ? `
               <div style="display:flex;justify-content:space-between;padding:4px 0;color:#EF4444;">
-                <span>Réduction :</span><strong>-${this.fmt(d.discount, d.currency)}</strong>
+                <span>${_t('doc_discount')}</span><strong>-${this.fmt(d.discount, d.currency)}</strong>
               </div>` : ''}
             <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:17px;font-weight:900;color:${isDark ? '#F5D0B5' : ac};border-top:2.5px solid ${ac};padding-top:10px;margin-top:8px;">
-              <span>TOTAL TTC :</span><span>${this.fmt(d.grandTotal, d.currency)}</span>
+              <span>${_t('doc_total_ttc')}</span><span>${this.fmt(d.grandTotal, d.currency)}</span>
             </div>
           </div>
         </div>
@@ -308,16 +312,16 @@ window.KivoTemplates = {
         <!-- Payment Info & Notes -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;background:${isDark ? '#222631' : '#F8FAFC'};padding:12px 16px;border-radius:8px;font-size:11px;color:${isDark ? '#94A3B8' : '#475569'};margin-bottom:14px;">
           <div>
-            <strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:4px;">Paiement &amp; Règlement</strong>
-            <div>Mode : <span style="font-weight:600;color:${isDark ? '#E2E8F0' : '#0F172A'};">${d.paymentMethod}</span></div>
-            <div>Conditions : <span style="font-weight:600;color:${isDark ? '#E2E8F0' : '#0F172A'};">${d.terms}</span></div>
+            <strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:4px;">${_t('doc_payment_title')}</strong>
+            <div>${_t('doc_mode')} <span style="font-weight:600;color:${isDark ? '#E2E8F0' : '#0F172A'};">${d.paymentMethod}</span></div>
+            <div>${_t('doc_terms')} <span style="font-weight:600;color:${isDark ? '#E2E8F0' : '#0F172A'};">${d.terms}</span></div>
           </div>
           <div>
-            ${d.notes ? `<strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:4px;">Notes / Mentions légales</strong><div>${d.notes}</div>` : ''}
+            ${d.notes ? `<strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:4px;">${_t('doc_notes')}</strong><div>${d.notes}</div>` : ''}
           </div>
         </div>
 
-        <!-- Footer: Mentions légales en pied de page -->
+        <!-- Footer -->
         <div style="text-align:center;font-size:9.5px;color:${isDark ? '#64748B' : '#94A3B8'};padding-top:8px;border-top:1px solid ${isDark ? '#2D323F' : '#F1F5F9'};line-height:1.6;">
           <div>${[(d.biz && d.biz.name) || (d.biz && d.biz.owner) || 'Mon Entreprise', d.biz && d.biz.address, d.biz && d.biz.phone, d.biz && d.biz.email].filter(Boolean).join(' · ')}</div>
           ${(d.biz && d.biz.taxId) ? `<div style="font-size:9px;color:${isDark ? '#94A3B8' : '#64748B'};">${(d.biz && d.biz.legalFieldName) || 'N° d\'enregistrement / Identifiant fiscal'} : <strong>${d.biz.taxId}</strong></div>` : ''}

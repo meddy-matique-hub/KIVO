@@ -264,11 +264,11 @@ window.KivoApp = {
       this.isSessionLoading = false;
 
       if (this.state.isOnboarded) {
-        this.showToast("Connexion réussie.", "success");
+        this.showToast(this._t('toast_login_success'), "success");
         this.navigate('dashboard');
       } else {
         this.prefillOnboardingWithAuthUser(user);
-        this.showToast("Bienvenue ! Configurez votre entreprise pour commencer.", "info");
+        this.showToast(this._t('toast_welcome_setup'), "info");
         this.navigate('onboarding');
       }
       this._hideLoadingOverlay();
@@ -610,7 +610,7 @@ window.KivoApp = {
     this.state = demo;
     this.saveState();
     this.updateUserBrandingUI();
-    this.showToast("Mode démo KIVO MATIQUE activé ! Compte MD Creative Studio chargé.", "success");
+    this.showToast(this._t('toast_demo_activated'), "success");
     this.navigate('dashboard');
   },
 
@@ -678,7 +678,7 @@ window.KivoApp = {
 
     // 5. Clean URL and navigate to landing cleanly
     this.navigate('landing');
-    this.showToast('Déconnexion réussie.', 'info');
+    this.showToast(this._t('toast_logout_success'), 'info');
   },
 
   /**
@@ -770,7 +770,7 @@ window.KivoApp = {
           viewName = 'dashboard';
           // Show toast after render cycle
           setTimeout(() => {
-            this.showToast('⭐ Création avec IA — disponible à partir du forfait PRO. Passez au niveau supérieur pour débloquer cette fonctionnalité.', 'info', 5000);
+            this.showToast(this._t('toast_ai_pro_required'), 'info', 5000);
           }, 100);
         }
       }
@@ -1745,7 +1745,7 @@ window.KivoApp = {
     if (window.KivoDb && this.supabaseConnected) {
       this.saveSettings();
     }
-    this.showToast("Logo supprimé.", "info");
+    this.showToast(this._t('toast_logo_deleted'), "info");
   },
 
   /**
@@ -1762,7 +1762,7 @@ window.KivoApp = {
     if (previewBox) previewBox.style.display = 'none';
     if (uploadPrompt) uploadPrompt.style.display = 'block';
     this.updateLiveInvoicePreview();
-    this.showToast('Logo retiré de cette facture (profil d\'entreprise inchangé).', 'info');
+    this.showToast(this._t('toast_logo_removed_invoice'), 'info');
   },
 
   /**
@@ -1779,7 +1779,7 @@ window.KivoApp = {
     }
 
     const langNames = { fr: 'Français', en: 'English', es: 'Español' };
-    this.showToast(`Langue appliquée : ${langNames[targetLang] || targetLang.toUpperCase()}`, "success");
+    this.showToast(this._t('toast_lang_applied').replace('{lang}', langNames[targetLang] || targetLang.toUpperCase()), "success");
     this.renderCurrentView();
   },
 
@@ -1864,10 +1864,48 @@ window.KivoApp = {
     }
 
     document.documentElement.lang = l;
+
+    // Sync the new i18n engine so all KivoI18n.t() calls use the same language
+    if (window.KivoI18n) window.KivoI18n.setLang(l);
+    this.translateModals();
+  },
+
+  /**
+   * Primary translation shorthand helper for KivoApp.
+   * Delegates to window.KivoI18n.t() with fallback to legacy dict.
+   */
+  _t: function (key) {
+    if (window.KivoI18n && typeof window.KivoI18n.t === 'function') {
+      return window.KivoI18n.t(key, (this.state && this.state.language) || 'fr');
+    }
+    return this.t(key);
+  },
+
+  /**
+   * Synchronizes all modal headers, titles, and static elements to active language
+   */
+  translateModals: function () {
+    const setText = (selector, key) => {
+      const el = document.querySelector(selector);
+      if (el) el.textContent = this._t(key);
+    };
+
+    setText('#confirm-modal-title', 'modal_confirm_delete_title');
+    setText('#modal-confirm-logout h2', 'modal_confirm_logout_title');
+    setText('#modal-confirm-logout p', 'modal_confirm_logout_body');
+    setText('#confirm-logout-action-btn span', 'modal_confirm_logout_btn');
+    setText('#modal-new-client .modal-header h2', 'modal_new_client_title');
+    setText('#modal-invite-member .modal-title', 'modal_invite_member_title');
+    setText('#modal-new-doc-choice .modal-header h2', 'modal_new_doc_title');
+    setText('#modal-payment-checkout .modal-header h2', 'modal_payment_checkout_title');
+    setText('#modal-payment-checkout h4', 'modal_payment_title');
+    setText('#modal-change-password .modal-header h2', 'modal_change_password_title');
+    setText('#modal-catalog-title', 'modal_catalog_title');
+    setText('#modal-connected-accounts .modal-header h2', 'modal_connected_accounts_title');
   },
 
   t: function (key) {
-    const lang = this.state.language || 'fr';
+    const lang = (this.state && this.state.language) || 'fr';
     return (this.translations[lang] && this.translations[lang][key]) || this.translations.fr[key] || key;
   },
 
@@ -1941,8 +1979,12 @@ window.KivoApp = {
 
     const greetingEl = document.getElementById('dash-greeting');
     if (greetingEl) {
-      const firstName = (biz.owner || '').split(' ')[0] || 'vous';
-      greetingEl.textContent = `Bonjour ${firstName},`;
+      const firstName = (biz.owner || '').split(' ')[0] || '';
+      if (window.KivoI18n) {
+        greetingEl.textContent = KivoI18n.getGreeting(firstName || null, this.state.language || 'fr');
+      } else {
+        greetingEl.textContent = `Bonjour ${firstName || 'vous'},`;
+      }
     }
     
     const paidEl = document.getElementById('kpi-paid');
@@ -2066,26 +2108,28 @@ window.KivoApp = {
     const tbody = document.getElementById('dashboard-recent-docs-tbody');
     if (tbody) {
       const recentInvoices = docs.filter(d => d.type === 'invoice').slice(0, 5);
+      const _t = window.KivoI18n ? (k) => KivoI18n.t(k, this.state.language || 'fr') : (k) => k;
       if (recentInvoices.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="5" style="text-align: center; padding: 2rem;">Aucune facture récente</td>
+            <td colspan="5" style="text-align: center; padding: 2rem;">${_t('dash_no_recent_invoices') || 'Aucune facture récente'}</td>
           </tr>
         `;
       } else {
         tbody.innerHTML = recentInvoices.map(doc => {
           let badgeClass = 'pending';
-          let badgeText = 'En attente';
-          if(doc.status === 'paid') { badgeClass = 'paid'; badgeText = 'Payée'; }
-          else if(doc.status === 'overdue') { badgeClass = 'overdue'; badgeText = 'En retard'; }
-          
+          const statusKey = doc.status === 'paid' ? 'status_paid' : (doc.status === 'overdue' ? 'status_overdue' : 'status_sent');
+          let badgeText = _t(statusKey);
+          if (doc.status === 'paid') badgeClass = 'paid';
+          else if (doc.status === 'overdue') badgeClass = 'overdue';
+
           let docDate = doc.date;
           if (!docDate || docDate === 'undefined') {
             docDate = doc.createdAt ? new Date(doc.createdAt).toLocaleDateString('fr-FR') : 'N/A';
           }
-          
+
           return `
-            <tr onclick="KivoApp.viewPublicDoc('${doc.id}')" style="cursor: pointer;" title="Afficher la facture ${doc.number}">
+            <tr onclick="KivoApp.viewPublicDoc('${doc.id}')" style="cursor: pointer;" title="${_t('btn_edit')} ${doc.number}">
               <td><strong style="color: var(--primary); font-weight: 600;">${doc.number}</strong></td>
               <td>${doc.clientName || 'Client'}</td>
               <td style="color: var(--text-secondary);">${docDate}</td>
@@ -2276,22 +2320,24 @@ window.KivoApp = {
       refunded: 'badge-overdue'
     }[doc.status] || 'badge-draft';
 
-    const statusLabel = {
-      paid: 'Payée',
-      accepted: 'Accepté',
-      overdue: 'En retard',
-      sent: 'Envoyée',
-      viewed: 'Vue',
-      draft: 'Brouillon',
-      cancelled: 'Annulée',
-      refunded: 'Remboursée'
-    }[doc.status] || doc.status;
+    const _t = window.KivoI18n ? (k) => KivoI18n.t(k, this.state.language || 'fr') : (k) => k;
+    const statusMap = {
+      paid: 'status_paid',
+      accepted: 'status_accepted',
+      overdue: 'status_overdue',
+      sent: 'status_sent',
+      viewed: 'status_viewed',
+      draft: 'status_draft',
+      cancelled: 'status_cancelled',
+      refunded: 'status_refunded'
+    };
+    const statusLabel = _t(statusMap[doc.status] || doc.status) || doc.status;
 
     const isQuote = doc.type === 'quote';
     const rowClass = isQuote ? 'doc-row-quote' : 'doc-row-invoice';
     const numClass = isQuote ? 'doc-num-quote' : 'doc-num-invoice';
     const typeBadgeClass = isQuote ? 'badge-doc-quote' : 'badge-doc-invoice';
-    const typeLabel = isQuote ? 'Devis' : 'Facture';
+    const typeLabel = isQuote ? _t('doc_quote_short') || 'Devis' : _t('doc_invoice_short') || 'Facture';
 
     return `
       <tr class="doc-table-row ${rowClass}" onclick="KivoApp.viewPublicDoc('${doc.id}')" style="cursor: pointer;">
@@ -2495,7 +2541,7 @@ window.KivoApp = {
     this.closeModal('modal-new-doc-choice');
 
     if (!this.state || !this.state.business) {
-      this.showToast("Données non chargées. Veuillez patienter ou actualiser.", "error");
+      this.showToast(this._t('toast_data_not_loaded'), "error");
       return;
     }
 
@@ -3288,10 +3334,10 @@ window.KivoApp = {
 
       this.recalculateBuilderTotals();
       this.updateLiveInvoicePreview();
-      this.showToast('Brouillon restauré ! Vous pouvez continuer votre saisie.', 'success');
+      this.showToast(this._t('toast_draft_restored'), 'success');
     } catch (e) {
       console.error('[KivoApp] restoreBuilderDraft error:', e);
-      this.showToast('Erreur lors de la reprise du brouillon.', 'danger');
+      this.showToast(this._t('toast_draft_restore_error'), 'danger');
     }
   },
 
@@ -3304,7 +3350,7 @@ window.KivoApp = {
     if (banner) banner.style.display = 'none';
     const indicator = document.getElementById('builder-draft-indicator');
     if (indicator) indicator.style.display = 'none';
-    this.showToast('Brouillon supprimé.', 'info');
+    this.showToast(this._t('toast_draft_deleted'), 'info');
   },
 
   clearBuilderDraftOnFinalize: function () {
@@ -3508,10 +3554,10 @@ window.KivoApp = {
         
         if (error) throw error;
       }
-      this.showToast("Modèle sauvegardé avec succès !", "success");
+      this.showToast(this._t('toast_template_saved'), "success");
     } catch (e) {
       console.error(e);
-      this.showToast("Erreur lors de la sauvegarde du modèle.", "error");
+      this.showToast(this._t('toast_template_save_error'), "error");
     }
   },
 
@@ -3529,7 +3575,7 @@ window.KivoApp = {
         }).eq('id', biz.id);
       }
       this.renderTemplateGallery();
-      this.showToast("Modèle supprimé.", "success");
+      this.showToast(this._t('toast_template_deleted'), "success");
     } catch (e) {
       console.error(e);
     }
@@ -3544,7 +3590,7 @@ window.KivoApp = {
   triggerBuilderAiParse: function () {
     const input = document.getElementById('builder-ai-input').value;
     if (!input || input.trim().length === 0) {
-      this.showToast("Veuillez saisir une description de votre besoin.", "error");
+      this.showToast(this._t('toast_doc_ai_required'), "error");
       return;
     }
 
@@ -3573,7 +3619,7 @@ window.KivoApp = {
       }
 
       this.recalculateBuilderTotals();
-      this.showToast("KIVO MATIQUE AI : Formulaire complété avec succès !", "success");
+      this.showToast(this._t('toast_doc_ai_filled'), "success");
     }
   },
 
@@ -3594,7 +3640,7 @@ window.KivoApp = {
         d.status !== 'draft' && d.status !== 'brouillon'
       );
       if (monthlyDocs.length >= 3) {
-        this.showToast("Limite atteinte : Le forfait Gratuit est limité à 3 documents (factures et devis finalisés) par mois. Passez au forfait PRO pour créer des documents en illimité.", "danger");
+        this.showToast(this._t('toast_doc_free_limit'), "danger");
         this.navigate('pricing');
         return;
       }
@@ -3640,7 +3686,7 @@ window.KivoApp = {
     });
 
     if (items.length === 0) {
-      this.showToast("Veuillez ajouter au moins un article avec une désignation avant d'enregistrer.", "warning");
+      this.showToast(this._t('toast_doc_no_items'), "warning");
       return;
     }
 
@@ -3748,14 +3794,14 @@ window.KivoApp = {
         templateId: docObj.templateId
       }).catch(e => {
         console.error('[KivoApp] Supabase saveDocument error:', e);
-        this.showToast(this.friendlySupabaseError(e, "Document enregistré localement (synchronisation cloud échouée)."), "warning");
+        this.showToast(this.friendlySupabaseError(e, this._t('toast_doc_cloud_fail')), "warning");
       });
     }
 
     // Clear auto-saved draft: a finalized document is no longer a draft
     this.clearBuilderDraftOnFinalize();
 
-    this.showToast(`Document ${num} enregistré avec succès !`, "success");
+    this.showToast(this._t('toast_doc_saved').replace('{num}', num), "success");
     this.viewPublicDoc(docId);
   },
 
@@ -3768,7 +3814,7 @@ window.KivoApp = {
 
     if (confirm(`Voulez-vous vraiment rembourser la facture ${doc.number} (${doc.total.toLocaleString('fr-FR')} ${doc.currency || 'FCFA'}) ?`)) {
       window.PaymentProvider.processRefund(doc, "Remboursement demandé par le client", () => {
-        this.showToast(`Facture ${doc.number} remboursée avec succès.`, "success");
+        this.showToast(this._t('toast_doc_refunded').replace('{num}', doc.number), "success");
         this.renderCurrentView();
       });
     }
@@ -3800,18 +3846,18 @@ window.KivoApp = {
     const num = doc ? doc.number : 'ce document';
     
     this.confirmAction(
-      "Confirmer la suppression",
-      `Êtes-vous sûr de vouloir supprimer définitivement le document #${num} ?`,
+      this._t('modal_confirm_delete_title'),
+      `${this._t('btn_delete')} #${num} ?`,
       () => {
         this.state.documents = this.state.documents.filter(d => d.id !== docId);
         this.saveState();
         if (window.KivoDb && this.supabaseConnected) {
           window.KivoDb.deleteDocument(docId).catch(e => {
             console.error('[KivoApp] deleteDocument error:', e);
-            this.showToast(this.friendlySupabaseError(e, "Erreur lors de la suppression sur le serveur."), "error");
+            this.showToast(this.friendlySupabaseError(e, this._t('toast_doc_delete_error')), "error");
           });
         }
-        this.showToast(`Document ${num} supprimé.`, "info");
+        this.showToast(this._t('toast_doc_deleted').replace('{num}', num), "info");
         this.renderCurrentView();
       }
     );
@@ -3822,18 +3868,18 @@ window.KivoApp = {
     const name = cli ? cli.name : 'ce client';
 
     this.confirmAction(
-      "Supprimer le client",
-      `Voulez-vous vraiment supprimer le client ${name} ?`,
+      this._t('modal_delete_client_title'),
+      this._t('modal_delete_client_msg').replace('{name}', name),
       () => {
         this.state.clients = this.state.clients.filter(c => c.id !== clientId);
         this.saveState();
         if (window.KivoDb && this.supabaseConnected) {
           window.KivoDb.deleteClient(clientId).catch(e => {
             console.error('[KivoApp] deleteClient error:', e);
-            this.showToast(this.friendlySupabaseError(e, "Erreur lors de la suppression du client sur le serveur."), "error");
+            this.showToast(this.friendlySupabaseError(e, this._t('toast_client_delete_error')), "error");
           });
         }
-        this.showToast(`Client ${name} supprimé.`, "info");
+        this.showToast(this._t('toast_client_deleted').replace('{name}', name), "info");
         this.renderClients();
       }
     );
@@ -3891,7 +3937,7 @@ window.KivoApp = {
         }
 
         if (!cloudDoc) {
-          this.showToast("Ce document n'existe pas ou a été supprimé.", "danger");
+          this.showToast(this._t('toast_doc_not_found'), "danger");
           return;
         }
 
@@ -3991,13 +4037,13 @@ window.KivoApp = {
         }
       } catch (e) {
         console.error('[KivoApp] Public load error:', e);
-        this.showToast("Erreur de chargement du document.", "danger");
+        this.showToast(this._t('toast_doc_load_error'), "danger");
         return;
       }
     }
 
     if (!doc) {
-      this.showToast("Document non trouvé.", "danger");
+      this.showToast(this._t('toast_doc_not_found_short'), "danger");
       return;
     }
 
@@ -4031,13 +4077,13 @@ window.KivoApp = {
       marketingCta.style.display = 'block';
     }
 
-    // ── Point 1 fix: "Retour" button sits NEXT TO LOGO in #pub-back-btn (left side)
+    // ── Point 3 fix: "Retour" button sits NEXT TO LOGO in #pub-back-btn (left side) → goes to documents list
     const backBtnContainer = document.getElementById('pub-back-btn');
     if (backBtnContainer) {
       backBtnContainer.innerHTML = isAuth ? `
-        <button class="btn btn-secondary btn-sm" onclick="KivoApp.navigate('billing')"
+        <button class="btn btn-secondary btn-sm" onclick="KivoApp.navigate('documents')"
           style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; margin-left: 0.5rem; padding: 5px 10px; font-size: 0.8rem;"
-          title="Retour à toutes les factures">
+          title="Retour à la liste des factures">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
           <span>Retour</span>
         </button>` : '';
@@ -4174,7 +4220,7 @@ window.KivoApp = {
       });
 
       this.saveState();
-      this.showToast("Félicitations ! Devis accepté par le client.", "success");
+      this.showToast(this._t('toast_doc_quote_accepted'), "success");
       this.renderPublicDocView();
     }
   },
@@ -4240,7 +4286,13 @@ window.KivoApp = {
       btn.textContent = "Confirmer le paiement instantané";
       btn.disabled = false;
 
-      this.showToast(`Paiement de ${doc.total.toLocaleString('fr-FR')} ${doc.currency || 'FCFA'} confirmé via ${this.selectedProviderId.toUpperCase()} !`, "success");
+      this.showToast(
+        this._t('toast_payment_confirmed')
+          .replace('{amount}', doc.total.toLocaleString('fr-FR'))
+          .replace('{currency}', doc.currency || 'FCFA')
+          .replace('{provider}', this.selectedProviderId.toUpperCase()),
+        "success"
+      );
       this.renderPublicDocView();
     });
   },
@@ -4306,7 +4358,7 @@ window.KivoApp = {
       // Desktop: open WhatsApp Web — user selects the contact inside WhatsApp
       window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
     }
-    this.showToast('Ouverture de WhatsApp...', 'success');
+    this.showToast(this._t('toast_whatsapp_opening'), 'success');
   },
 
   // Legacy — kept as no-op in case called from old HTML; modal-whatsapp-share is no longer used
@@ -4362,11 +4414,64 @@ window.KivoApp = {
         <td style="color: ${balanceDue > 0 ? 'var(--danger-text)' : 'var(--success-text)'}"><strong>${balanceDue.toLocaleString('fr-FR')} ${currency}</strong></td>
         <td style="text-align: right; display: flex; gap: 0.35rem; justify-content: flex-end;">
           <button class="btn btn-secondary btn-sm" onclick="KivoApp.openClientDetails('${c.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="10" r="3"/></svg> Détails</button>
+          <button class="btn btn-secondary btn-sm" onclick="KivoApp.openEditClientModal('${c.id}')" title="Modifier ce client"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifier</button>
           <button class="btn btn-secondary btn-sm" onclick="KivoApp.startNewDocumentForClient('${c.id}')">+ Facturer</button>
           <button class="btn btn-danger btn-sm" onclick="KivoApp.confirmDeleteClient('${c.id}')" title="Supprimer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
         </td>
       </tr>
     `}).join('');
+  },
+
+  /**
+   * Point 1 fix: Open the client creation modal pre-filled with existing data for editing.
+   */
+  openEditClientModal: function (clientId) {
+    const c = this.state.clients.find(cl => cl.id === clientId);
+    if (!c) return;
+
+    // Reset form first (clear fields)
+    const form = document.getElementById('modal-new-client');
+    if (!form) return;
+
+    // Set hidden ID so saveNewClient knows it's an edit
+    const idEl = document.getElementById('new-cli-id');
+    if (idEl) idEl.value = c.id;
+
+    // Modal title
+    const titleEl = document.getElementById('modal-new-client-title');
+    if (titleEl) titleEl.textContent = 'Modifier le client';
+
+    // Type radio
+    const typeRadios = document.getElementsByName('new-cli-type');
+    typeRadios.forEach(r => { r.checked = (r.value === (c.clientType || 'B2B')); });
+    this.toggleClientTypeForm(c.clientType || 'B2B');
+
+    // Fields
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    set('new-cli-name', c.name);
+    set('new-cli-contact', c.contactName);
+    set('new-cli-email', c.email);
+    set('new-cli-taxid', c.taxId);
+    set('new-cli-address', c.address);
+    set('new-cli-country', c.country || 'SN');
+
+    // Phone: try to split prefix from number
+    if (c.phone) {
+      const prefixMatch = c.phone.match(/^(\+\d{1,4})\s(.+)$/);
+      if (prefixMatch) {
+        set('new-cli-phone-prefix', prefixMatch[1]);
+        set('new-cli-phone', prefixMatch[2]);
+      } else {
+        set('new-cli-phone', c.phone);
+      }
+    } else {
+      set('new-cli-phone', '');
+    }
+
+    // Trigger country change to update legalname label
+    if (typeof this.onClientCountryChange === 'function') this.onClientCountryChange();
+
+    this.openModal('modal-new-client');
   },
 
   openClientDetails: function (clientId) {
@@ -4541,7 +4646,7 @@ window.KivoApp = {
    */
   openNewCatalogItemModal: function () {
     const title = document.getElementById('modal-catalog-title');
-    if (title) title.textContent = "Ajouter un article / prestation";
+    if (title) title.textContent = this._t('modal_catalog_title');
 
     const idInput = document.getElementById('item-modal-id');
     const nameInput = document.getElementById('item-modal-name');
@@ -4573,7 +4678,7 @@ window.KivoApp = {
     if (!item) return;
 
     const title = document.getElementById('modal-catalog-title');
-    if (title) title.textContent = "Modifier l'article / prestation";
+    if (title) title.textContent = this._t('modal_catalog_edit_title');
 
     const idInput = document.getElementById('item-modal-id');
     const nameInput = document.getElementById('item-modal-name');
@@ -4610,7 +4715,7 @@ window.KivoApp = {
 
     const name = nameEl ? nameEl.value.trim() : '';
     if (!name) {
-      this.showToast("Veuillez saisir le nom de l'article ou service.", "error");
+      this.showToast(this._t('toast_item_name_required'), "error");
       if (nameEl) nameEl.focus();
       return;
     }
@@ -4618,7 +4723,7 @@ window.KivoApp = {
     const priceRaw = priceEl ? priceEl.value : '';
     const price = parseFloat(priceRaw);
     if (isNaN(price) || price < 0) {
-      this.showToast("Veuillez saisir un prix unitaire valide.", "error");
+      this.showToast(this._t('toast_item_price_required'), "error");
       if (priceEl) priceEl.focus();
       return;
     }
@@ -4665,14 +4770,14 @@ window.KivoApp = {
         tax_rate: itemObj.taxRate
       }).catch(e => {
         console.error('[KivoApp] Supabase saveCatalogItem error:', e);
-        this.showToast(this.friendlySupabaseError(e, "Erreur lors de la synchronisation de l'article sur le serveur."), "warning");
+        this.showToast(this.friendlySupabaseError(e, this._t('toast_item_save_error')), "warning");
       });
     }
 
     this.closeModal('modal-catalog-item');
     this.populateBuilderCatalogDropdown();
     this.renderServices();
-    this.showToast(`Service / prestation "${name}" enregistré avec succès.`, "success");
+    this.showToast(this._t('toast_item_saved').replace('{name}', name), "success");
   },
 
   /**
@@ -4682,7 +4787,7 @@ window.KivoApp = {
     const item = (this.state.catalog || []).find(it => String(it.id) === String(itemId));
     const itemName = item ? item.name : 'cette prestation';
 
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${itemName}" de vos services & prestations ?`)) {
+    if (!confirm(this._t('modal_delete_item_confirm').replace('{name}', itemName))) {
       return;
     }
 
@@ -4692,13 +4797,13 @@ window.KivoApp = {
     if (window.KivoDb && this.supabaseConnected) {
       window.KivoDb.deleteCatalogItem(itemId).catch(e => {
         console.error('[KivoApp] Supabase deleteCatalogItem error:', e);
-        this.showToast(this.friendlySupabaseError(e, "Erreur lors de la suppression de l'article sur le serveur."), "error");
+        this.showToast(this.friendlySupabaseError(e, this._t('toast_item_delete_error')), "error");
       });
     }
 
     this.populateBuilderCatalogDropdown();
     this.renderServices();
-    this.showToast(`"${itemName}" a été supprimé de vos services & prestations.`, "info");
+    this.showToast(this._t('toast_item_deleted').replace('{name}', itemName), "info");
   },
 
   renderCatalog: function () {
@@ -4757,7 +4862,7 @@ window.KivoApp = {
     
     const tmplObj = window.KivoTemplates?.builtIn?.find(t => t.id === templateId);
     const tmplName = tmplObj ? tmplObj.name : templateId;
-    this.showToast(`Modèle "${tmplName}" sélectionné et appliqué !`, 'success');
+    this.showToast(this._t('toast_template_applied').replace('{name}', tmplName), 'success');
 
     // 3. Re-render catalog so active checkmark updates immediately
     this.renderCatalog();
@@ -4773,7 +4878,7 @@ window.KivoApp = {
     this.updateLiveInvoicePreview();
     const tmplObj = window.KivoTemplates?.builtIn?.find(t => t.id === templateId);
     if (tmplObj) {
-      this.showToast(`Modèle "${tmplObj.name}" appliqué à cette facture`, 'success');
+      this.showToast(this._t('toast_template_applied_invoice').replace('{name}', tmplObj.name), 'success');
     }
   },
 
@@ -4791,12 +4896,12 @@ window.KivoApp = {
     };
     const palette = defaultPaletteMap[templateId] || defaultPaletteMap.minimalist;
     this.setBuilderPresetColors(palette.primary, palette.secondary);
-    this.showToast(`Couleurs par défaut du modèle appliquées`, 'info');
+    this.showToast(this._t('toast_template_colors_applied'), 'info');
   },
 
   openTemplateEditor: function () {
     // Basic interaction for "Créer mon modèle"
-    this.showToast("L'éditeur de modèles personnalisés sera bientôt disponible.", 'info');
+    this.showToast(this._t('toast_template_editor_soon'), 'info');
   },
 
   renderReminders: function () {
@@ -4847,7 +4952,7 @@ window.KivoApp = {
   copyReminderText: function () {
     const text = document.getElementById('reminder-message-preview').value;
     navigator.clipboard.writeText(text).then(() => {
-      this.showToast("Message de relance copié dans le presse-papier !", "info");
+      this.showToast(this._t('toast_reminder_copied'), "info");
     });
   },
 
@@ -4858,13 +4963,13 @@ window.KivoApp = {
   openInviteMemberModal: function () {
     const tier = (this.state.business && this.state.business.subscriptionTier) || 'Gratuit';
     if (tier !== 'Business') {
-      this.showToast('L\'invitation de membres est réservée au plan Business (9 990 FCFA/mois).', 'info');
+      this.showToast(this._t('toast_team_invite_business_only'), 'info');
       this.navigate('settings');
       return;
     }
     const members = (this.state.business.teamMembers) || [];
     if (members.length >= 5) {
-      this.showToast('Limite atteinte : 5 sièges inclus dans le plan Business. Ajoutez +1 500 FCFA/mois par siège supplémentaire.', 'info');
+      this.showToast(this._t('toast_team_seats_limit'), 'info');
       return;
     }
     const emailInput = document.getElementById('invite-member-email');
@@ -4876,13 +4981,13 @@ window.KivoApp = {
     const email = (document.getElementById('invite-member-email') || {}).value || '';
     const role = (document.getElementById('invite-member-role') || {}).value || 'membre';
     if (!email || !email.includes('@')) {
-      this.showToast('Veuillez saisir une adresse e-mail valide.', 'error');
+      this.showToast(this._t('toast_team_email_invalid'), 'error');
       return;
     }
     if (!this.state.business.teamMembers) this.state.business.teamMembers = [];
     // Check duplicate
     if (this.state.business.teamMembers.find(m => m.email === email)) {
-      this.showToast('Ce membre est déjà dans l\'équipe.', 'error');
+      this.showToast(this._t('toast_team_member_exists'), 'error');
       return;
     }
     const initials = email.split('@')[0].substring(0, 2).toUpperCase();
@@ -4896,7 +5001,7 @@ window.KivoApp = {
     });
     this.saveState();
     this.closeModal('modal-invite-member');
-    this.showToast(`Invitation envoyée à ${email} (${role}).`, 'success');
+    this.showToast(this._t('toast_team_invite_sent').replace('{email}', email).replace('{role}', role), 'success');
     this.renderTeam();
   },
 
@@ -4981,7 +5086,7 @@ window.KivoApp = {
     if (!this.state.business.teamMembers) return;
     this.state.business.teamMembers = this.state.business.teamMembers.filter(m => m.id !== memberId);
     this.saveState();
-    this.showToast('Membre retiré de l\'équipe.', 'info');
+    this.showToast(this._t('toast_team_member_removed'), 'info');
     this.renderTeam();
   },
 
@@ -5637,19 +5742,19 @@ window.KivoApp = {
     const msgEl = document.getElementById('reset-password-msg');
 
     if (p1.length < 8) {
-      this.showToast("Le mot de passe doit comporter au moins 8 caractères.", "error");
+      this.showToast(this._t('toast_password_too_short'), "error");
       return;
     }
     if (!/[0-9]/.test(p1)) {
-      this.showToast("Le mot de passe doit contenir au moins un chiffre.", "error");
+      this.showToast(this._t('toast_password_no_digit'), "error");
       return;
     }
     if (!/[A-Z]/.test(p1)) {
-      this.showToast("Le mot de passe doit contenir au moins une lettre majuscule.", "error");
+      this.showToast(this._t('toast_password_no_upper'), "error");
       return;
     }
     if (p1 !== p2) {
-      this.showToast("Les deux mots de passe ne correspondent pas.", "error");
+      this.showToast(this._t('toast_password_mismatch'), "error");
       return;
     }
 
@@ -5674,7 +5779,7 @@ window.KivoApp = {
         }
       }
 
-      this.showToast("Mot de passe mis à jour avec succès !", "success");
+      this.showToast(this._t('toast_password_updated'), "success");
       if (msgEl) {
         msgEl.style.display = 'block';
         msgEl.style.background = '#ECFDF5';
@@ -5692,7 +5797,7 @@ window.KivoApp = {
 
     } catch (err) {
       console.error('[KivoApp] submitPasswordReset exception:', err);
-      this.showToast("Erreur lors de la mise à jour du mot de passe.", "error");
+      this.showToast(this._t('toast_password_update_error'), "error");
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = "Enregistrer le nouveau mot de passe"; }
     }
@@ -5903,7 +6008,7 @@ window.KivoApp = {
       this._applyWizardDataToForm();
       this._wizardRender();
       this._renderResumeBanner(false);
-      this.showToast('Assistant réinitialisé au début.', 'info');
+      this.showToast(this._t('toast_wizard_reset'), 'info');
       return;
     }
 
@@ -6282,7 +6387,7 @@ window.KivoApp = {
 
   /** Final button on step 11: navigate to dashboard */
   wizardFinish: function () {
-    this.showToast('Espace pret. Bon depart sur KIVO MATIQUE !', 'success');
+    this.showToast(this._t('toast_workspace_ready'), 'success');
     this.navigate('dashboard');
   },
 
@@ -6291,7 +6396,7 @@ window.KivoApp = {
     this.state.business.subscriptionStatus = 'active';
     this.saveState();
     this.renderSettings();
-    this.showToast(`Forfait ${tier} (KIVO MATIQUE) activé !`, "success");
+    this.showToast(this._t('toast_plan_activated').replace('{plan}', tier), "success");
   },
 
   renderSettings: function () {
@@ -6444,6 +6549,8 @@ window.KivoApp = {
     const langSelect = document.getElementById('setting-biz-language');
     if (langSelect) {
       this.state.language = langSelect.value;
+      // Sync KivoI18n engine first, then apply language (which also syncs via applyLanguage)
+      if (window.KivoI18n) KivoI18n.setLang(this.state.language);
       this.applyLanguage(this.state.language);
     }
 
@@ -6473,11 +6580,11 @@ window.KivoApp = {
         invoice_page_size: biz.invoicePageSize || 'a4'
       }).catch(e => {
         console.error('[KivoApp] Supabase saveSettings error:', e);
-        this.showToast(this.friendlySupabaseError(e, "Paramètres enregistrés localement (synchronisation cloud échouée)."), "warning");
+        this.showToast(this.friendlySupabaseError(e, this._t('toast_settings_cloud_fail')), "warning");
       });
     }
 
-    this.showToast("Paramètres KIVO MATIQUE enregistrés !", "success");
+    this.showToast(this._t('toast_settings_saved'), "success");
     this.updateUserBrandingUI();
   },
 
@@ -6537,7 +6644,7 @@ window.KivoApp = {
         if (error) throw error;
       }
       this.closeModal('modal-change-password');
-      this.showToast('Mot de passe mis à jour avec succès !', 'success');
+      this.showToast(this._t('toast_password_updated'), 'success');
     } catch (err) {
       console.error('[KivoApp] submitChangePassword error:', err);
       showError(this.friendlySupabaseError(err, 'Une erreur est survenue. Réessayez ou contactez le support.'));
@@ -6554,7 +6661,7 @@ window.KivoApp = {
     if (!files || !files[0]) return;
     const file = files[0];
     if (!file.type.startsWith('image/')) {
-      this.showToast('Veuillez sélectionner un fichier image.', 'warning');
+      this.showToast(this._t('toast_logo_select_file'), 'warning');
       return;
     }
 
@@ -6594,7 +6701,7 @@ window.KivoApp = {
         this.saveSettings();
       }
 
-      this.showToast('Logo importé avec succès !', 'success');
+      this.showToast(this._t('toast_logo_imported'), 'success');
     };
     reader.readAsDataURL(file);
   },
@@ -6803,7 +6910,7 @@ window.KivoApp = {
     if (!promptEl) return;
     const promptText = promptEl.value.trim();
     if (!promptText) {
-      this.showToast('Décrivez votre facture dans la zone de texte.', 'info');
+      this.showToast(this._t('toast_ai_describe_first'), 'info');
       return;
     }
 
@@ -6830,7 +6937,7 @@ window.KivoApp = {
         btn.disabled = false;
         btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;"><path d="M12 2l2.4 7.2L21.6 12l-7.2 2.4L12 21.6l-2.4-7.2L2.4 12l7.2-2.4z"/></svg> Générer ma facture';
       }
-      this.showToast('Facture structurée avec succès !', 'success');
+      this.showToast(this._t('toast_ai_structured'), 'success');
     }, 600);
   },
 
@@ -6888,7 +6995,7 @@ window.KivoApp = {
    */
   transferAiInvoiceToBuilder: function () {
     if (!this._aiGeneratedDoc) {
-      this.showToast('Générez d\'abord une facture avec l\'IA.', 'info');
+      this.showToast(this._t('toast_ai_generate_first'), 'info');
       return;
     }
     const doc = this._aiGeneratedDoc;
@@ -6918,7 +7025,7 @@ window.KivoApp = {
         if (clientInput) clientInput.value = clientName;
       }
       this.updateLiveInvoicePreview();
-      this.showToast('Facture IA chargée dans l\'éditeur !', 'success');
+      this.showToast(this._t('toast_ai_loaded_in_editor'), 'success');
     }, 300);
   },
 
@@ -6927,7 +7034,7 @@ window.KivoApp = {
    */
   saveAiInvoiceDirectly: async function () {
     if (!this._aiGeneratedDoc) {
-      this.showToast('Générez d\'abord une facture avec l\'IA.', 'info');
+      this.showToast(this._t('toast_ai_generate_first'), 'info');
       return;
     }
 
@@ -6979,13 +7086,13 @@ window.KivoApp = {
     if (window.KivoDb && this.supabaseConnected) {
       try {
         await window.KivoDb.saveDocument(newDoc);
-        this.showToast('Facture enregistrée dans Supabase !', 'success');
+        this.showToast(this._t('toast_doc_supabase_saved'), 'success');
       } catch (e) {
         console.error('Supabase save error:', e);
-        this.showToast('Facture sauvegardée localement (Supabase indisponible).', 'success');
+        this.showToast(this._t('toast_doc_local_saved'), 'success');
       }
     } else {
-      this.showToast('Facture enregistrée localement !', 'success');
+      this.showToast(this._t('toast_doc_local_only'), 'success');
     }
   },
 
@@ -7089,12 +7196,16 @@ window.KivoApp = {
     typeRadios.forEach(r => { if (r.checked) type = r.value; });
 
     if (!name) {
-      this.showToast("Veuillez saisir le nom du client.", "error");
+      this.showToast(this._t('toast_client_name_required'), "error");
       return;
     }
 
+    // Point 1 fix: if editing an existing client, reuse its id
+    const existingId = (document.getElementById('new-cli-id') || {}).value || '';
+    const isEdit = !!existingId;
+
     const newClient = {
-      id: this.generateUUID(),
+      id: isEdit ? existingId : this.generateUUID(),
       name: name,
       clientType: type,
       company: type === 'B2B' ? name : '',
@@ -7111,7 +7222,24 @@ window.KivoApp = {
       createdAt: new Date().toISOString().split('T')[0]
     };
 
-    this.state.clients.unshift(newClient);
+    if (isEdit) {
+      // Replace existing client in state
+      const idx = this.state.clients.findIndex(c => c.id === existingId);
+      if (idx !== -1) {
+        // Preserve fields not in the form (e.g. createdAt)
+        newClient.createdAt = this.state.clients[idx].createdAt || newClient.createdAt;
+        this.state.clients[idx] = newClient;
+      }
+    } else {
+      this.state.clients.unshift(newClient);
+    }
+
+    // Reset hidden id field for next "new client" opening
+    const idEl = document.getElementById('new-cli-id');
+    if (idEl) idEl.value = '';
+    const titleEl = document.getElementById('modal-new-client-title');
+    if (titleEl) titleEl.textContent = 'Nouveau Client';
+
     this.saveState();
     
     if (window.KivoDb && this.supabaseConnected) {
@@ -7128,12 +7256,12 @@ window.KivoApp = {
         // ne sont pas des colonnes Supabase valides → exclus volontairement
       }).catch(e => {
         console.error('[KivoApp] saveClient error:', e);
-        this.showToast(this.friendlySupabaseError(e, "Erreur lors de l'enregistrement du client sur le serveur."), 'error');
+        this.showToast(this.friendlySupabaseError(e, this._t('toast_client_save_error')), 'error');
       });
     }
 
     this.closeModal('modal-new-client');
-    this.showToast(`Client ${name} (${type}) enregistré avec succès.`, "success");
+    this.showToast(this._t('toast_client_saved').replace('{name}', name).replace('{type}', type), "success");
 
     if (this.activeView === 'document-builder') {
       const clientSelect = document.getElementById('builder-doc-client-select');
@@ -7356,7 +7484,7 @@ window.KivoApp = {
     if (primaryInput) primaryInput.value = primary;
     if (secondaryInput) secondaryInput.value = secondary;
     this.updateDocumentPreviewVisuals();
-    this.showToast('Palette appliquée', 'success');
+    this.showToast(this._t('toast_palette_applied'), 'success');
   },
 
   /**
@@ -7375,7 +7503,7 @@ window.KivoApp = {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      this.showToast('Veuillez sélectionner un fichier image valide.', 'warning');
+      this.showToast(this._t('toast_logo_file_invalid'), 'warning');
       return;
     }
 
@@ -7404,7 +7532,7 @@ window.KivoApp = {
         this.updateLiveInvoicePreview();
       }, 60);
 
-      this.showToast('Logo appliqué à la facture.', 'success');
+      this.showToast(this._t('toast_logo_applied'), 'success');
     };
     reader.readAsDataURL(file);
   },
@@ -7511,7 +7639,7 @@ window.KivoApp = {
         }
       });
 
-      this.showToast(`Devise modifiée : 1 ${oldCurrency} = ${(1 * factor).toFixed(4)} ${newCurrency}. Prix convertis.`, 'info');
+      this.showToast(this._t('toast_currency_changed').replace('{old}', oldCurrency).replace('{rate}', (1 * factor).toFixed(4)).replace('{new}', newCurrency), 'info');
     }
 
     this.recalculateBuilderTotals();
@@ -7557,7 +7685,7 @@ window.KivoApp = {
           if (pInput) pInput.value = primaryHex;
           this.saveState();
           this.updateLiveInvoicePreview();
-          this.showToast(`Couleur détectée du logo (${primaryHex}) et appliquée !`, 'success');
+          this.showToast(this._t('toast_logo_color_applied').replace('{color}', primaryHex), 'success');
         }
       } catch (e) {
         console.warn('Auto color extraction warning:', e);
@@ -7637,7 +7765,7 @@ window.KivoApp = {
     const defaultVat = this.state.business?.defaultVatRate !== undefined ? this.state.business.defaultVatRate : (this.state.business?.taxRate !== undefined ? this.state.business.taxRate : 0);
     const tax = (item.taxRate !== undefined && item.taxRate !== null) ? Number(item.taxRate) : defaultVat;
     this.addBuilderLineItem(item.name || 'Article', 1, Number(item.price) || 0, tax);
-    this.showToast(`Article "${item.name}" ajouté`, 'success');
+    this.showToast(this._t('toast_item_added_to_doc').replace('{name}', item.name), 'success');
   },
 
   /**
@@ -7901,12 +8029,12 @@ window.KivoApp = {
 
     try {
       if (typeof html2canvas === 'undefined') {
-        this.showToast("html2canvas non disponible — vérifiez votre connexion.", "error");
+        this.showToast(this._t('toast_doc_html2canvas_missing'), "error");
         return;
       }
       const JsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : window.jsPDF;
       if (!JsPDF) {
-        this.showToast("jsPDF non disponible — vérifiez votre connexion.", "error");
+        this.showToast(this._t('toast_doc_jspdf_missing'), "error");
         return;
       }
 
@@ -7925,7 +8053,7 @@ window.KivoApp = {
       // 2. Extraire données et HTML du document
       const { renderedHtml, filename, templateId } = this._getDocForRender(targetDocOrId);
       if (!renderedHtml) {
-        this.showToast("Aucun document disponible pour le téléchargement.", "error");
+        this.showToast(this._t('toast_doc_no_download'), "error");
         return;
       }
 
@@ -8027,12 +8155,12 @@ window.KivoApp = {
       }
 
       pdf.save(filename);
-      this.showToast("Facture téléchargée avec succès !", "success");
+      this.showToast(this._t('toast_doc_pdf_success'), "success");
 
     } catch (err) {
       console.error('[KivoApp] Erreur downloadPdf:', err);
       console.error('[KivoApp] downloadPdf error:', err);
-      this.showToast("Une erreur est survenue lors du téléchargement. Réessayez.", "error");
+      this.showToast(this._t('toast_doc_pdf_error'), "error");
     } finally {
       if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
       if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
@@ -8048,7 +8176,7 @@ window.KivoApp = {
 
     try {
       if (!window.KivoTemplates) {
-        this.showToast("Moteur de modèle indisponible.", "error");
+        this.showToast(this._t('toast_template_engine_unavail'), "error");
         return;
       }
 
@@ -8065,7 +8193,7 @@ window.KivoApp = {
 
       const { renderedHtml, templateId } = this._getDocForRender(targetDocOrId);
       if (!renderedHtml) {
-        this.showToast("Aucun document à imprimer.", "error");
+        this.showToast(this._t('toast_doc_no_print'), "error");
         return;
       }
 
@@ -8083,7 +8211,7 @@ window.KivoApp = {
     } catch (err) {
       console.error('[KivoApp] Erreur printPdf:', err);
       console.error('[KivoApp] printPdf error:', err);
-      this.showToast("Une erreur est survenue lors de l'impression. Réessayez.", "error");
+      this.showToast(this._t('toast_doc_print_error'), "error");
     } finally {
       if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
       setTimeout(() => {
@@ -8189,7 +8317,7 @@ window.KivoApp = {
 
     const labels = { 'Gratuit': 'Free', 'Pro': 'Pro', 'Business': 'Business' };
     const label = labels[tier] || tier;
-    this.showToast(`Forfait ${label} activé ! Bienvenue dans KIVO MATIQUE ${label}.`, 'success');
+    this.showToast(this._t('toast_plan_activated').replace('{plan}', label), 'success');
 
     // Log activity
     if (!this.state.activities) this.state.activities = [];

@@ -3190,9 +3190,10 @@
   <div class="modal-overlay" id="modal-new-client">
     <div class="modal-card">
       <div class="modal-header">
-        <h2>Nouveau Client</h2>
+        <h2 id="modal-new-client-title">Nouveau Client</h2>
         <button class="modal-close" onclick="KivoApp.closeModal('modal-new-client')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
+      <input type="hidden" id="new-cli-id" value="">
 
       <div class="form-group">
         <label class="form-label">Type de client</label>
@@ -3556,6 +3557,7 @@
   <script src="js/ai-assistant.js?v=3.3"></script>
   <script src="js/payment-provider.js?v=3.3"></script>
   <script src="js/whatsapp-helper.js?v=3.2"></script>
+  <script src="js/i18n.js?v=1.0"></script>
   <script src="js/doc-templates.js?v=3.3"></script>
   <script src="app.js?v=3.16"></script>
 </body>
