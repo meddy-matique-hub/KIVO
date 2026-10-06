@@ -3004,8 +3004,14 @@ window.KivoApp = {
     const grandTotal = document.getElementById('builder-calc-total').textContent;
 
     const msg = `Bonjour ${client.name},\n\nVoici le document *${docNum}* d'un montant de *${grandTotal}* émis par *${this.state.business.name}*.\n\nN'hésitez pas si vous avez des questions !\nKIVO MATIQUE`;
-    const url = window.WhatsAppHelper.getWhatsAppWebUrl(client.phone, msg);
-    window.open(url, '_blank');
+    // Point 2 fix: NO forced phone — open WhatsApp Web and let user choose contact
+    if (navigator.share) {
+      navigator.share({ title: docNum, text: msg }).catch(() => {
+        window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+      });
+    } else {
+      window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+    }
   },
 
   // ─────────────────────────────────────────────────────────────
@@ -4002,15 +4008,23 @@ window.KivoApp = {
       marketingCta.style.display = 'block';
     }
 
-    // Top action bar inside public doc view
+    // ── Point 1 fix: "Retour" button sits NEXT TO LOGO in #pub-back-btn (left side)
+    const backBtnContainer = document.getElementById('pub-back-btn');
+    if (backBtnContainer) {
+      backBtnContainer.innerHTML = isAuth ? `
+        <button class="btn btn-secondary btn-sm" onclick="KivoApp.navigate('billing')"
+          style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; margin-left: 0.5rem; padding: 5px 10px; font-size: 0.8rem;"
+          title="Retour à toutes les factures">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>Retour</span>
+        </button>` : '';
+    }
+
+    // Top action bar (right side) — edit, download, WhatsApp
     const topActions = document.getElementById('pub-top-actions');
     if (topActions) {
       topActions.innerHTML = `
         ${isAuth ? `
-          <button class="btn btn-secondary btn-sm" onclick="KivoApp.navigate('billing')" style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600;" title="Retour à toutes les factures">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-            <span>Retour</span>
-          </button>
           <button class="btn btn-secondary btn-sm" onclick="KivoApp.editDocument('${doc.id}')" style="display: inline-flex; align-items: center; gap: 5px;" title="Modifier le document">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             <span>Modifier</span>
@@ -4245,55 +4259,38 @@ window.KivoApp = {
     }
   },
 
+  // ── Point 2 fix: WhatsApp share — NO modal, NO phone prompt. Opens directly.
   shareOnWhatsApp: function (docId) {
     const doc = this.state.documents.find(d => d.id === docId);
     if (!doc) return;
 
-    this._waCurrentDocId = docId;
-    const clientPhone = doc.clientPhone || (doc.client && doc.client.phone) || '';
     const bizName = (this.state.business && (this.state.business.name || this.state.business.owner)) || 'Mon Entreprise';
     const msg = window.WhatsAppHelper.buildShareMessage(doc, bizName);
 
-    const docInfoEl = document.getElementById('wa-share-doc-info');
-    if (docInfoEl) {
-      docInfoEl.textContent = `${doc.type === 'quote' ? 'Devis' : 'Facture'} ${doc.number} · ${doc.clientName || 'Client'}`;
+    // On mobile: try Web Share API first (opens native share sheet — user picks WhatsApp or any app)
+    if (navigator.share) {
+      const token = doc.publicToken || doc.public_token || doc.id;
+      const publicUrl = `${window.location.origin}${window.location.pathname}#public-doc?token=${token}`;
+      navigator.share({
+        title: `${doc.type === 'quote' ? 'Devis' : 'Facture'} ${doc.number}`,
+        text: msg,
+        url: publicUrl
+      }).catch(() => {
+        // Fallback if share is cancelled or fails
+        window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+      });
+    } else {
+      // Desktop: open WhatsApp Web — user selects the contact inside WhatsApp
+      window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
     }
-
-    const phoneInput = document.getElementById('wa-recipient-phone');
-    if (phoneInput) {
-      phoneInput.value = clientPhone;
-    }
-
-    const previewEl = document.getElementById('wa-share-message-preview');
-    if (previewEl) {
-      previewEl.textContent = msg;
-    }
-
-    this.openModal('modal-whatsapp-share');
-    if (phoneInput) {
-      setTimeout(() => phoneInput.focus(), 100);
-    }
-  },
-
-  confirmWhatsAppShare: function () {
-    const docId = this._waCurrentDocId;
-    const doc = this.state.documents.find(d => d.id === docId);
-    if (!doc) {
-      this.closeModal('modal-whatsapp-share');
-      return;
-    }
-
-    const phoneInput = document.getElementById('wa-recipient-phone');
-    const recipientPhone = phoneInput ? phoneInput.value.trim() : '';
-
-    const bizName = (this.state.business && (this.state.business.name || this.state.business.owner)) || 'Mon Entreprise';
-    const msg = window.WhatsAppHelper.buildShareMessage(doc, bizName);
-    const url = window.WhatsAppHelper.getWhatsAppWebUrl(recipientPhone, msg);
-
-    window.open(url, '_blank');
-    this.closeModal('modal-whatsapp-share');
     this.showToast('Ouverture de WhatsApp...', 'success');
   },
+
+  // Legacy — kept as no-op in case called from old HTML; modal-whatsapp-share is no longer used
+  confirmWhatsAppShare: function () {
+    this.closeModal('modal-whatsapp-share');
+  },
+
 
   /**
    * Client CRM management

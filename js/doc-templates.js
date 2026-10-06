@@ -32,14 +32,17 @@ window.KivoTemplates = {
     const szVal = (biz && biz.logoSize) ? biz.logoSize : (defaultSize || 70);
     const sz = typeof szVal === 'number' ? `${szVal}px` : szVal;
     const br = shape === 'circle' ? '50%' : (shape === 'none' ? '0' : '6px');
-    // FIX point3: adapt container background to template color scheme:
-    // - dark header (isDark=true)  → white (#FFFFFF) so a light/transparent logo is visible
-    // - light header               → neutral gray (#F1F5F9) so a dark/colored logo is visible
-    const bgColor = fallbackDark ? '#FFFFFF' : '#F1F5F9';
-    return `<span style="display:inline-flex;align-items:center;justify-content:center;background:${bgColor};border-radius:${br};padding:4px;box-shadow:0 0 0 1px rgba(0,0,0,0.10);">
-      <img src="${biz.logoUrl}" style="max-height:${sz};max-width:220px;height:auto;object-fit:contain;border-radius:${br};display:block;" alt="Logo">
+    // Point 3 fix: NO background box behind the logo — zero carré, zero fond coloré.
+    // The logo renders transparently on whatever template background it sits on.
+    // A subtle drop-shadow ensures visibility on both dark and light templates.
+    const shadow = fallbackDark
+      ? 'drop-shadow(0 1px 3px rgba(0,0,0,0.55))'   // dark header → stronger shadow
+      : 'drop-shadow(0 1px 4px rgba(0,0,0,0.25))';   // light header → soft shadow
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;border-radius:${br};">
+      <img src="${biz.logoUrl}" style="max-height:${sz};max-width:220px;height:auto;object-fit:contain;border-radius:${br};display:block;filter:${shadow};" alt="Logo">
     </span>`;
   },
+
 
   rows: function (items, currency, accBg, isDark = false) {
     let list = items;
