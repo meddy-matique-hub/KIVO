@@ -52,6 +52,8 @@ window.KivoI18n = {
       status_refunded: 'Remboursée',
       status_accepted: 'Accepté',
       status_rejected: 'Refusé',
+      status_prospect: 'Devis (Prospect)',
+      status_archived: 'Devis (Archivé)',
 
       // ── En-têtes de tableaux (Factures & Lignes) ─────────────
       th_number: 'Numéro',
@@ -289,6 +291,8 @@ window.KivoI18n = {
       status_refunded: 'Refunded',
       status_accepted: 'Accepted',
       status_rejected: 'Declined',
+      status_prospect: 'Quote (Prospect)',
+      status_archived: 'Quote (Archived)',
 
       // ── Table Headers ────────────────────────────────────────
       th_number: 'Number',

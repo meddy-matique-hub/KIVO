@@ -1325,35 +1325,39 @@
           </div>
 
           <!-- Document Filters & Search -->
-          <div class="card" style="margin-bottom: 1.5rem; padding: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div class="card doc-filter-bar" style="margin-bottom: 1.5rem; padding: 0.85rem 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; width: 100%;">
               <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;" id="doc-filter-pills">
-                <button class="btn btn-secondary btn-sm active-pill" data-filter="all">Tous</button>
-                <button class="btn btn-secondary btn-sm" data-filter="invoice">Factures</button>
-                <button class="btn btn-secondary btn-sm" data-filter="quote">Devis</button>
-                <button class="btn btn-secondary btn-sm" data-filter="overdue">En retard</button>
-                <button class="btn btn-secondary btn-sm" data-filter="paid">Payées</button>
+                <button class="btn btn-secondary btn-sm doc-filter-pill-btn active-pill" data-filter="all">Tous</button>
+                <button class="btn btn-secondary btn-sm doc-filter-pill-btn" data-filter="invoice">Factures</button>
+                <button class="btn btn-secondary btn-sm doc-filter-pill-btn" data-filter="quote">Devis</button>
+                <button class="btn btn-secondary btn-sm doc-filter-pill-btn" data-filter="overdue">En retard</button>
+                <button class="btn btn-secondary btn-sm doc-filter-pill-btn" data-filter="paid">Payées</button>
+                <button class="btn btn-secondary btn-sm doc-filter-pill-btn" data-filter="draft">Brouillons</button>
               </div>
 
-              <div style="min-width: 240px;">
-                <input type="text" id="doc-search-input" class="form-input" placeholder="Rechercher par N°, client..." style="padding: 0.5rem 0.85rem; font-size: 0.85rem;">
+              <div style="min-width: 250px; position: relative;">
+                <span style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #94A3B8; pointer-events: none; display: flex; align-items: center;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </span>
+                <input type="text" id="doc-search-input" class="form-input" placeholder="Rechercher un document..." style="padding: 0.5rem 0.85rem 0.5rem 2.2rem; font-size: 0.85rem; border-radius: 8px; border: 1px solid #CBD5E1; width: 100%;">
               </div>
             </div>
           </div>
 
           <!-- Documents Master Table -->
-          <div class="table-container">
-            <table class="table">
+          <div class="table-container documents-table-container">
+            <table class="table doc-master-table">
               <thead>
                 <tr>
-                  <th>N° Document</th>
-                  <th>Client</th>
-                  <th>Type</th>
-                  <th>Date d'émission</th>
-                  <th>Échéance</th>
-                  <th>Montant Total</th>
-                  <th>Statut</th>
-                  <th style="text-align: right;">Actions</th>
+                  <th>N° DOCUMENT</th>
+                  <th>CLIENT</th>
+                  <th>TYPE</th>
+                  <th>DATE D'ÉMISSION</th>
+                  <th>ÉCHÉANCE</th>
+                  <th>MONTANT TOTAL</th>
+                  <th>STATUT</th>
+                  <th style="text-align: right;">ACTION</th>
                 </tr>
               </thead>
               <tbody id="documents-list-tbody">
@@ -1692,6 +1696,8 @@
                       <select id="builder-doc-status" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; background: #FFF; font-family: 'Inter', sans-serif;" onchange="KivoApp.updateLiveInvoicePreview()">
                         <option value="draft">Brouillon</option>
                         <option value="sent">Envoyée / En attente</option>
+                        <option value="prospect">Devis (Prospect)</option>
+                        <option value="archived">Devis (Archivé)</option>
                         <option value="paid">Payée (Filigrane)</option>
                         <option value="overdue">En retard</option>
                       </select>

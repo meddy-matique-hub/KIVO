@@ -1233,39 +1233,305 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   color: var(--text-secondary);
 }
 
-/* Document Type Distinct Colors (Point #5: Facture=Blue, Devis=Orange) */
-.badge-doc-invoice {
+/* ========================================================
+   DOCUMENTS MASTER TABLE & STATUS CARD-ROWS (Refactored to match reference design)
+   ======================================================== */
+
+.documents-table-container {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  overflow-x: auto;
+  margin-top: 0.5rem;
+}
+
+.doc-master-table {
+  width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0 7px !important;
+  background: transparent !important;
+}
+
+.doc-master-table thead th {
+  background: transparent !important;
+  border: none !important;
+  padding: 0.6rem 1rem !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  color: #64748B !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .doc-master-table thead th {
+  color: #94A3B8 !important;
+}
+
+.doc-master-table tbody tr {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.doc-master-table tbody tr td {
+  border: none !important;
+  padding: 0.85rem 1rem !important;
+  vertical-align: middle !important;
+  font-size: 0.88rem;
+  color: #1E293B;
+  transition: background-color 0.15s ease;
+}
+
+[data-theme="dark"] .doc-master-table tbody tr td {
+  color: #F1F5F9;
+}
+
+.doc-master-table tbody tr td:first-child {
+  border-top-left-radius: 9px !important;
+  border-bottom-left-radius: 9px !important;
+  border-left: none !important;
+}
+
+.doc-master-table tbody tr td:last-child {
+  border-top-right-radius: 9px !important;
+  border-bottom-right-radius: 9px !important;
+}
+
+.doc-master-table tbody tr:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  filter: brightness(0.98);
+}
+
+/* Row Tints by Status */
+/* 1. Brouillon (jaune pâle) */
+.doc-row-status-draft td {
+  background-color: #FEFCE8 !important;
+}
+
+/* 2. Payée (vert pâle) */
+.doc-row-status-paid td {
+  background-color: #ECFDF5 !important;
+}
+
+/* 3. Devis Prospect (orange/ambre pâle) */
+.doc-row-status-prospect td {
+  background-color: #FEF3C7 !important;
+}
+
+/* 4. Devis Archivé (orange/tan pâle) */
+.doc-row-status-archived td {
+  background-color: #FFEDD5 !important;
+}
+
+/* 5. Devis Accepté / Standard (bleu pâle) */
+.doc-row-status-quote-blue td {
   background-color: #EFF6FF !important;
-  color: #1D4ED8 !important;
-  border: 1px solid #BFDBFE !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.02em;
 }
 
-.badge-doc-quote {
-  background-color: #FFFBEB !important;
-  color: #B45309 !important;
-  border: 1px solid #FDE68A !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.02em;
+/* 6. Facture Envoyée / Consultée (bleu-glacier pâle) */
+.doc-row-status-sent td {
+  background-color: #F0F9FF !important;
 }
 
-.doc-row-invoice td:first-child {
-  border-left: 3px solid #3B82F6 !important;
+/* 7. Facture En retard (rose / rouge pâle) */
+.doc-row-status-overdue td {
+  background-color: #FEF2F2 !important;
 }
 
-.doc-row-quote td:first-child {
-  border-left: 3px solid #F59E0B !important;
+/* 8. Facture Remboursée (violet pâle) */
+.doc-row-status-refunded td {
+  background-color: #F5F3FF !important;
 }
 
-.doc-num-invoice {
-  color: #2563EB !important;
-  font-weight: 700;
+/* Dark mode adjustments for row tints */
+[data-theme="dark"] .doc-row-status-draft td {
+  background-color: rgba(234, 179, 8, 0.12) !important;
+}
+[data-theme="dark"] .doc-row-status-paid td {
+  background-color: rgba(34, 197, 94, 0.12) !important;
+}
+[data-theme="dark"] .doc-row-status-prospect td {
+  background-color: rgba(245, 158, 11, 0.13) !important;
+}
+[data-theme="dark"] .doc-row-status-archived td {
+  background-color: rgba(234, 88, 12, 0.13) !important;
+}
+[data-theme="dark"] .doc-row-status-quote-blue td {
+  background-color: rgba(59, 130, 246, 0.12) !important;
+}
+[data-theme="dark"] .doc-row-status-sent td {
+  background-color: rgba(56, 189, 248, 0.11) !important;
+}
+[data-theme="dark"] .doc-row-status-overdue td {
+  background-color: rgba(239, 68, 68, 0.13) !important;
+}
+[data-theme="dark"] .doc-row-status-refunded td {
+  background-color: rgba(168, 85, 247, 0.12) !important;
 }
 
-.doc-num-quote {
+/* Status Badges with Icons */
+.badge-doc-status {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.35rem !important;
+  padding: 0.28rem 0.75rem !important;
+  border-radius: 9999px !important;
+  font-size: 0.76rem !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  border: 1px solid transparent !important;
+}
+
+.badge-status-draft {
+  background-color: #F1F5F9 !important;
+  color: #475569 !important;
+  border-color: #E2E8F0 !important;
+}
+
+.badge-status-paid {
+  background-color: #DCFCE7 !important;
+  color: #15803D !important;
+  border-color: #BBF7D0 !important;
+}
+
+.badge-status-prospect {
+  background-color: #FED7AA !important;
+  color: #9A3412 !important;
+  border-color: #FDBA74 !important;
+}
+
+.badge-status-archived {
+  background-color: #FED7AA !important;
+  color: #7C2D12 !important;
+  border-color: #FDBA74 !important;
+}
+
+.badge-status-quote-blue {
+  background-color: #CCFBF1 !important;
+  color: #0F766E !important;
+  border-color: #99F6E4 !important;
+}
+
+.badge-status-sent {
+  background-color: #E0F2FE !important;
+  color: #0369A1 !important;
+  border-color: #BAE6FD !important;
+}
+
+.badge-status-overdue {
+  background-color: #FEE2E2 !important;
+  color: #B91C1C !important;
+  border-color: #FECACA !important;
+}
+
+.badge-status-refunded {
+  background-color: #EDE9FE !important;
+  color: #6D28D9 !important;
+  border-color: #DDD6FE !important;
+}
+
+/* Type Badges */
+.badge-type-invoice {
+  background-color: #E0F2FE !important;
+  color: #0284C7 !important;
+  border: 1px solid transparent !important;
+  font-weight: 600 !important;
+  font-size: 0.76rem !important;
+  padding: 0.24rem 0.75rem !important;
+  border-radius: 9999px !important;
+}
+
+.badge-type-quote {
+  background-color: #FEF3C7 !important;
   color: #D97706 !important;
-  font-weight: 700;
+  border: 1px solid transparent !important;
+  font-weight: 600 !important;
+  font-size: 0.76rem !important;
+  padding: 0.24rem 0.75rem !important;
+  border-radius: 9999px !important;
+}
+
+/* Filter pills bar */
+.doc-filter-bar {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+}
+
+.doc-filter-pill-btn {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #64748B !important;
+  border-radius: 8px !important;
+  padding: 0.4rem 0.9rem !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.doc-filter-pill-btn:hover {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+  border-color: #CBD5E1 !important;
+}
+
+.doc-filter-pill-btn.active-pill {
+  background: #F1F5F9 !important;
+  color: #0F172A !important;
+  border-color: #CBD5E1 !important;
+  font-weight: 600 !important;
+}
+
+.doc-filter-pill-btn[data-filter="overdue"].active-pill {
+  background: #FEF3C7 !important;
+  color: #B45309 !important;
+  border-color: #FDE68A !important;
+}
+
+.doc-filter-pill-btn[data-filter="paid"].active-pill {
+  background: #DCFCE7 !important;
+  color: #15803D !important;
+  border-color: #BBF7D0 !important;
+}
+
+.doc-filter-pill-btn[data-filter="draft"].active-pill {
+  background: #FEF9C3 !important;
+  color: #854D0E !important;
+  border-color: #FDE68A !important;
+}
+
+.doc-filter-pill-btn[data-filter="invoice"].active-pill {
+  background: #EFF6FF !important;
+  color: #1D4ED8 !important;
+  border-color: #BFDBFE !important;
+}
+
+.doc-filter-pill-btn[data-filter="quote"].active-pill {
+  background: #FFFBEB !important;
+  color: #B45309 !important;
+  border-color: #FDE68A !important;
+}
+
+[data-theme="dark"] .doc-filter-bar {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+}
+[data-theme="dark"] .doc-filter-pill-btn {
+  background: var(--bg-card) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+[data-theme="dark"] .doc-filter-pill-btn:hover {
+  background: var(--bg-card-hover) !important;
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .doc-filter-pill-btn.active-pill {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #FFF !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
 }
 
 /* Metric KPI Grid — Bento Style */

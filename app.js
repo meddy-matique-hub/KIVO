@@ -1286,16 +1286,19 @@ window.KivoApp = {
     filterPills.forEach(btn => {
       btn.addEventListener('click', (e) => {
         filterPills.forEach(b => b.classList.remove('active-pill'));
-        e.target.classList.add('active-pill');
-        const filter = e.target.getAttribute('data-filter');
-        this.renderDocumentsTable(filter);
+        const targetBtn = e.currentTarget;
+        targetBtn.classList.add('active-pill');
+        const filter = targetBtn.getAttribute('data-filter');
+        const searchVal = document.getElementById('doc-search-input')?.value || '';
+        this.renderDocumentsTable(filter, searchVal);
       });
     });
 
     const searchInput = document.getElementById('doc-search-input');
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
-        this.renderDocumentsTable('all', e.target.value);
+        const activeFilter = document.querySelector('#doc-filter-pills button.active-pill')?.getAttribute('data-filter') || 'all';
+        this.renderDocumentsTable(activeFilter, e.target.value);
       });
     }
 
@@ -2334,54 +2337,106 @@ window.KivoApp = {
     const biz = this.state.business || {};
     const currencyStr = doc.currency || biz.currency || 'FCFA';
 
-    const badgeClass = {
-      paid: 'badge-paid',
-      accepted: 'badge-accepted',
-      overdue: 'badge-overdue',
-      sent: 'badge-sent',
-      viewed: 'badge-viewed',
-      draft: 'badge-draft',
-      cancelled: 'badge-cancelled',
-      refunded: 'badge-overdue'
-    }[doc.status] || 'badge-draft';
-
-    const _t = window.KivoI18n ? (k) => KivoI18n.t(k, this.state.language || 'fr') : (k) => k;
-    const statusMap = {
-      paid: 'status_paid',
-      accepted: 'status_accepted',
-      overdue: 'status_overdue',
-      sent: 'status_sent',
-      viewed: 'status_viewed',
-      draft: 'status_draft',
-      cancelled: 'status_cancelled',
-      refunded: 'status_refunded'
-    };
-    const statusLabel = _t(statusMap[doc.status] || doc.status) || doc.status;
-
     const isQuote = doc.type === 'quote';
-    const rowClass = isQuote ? 'doc-row-quote' : 'doc-row-invoice';
-    const numClass = isQuote ? 'doc-num-quote' : 'doc-num-invoice';
-    const typeBadgeClass = isQuote ? 'badge-doc-quote' : 'badge-doc-invoice';
-    const typeLabel = isQuote ? _t('doc_quote_short') || 'Devis' : _t('doc_invoice_short') || 'Facture';
+    const rawStatus = (doc.status || 'draft').toLowerCase();
+
+    // Determine semantic status & visual row tint matching reference design
+    const isDraft = rawStatus === 'draft' || rawStatus === 'brouillon';
+    const isPaid = rawStatus === 'paid';
+    const isOverdue = rawStatus === 'overdue';
+    const isRefunded = rawStatus === 'refunded';
+    const isArchived = rawStatus === 'archived' || rawStatus === 'archive' || rawStatus === 'cancelled' || rawStatus === 'rejected';
+    const isProspect = rawStatus === 'prospect' || (isQuote && (rawStatus === 'sent' || rawStatus === 'viewed' || rawStatus === 'pending'));
+
+    let rowStatusClass = 'doc-row-status-draft';
+    let statusBadgeHtml = '';
+
+    if (isDraft) {
+      rowStatusClass = 'doc-row-status-draft';
+      statusBadgeHtml = `
+        <span class="badge badge-doc-status badge-status-draft">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 9.5-9.5z"/></svg>
+          Brouillon
+        </span>
+      `;
+    } else if (isPaid) {
+      rowStatusClass = 'doc-row-status-paid';
+      statusBadgeHtml = `
+        <span class="badge badge-doc-status badge-status-paid">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+          Payée
+        </span>
+      `;
+    } else if (isQuote && isArchived) {
+      rowStatusClass = 'doc-row-status-archived';
+      statusBadgeHtml = `
+        <span class="badge badge-doc-status badge-status-archived">
+          Devis (Archivé)
+        </span>
+      `;
+    } else if (isQuote && isProspect) {
+      rowStatusClass = 'doc-row-status-prospect';
+      statusBadgeHtml = `
+        <span class="badge badge-doc-status badge-status-prospect">
+          Devis (Prospect)
+        </span>
+      `;
+    } else if (isQuote) {
+      rowStatusClass = 'doc-row-status-quote-blue';
+      statusBadgeHtml = `
+        <span class="badge badge-doc-status badge-status-quote-blue">
+          Devis
+        </span>
+      `;
+    } else if (isOverdue) {
+      rowStatusClass = 'doc-row-status-overdue';
+      statusBadgeHtml = `
+        <span class="badge badge-doc-status badge-status-overdue">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          En retard
+        </span>
+      `;
+    } else if (isRefunded) {
+      rowStatusClass = 'doc-row-status-refunded';
+      statusBadgeHtml = `
+        <span class="badge badge-doc-status badge-status-refunded">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          Remboursée
+        </span>
+      `;
+    } else {
+      rowStatusClass = 'doc-row-status-sent';
+      const label = rawStatus === 'viewed' ? 'Consultée' : 'Envoyée';
+      statusBadgeHtml = `
+        <span class="badge badge-doc-status badge-status-sent">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          ${label}
+        </span>
+      `;
+    }
+
+    const typeBadgeHtml = isQuote
+      ? `<span class="badge badge-type-quote">Devis</span>`
+      : `<span class="badge badge-type-invoice">Facture</span>`;
 
     return `
-      <tr class="doc-table-row ${rowClass}" onclick="KivoApp.viewPublicDoc('${doc.id}')" style="cursor: pointer;">
-        <td><strong class="${numClass}">${doc.number}</strong></td>
+      <tr class="doc-table-row ${rowStatusClass}" onclick="KivoApp.viewPublicDoc('${doc.id}')">
+        <td><strong style="color: var(--text-primary); font-size: 0.88rem; font-weight: 600;">${doc.number}</strong></td>
         <td>
-          <div style="font-weight: 600; color: var(--text-primary);">${doc.clientName || 'Client anonyme'}</div>
+          <div style="font-weight: 600; color: var(--text-primary); line-height: 1.25;">${doc.clientName || 'Client anonyme'}</div>
           ${doc.clientType ? `<span style="font-size: 0.72rem; color: var(--text-muted);">${doc.clientType}</span>` : ''}
         </td>
-        <td><span class="badge ${typeBadgeClass}">${typeLabel}</span></td>
+        <td>${typeBadgeHtml}</td>
         <td style="color: var(--text-secondary); font-size: 0.88rem;">${doc.issueDate || '-'}</td>
         <td style="color: var(--text-secondary); font-size: 0.88rem;">${doc.dueDate || '-'}</td>
         <td><strong style="color: var(--text-primary); font-size: 0.95rem;">${(doc.total || 0).toLocaleString('fr-FR')} ${currencyStr}</strong></td>
-        <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
+        <td>${statusBadgeHtml}</td>
         <td style="text-align: right;" onclick="event.stopPropagation();">
           <div style="display: inline-flex; align-items: center; gap: 0.35rem; justify-content: flex-end;">
-            <button class="btn btn-secondary btn-sm" onclick="KivoApp.editDocument('${doc.id}')" title="Modifier">
+            <button class="btn btn-secondary btn-sm" onclick="KivoApp.editDocument('${doc.id}')" title="Modifier" style="padding: 0.35rem 0.55rem; background: var(--bg-card, #FFF); border: 1px solid var(--border-color, #E2E8F0); border-radius: 6px;">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
-            <button class="btn btn-secondary btn-sm" onclick="KivoApp.downloadPdf('${doc.id}')" title="Télécharger PDF">
+            <button class="btn btn-secondary btn-sm" onclick="KivoApp.downloadPdf('${doc.id}')" title="Télécharger PDF" style="padding: 0.35rem 0.55rem; background: var(--bg-card, #FFF); border: 1px solid var(--border-color, #E2E8F0); border-radius: 6px;">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </button>
             <button class="btn-table-action-kebab" onclick="KivoApp.toggleDocRowMenu(event, '${doc.id}')" title="Plus d'actions" aria-label="Actions">
@@ -2472,13 +2527,19 @@ window.KivoApp = {
     const tbody = document.getElementById('documents-list-tbody');
     if (!tbody) return;
 
-    let docs = this.state.documents;
+    let docs = this.state.documents || [];
 
     if (filter !== 'all') {
       if (filter === 'invoice' || filter === 'quote') {
         docs = docs.filter(d => d.type === filter);
+      } else if (filter === 'draft') {
+        docs = docs.filter(d => (d.status || '').toLowerCase() === 'draft' || (d.status || '').toLowerCase() === 'brouillon');
+      } else if (filter === 'overdue') {
+        docs = docs.filter(d => (d.status || '').toLowerCase() === 'overdue');
+      } else if (filter === 'paid') {
+        docs = docs.filter(d => (d.status || '').toLowerCase() === 'paid');
       } else {
-        docs = docs.filter(d => d.status === filter);
+        docs = docs.filter(d => (d.status || '').toLowerCase() === filter.toLowerCase());
       }
     }
 
@@ -2491,7 +2552,7 @@ window.KivoApp = {
     }
 
     if (docs.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">Aucun document trouvé.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2.5rem; background: var(--bg-card, #FFF); border-radius: 8px;">Aucun document trouvé.</td></tr>`;
       return;
     }
 
