@@ -1554,6 +1554,51 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   border-radius: 9999px !important;
 }
 
+/* Quick Pay Action Button */
+.btn-action-pay {
+  background: rgba(16, 185, 129, 0.08) !important;
+  color: #059669 !important;
+  border: 1px solid rgba(16, 185, 129, 0.4) !important;
+}
+.btn-action-pay:hover {
+  background: #10B981 !important;
+  color: #FFFFFF !important;
+  border-color: #10B981 !important;
+}
+
+/* Master Documents Table Mobile Responsiveness */
+@media (max-width: 768px) {
+  .documents-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+  .doc-master-table {
+    width: 100% !important;
+  }
+  /* Masquer dates et type sur mobile pour une lecture nette */
+  .doc-master-table thead th:nth-child(3),
+  .doc-master-table tbody td.col-doc-type,
+  .doc-master-table thead th:nth-child(4),
+  .doc-master-table tbody td.col-doc-issue-date,
+  .doc-master-table thead th:nth-child(5),
+  .doc-master-table tbody td.col-doc-due-date {
+    display: none !important;
+  }
+  .doc-master-table tbody tr td {
+    padding: 0.75rem 0.55rem !important;
+    font-size: 0.82rem !important;
+  }
+  .btn-row-action {
+    width: 30px !important;
+    height: 30px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
 /* Filter pills bar */
 .doc-filter-bar {
   background: #FFFFFF;
@@ -5854,6 +5899,15 @@ html, body {
     display: grid !important;
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
+  }
+
+  .builder-actions-group .btn-builder-primary {
+    grid-column: 1 / -1 !important;
+    order: -1 !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.88rem !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25) !important;
   }
 
   .btn-builder-action {

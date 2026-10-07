@@ -1974,13 +1974,15 @@ window.KivoApp = {
       const docTotal = doc.total || 0;
       if (doc.type === 'invoice') {
         totalInvoices++;
-        if (doc.status === 'paid') {
+        const s = (doc.status || '').toLowerCase().trim();
+        const isDocPaid = s === 'paid' || s === 'payée' || s === 'payee';
+        if (isDocPaid) {
           paidTotal += docTotal;
           paidInvoicesCount++;
-        } else if (doc.status === 'overdue') {
+        } else if (s === 'overdue') {
           overdueTotal += docTotal;
           overdueInvoicesCount++;
-        } else if (doc.status === 'sent' || doc.status === 'viewed') {
+        } else if (s === 'sent' || s === 'viewed') {
           pendingTotal += docTotal;
           pendingInvoicesCount++;
         }
@@ -2051,7 +2053,9 @@ window.KivoApp = {
       if (diffMonths >= 0 && diffMonths < 6) {
         const idx = 5 - diffMonths;
         monthlyRevenue[idx].total += doc.total || 0;
-        if (doc.status === 'paid') monthlyRevenue[idx].paid += doc.total || 0;
+        const s = (doc.status || '').toLowerCase().trim();
+        const isPaid = s === 'paid' || s === 'payée' || s === 'payee';
+        if (isPaid) monthlyRevenue[idx].paid += doc.total || 0;
       }
     });
 
@@ -2146,10 +2150,12 @@ window.KivoApp = {
       } else {
         tbody.innerHTML = recentInvoices.map(doc => {
           let badgeClass = 'pending';
-          const statusKey = doc.status === 'paid' ? 'status_paid' : (doc.status === 'overdue' ? 'status_overdue' : 'status_sent');
+          const rawSt = (doc.status || '').toLowerCase().trim();
+          const isDocPaid = rawSt === 'paid' || rawSt === 'payée' || rawSt === 'payee';
+          const statusKey = isDocPaid ? 'status_paid' : (rawSt === 'overdue' ? 'status_overdue' : 'status_sent');
           let badgeText = _t(statusKey);
-          if (doc.status === 'paid') badgeClass = 'paid';
-          else if (doc.status === 'overdue') badgeClass = 'overdue';
+          if (isDocPaid) badgeClass = 'paid';
+          else if (rawSt === 'overdue') badgeClass = 'overdue';
 
           let docDate = doc.date;
           if (!docDate || docDate === 'undefined') {
@@ -2338,11 +2344,11 @@ window.KivoApp = {
     const currencyStr = doc.currency || biz.currency || 'FCFA';
 
     const isQuote = doc.type === 'quote';
-    const rawStatus = (doc.status || 'draft').toLowerCase();
+    const rawStatus = (doc.status || 'draft').toLowerCase().trim();
 
     // Determine semantic status & visual row tint matching reference design
     const isDraft = rawStatus === 'draft' || rawStatus === 'brouillon';
-    const isPaid = rawStatus === 'paid';
+    const isPaid = rawStatus === 'paid' || rawStatus === 'payée' || rawStatus === 'payee';
     const isOverdue = rawStatus === 'overdue';
     const isRefunded = rawStatus === 'refunded';
     const isArchived = rawStatus === 'archived' || rawStatus === 'archive' || rawStatus === 'cancelled' || rawStatus === 'rejected';
@@ -2421,18 +2427,23 @@ window.KivoApp = {
 
     return `
       <tr class="doc-table-row ${rowStatusClass}" onclick="KivoApp.viewPublicDoc('${doc.id}')">
-        <td><strong style="color: var(--text-primary); font-size: 0.88rem; font-weight: 600;">${doc.number}</strong></td>
-        <td>
+        <td class="col-doc-num"><strong style="color: var(--text-primary); font-size: 0.88rem; font-weight: 600;">${doc.number}</strong></td>
+        <td class="col-doc-client">
           <div style="font-weight: 600; color: var(--text-primary); line-height: 1.25;">${doc.clientName || 'Client anonyme'}</div>
           ${doc.clientType ? `<span style="font-size: 0.72rem; color: var(--text-muted);">${doc.clientType}</span>` : ''}
         </td>
-        <td>${typeBadgeHtml}</td>
-        <td style="color: var(--text-secondary); font-size: 0.88rem;">${doc.issueDate || '-'}</td>
-        <td style="color: var(--text-secondary); font-size: 0.88rem;">${doc.dueDate || '-'}</td>
-        <td><strong style="color: var(--text-primary); font-size: 0.95rem;">${(doc.total || 0).toLocaleString('fr-FR')} ${currencyStr}</strong></td>
-        <td>${statusBadgeHtml}</td>
-        <td style="text-align: right;" onclick="event.stopPropagation();">
+        <td class="col-doc-type">${typeBadgeHtml}</td>
+        <td class="col-doc-issue-date" style="color: var(--text-secondary); font-size: 0.88rem;">${doc.issueDate || '-'}</td>
+        <td class="col-doc-due-date" style="color: var(--text-secondary); font-size: 0.88rem;">${doc.dueDate || '-'}</td>
+        <td class="col-doc-total"><strong style="color: var(--text-primary); font-size: 0.95rem;">${(doc.total || 0).toLocaleString('fr-FR')} ${currencyStr}</strong></td>
+        <td class="col-doc-status">${statusBadgeHtml}</td>
+        <td class="col-doc-action" style="text-align: right;" onclick="event.stopPropagation();">
           <div style="display: inline-flex; align-items: center; gap: 0.35rem; justify-content: flex-end;">
+            ${(!isPaid && !isQuote && !isRefunded && !isDraft) ? `
+              <button class="btn-row-action btn-action-pay" onclick="KivoApp.markInvoiceAsPaid('${doc.id}')" title="Marquer comme payée" style="color: #059669; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08);">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            ` : ''}
             <button class="btn-row-action" onclick="KivoApp.editDocument('${doc.id}')" title="Modifier">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
@@ -2465,6 +2476,8 @@ window.KivoApp = {
 
     const btn = e.currentTarget;
     const rect = btn.getBoundingClientRect();
+    const rawSt = (doc.status || 'draft').toLowerCase().trim();
+    const isDocPaid = rawSt === 'paid' || rawSt === 'payée' || rawSt === 'payee';
 
     const menu = document.createElement('div');
     menu.id = 'kivo-doc-action-menu';
@@ -2484,6 +2497,12 @@ window.KivoApp = {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         <span>Modifier</span>
       </div>
+      ${(!isDocPaid && doc.type === 'invoice' && doc.status !== 'refunded') ? `
+        <div class="action-menu-item" style="color: #059669; font-weight: 600;" onclick="KivoApp.markInvoiceAsPaid('${doc.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <span>Marquer comme payée</span>
+        </div>
+      ` : ''}
       <div class="action-menu-item" onclick="KivoApp.downloadPdf('${doc.id}')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         <span>Télécharger PDF (A4)</span>
@@ -2492,7 +2511,7 @@ window.KivoApp = {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
         <span>Partager WhatsApp</span>
       </div>
-      ${doc.status === 'paid' ? `
+      ${isDocPaid ? `
         <div class="action-menu-item" onclick="KivoApp.refundInvoice('${doc.id}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
           <span>Marquer remboursée</span>
@@ -2537,7 +2556,10 @@ window.KivoApp = {
       } else if (filter === 'overdue') {
         docs = docs.filter(d => (d.status || '').toLowerCase() === 'overdue');
       } else if (filter === 'paid') {
-        docs = docs.filter(d => (d.status || '').toLowerCase() === 'paid');
+        docs = docs.filter(d => {
+          const s = (d.status || '').toLowerCase().trim();
+          return s === 'paid' || s === 'payée' || s === 'payee';
+        });
       } else {
         docs = docs.filter(d => (d.status || '').toLowerCase() === filter.toLowerCase());
       }
@@ -3304,11 +3326,20 @@ window.KivoApp = {
       }
     });
 
+    const rawSelectedStatus = (getVal('builder-doc-status') || '').toLowerCase().trim();
+    const existingDoc = (this.state.documents || []).find(d => d && d.id === docId);
+    let resolvedStatus = rawSelectedStatus || (existingDoc ? existingDoc.status : 'draft');
+    if (resolvedStatus === 'payée' || resolvedStatus === 'payee') resolvedStatus = 'paid';
+    if (!resolvedStatus) resolvedStatus = 'draft';
+
+    const grandDraftTotal = Math.max(0, subtotal + totalTaxAmount);
+    const resolvedAmountPaid = (resolvedStatus === 'paid') ? grandDraftTotal : ((existingDoc && existingDoc.amountPaid) || 0);
+
     const draftData = {
       id: docId,
       number: getVal('builder-doc-number') || 'BROUILLON',
       type: getVal('builder-doc-type') || 'invoice',
-      status: 'draft',
+      status: resolvedStatus,
       currency: getVal('builder-doc-currency') || 'FCFA',
       visualTemplate: getVal('builder-visual-template') || 'minimalist',
       clientId: clientId,
@@ -3321,7 +3352,8 @@ window.KivoApp = {
       items: items,
       subtotal: subtotal,
       tax: totalTaxAmount,
-      total: Math.max(0, subtotal + totalTaxAmount),
+      total: grandDraftTotal,
+      amountPaid: resolvedAmountPaid,
       notes: getVal('builder-notes') || '',
       terms: getVal('builder-terms') || 'À réception',
       paymentMethod: getVal('builder-payment-method') || 'Virement bancaire',
@@ -3335,7 +3367,7 @@ window.KivoApp = {
       console.warn('[KivoApp] Failed to save local draft:', e);
     }
 
-    // 2. Sauvegarde Supabase en arrière-plan avec status='draft' si connecté
+    // 2. Sauvegarde Supabase en arrière-plan en préservant le vrai statut si connecté
     if (window.KivoDb && this.supabaseConnected && window.KivoAuth?.user) {
       try {
         // FIX point2: _cloudDraftId is pre-generated in startNewDocument for new docs.
@@ -3350,7 +3382,7 @@ window.KivoApp = {
           id: cloudDocId,
           number: draftData.number,
           type: draftData.type,
-          status: 'draft',
+          status: resolvedStatus,
           currency: draftData.currency,
           client_id: clientId && clientId !== 'cli_anon' ? clientId : null,
           client_name: draftData.clientName,
@@ -3363,7 +3395,7 @@ window.KivoApp = {
           taxRate: 0,
           taxAmount: draftData.tax,
           total: draftData.total,
-          amountPaid: 0,
+          amountPaid: resolvedAmountPaid,
           notes: draftData.notes,
           conditions: draftData.terms
         };
@@ -3806,7 +3838,9 @@ window.KivoApp = {
     };
     const issueDate = document.getElementById('builder-issue-date').value;
     const dueDate = document.getElementById('builder-due-date').value;
-    const status = document.getElementById('builder-doc-status').value;
+    const rawBuilderStatus = (document.getElementById('builder-doc-status')?.value || 'draft').toLowerCase().trim();
+    const isStatusPaid = rawBuilderStatus === 'paid' || rawBuilderStatus === 'payée' || rawBuilderStatus === 'payee';
+    const status = isStatusPaid ? 'paid' : (rawBuilderStatus || 'draft');
     const notes = document.getElementById('builder-notes').value;
     const terms = document.getElementById('builder-terms').value;
 
@@ -3861,7 +3895,7 @@ window.KivoApp = {
       taxRate: taxRate,
       tax: totalTaxAmount,
       total: grandTotal,
-      amountPaid: status === 'paid' ? grandTotal : 0,
+      amountPaid: isStatusPaid ? grandTotal : 0,
       notes: notes,
       terms: terms,
       visualTemplate: document.getElementById('builder-visual-template') ? document.getElementById('builder-visual-template').value : ((this.state.business && this.state.business.visualTemplate) || 'minimalist'),
@@ -3964,6 +3998,63 @@ window.KivoApp = {
 
     this.showToast(this._t('toast_doc_saved').replace('{num}', num), "success");
     this.viewPublicDoc(docId);
+  },
+
+  /**
+   * Marque une facture comme Payée instantanément (1-clic)
+   * Met à jour l'état local, l'activité, et synchronise avec Supabase
+   */
+  markInvoiceAsPaid: async function (docId) {
+    const doc = (this.state && Array.isArray(this.state.documents))
+      ? this.state.documents.find(d => d.id === docId)
+      : null;
+    if (!doc) return;
+
+    doc.status = 'paid';
+    doc.amountPaid = Number(doc.total) || 0;
+
+    // Activité enregistrée
+    const currencyStr = doc.currency || (this.state.business && this.state.business.currency) || 'FCFA';
+    this.state.activities = this.state.activities || [];
+    this.state.activities.unshift({
+      id: this.generateUUID(),
+      timestamp: "À l'instant",
+      type: 'payment',
+      icon: 'check-circle',
+      title: `Facture #${doc.number} payée`,
+      details: `${(doc.total || 0).toLocaleString('fr-FR')} ${currencyStr} encaissés`
+    });
+
+    this.saveState();
+
+    this.showToast(`Facture ${doc.number} marquée comme payée !`, "success");
+
+    // Rafraîchir la vue active
+    if (this.activeView === 'documents') {
+      this.renderDocumentsTable();
+    } else if (this.activeView === 'dashboard') {
+      this.renderDashboard();
+    } else if (this.activeView === 'public-doc') {
+      this.renderPublicDocView();
+    } else {
+      this.renderCurrentView();
+    }
+
+    // Synchronisation Supabase en arrière-plan
+    if (window.KivoDb && this.supabaseConnected) {
+      try {
+        const { error } = await window.KivoDb.supabase
+          .from('documents')
+          .update({
+            status: 'paid',
+            amount_paid: doc.amountPaid
+          })
+          .eq('id', doc.id);
+        if (error) console.warn('[KivoApp] markInvoiceAsPaid cloud sync warning:', error);
+      } catch (err) {
+        console.warn('[KivoApp] markInvoiceAsPaid cloud error:', err);
+      }
+    }
   },
 
   /**
@@ -4251,10 +4342,19 @@ window.KivoApp = {
         </button>` : '';
     }
 
-    // Top action bar (right side) — edit, download, WhatsApp
+    // Top action bar (right side) — edit, download, WhatsApp, mark as paid
     const topActions = document.getElementById('pub-top-actions');
+    const rawPubStatus = (doc.status || '').toLowerCase().trim();
+    const isDocPaid = rawPubStatus === 'paid' || rawPubStatus === 'payée' || rawPubStatus === 'payee';
+
     if (topActions) {
       topActions.innerHTML = `
+        ${(isAuth && doc.type === 'invoice' && !isDocPaid && doc.status !== 'refunded') ? `
+          <button class="btn btn-success btn-sm" onclick="KivoApp.markInvoiceAsPaid('${doc.id}')" style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600;" title="Marquer comme payée">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Marquer payée</span>
+          </button>
+        ` : ''}
         ${isAuth ? `
           <button class="btn btn-secondary btn-sm" onclick="KivoApp.editDocument('${doc.id}')" style="display: inline-flex; align-items: center; gap: 5px;" title="Modifier le document">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -4325,12 +4425,19 @@ window.KivoApp = {
           Télécharger PDF
         </button>
       `;
-    } else if (doc.type === 'invoice' && doc.status !== 'paid' && doc.status !== 'refunded') {
+    } else if (doc.type === 'invoice' && !isDocPaid && doc.status !== 'refunded') {
       btnContainer.innerHTML = `
-        <button class="btn btn-primary" onclick="KivoApp.openPaymentModal('${doc.id}')">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:5px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          Payer en ligne (${(doc.total).toLocaleString('fr-FR')} ${currencyStr})
-        </button>
+        ${isAuth ? `
+          <button class="btn btn-success" onclick="KivoApp.markInvoiceAsPaid('${doc.id}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Marquer comme payée
+          </button>
+        ` : `
+          <button class="btn btn-primary" onclick="KivoApp.openPaymentModal('${doc.id}')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:5px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Payer en ligne (${(doc.total).toLocaleString('fr-FR')} ${currencyStr})
+          </button>
+        `}
         <button class="btn btn-secondary" onclick="KivoApp.downloadPdf('${doc.id}')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Télécharger PDF

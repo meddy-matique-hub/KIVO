@@ -1751,10 +1751,28 @@
               </div>
 
               <!-- 6. Notes -->
-              <div style="margin-bottom: 4rem;">
+              <div style="margin-bottom: 2rem;">
                 <h3 style="font-size: 1rem; font-weight: 700; color: #0F172A; margin: 0 0 1rem 0;">Notes / Mentions légales</h3>
                 <div style="background: #FFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1.5rem;">
                   <textarea id="builder-notes" rows="3" style="width: 100%; padding: 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; resize: vertical; font-family: inherit;" placeholder="Notes ou mentions légales (ex: coordonnées bancaires, pénalités de retard...) à afficher sur le document" oninput="KivoApp.updateLiveInvoicePreview()"></textarea>
+                </div>
+              </div>
+
+              <!-- 7. Actions de validation au bas du formulaire (essentiel sur mobile) -->
+              <div class="builder-bottom-bar" style="margin-bottom: 3.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                <button type="button" class="btn btn-primary" onclick="KivoApp.saveDocumentFromBuilder()" style="width: 100%; padding: 0.9rem 1.25rem; font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.6rem; border-radius: 10px; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  <span>Enregistrer le document</span>
+                </button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+                  <button type="button" class="btn btn-secondary" onclick="KivoApp.switchBuilderMobileTab('preview')" style="padding: 0.75rem; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem; border-radius: 8px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span>Voir l'aperçu</span>
+                  </button>
+                  <button type="button" class="btn btn-secondary" onclick="KivoApp.navigate('documents')" style="padding: 0.75rem; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem; border-radius: 8px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                    <span>Annuler / Retour</span>
+                  </button>
                 </div>
               </div>
 
