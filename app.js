@@ -2433,14 +2433,14 @@ window.KivoApp = {
         <td>${statusBadgeHtml}</td>
         <td style="text-align: right;" onclick="event.stopPropagation();">
           <div style="display: inline-flex; align-items: center; gap: 0.35rem; justify-content: flex-end;">
-            <button class="btn btn-secondary btn-sm" onclick="KivoApp.editDocument('${doc.id}')" title="Modifier" style="padding: 0.35rem 0.55rem; background: var(--bg-card, #FFF); border: 1px solid var(--border-color, #E2E8F0); border-radius: 6px;">
+            <button class="btn-row-action" onclick="KivoApp.editDocument('${doc.id}')" title="Modifier">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
-            <button class="btn btn-secondary btn-sm" onclick="KivoApp.downloadPdf('${doc.id}')" title="Télécharger PDF" style="padding: 0.35rem 0.55rem; background: var(--bg-card, #FFF); border: 1px solid var(--border-color, #E2E8F0); border-radius: 6px;">
+            <button class="btn-row-action" onclick="KivoApp.downloadPdf('${doc.id}')" title="Télécharger PDF">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </button>
-            <button class="btn-table-action-kebab" onclick="KivoApp.toggleDocRowMenu(event, '${doc.id}')" title="Plus d'actions" aria-label="Actions">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+            <button class="btn-row-action" onclick="KivoApp.toggleDocRowMenu(event, '${doc.id}')" title="Plus d'actions" aria-label="Actions">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
             </button>
           </div>
         </td>
