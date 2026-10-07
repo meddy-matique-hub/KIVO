@@ -505,9 +505,36 @@ window.KivoApp = {
       };
     });
 
-    const cloudDocIds = new Set(cloudDocs.map(d => d.id));
+    // Deduplicate orphan draft sessions: if multiple drafts exist with the same document number, keep only the latest one and purge stale duplicates
+    const seenDraftNumbers = new Map();
+    const deduplicatedCloudDocs = [];
+    const duplicateDraftIdsToPurge = [];
+
+    // Sort descending by created_at / issueDate so most recent draft comes first
+    cloudDocs.sort((a, b) => new Date(b.created_at || b.issueDate || 0) - new Date(a.created_at || a.issueDate || 0));
+
+    cloudDocs.forEach(d => {
+      const isDraft = d.status === 'draft' || d.status === 'brouillon';
+      if (isDraft && d.number) {
+        const key = `${d.type || 'invoice'}_${String(d.number).trim().toUpperCase()}`;
+        if (seenDraftNumbers.has(key)) {
+          duplicateDraftIdsToPurge.push(d.id);
+          return;
+        }
+        seenDraftNumbers.set(key, d.id);
+      }
+      deduplicatedCloudDocs.push(d);
+    });
+
+    if (duplicateDraftIdsToPurge.length > 0 && window.KivoDb && typeof window.KivoDb.deleteDocument === 'function') {
+      duplicateDraftIdsToPurge.forEach(dupId => {
+        window.KivoDb.deleteDocument(dupId).catch(err => console.warn('[KivoApp] Cleaned duplicate draft:', dupId, err));
+      });
+    }
+
+    const cloudDocIds = new Set(deduplicatedCloudDocs.map(d => d.id));
     const pendingLocalDocs = (this.state.documents || []).filter(d => d && d.id && !cloudDocIds.has(d.id));
-    this.state.documents = [...cloudDocs, ...pendingLocalDocs];
+    this.state.documents = [...deduplicatedCloudDocs, ...pendingLocalDocs];
 
     // Background push any pending local documents to Supabase
     if (pendingLocalDocs.length > 0 && window.KivoDb && typeof window.KivoDb.saveDocument === 'function') {
@@ -2515,20 +2542,42 @@ window.KivoApp = {
    * Guard: returns safe fallback if state or business is null
    */
   generateDocumentNumber: function (type = 'invoice') {
-    if (!this.state || !this.state.business) {
-      const year = new Date().getFullYear();
-      return type === 'quote' ? `DEV-${year}-0001` : `FAC-${year}-0001`;
-    }
-    const biz = this.state.business;
-    if (type === 'quote') {
-      const prefix = biz.quotePrefix || `DEV-${new Date().getFullYear()}-`;
-      const num = biz.nextQuoteNumber || (1001 + (this.state.documents || []).filter(d => d.type === 'quote').length);
-      return `${prefix}${String(num).padStart(4, '0')}`;
-    } else {
-      const prefix = biz.invoicePrefix || `FAC-${new Date().getFullYear()}-`;
-      const num = biz.nextInvoiceNumber || (1001 + (this.state.documents || []).filter(d => d.type === 'invoice').length);
-      return `${prefix}${String(num).padStart(4, '0')}`;
-    }
+    const year = new Date().getFullYear();
+    const isQuote = type === 'quote';
+    const biz = (this.state && this.state.business) || {};
+    const prefix = isQuote 
+      ? (biz.quotePrefix || `DEV-${year}-`) 
+      : (biz.invoicePrefix || `FAC-${year}-`);
+
+    // Scan all existing documents (both drafts and finalized) to find the maximum existing sequence number
+    let maxFound = 0;
+    const docs = (this.state && Array.isArray(this.state.documents)) ? this.state.documents : [];
+    
+    docs.forEach(d => {
+      if (!d || d.type !== type || !d.number) return;
+      const numStr = String(d.number).trim();
+      const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const prefixRegex = new RegExp(`^${escapedPrefix}(\\d+)$`, 'i');
+      const match = numStr.match(prefixRegex);
+      if (match) {
+        const val = parseInt(match[1], 10);
+        if (!isNaN(val) && val > maxFound) maxFound = val;
+      } else {
+        const genericMatch = numStr.match(/(\d+)$/);
+        if (genericMatch) {
+          const val = parseInt(genericMatch[1], 10);
+          if (!isNaN(val) && val > maxFound) maxFound = val;
+        }
+      }
+    });
+
+    const configuredNext = isQuote 
+      ? (parseInt(biz.nextQuoteNumber, 10) || 1001) 
+      : (parseInt(biz.nextInvoiceNumber, 10) || 1001);
+
+    // Guaranteed strictly unique: strictly greater than the highest allocated number AND >= configuredNext
+    const nextSeq = Math.max(maxFound + 1, configuredNext, 1001);
+    return `${prefix}${String(nextSeq).padStart(4, '0')}`;
   },
 
   /**
@@ -3764,6 +3813,16 @@ window.KivoApp = {
       lastViewedAt: new Date().toLocaleString('fr-FR')
     };
 
+    // Ensure unique number for new document if colliding with an existing document
+    if (!existingDocId) {
+      const docs = this.state.documents || [];
+      const isTaken = docs.some(d => d && d.id !== docId && d.type === type && String(d.number).trim().toUpperCase() === String(num).trim().toUpperCase());
+      if (isTaken) {
+        num = this.generateDocumentNumber(type);
+        docObj.number = num;
+      }
+    }
+
     if (existingDocId) {
       const idx = this.state.documents.findIndex(d => d.id === existingDocId);
       if (idx !== -1) {
@@ -3774,11 +3833,20 @@ window.KivoApp = {
     } else {
       this.state.documents.unshift(docObj);
 
-      // Increment document numbering counter in business settings
+      // Increment document numbering counter in business settings based on allocated number
+      const currentDigits = parseInt(String(num).replace(/\D+/g, '').slice(-4), 10) || 0;
       if (type === 'quote') {
-        this.state.business.nextQuoteNumber = (this.state.business.nextQuoteNumber || 1001) + 1;
+        this.state.business.nextQuoteNumber = Math.max((this.state.business.nextQuoteNumber || 1001), currentDigits + 1);
       } else {
-        this.state.business.nextInvoiceNumber = (this.state.business.nextInvoiceNumber || 1001) + 1;
+        this.state.business.nextInvoiceNumber = Math.max((this.state.business.nextInvoiceNumber || 1001), currentDigits + 1);
+      }
+
+      // Sync sequence counter to Supabase settings
+      if (window.KivoDb && this.supabaseConnected) {
+        window.KivoDb.saveSettings({
+          next_invoice_number: this.state.business.nextInvoiceNumber,
+          next_quote_number: this.state.business.nextQuoteNumber
+        }).catch(e => console.warn('[KivoApp] Cloud sequence counter sync warning:', e));
       }
     }
 
@@ -6623,7 +6691,9 @@ window.KivoApp = {
         secondary_color: biz.secondaryColor || '#7C3AED',
         logo_size: biz.logoSize || 100,
         logo_position: biz.logoPosition || 'right',
-        invoice_page_size: biz.invoicePageSize || 'a4'
+        invoice_page_size: biz.invoicePageSize || 'a4',
+        next_invoice_number: biz.nextInvoiceNumber || 1001,
+        next_quote_number: biz.nextQuoteNumber || 1001
       }).catch(e => {
         console.error('[KivoApp] Supabase saveSettings error:', e);
         this.showToast(this.friendlySupabaseError(e, this._t('toast_settings_cloud_fail')), "warning");
