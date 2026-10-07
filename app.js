@@ -4238,15 +4238,16 @@ window.KivoApp = {
       marketingCta.style.display = 'block';
     }
 
-    // ── Point 3 fix: "Retour" button sits NEXT TO LOGO in #pub-back-btn (left side) → goes to documents list
+    // ── Simple flèche "←" claire et grande positionnée à gauche du logo KIVO → liste des documents
     const backBtnContainer = document.getElementById('pub-back-btn');
     if (backBtnContainer) {
       backBtnContainer.innerHTML = isAuth ? `
-        <button class="btn btn-secondary btn-sm" onclick="KivoApp.navigate('documents')"
-          style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; margin-left: 0.5rem; padding: 5px 10px; font-size: 0.8rem;"
-          title="Retour à la liste des factures">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          <span>Retour</span>
+        <button type="button" class="pub-arrow-back-btn" onclick="KivoApp.navigate('documents')"
+          title="Retour aux documents" aria-label="Retour aux documents">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
         </button>` : '';
     }
 

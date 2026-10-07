@@ -1663,6 +1663,61 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   color: var(--text-secondary) !important;
 }
 
+/* Public Topbar - Back Arrow Button (placed to the left of KIVO logo) */
+.pub-arrow-back-btn {
+  width: 36px !important;
+  height: 36px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--border-color, #E2E8F0) !important;
+  background: var(--bg-card, #FFFFFF) !important;
+  color: var(--text-primary, #0F172A) !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+.pub-arrow-back-btn:hover {
+  background: var(--bg-card-hover, #F1F5F9) !important;
+  color: var(--primary, #4F46E5) !important;
+  border-color: var(--primary, #4F46E5) !important;
+  transform: translateX(-2px) !important;
+}
+
+.pub-arrow-back-btn:active {
+  transform: scale(0.95) translateX(-2px) !important;
+}
+
+[data-theme="dark"] .pub-arrow-back-btn {
+  background: var(--bg-card) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .pub-arrow-back-btn:hover {
+  background: var(--bg-card-hover) !important;
+  color: #818CF8 !important;
+  border-color: #818CF8 !important;
+}
+
+@media (max-width: 640px) {
+  #pub-kivo-topbar {
+    padding: 0.6rem 0.85rem !important;
+  }
+  .pub-brand-title {
+    font-size: 0.9rem !important;
+  }
+}
+
+@media (max-width: 440px) {
+  .pub-brand-title {
+    display: none !important;
+  }
+}
+
 /* Metric KPI Grid — Bento Style */
 .kpi-grid {
   display: grid;
