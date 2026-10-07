@@ -143,6 +143,8 @@ window.KivoI18n = {
       toast_template_engine_unavail: 'Moteur de modèle indisponible.',
 
       // ── Toasts : Documents ────────────────────────────────────
+      toast_doc_cannot_share_draft: "Terminez et enregistrez la facture avant de la partager",
+      toast_doc_cannot_share_draft_quote: "Terminez et enregistrez le devis avant de le partager",
       toast_doc_no_items: 'Veuillez ajouter au moins un article avec une désignation avant d\'enregistrer.',
       toast_doc_ai_required: 'Veuillez saisir une description de votre besoin.',
       toast_doc_ai_filled: 'KIVO MATIQUE AI : Formulaire complété avec succès !',
@@ -378,6 +380,8 @@ window.KivoI18n = {
       toast_template_engine_unavail: 'Template engine unavailable.',
 
       // ── Toasts : Documents ────────────────────────────────────
+      toast_doc_cannot_share_draft: "Finish and save the invoice before sharing it.",
+      toast_doc_cannot_share_draft_quote: "Finish and save the quote before sharing it.",
       toast_doc_no_items: 'Please add at least one item with a name before saving.',
       toast_doc_ai_required: 'Please describe your invoice needs.',
       toast_doc_ai_filled: 'KIVO MATIQUE AI: Form filled successfully!',

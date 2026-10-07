@@ -7,25 +7,29 @@ window.WhatsAppHelper = {
   /**
    * Builds pre-formatted WhatsApp message for sharing a Quote or Invoice
    */
-  buildShareMessage: function (document, businessName = "MD Creative Studio") {
+  buildShareMessage: function (document, businessName = "") {
     const isQuote = document.type === "quote";
-    const docTitle = isQuote ? "votre devis" : "votre facture";
-    const docNum = document.number || `FAC-${document.id}`;
+    const docNum = document.number || (isQuote ? `DEV-${document.id}` : `FAC-${document.id}`);
     const currencyStr = document.currency || "FCFA";
     const totalAmount = (document.total || 0).toLocaleString("fr-FR") + " " + currencyStr;
     const token = document.publicToken || document.public_token || document.id;
     const publicUrl = `${window.location.origin}${window.location.pathname}#public-doc?token=${token}`;
 
+    const bizName = (businessName && businessName.trim())
+      || (document.bizName && document.bizName.trim())
+      || (window.KivoApp ? window.KivoApp.getBusinessName() : "")
+      || "Notre Entreprise";
+
     let message = `Bonjour ${document.clientName || "Cher client"},\n\n`;
     
     if (isQuote) {
-      message += `Votre devis *${docNum}* d'un montant de *${totalAmount}* émis par *${businessName}* est prêt.\n\n`;
+      message += `Votre devis *${docNum}* d'un montant de *${totalAmount}* émis par *${bizName}* est prêt.\n\n`;
       message += `Vous pouvez le consulter et l'accepter directement en ligne ici :\n${publicUrl}\n\n`;
-      message += `Restant à votre entière disposition.\nKIVO MATIQUE | Business, simplified.`;
+      message += `Restant à votre entière disposition,\n${bizName}`;
     } else {
-      message += `Votre facture *${docNum}* d'un montant de *${totalAmount}* émise par *${businessName}* est disponible.\n\n`;
-      message += `Vous pouvez la consulter, la télécharger et la régler en un clic par Carte bancaire (Stripe) ou Mobile Money :\n${publicUrl}\n\n`;
-      message += `Merci pour votre confiance !\nKIVO MATIQUE`;
+      message += `Votre facture *${docNum}* d'un montant de *${totalAmount}* émise par *${bizName}* est disponible.\n\n`;
+      message += `Vous pouvez la consulter et la télécharger ici :\n${publicUrl}\n\n`;
+      message += `Merci pour votre confiance !\n${bizName}`;
     }
 
     return message;

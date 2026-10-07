@@ -1669,7 +1669,7 @@ window.KivoApp = {
    */
   getBusinessName: function () {
     const biz = (this.state && this.state.business) || {};
-    return biz.name || biz.owner || (window.KivoAuth?.user?.user_metadata?.full_name) || 'Mon Entreprise';
+    return biz.company_name || biz.name || biz.owner || (window.KivoAuth?.user?.user_metadata?.full_name) || 'Mon Entreprise';
   },
 
   /**
@@ -2561,7 +2561,7 @@ window.KivoApp = {
     setVal('builder-doc-number', nextNum);
     setVal('builder-issue-date', today);
     setVal('builder-due-date', dueStr);
-    setVal('builder-doc-status', 'draft');
+    setVal('builder-doc-status', 'sent');
     setVal('builder-notes', '');
     setVal('builder-terms', 'À réception');
     setVal('builder-terms-select', 'À réception');
@@ -3061,21 +3061,55 @@ window.KivoApp = {
    * Share live document from builder on WhatsApp
    */
   shareCurrentBuilderWhatsApp: function () {
-    const docNum = document.getElementById('builder-doc-number').value;
-    const clientId = document.getElementById('builder-doc-client-select').value;
-    const client = this.state.clients.find(c => c.id === clientId) || { name: 'Client', phone: '' };
-    const currency = document.getElementById('builder-doc-currency').value;
-    const grandTotal = document.getElementById('builder-calc-total').textContent;
+    const existingDocId = document.getElementById('builder-doc-id')?.value;
+    const docType = document.getElementById('builder-doc-type')?.value || 'invoice';
+    const isQuote = docType === 'quote';
+    const warnMsg = isQuote
+      ? this._t('toast_doc_cannot_share_draft_quote')
+      : this._t('toast_doc_cannot_share_draft');
 
-    const msg = `Bonjour ${client.name},\n\nVoici le document *${docNum}* d'un montant de *${grandTotal}* émis par *${this.state.business.name}*.\n\nN'hésitez pas si vous avez des questions !\nKIVO MATIQUE`;
-    // Point 2 fix: NO forced phone — open WhatsApp Web and let user choose contact
-    if (navigator.share) {
-      navigator.share({ title: docNum, text: msg }).catch(() => {
-        window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
-      });
-    } else {
-      window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+    // 1. If not saved yet
+    if (!existingDocId) {
+      this.showToast(warnMsg, "warning");
+      return;
     }
+
+    // 2. Check current builder form items & total
+    let hasValidItems = false;
+    document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
+      const name = (tr.querySelector('.item-name')?.value || '').trim();
+      const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 0;
+      const price = parseFloat(tr.querySelector('.item-price')?.value) || 0;
+      if (name && qty > 0 && price > 0) hasValidItems = true;
+    });
+
+    const calcTotalEl = document.getElementById('builder-calc-total');
+    const totalVal = calcTotalEl ? parseFloat(calcTotalEl.textContent.replace(/[^0-9.-]/g, '')) || 0 : 0;
+    const statusVal = document.getElementById('builder-doc-status')?.value || 'draft';
+
+    if (!hasValidItems || totalVal <= 0 || statusVal === 'draft' || statusVal === 'brouillon') {
+      this.showToast(warnMsg, "warning");
+      return;
+    }
+
+    // 3. Check corresponding saved document in state
+    const savedDoc = (this.state.documents || []).find(d => String(d.id) === String(existingDocId));
+    if (!savedDoc) {
+      this.showToast(warnMsg, "warning");
+      return;
+    }
+
+    const isDocDraft = savedDoc.status === 'draft' || savedDoc.status === 'brouillon';
+    const docHasNoItems = !Array.isArray(savedDoc.items) || savedDoc.items.length === 0;
+    const docHasZeroTotal = !savedDoc.total || parseFloat(savedDoc.total) <= 0;
+
+    if (isDocDraft || docHasNoItems || docHasZeroTotal) {
+      this.showToast(warnMsg, "warning");
+      return;
+    }
+
+    // 4. Delegate to unified shareOnWhatsApp
+    this.shareOnWhatsApp(existingDocId);
   },
 
   // ─────────────────────────────────────────────────────────────
@@ -4332,22 +4366,32 @@ window.KivoApp = {
     }
   },
 
-  // ── Point 2 fix: WhatsApp share — NO modal, NO phone prompt. Opens directly.
   shareOnWhatsApp: function (docId) {
-    const doc = this.state.documents.find(d => d.id === docId);
+    const doc = (this.state.documents || []).find(d => String(d.id) === String(docId));
     if (!doc) return;
 
-    const bizName = (this.state.business && (this.state.business.name || this.state.business.owner)) || 'Mon Entreprise';
+    const isQuote = doc.type === 'quote';
+    const warnMsg = isQuote
+      ? this._t('toast_doc_cannot_share_draft_quote')
+      : this._t('toast_doc_cannot_share_draft');
+
+    const isDraft = doc.status === 'draft' || doc.status === 'brouillon';
+    const hasNoItems = !Array.isArray(doc.items) || doc.items.length === 0;
+    const hasZeroTotal = !doc.total || parseFloat(doc.total) <= 0;
+
+    if (isDraft || hasNoItems || hasZeroTotal) {
+      this.showToast(warnMsg, "warning");
+      return;
+    }
+
+    const bizName = this.getBusinessName();
     const msg = window.WhatsAppHelper.buildShareMessage(doc, bizName);
 
-    // On mobile: try Web Share API first (opens native share sheet — user picks WhatsApp or any app)
+    // On mobile: try Web Share API first without duplicate url parameter (msg already embeds the single public URL)
     if (navigator.share) {
-      const token = doc.publicToken || doc.public_token || doc.id;
-      const publicUrl = `${window.location.origin}${window.location.pathname}#public-doc?token=${token}`;
       navigator.share({
-        title: `${doc.type === 'quote' ? 'Devis' : 'Facture'} ${doc.number}`,
-        text: msg,
-        url: publicUrl
+        title: `${isQuote ? 'Devis' : 'Facture'} ${doc.number || ''}`,
+        text: msg
       }).catch(() => {
         // Fallback if share is cancelled or fails
         window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');

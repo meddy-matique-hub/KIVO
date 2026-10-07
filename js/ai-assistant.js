@@ -220,38 +220,42 @@ window.KivoAI = {
   /**
    * Generates a smart French reminder message for overdue or pending invoices
    */
-  generateReminder: function (doc, tone = "courtois", businessName = "MD Creative Studio") {
+  generateReminder: function (doc, tone = "courtois", businessName = "") {
     const docNum = doc.number || `FAC-${doc.id}`;
     const amountStr = (doc.total || 0).toLocaleString("fr-FR") + " " + (doc.currency || "FCFA");
     const clientName = doc.clientName || "Cher client";
     const token = doc.publicToken || doc.public_token || doc.id;
     const publicUrl = `${window.location.origin}${window.location.pathname}#public-doc?token=${token}`;
+    const bizName = (businessName && businessName.trim())
+      || (doc.bizName && doc.bizName.trim())
+      || (window.KivoApp ? window.KivoApp.getBusinessName() : "")
+      || "Notre Entreprise";
 
     let message = "";
 
     switch (tone) {
       case "amical":
-        message = `Bonjour ${clientName},\n\nJ'espère que vous allez bien ! Petit rappel amical concernant la facture ${docNum} d'un montant de ${amountStr}.\n\nVous pouvez la consulter et la régler en un clic par Carte bancaire (Stripe) ou Mobile Money via ce lien :\nLien direct : ${publicUrl}\n\nN'hésitez pas si vous avez la moindre question.\nExcellente journée,\n${businessName}`;
+        message = `Bonjour ${clientName},\n\nJ'espère que vous allez bien ! Petit rappel amical concernant la facture ${docNum} d'un montant de ${amountStr}.\n\nVous pouvez la consulter et la télécharger ici :\n${publicUrl}\n\nN'hésitez pas si vous avez la moindre question.\nExcellente journée,\n${bizName}`;
         break;
 
       case "formel":
-        message = `Bonjour ${clientName},\n\nSauf erreur ou omission de notre part, nous constatons que la facture N° ${docNum} datée du ${doc.issueDate} d'un montant de ${amountStr} est toujours en attente de paiement.\n\nNous vous prions de bien vouloir procéder au règlement via notre lien sécurisé :\nLien direct : ${publicUrl}\n\nRestant à votre disposition,\nBien cordialement,\n${businessName}`;
+        message = `Bonjour ${clientName},\n\nSauf erreur ou omission de notre part, nous constatons que la facture N° ${docNum} datée du ${doc.issueDate} d'un montant de ${amountStr} est toujours en attente de paiement.\n\nVous pouvez la consulter et la télécharger ici :\n${publicUrl}\n\nRestant à votre disposition,\nBien cordialement,\n${bizName}`;
         break;
 
       case "urgent":
-        message = `RAPPEL DE PAIEMENT EN RETARD\n\nBonjour ${clientName},\n\nMalgré nos relances précédentes, la facture N° ${docNum} (${amountStr}) arrivée à échéance le ${doc.dueDate} demeure impayée.\n\nAfin d'éviter toute pénalité ou interruption de nos services, nous vous demandons de régulariser la situation immédiatement via ce lien :\nLien direct : ${publicUrl}\n\nMerci de nous transmettre la confirmation de paiement.\n${businessName}`;
+        message = `RAPPEL DE PAIEMENT EN RETARD\n\nBonjour ${clientName},\n\nMalgré nos relances précédentes, la facture N° ${docNum} (${amountStr}) arrivée à échéance le ${doc.dueDate} demeure impayée.\n\nVous pouvez consulter et télécharger votre facture ici :\n${publicUrl}\n\nMerci de nous transmettre la confirmation de paiement.\n${bizName}`;
         break;
 
       case "courtois":
       default:
-        message = `Bonjour ${clientName},\n\nNous vous rappelons que la facture ${docNum} d'un montant de ${amountStr} est actuellement en attente de règlement.\n\nVous pouvez consulter le détail et effectuer le paiement sécurisé par Carte (Stripe) ou Mobile Money ici :\nLien direct : ${publicUrl}\n\nMerci pour votre confiance,\n${businessName}`;
+        message = `Bonjour ${clientName},\n\nNous vous rappelons que la facture ${docNum} d'un montant de ${amountStr} est actuellement en attente de règlement.\n\nVous pouvez la consulter et la télécharger ici :\n${publicUrl}\n\nMerci pour votre confiance,\n${bizName}`;
         break;
     }
 
     return {
       text: message,
       whatsappUrl: `https://wa.me/${(doc.clientPhone || "").replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}`,
-      emailSubject: `Rappel de paiement - Facture ${docNum} (${businessName})`,
+      emailSubject: `Rappel de paiement - Facture ${docNum} (${bizName})`,
       emailBody: message
     };
   }
