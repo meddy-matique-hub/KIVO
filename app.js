@@ -182,6 +182,16 @@ window.KivoApp = {
   init: async function () {
     console.log("[KivoApp] Initializing KIVO MATIQUE application...");
     this.isSessionLoading = true;
+
+    // Safety net: force-hide the overlay after 8 s in case any await hangs silently.
+    // Normal path resolves in < 2 s; this guarantees the app is never permanently blocked.
+    const _overlayTimeout = setTimeout(() => {
+      console.warn('[KivoApp] Safety timeout: force-hiding loading overlay after 8 s.');
+      this._hideLoadingOverlay();
+    }, 8000);
+    // Clear the safety timeout once we finish (called at every exit point below)
+    const _clearOverlayTimeout = () => clearTimeout(_overlayTimeout);
+
     if (!this.state) {
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
     }
@@ -225,6 +235,7 @@ window.KivoApp = {
       }
 
       this.isSessionLoading = false;
+      _clearOverlayTimeout();
       this.handleRoute();
       this._hideLoadingOverlay();
     } else {
@@ -234,6 +245,7 @@ window.KivoApp = {
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.state.isOnboarded = false;
       this.isSessionLoading = false;
+      _clearOverlayTimeout();
       this.handleRoute();
       this._hideLoadingOverlay();
     }

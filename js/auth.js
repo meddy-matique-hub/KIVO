@@ -41,10 +41,15 @@ window.KivoAuth = {
       this.user = null;
     }
 
+    // Capture the user id known BEFORE registering the listener.
+    // Supabase fires SIGNED_IN synchronously on subscription for existing sessions,
+    // so we must not rely on this.user (still null at that point) to guard against
+    // re-triggering handlePostLogin on boot — which would re-show the loading overlay.
+    const _bootUserId = this.user?.id || null;
+
     // Listen for auth state changes without triggering unwanted background redirects
     KivoDb.supabase.auth.onAuthStateChange(async (event, session) => {
       console.log(`[KivoAuth] Auth event: ${event}`);
-      const prevUserId = this.user?.id;
 
       if (event === 'SIGNED_OUT') {
         this.session = null;
@@ -59,6 +64,9 @@ window.KivoAuth = {
           window.KivoApp.navigate('landing');
         }
       } else if (event === 'SIGNED_IN' && session?.user) {
+        // Use prevUserId from closure (captured before listener registered) to
+        // distinguish a real new login from Supabase's boot-time SIGNED_IN replay.
+        const prevUserId = this.user?.id || _bootUserId;
         this.session = session;
         this.user = session.user;
         // Only trigger post-login workflow if user was previously not logged in
