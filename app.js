@@ -1050,9 +1050,11 @@ window.KivoApp = {
     const activeBtns = document.querySelectorAll(`.builder-mobile-toggle-btn[data-tab="${tabName}"]`);
     activeBtns.forEach(btn => btn.classList.add('active'));
 
-    // Re-render live preview to guarantee fresh data
+    // Re-render live preview to guarantee fresh data and precise scale calculation
     if (tabName === 'preview') {
-      this.updateLiveInvoicePreview();
+      requestAnimationFrame(() => {
+        this.updateLiveInvoicePreview();
+      });
     }
 
     // Scroll to top of the visible panel
@@ -1576,6 +1578,123 @@ window.KivoApp = {
     // 4. Builder phones
     bindPhone('builder-biz-phone', null);
     bindPhone('builder-client-phone', null);
+
+    // Initialise les sélecteurs personnalisés d'indicatifs téléphoniques avec drapeaux (PC Windows & Mobile)
+    this.initCustomPhonePrefixPickers();
+  },
+
+  /**
+   * Custom phone prefix pickers with country flag images
+   * Solves Windows native select emoji bug while ensuring mobile compatibility
+   */
+  initCustomPhonePrefixPickers: function () {
+    const prefixSelects = document.querySelectorAll('.phone-prefix-select');
+    prefixSelects.forEach(selectEl => {
+      if (!selectEl || selectEl.dataset.customPickerInit === 'true') return;
+      selectEl.dataset.customPickerInit = 'true';
+
+      // Hide original select visually while keeping it accessible in DOM
+      selectEl.style.display = 'none';
+
+      // Parse options
+      const options = Array.from(selectEl.options).map(opt => {
+        const text = opt.textContent.trim();
+        const match = text.match(/\(([A-Z]{2})/);
+        const countryCode = match ? match[1].toLowerCase() : 'sn';
+        return {
+          value: opt.value,
+          text: text,
+          code: countryCode,
+          flagUrl: `https://flagcdn.com/20x15/${countryCode}.png`
+        };
+      });
+
+      const getSelectedOpt = () => {
+        const currentVal = selectEl.value;
+        return options.find(o => o.value === currentVal) || options[0] || { value: '+221', text: '+221', code: 'sn', flagUrl: 'https://flagcdn.com/20x15/sn.png' };
+      };
+
+      const wrap = document.createElement('div');
+      wrap.className = 'phone-prefix-custom-picker';
+      wrap.id = `custom-picker-${selectEl.id}`;
+
+      const initialOpt = getSelectedOpt();
+      wrap.innerHTML = `
+        <button type="button" class="phone-prefix-btn" aria-haspopup="listbox" aria-expanded="false" title="Choisir l'indicatif téléphonique">
+          <div class="phone-prefix-selected">
+            <img class="phone-flag-img" src="${initialOpt.flagUrl}" alt="${initialOpt.code}" onerror="this.style.display='none'">
+            <span class="phone-prefix-label">${initialOpt.value}</span>
+          </div>
+          <svg class="phone-prefix-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="phone-prefix-dropdown-list" role="listbox">
+          ${options.map(opt => `
+            <div class="phone-prefix-option ${opt.value === selectEl.value ? 'active' : ''}" data-value="${opt.value}" role="option">
+              <img class="phone-flag-img" src="${opt.flagUrl}" alt="${opt.code}" onerror="this.style.display='none'">
+              <span>${opt.text}</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      selectEl.parentNode.insertBefore(wrap, selectEl);
+
+      const btn = wrap.querySelector('.phone-prefix-btn');
+      const dropdown = wrap.querySelector('.phone-prefix-dropdown-list');
+      const flagImg = wrap.querySelector('.phone-prefix-selected .phone-flag-img');
+      const label = wrap.querySelector('.phone-prefix-selected .phone-prefix-label');
+
+      const updateDisplay = (opt) => {
+        if (!opt) return;
+        flagImg.src = opt.flagUrl;
+        flagImg.style.display = 'inline-block';
+        label.textContent = opt.value;
+        wrap.querySelectorAll('.phone-prefix-option').forEach(el => {
+          el.classList.toggle('active', el.dataset.value === opt.value);
+        });
+      };
+
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const isOpen = wrap.classList.contains('open');
+        document.querySelectorAll('.phone-prefix-custom-picker.open').forEach(p => {
+          if (p !== wrap) p.classList.remove('open');
+        });
+        wrap.classList.toggle('open', !isOpen);
+      });
+
+      wrap.querySelectorAll('.phone-prefix-option').forEach(optEl => {
+        optEl.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const val = optEl.dataset.value;
+          selectEl.value = val;
+          const opt = options.find(o => o.value === val);
+          updateDisplay(opt);
+          wrap.classList.remove('open');
+          selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      });
+
+      selectEl.addEventListener('change', () => {
+        updateDisplay(getSelectedOpt());
+      });
+
+      const observer = new MutationObserver(() => {
+        updateDisplay(getSelectedOpt());
+      });
+      observer.observe(selectEl, { attributes: true, attributeFilter: ['value'] });
+    });
+
+    if (!window._phonePrefixDocClickBound) {
+      window._phonePrefixDocClickBound = true;
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.phone-prefix-custom-picker')) {
+          document.querySelectorAll('.phone-prefix-custom-picker.open').forEach(p => p.classList.remove('open'));
+        }
+      });
+    }
   },
 
   /**
@@ -3011,16 +3130,13 @@ window.KivoApp = {
         if (previewContainer) {
           previewContainer.innerHTML = renderedHtml;
           previewContainer.style.padding = '0';
-          previewContainer.style.overflow = 'hidden'; // always hidden — CSS handles scroll on desktop
+          previewContainer.style.overflow = 'hidden';
           previewContainer.style.background = (templateId === 'premium') ? '#181A20' : '#FFFFFF';
-          // FIX point5: compute scale for A4 miniature on mobile
-          if (window.innerWidth <= 1024) {
-            const containerW = previewContainer.offsetWidth || window.innerWidth;
-            const scale = Math.min(containerW / 794, 1);
-            previewContainer.style.setProperty('--paper-scale', scale.toFixed(4));
-          } else {
-            previewContainer.style.removeProperty('--paper-scale');
-          }
+          // Compute scale for true A4 miniature ratio (1 : 1.4142) on mobile & desktop
+          const containerW = previewContainer.clientWidth || previewContainer.offsetWidth || (previewContainer.parentElement ? previewContainer.parentElement.clientWidth : 0) || window.innerWidth;
+          const scale = containerW >= 794 ? 1 : Math.max(0.2, containerW / 794);
+          previewContainer.style.setProperty('--paper-scale', scale.toFixed(4));
+          previewContainer.style.height = Math.round((794 * 1.4142) * scale) + 'px';
         }
         const pubArea = document.getElementById('public-doc-printable-area');
         if (pubArea) {
@@ -4353,10 +4469,10 @@ window.KivoApp = {
       pubBackBtn.style.display = isAuth ? 'inline-flex' : 'none';
     }
 
-    // Marketing CTA (propose creating an account at bottom of public invoice)
+    // Marketing CTA (propose creating an account at bottom of public invoice — only for anonymous visitors)
     const marketingCta = document.getElementById('pub-kivo-marketing-cta');
     if (marketingCta) {
-      marketingCta.style.display = 'block';
+      marketingCta.style.display = isAuth ? 'none' : 'block';
     }
 
     // ── Simple flèche "←" claire et grande positionnée à gauche du logo KIVO → liste des documents
@@ -4654,19 +4770,8 @@ window.KivoApp = {
     const bizName = this.getBusinessName();
     const msg = window.WhatsAppHelper.buildShareMessage(doc, bizName);
 
-    // On mobile: try Web Share API first without duplicate url parameter (msg already embeds the single public URL)
-    if (navigator.share) {
-      navigator.share({
-        title: `${isQuote ? 'Devis' : 'Facture'} ${doc.number || ''}`,
-        text: msg
-      }).catch(() => {
-        // Fallback if share is cancelled or fails
-        window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
-      });
-    } else {
-      // Desktop: open WhatsApp Web — user selects the contact inside WhatsApp
-      window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
-    }
+    // PC et Mobile : ouverture directe de WhatsApp via https://wa.me/?text=<message encodé>
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
     this.showToast(this._t('toast_whatsapp_opening'), 'success');
   },
 
@@ -7606,10 +7711,18 @@ window.KivoApp = {
     let raw = '';
     let code = '';
     if (typeof err === 'string') {
-      raw = err;
+      raw = err.trim();
     } else if (typeof err === 'object') {
       code = (err.code || err.statusCode || err.status || '').toString();
-      raw = (err.message || err.error_description || err.details || err.hint || JSON.stringify(err) || '');
+      raw = (err.message || err.error_description || err.details || err.hint || (err.error && err.error.message) || '').toString().trim();
+      if (!raw && typeof err.toString === 'function') {
+        const s = err.toString();
+        if (s !== '[object Object]') raw = s.trim();
+      }
+    }
+
+    if (!raw || raw === 'undefined' || raw === 'null' || raw === '[object Object]' || raw === '{}') {
+      return fallback || "Une erreur est survenue. Veuillez réessayer.";
     }
 
     const lower = (raw + ' ' + code).toLowerCase();
@@ -7695,14 +7808,14 @@ window.KivoApp = {
   },
 
   showToast: function (message, type = 'info') {
-    if (!message) return;
+    if (message === undefined || message === null) return;
     let cleanMsg = '';
     const isErrorType = type === 'error' || type === 'danger' || type === 'warning';
     if (typeof message === 'object') {
-      cleanMsg = this.friendlySupabaseError(message, isErrorType ? "Une erreur est survenue lors de l'opération." : "");
+      cleanMsg = this.friendlySupabaseError(message, isErrorType ? "Une erreur est survenue lors de l'opération." : "Opération effectuée.");
     } else {
       const str = String(message).trim();
-      if (!str) return;
+      if (!str || str === 'undefined' || str === 'null' || str === '[object Object]') return;
       if (
         str.includes('violates') ||
         str.includes('constraint') ||
@@ -7719,7 +7832,7 @@ window.KivoApp = {
         cleanMsg = str;
       }
     }
-    if (!cleanMsg) return;
+    if (!cleanMsg || cleanMsg === 'undefined' || cleanMsg === 'null' || cleanMsg === '[object Object]' || cleanMsg.trim() === '') return;
 
     const container = document.getElementById('toast-container');
     if (!container) return;

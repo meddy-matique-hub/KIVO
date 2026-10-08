@@ -285,6 +285,32 @@ window.KivoTemplates = {
     `;
   },
 
+  getLegalLabel: function (biz) {
+    if (!biz) return 'N° d\'enregistrement / Identifiant fiscal';
+    const c = (biz.country || '').toUpperCase();
+    const phone = (biz.phone || '');
+    const addr = (biz.address || '').toLowerCase();
+
+    // Congo (Brazzaville & RDC) : RCCM + NIU
+    if (c === 'CG' || c === 'CD' || phone.startsWith('+242') || phone.startsWith('+243') || addr.includes('congo') || addr.includes('brazzaville') || addr.includes('kinshasa')) {
+      return 'RCCM + NIU';
+    }
+    // Sénégal : NINEA
+    if (c === 'SN' || phone.startsWith('+221') || addr.includes('sénégal') || addr.includes('senegal') || addr.includes('dakar')) {
+      return 'NINEA';
+    }
+    // France : SIRET
+    if (c === 'FR' || phone.startsWith('+33') || addr.includes('france') || addr.includes('paris')) {
+      return 'SIRET';
+    }
+    // Côte d'Ivoire : RCCM
+    if (c === 'CI' || phone.startsWith('+225') || addr.includes('abidjan')) {
+      return 'RCCM';
+    }
+    // Champ générique sinon
+    return (biz.legalFieldName && biz.legalFieldName !== 'N° Fiscal') ? biz.legalFieldName : 'N° d\'enregistrement / Identifiant fiscal';
+  },
+
   // ── Totals, Payments & Footer Helper ──────────────────────────────────
   renderBottom: function (d, ac, isDark = false) {
     const _t = (key) => (window.KivoI18n ? KivoI18n.t(key, d.lang || 'fr') : key);
@@ -324,7 +350,7 @@ window.KivoTemplates = {
         <!-- Footer -->
         <div style="text-align:center;font-size:9.5px;color:${isDark ? '#64748B' : '#94A3B8'};padding-top:8px;border-top:1px solid ${isDark ? '#2D323F' : '#F1F5F9'};line-height:1.6;">
           <div>${[(d.biz && d.biz.name) || (d.biz && d.biz.owner) || 'Mon Entreprise', d.biz && d.biz.address, d.biz && d.biz.phone, d.biz && d.biz.email].filter(Boolean).join(' · ')}</div>
-          ${(d.biz && d.biz.taxId) ? `<div style="font-size:9px;color:${isDark ? '#94A3B8' : '#64748B'};">${(d.biz && d.biz.legalFieldName) || 'N° d\'enregistrement / Identifiant fiscal'} : <strong>${d.biz.taxId}</strong></div>` : ''}
+          ${(d.biz && d.biz.taxId) ? `<div style="font-size:9px;color:${isDark ? '#94A3B8' : '#64748B'};">${this.getLegalLabel(d.biz)} : <strong>${d.biz.taxId}</strong></div>` : ''}
           ${(d.client && d.client.taxId) ? `<div style="font-size:8.5px;color:${isDark ? '#94A3B8' : '#64748B'};">Client : ${d.client.name || ''} · ${d.client.legalFieldName || 'N° Fiscal'} : <strong>${d.client.taxId}</strong></div>` : ''}
         </div>
       </div>
@@ -497,7 +523,7 @@ window.KivoTemplates = {
   renderMinimalist: function (d) {
     const ac = d.primaryColor || '#0F172A';
     return `
-      <div style="background:#FFFFFF;font-family:Inter,Arial,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:34px 40px;color:#1E293B;position:relative;">
+      <div class="kivo-invoice-sheet" style="background:#FFFFFF;font-family:Inter,Arial,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:34px 40px;color:#1E293B;position:relative;">
         <div>
           ${this.renderHeader(d, ac, '#475569')}
           ${this.renderClient(d, '#0F172A', '#475569')}
@@ -525,7 +551,7 @@ window.KivoTemplates = {
   renderCorporate: function (d) {
     const ac = d.primaryColor || '#1E3A5F';
     return `
-      <div style="background:#FFFFFF;font-family:Inter,Arial,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;color:#1E293B;position:relative;">
+      <div class="kivo-invoice-sheet" style="background:#FFFFFF;font-family:Inter,Arial,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;color:#1E293B;position:relative;">
         <div>
           <div style="background:${ac};padding:22px 40px;color:#FFFFFF;margin-bottom:22px;">
             ${this.renderHeader(d, '#FFFFFF', 'rgba(255,255,255,0.75)')}
@@ -559,7 +585,7 @@ window.KivoTemplates = {
   renderElegant: function (d) {
     const ac = d.primaryColor || '#C9A84C';
     return `
-      <div style="background:#FFFDF7;font-family:Georgia,serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 38px;color:#2D241E;border:6px solid #F6F1E5;position:relative;">
+      <div class="kivo-invoice-sheet" style="background:#FFFDF7;font-family:Georgia,serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 38px;color:#2D241E;border:6px solid #F6F1E5;position:relative;">
         <div>
           ${this.renderHeader(d, ac, '#6B5C2A')}
           ${this.renderClient(d, '#2D241E', '#6B5C2A')}
@@ -588,7 +614,7 @@ window.KivoTemplates = {
     const ac = d.primaryColor || '#7C3AED';
     const sec = d.secondaryColor || '#EC4899';
     return `
-      <div style="background:#FFFFFF;font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 40px;position:relative;">
+      <div class="kivo-invoice-sheet" style="background:#FFFFFF;font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 40px;position:relative;">
         <div>
           <div style="height:6px;background:linear-gradient(90deg,${ac},${sec});border-radius:3px;margin-bottom:20px;"></div>
           ${this.renderHeader(d, ac, '#64748B')}
@@ -617,7 +643,7 @@ window.KivoTemplates = {
   renderClean: function (d) {
     const ac = d.primaryColor || '#0E7490';
     return `
-      <div style="background:#FFFFFF;font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 40px;border-top:6px solid ${ac};position:relative;">
+      <div class="kivo-invoice-sheet" style="background:#FFFFFF;font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 40px;border-top:6px solid ${ac};position:relative;">
         <div>
           ${this.renderHeader(d, ac, '#64748B')}
           ${this.renderClient(d, '#0F172A', '#64748B')}
@@ -645,7 +671,7 @@ window.KivoTemplates = {
   renderEditorial: function (d) {
     const ac = d.primaryColor || '#EF4444';
     return `
-      <div style="background:#FFFFFF;font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;color:#111;position:relative;">
+      <div class="kivo-invoice-sheet" style="background:#FFFFFF;font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;color:#111;position:relative;">
         <div>
           <div style="background:#111;padding:20px 40px;color:#FFFFFF;margin-bottom:22px;">
             ${this.renderHeader(d, '#FFFFFF', '#9CA3AF')}
@@ -680,7 +706,7 @@ window.KivoTemplates = {
     const ac = d.primaryColor || '#D49B7A';
     const sec = d.secondaryColor || '#B87352';
     return `
-      <div style="background:#181A20;font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 40px;color:#F1F5F9;position:relative;">
+      <div class="kivo-invoice-sheet" style="background:#181A20;font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 40px;color:#F1F5F9;position:relative;">
         <div>
           ${this.renderHeader(d, ac, '#94A3B8', true)}
           <div style="height:8px;background:linear-gradient(90deg,${ac} 0%,#FFFFFF 50%,${sec} 100%);border-radius:2px;margin-bottom:20px;box-shadow:0 3px 10px rgba(0,0,0,0.3);"></div>
