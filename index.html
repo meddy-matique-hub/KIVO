@@ -48,6 +48,14 @@
         50%  { transform: translateX(150%); }
         100% { transform: translateX(-100%); }
       }
+      /* CSS safety net: auto-hide the overlay after 12 s even if JS is broken */
+      @keyframes kivo-overlay-timeout {
+        0%, 90%  { opacity: 1; pointer-events: all; }
+        100%     { opacity: 0; pointer-events: none; visibility: hidden; }
+      }
+      #app-loading-overlay {
+        animation: kivo-overlay-timeout 12s forwards;
+      }
     </style>
   </div>
 
@@ -3824,18 +3832,18 @@
   <div class="toast-container" id="toast-container"></div>
 
 
-  <!-- Scripts -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-client.js?v=3.4"></script>
-  <script src="js/auth.js?v=3.4"></script>
-  <script src="js/ai-assistant.js?v=3.4"></script>
-  <script src="js/payment-provider.js?v=3.3"></script>
-  <script src="js/whatsapp-helper.js?v=3.3"></script>
-  <script src="js/i18n.js?v=1.1"></script>
-  <script src="js/doc-templates.js?v=3.3"></script>
-  <script src="app.js?v=3.19"></script>
+  <!-- Scripts — defer keeps them non-blocking but preserves execution order -->
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="js/supabase-client.js?v=3.5"></script>
+  <script defer src="js/auth.js?v=3.5"></script>
+  <script defer src="js/ai-assistant.js?v=3.4"></script>
+  <script defer src="js/payment-provider.js?v=3.3"></script>
+  <script defer src="js/whatsapp-helper.js?v=3.3"></script>
+  <script defer src="js/i18n.js?v=1.1"></script>
+  <script defer src="js/doc-templates.js?v=3.3"></script>
+  <script defer src="app.js?v=3.20"></script>
 </body>
 </html>
 

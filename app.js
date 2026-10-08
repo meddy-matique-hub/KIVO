@@ -17,9 +17,13 @@ window.KivoApp = {
   _hideLoadingOverlay: function () {
     const overlay = document.getElementById('app-loading-overlay');
     if (!overlay) return;
+    // Cancel the CSS safety-timeout animation so it doesn't interfere
+    overlay.style.animation = 'none';
     overlay.style.opacity = '0';
     overlay.style.visibility = 'hidden';
     overlay.style.pointerEvents = 'none';
+    // Remove from layout after transition
+    setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 400);
   },
 
   /**
