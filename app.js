@@ -2116,27 +2116,34 @@ window.KivoApp = {
     });
 
     // Update total documents counter (invoices + quotes)
+    const totalDocs = totalInvoices + totalQuotes;
     const totalDocsEl = document.getElementById('kpi-total-docs');
-    if (totalDocsEl) totalDocsEl.textContent = totalInvoices + totalQuotes;
-    const totalQuotesEl = document.getElementById('kpi-total-quotes');
-    if (totalQuotesEl) totalQuotesEl.textContent = totalQuotes;
+    if (totalDocsEl) totalDocsEl.textContent = totalDocs;
 
-    const formatCurrency = (val) => {
-      // Map display labels to valid ISO 4217 codes for Intl.NumberFormat
-      const currencyMap = {
-        'FCFA': 'XOF', 'XOF': 'XOF', 'XAF': 'XAF',
-        'EUR': 'EUR', 'USD': 'USD', 'GBP': 'GBP', 'CAD': 'CAD',
-        'CDF': 'CDF', 'GNF': 'GNF', 'MAD': 'MAD', 'TND': 'TND',
-      };
-      const rawCurrency = biz.currency || 'FCFA';
-      const isoCurrency = currencyMap[rawCurrency] || null;
-      if (isoCurrency) {
-        try {
-          return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: isoCurrency }).format(val);
-        } catch (e) { /* fall through */ }
+    // Segmented bar (Invoices in blue #3B82F6, Quotes in purple #8B5CF6)
+    const barInv = document.getElementById('kpi-bar-invoices');
+    const barQuotes = document.getElementById('kpi-bar-quotes');
+    if (barInv && barQuotes) {
+      if (totalDocs > 0) {
+        const invPct = Math.round((totalInvoices / totalDocs) * 100);
+        const quotePct = 100 - invPct;
+        barInv.style.width = invPct + '%';
+        barQuotes.style.width = quotePct + '%';
+      } else {
+        barInv.style.width = '0%';
+        barQuotes.style.width = '0%';
       }
-      // Fallback: format number and append the label
-      return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val) + ' ' + rawCurrency;
+    }
+
+    const docsLegendEl = document.getElementById('kpi-docs-legend');
+    if (docsLegendEl) {
+      docsLegendEl.textContent = `${totalInvoices} facture${totalInvoices > 1 ? 's' : ''} · ${totalQuotes} devis`;
+    }
+
+    // Format currency with Intl.NumberFormat('fr-FR')
+    const formatCurrency = (val) => {
+      const rawCurrency = (biz && biz.currency) || 'FCFA';
+      return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(val || 0)) + ' ' + rawCurrency;
     };
 
     const greetingEl = document.getElementById('dash-greeting');
@@ -2149,122 +2156,89 @@ window.KivoApp = {
       }
     }
     
+    // Revenue calculations: current month vs. previous month
+    const now = new Date();
+    const currY = now.getFullYear();
+    const currM = now.getMonth();
+    const prevDate = new Date(currY, currM - 1, 1);
+    const prevY = prevDate.getFullYear();
+    const prevM = prevDate.getMonth();
+
+    let currMonthPaid = 0;
+    let prevMonthPaid = 0;
+    let hasPrevMonthDocs = false;
+
+    docs.forEach(doc => {
+      const rawType = (doc.type || 'invoice').toLowerCase().trim();
+      if (rawType !== 'invoice' && rawType !== 'facture') return;
+      const rawDate = doc.issueDate || doc.date_issued || doc.createdAt;
+      if (!rawDate) return;
+      const dt = new Date(rawDate);
+      if (isNaN(dt.getTime())) return;
+      const s = (doc.status || '').toLowerCase().trim();
+      const isPaid = s === 'paid' || s === 'payée' || s === 'payee';
+
+      if (dt.getFullYear() === currY && dt.getMonth() === currM) {
+        if (isPaid) currMonthPaid += (doc.total || 0);
+      } else if (dt.getFullYear() === prevY && dt.getMonth() === prevM) {
+        hasPrevMonthDocs = true;
+        if (isPaid) prevMonthPaid += (doc.total || 0);
+      } else if (dt < prevDate) {
+        hasPrevMonthDocs = true;
+      }
+    });
+
+    let trendHtml = '';
+    if (hasPrevMonthDocs && prevMonthPaid > 0) {
+      const diffPct = Math.round(((currMonthPaid - prevMonthPaid) / prevMonthPaid) * 100);
+      if (diffPct > 0) {
+        trendHtml = ` · <span style="color:#10B981; font-weight:700;">▲ +${diffPct} % vs. dernier mois</span>`;
+      } else if (diffPct < 0) {
+        trendHtml = ` · <span style="color:#EF4444; font-weight:700;">▼ ${diffPct} % vs. dernier mois</span>`;
+      } else {
+        trendHtml = ` · <span style="color:#6B7280; font-weight:600;">= 0 % vs. dernier mois</span>`;
+      }
+    } else if (hasPrevMonthDocs && prevMonthPaid === 0 && currMonthPaid > 0) {
+      trendHtml = ` · <span style="color:#10B981; font-weight:700;">▲ +100 % vs. dernier mois</span>`;
+    }
+
     const paidEl = document.getElementById('kpi-paid');
     if (paidEl) paidEl.textContent = formatCurrency(paidTotal);
     
-    const totalInvEl = document.getElementById('kpi-total-invoices');
-    if (totalInvEl) totalInvEl.textContent = totalInvoices;
     const paidInvEl = document.getElementById('kpi-paid-invoices');
-    if (paidInvEl) paidInvEl.textContent = paidInvoicesCount;
+    if (paidInvEl) {
+      paidInvEl.textContent = `${paidInvoicesCount} facture${paidInvoicesCount > 1 ? 's' : ''} payée${paidInvoicesCount > 1 ? 's' : ''}`;
+    }
+    const paidTrendEl = document.getElementById('kpi-paid-trend');
+    if (paidTrendEl) {
+      if (trendHtml) {
+        paidTrendEl.innerHTML = trendHtml;
+        paidTrendEl.style.display = 'inline';
+      } else {
+        paidTrendEl.innerHTML = '';
+        paidTrendEl.style.display = 'none';
+      }
+    }
     
     const pendCountEl = document.getElementById('kpi-pending-count');
-    if (pendCountEl) pendCountEl.textContent = pendingInvoicesCount;
+    if (pendCountEl) pendCountEl.textContent = `${pendingInvoicesCount} facture${pendingInvoicesCount > 1 ? 's' : ''}`;
     const pendAmountEl = document.getElementById('kpi-pending-amount');
-    if (pendAmountEl) pendAmountEl.textContent = formatCurrency(pendingTotal);
+    if (pendAmountEl) {
+      if (pendingInvoicesCount > 0) {
+        pendAmountEl.textContent = formatCurrency(pendingTotal);
+      } else {
+        pendAmountEl.innerHTML = `<span style="color:#9CA3AF; font-size:14px; font-style:italic;">Aucune facture en attente</span>`;
+      }
+    }
     
     const overCountEl = document.getElementById('kpi-overdue-count');
-    if (overCountEl) overCountEl.textContent = overdueInvoicesCount;
+    if (overCountEl) overCountEl.textContent = `${overdueInvoicesCount} facture${overdueInvoicesCount > 1 ? 's' : ''}`;
     const overAmountEl = document.getElementById('kpi-overdue-amount');
-    if (overAmountEl) overAmountEl.textContent = formatCurrency(overdueTotal);
-
-    // ── Mini Charts basés sur les vraies données ──────────────────────────
-    // Calcul des revenus des 6 derniers mois
-    const now = new Date();
-    const monthlyRevenue = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-      return {
-        label: d.toLocaleString('fr-FR', { month: 'short' }),
-        paid: 0, total: 0
-      };
-    });
-    docs.forEach(doc => {
-      if (doc.type !== 'invoice') return;
-      const docDate = new Date(doc.issueDate || doc.createdAt);
-      if (isNaN(docDate)) return;
-      const diffMonths = (now.getFullYear() - docDate.getFullYear()) * 12 + (now.getMonth() - docDate.getMonth());
-      if (diffMonths >= 0 && diffMonths < 6) {
-        const idx = 5 - diffMonths;
-        monthlyRevenue[idx].total += doc.total || 0;
-        const s = (doc.status || '').toLowerCase().trim();
-        const isPaid = s === 'paid' || s === 'payée' || s === 'payee';
-        if (isPaid) monthlyRevenue[idx].paid += doc.total || 0;
-      }
-    });
-
-    // Chart Revenus (sparkline SVG dynamique)
-    const chartRev = document.getElementById('chart-revenue');
-    if (chartRev) {
-      const maxRev = Math.max(...monthlyRevenue.map(m => m.paid), 1);
-      const hasRevData = monthlyRevenue.some(m => m.paid > 0);
-      if (!hasRevData) {
-        chartRev.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.7rem;opacity:0.6;">Aucune donnée</div>`;
+    if (overAmountEl) {
+      if (overdueInvoicesCount > 0) {
+        overAmountEl.textContent = formatCurrency(overdueTotal);
       } else {
-        const pts = monthlyRevenue.map((m, i) => `${(i / 5) * 100},${40 - (m.paid / maxRev) * 36}`).join(' ');
-        const polyPts = pts + ` 100,40 0,40`;
-        chartRev.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 40" preserveAspectRatio="none">
-          <defs><linearGradient id="gradRev2" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#60A5FA"/><stop offset="100%" stop-color="rgba(96,165,250,0)"/></linearGradient></defs>
-          <polygon points="${polyPts}" fill="url(#gradRev2)" opacity="0.25"/>
-          <polyline points="${pts}" fill="none" stroke="#60A5FA" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-          ${monthlyRevenue.map((m, i) => m.paid > 0 ? `<circle cx="${(i/5)*100}" cy="${40-(m.paid/maxRev)*36}" r="2.5" fill="#60A5FA"/>` : '').join('')}
-        </svg>`;
-      }
-    }
-
-    // Chart Factures (barres par mois — volumes)
-    const chartInv = document.getElementById('chart-invoices');
-    if (chartInv) {
-      chartInv.style.display = 'flex';
-      chartInv.style.alignItems = 'flex-end';
-      chartInv.style.justifyContent = 'space-between';
-      chartInv.style.gap = '4px';
-      const maxVol = Math.max(...monthlyRevenue.map(m => m.total), 1);
-      const hasVolData = monthlyRevenue.some(m => m.total > 0);
-      if (!hasVolData) {
-        chartInv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.7rem;opacity:0.6;">Aucune donnée</div>`;
-      } else {
-        chartInv.innerHTML = monthlyRevenue.map(m => {
-          const pct = Math.max((m.total / maxVol) * 100, 4);
-          const color = m.total > 0 ? 'var(--primary)' : 'var(--border-color)';
-          return `<div title="${m.label}: ${formatCurrency(m.total)}" style="flex:1;height:${pct}%;background:${color};border-radius:3px 3px 0 0;min-height:3px;transition:height 0.3s;"></div>`;
-        }).join('');
-      }
-    }
-
-    // Chart En attente (donut proportionnel aux statuts réels)
-    const chartPend = document.getElementById('chart-pending');
-    if (chartPend) {
-      chartPend.style.display = 'flex';
-      chartPend.style.alignItems = 'center';
-      chartPend.style.justifyContent = 'center';
-      const grandTotal = paidTotal + pendingTotal + overdueTotal;
-      if (grandTotal === 0) {
-        chartPend.innerHTML = `<div style="width:50px;height:50px;border-radius:50%;background:var(--border-color);display:flex;align-items:center;justify-content:center;"><div style="width:30px;height:30px;background:var(--bg-card);border-radius:50%;"></div></div>`;
-      } else {
-        const paidDeg = Math.round((paidTotal / grandTotal) * 360);
-        const pendDeg = Math.round((pendingTotal / grandTotal) * 360);
-        const ovDeg = 360 - paidDeg - pendDeg;
-        chartPend.innerHTML = `
-          <div style="width:52px;height:52px;border-radius:50%;background:conic-gradient(#10B981 0deg ${paidDeg}deg,#F59E0B ${paidDeg}deg ${paidDeg+pendDeg}deg,#EF4444 ${paidDeg+pendDeg}deg 360deg);position:relative;">
-            <div style="position:absolute;top:10px;left:10px;right:10px;bottom:10px;background:var(--bg-card);border-radius:50%;"></div>
-          </div>`;
-      }
-    }
-
-    // Chart En retard (sparkline dynamique)
-    const chartOver = document.getElementById('chart-overdue');
-    if (chartOver) {
-      const hasOverData = monthlyRevenue.some(m => m.total > 0);
-      if (!hasOverData) {
-        chartOver.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.7rem;opacity:0.6;">Aucune donnée</div>`;
-      } else {
-        const maxV = Math.max(...monthlyRevenue.map(m => m.total), 1);
-        const pts2 = monthlyRevenue.map((m, i) => `${(i / 5) * 100},${40 - (m.total / maxV) * 36}`).join(' ');
-        const poly2 = pts2 + ` 100,40 0,40`;
-        chartOver.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 40" preserveAspectRatio="none">
-          <defs><linearGradient id="gradOver2" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#F59E0B"/><stop offset="100%" stop-color="rgba(245,158,11,0)"/></linearGradient></defs>
-          <polygon points="${poly2}" fill="url(#gradOver2)" opacity="0.25"/>
-          <polyline points="${pts2}" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>`;
+        overAmountEl.innerHTML = `<span style="color:#9CA3AF; font-size:14px; font-style:italic;">Aucune facture en retard</span>`;
       }
     }
 
@@ -2858,12 +2832,20 @@ window.KivoApp = {
     const titleEl = document.getElementById('builder-page-title');
     if (titleEl) titleEl.textContent = (type === 'quote') ? 'Créer un devis' : 'Créer une facture';
 
-    // Enterprise fields from business settings
+    // Enterprise fields from business settings (defaults never modify profile)
     const biz = this.state.business;
     setVal('builder-biz-name', biz.name || '');
     setVal('builder-biz-address', biz.address || '');
     setVal('builder-biz-phone', biz.phone || '');
     setVal('builder-biz-email', biz.email || '');
+    setVal('builder-biz-legal', biz.legal || '');
+
+    // Reset document header and custom fields
+    setVal('builder-doc-title-text', '');
+    setVal('builder-doc-subject', '');
+    const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+    setChk('builder-toggle-subject', true);
+    setChk('builder-toggle-logo', true);
 
     // Client select
     const clientSelect = document.getElementById('builder-doc-client-select');
@@ -2883,6 +2865,21 @@ window.KivoApp = {
     setVal('builder-client-email', '');
     setVal('builder-client-address', '');
     setVal('builder-client-phone', '');
+    setVal('builder-client-taxid', '');
+
+    // Reset column and totals labels to default values
+    setVal('builder-col-desc', 'Description');
+    setVal('builder-col-qty', 'Quantité');
+    setVal('builder-col-unit', 'Unité');
+    setVal('builder-col-price', 'Prix Unitaire');
+    setVal('builder-col-tax', 'TVA');
+    setVal('builder-col-discount', 'Remise');
+    setVal('builder-col-total', 'Total HT');
+    setVal('builder-lbl-subtotal', 'Sous-total HT');
+    setVal('builder-lbl-tax', 'TVA');
+    setVal('builder-lbl-total', 'Total TTC');
+    setVal('builder-lbl-deposit', 'Acompte déjà versé');
+    setVal('builder-lbl-balance', 'Solde net à payer');
 
     // Reset invoice logo state for new document session
     this._invoiceLogoRemoved = false;
@@ -2901,11 +2898,33 @@ window.KivoApp = {
       if (uploadPrompt) uploadPrompt.style.display = 'block';
     }
 
+    // Totals options & toggles
+    const defaultVat = this.state.business?.defaultVatRate !== undefined ? this.state.business.defaultVatRate : (this.state.business?.taxRate !== undefined ? this.state.business.taxRate : 0);
+    setChk('builder-toggle-vat', defaultVat > 0);
+    setChk('builder-toggle-discount', false);
+    setVal('builder-discount-value', '0');
+    setVal('builder-discount-type', 'percent');
+    setChk('builder-toggle-deposit', false);
+    setVal('builder-deposit-amount', '0');
+    this.onBuilderDiscountToggle();
+    this.onBuilderDepositToggle();
+
+    // Footer options & toggles
+    setChk('builder-toggle-payment-methods', true);
+    setVal('builder-payment-details', biz.paymentDetails || '');
+    setChk('builder-toggle-notes', true);
+    setChk('builder-toggle-thankyou', true);
+    setVal('builder-thankyou', biz.thankYouText || 'Merci pour votre confiance !');
+    setChk('builder-toggle-legal', true);
+    setVal('builder-legal-notices', biz.legalNotices || biz.legal || '');
+
+    // Reset lock state (Draft is always unlocked)
+    this.setBuilderLockState(false);
+
     // Items - Clean state: 1 blank row ready for input
     const tbody = document.getElementById('builder-items-tbody');
     if (tbody) tbody.innerHTML = '';
-    const defaultVat = this.state.business?.defaultVatRate !== undefined ? this.state.business.defaultVatRate : (this.state.business?.taxRate !== undefined ? this.state.business.taxRate : 0);
-    this.addBuilderLineItem('', 1, 0, defaultVat);
+    this.addBuilderLineItem('', 1, 0, defaultVat, '', 0);
     this.populateBuilderCatalogDropdown();
 
     this.recalculateBuilderTotals();
@@ -2921,11 +2940,11 @@ window.KivoApp = {
     const doc = this.state.documents.find(d => d.id === docId);
     if (!doc) return;
 
-    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val !== undefined && val !== null ? val : ''; };
+    const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
     const titleEl = document.getElementById('builder-page-title');
     if (titleEl) titleEl.textContent = (doc.type === 'quote') ? 'Modifier le devis' : 'Modifier la facture';
     setVal('builder-doc-id', doc.id);
-    // FIX point2: lock draft IDs to the existing doc so autosave always upserts (never inserts a new row)
     this._cloudDraftId = doc.id;
     this._currentDraftDocId = doc.id;
     setVal('builder-doc-type', doc.type || 'invoice');
@@ -2936,10 +2955,78 @@ window.KivoApp = {
     const rawDocStatus = (doc.status || 'sent').toLowerCase().trim();
     const normalizedStatus = (rawDocStatus === 'payée' || rawDocStatus === 'payee') ? 'paid' : (doc.status || 'sent');
     setVal('builder-doc-status', normalizedStatus);
-    setVal('builder-notes', doc.notes || '');
-    // Sync payment terms: check if doc.terms matches a known option, otherwise use custom
+
+    // Point B: Locking rule — Draft is editable, Sent/Paid/Overdue is locked with reopen banner
+    const isDraft = (normalizedStatus === 'draft' || normalizedStatus === 'brouillon');
+    this.setBuilderLockState(!isDraft, normalizedStatus);
+
+    const meta = (doc.items && typeof doc.items === 'object' && !Array.isArray(doc.items)) ? doc.items : {};
+
+    // Header & Subject
+    setVal('builder-doc-title-text', doc.docTitleText || meta.docTitleText || '');
+    setVal('builder-doc-subject', doc.subject || meta.subject || '');
+    setChk('builder-toggle-subject', doc.showSubject !== undefined ? !!doc.showSubject : (meta.showSubject !== undefined ? !!meta.showSubject : true));
+    setChk('builder-toggle-logo', doc.showLogo !== undefined ? !!doc.showLogo : (meta.showLogo !== undefined ? !!meta.showLogo : true));
+
+    // Enterprise fields (default from doc/meta, never alters profile)
+    const biz = this.state.business;
+    setVal('builder-biz-name', doc.issuerName || meta.issuerName || doc.bizName || biz.name || '');
+    setVal('builder-biz-address', doc.issuerAddress || meta.issuerAddress || biz.address || '');
+    setVal('builder-biz-phone', doc.issuerPhone || meta.issuerPhone || biz.phone || '');
+    setVal('builder-biz-email', doc.issuerEmail || meta.issuerEmail || biz.email || '');
+    setVal('builder-biz-legal', doc.issuerLegal || meta.issuerLegal || biz.legal || '');
+
+    // Client select & fields
+    const clientSelect = document.getElementById('builder-doc-client-select');
+    if (clientSelect) {
+      clientSelect.innerHTML = `<option value="">-- Sélectionner un client --</option>` + (this.state.clients || []).map(c => `
+        <option value="${c.id}" ${String(c.id) === String(doc.clientId) ? 'selected' : ''}>${c.name} (${c.company || c.contactName || 'Particulier'})</option>
+      `).join('');
+      if (doc.clientId) clientSelect.value = doc.clientId;
+    }
+
+    setVal('builder-client-name', doc.clientName || '');
+    setVal('builder-client-email', doc.clientEmail || '');
+    setVal('builder-client-address', doc.clientAddress || meta.clientAddress || '');
+    setVal('builder-client-phone', doc.clientPhone || '');
+    setVal('builder-client-taxid', doc.clientTaxId || meta.clientTaxId || (doc.client && doc.client.taxId) || '');
+
+    // Column labels
+    const colLabels = doc.columnLabels || meta.columnLabels || {};
+    setVal('builder-col-desc', colLabels.desc || 'Description');
+    setVal('builder-col-qty', colLabels.qty || 'Quantité');
+    setVal('builder-col-unit', colLabels.unit || 'Unité');
+    setVal('builder-col-price', colLabels.price || 'Prix Unitaire');
+    setVal('builder-col-tax', colLabels.tax || 'TVA');
+    setVal('builder-col-discount', colLabels.discount || 'Remise');
+    setVal('builder-col-total', colLabels.total || 'Total HT');
+
+    // Totals labels
+    const totLabels = doc.labels || meta.labels || {};
+    setVal('builder-lbl-subtotal', totLabels.subtotal || 'Sous-total HT');
+    setVal('builder-lbl-tax', totLabels.tax || 'TVA');
+    setVal('builder-lbl-total', totLabels.total || 'Total TTC');
+    setVal('builder-lbl-deposit', totLabels.deposit || 'Acompte déjà versé');
+    setVal('builder-lbl-balance', totLabels.balance || 'Solde net à payer');
+
+    // Totals & options
+    const hasVat = doc.showVat !== undefined ? !!doc.showVat : (meta.showVat !== undefined ? !!meta.showVat : ((Number(doc.tax) || Number(doc.tax_amount) || Number(doc.taxRate)) > 0));
+    setChk('builder-toggle-vat', hasVat);
+
+    const hasDiscount = doc.showDiscount !== undefined ? !!doc.showDiscount : (meta.showDiscount !== undefined ? !!meta.showDiscount : ((Number(doc.discount) || 0) > 0));
+    setChk('builder-toggle-discount', hasDiscount);
+    setVal('builder-discount-value', doc.discountVal !== undefined ? doc.discountVal : (meta.discountVal !== undefined ? meta.discountVal : (doc.discount || 0)));
+    setVal('builder-discount-type', doc.discountType || meta.discountType || 'percent');
+    this.onBuilderDiscountToggle();
+
+    const hasDeposit = doc.showDeposit !== undefined ? !!doc.showDeposit : (meta.showDeposit !== undefined ? !!meta.showDeposit : ((Number(doc.depositAmount) || Number(meta.depositAmount) || 0) > 0));
+    setChk('builder-toggle-deposit', hasDeposit);
+    setVal('builder-deposit-amount', doc.depositAmount !== undefined ? doc.depositAmount : (meta.depositAmount !== undefined ? meta.depositAmount : 0));
+    this.onBuilderDepositToggle();
+
+    // Payment terms & details
     const knownTerms = ['À réception', 'Net 7 jours', 'Net 15 jours', 'Net 30 jours', 'Net 45 jours', 'Net 60 jours'];
-    const docTerms = doc.terms || 'À réception';
+    const docTerms = doc.terms || doc.conditions || meta.terms || 'À réception';
     const termsSelectEl = document.getElementById('builder-terms-select');
     const termsInputEl = document.getElementById('builder-terms');
     if (termsSelectEl) {
@@ -2953,36 +3040,27 @@ window.KivoApp = {
     } else {
       setVal('builder-terms', docTerms);
     }
-    setVal('builder-payment-method', doc.paymentMethod || 'Virement bancaire');
 
-    // Enterprise fields from business settings
-    const biz = this.state.business;
-    setVal('builder-biz-name', biz.name || '');
-    setVal('builder-biz-address', biz.address || '');
-    setVal('builder-biz-phone', biz.phone || '');
-    setVal('builder-biz-email', biz.email || '');
+    setVal('builder-payment-method', doc.paymentMethod || meta.paymentMethod || 'Virement bancaire');
+    setChk('builder-toggle-payment-methods', doc.showPaymentMethods !== undefined ? !!doc.showPaymentMethods : (meta.showPaymentMethods !== undefined ? !!meta.showPaymentMethods : true));
+    setVal('builder-payment-details', doc.paymentDetails || meta.paymentDetails || '');
 
-    // Client select
-    const clientSelect = document.getElementById('builder-doc-client-select');
-    if (clientSelect) {
-      clientSelect.innerHTML = `<option value="">-- Sélectionner un client --</option>` + (this.state.clients || []).map(c => `
-        <option value="${c.id}" ${String(c.id) === String(doc.clientId) ? 'selected' : ''}>${c.name} (${c.company || c.contactName || 'Particulier'})</option>
-      `).join('');
-      if (doc.clientId) clientSelect.value = doc.clientId;
-    }
+    setVal('builder-notes', doc.notes || meta.notes || '');
+    setChk('builder-toggle-notes', doc.showNotes !== undefined ? !!doc.showNotes : (meta.showNotes !== undefined ? !!meta.showNotes : true));
 
-    // Client override fields
-    setVal('builder-client-name', doc.clientName || '');
-    setVal('builder-client-email', doc.clientEmail || '');
-    setVal('builder-client-address', doc.clientAddress || '');
-    setVal('builder-client-phone', doc.clientPhone || '');
+    setChk('builder-toggle-thankyou', doc.showThankYou !== undefined ? !!doc.showThankYou : (meta.showThankYou !== undefined ? !!meta.showThankYou : true));
+    setVal('builder-thankyou', doc.thankYouText || meta.thankYouText || 'Merci pour votre confiance !');
+
+    setChk('builder-toggle-legal', doc.showLegalNotices !== undefined ? !!doc.showLegalNotices : (meta.showLegalNotices !== undefined ? !!meta.showLegalNotices : true));
+    setVal('builder-legal-notices', doc.legalNoticesText || meta.legalNoticesText || doc.legalNotices || meta.legalNotices || (this.state.business?.legal || ''));
 
     // Logo restoration
-    if (doc.logoUrl === null) {
+    const restoredLogoUrl = doc.logoUrl !== undefined ? doc.logoUrl : (meta.logoUrl !== undefined ? meta.logoUrl : biz.logoUrl);
+    if (restoredLogoUrl === null) {
       this.builderCustomLogoUrl = null;
       this._invoiceLogoRemoved = true;
-    } else if (doc.logoUrl) {
-      this.builderCustomLogoUrl = doc.logoUrl;
+    } else if (restoredLogoUrl) {
+      this.builderCustomLogoUrl = restoredLogoUrl;
       this._invoiceLogoRemoved = false;
     } else {
       this.builderCustomLogoUrl = biz.logoUrl || null;
@@ -3001,29 +3079,32 @@ window.KivoApp = {
       if (uploadPrompt) uploadPrompt.style.display = 'block';
     }
 
-    // Color restoration
-    if (doc.primaryColor && document.getElementById('builder-color-primary')) {
-      document.getElementById('builder-color-primary').value = doc.primaryColor;
-      if (document.getElementById('builder-color-primary-text')) {
-        document.getElementById('builder-color-primary-text').value = doc.primaryColor;
-      }
-    }
-    if (doc.secondaryColor && document.getElementById('builder-color-secondary')) {
-      document.getElementById('builder-color-secondary').value = doc.secondaryColor;
-      if (document.getElementById('builder-color-secondary-text')) {
-        document.getElementById('builder-color-secondary-text').value = doc.secondaryColor;
-      }
-    }
+    // Colors & Template
+    const templateVal = doc.templateId || doc.visualTemplate || meta.templateId || biz.visualTemplate || 'minimalist';
+    setVal('builder-visual-template', templateVal);
+    const primColor = doc.primaryColor || meta.primaryColor || biz.primaryColor || '#4F46E5';
+    const secColor = doc.secondaryColor || meta.secondaryColor || biz.secondaryColor || '#7C3AED';
+    setVal('builder-color-primary', primColor);
+    setVal('builder-color-primary-text', primColor);
+    setVal('builder-color-secondary', secColor);
+    setVal('builder-color-secondary-text', secColor);
 
+    // Items table rows
     const tbody = document.getElementById('builder-items-tbody');
     if (tbody) tbody.innerHTML = '';
 
-    if (doc.items && doc.items.length > 0) {
-      doc.items.forEach(it => {
-        this.addBuilderLineItem(it.name, it.quantity, it.price, it.taxRate !== undefined ? it.taxRate : 0);
+    let lines = [];
+    if (Array.isArray(doc.items)) {
+      lines = doc.items;
+    } else if (doc.items && Array.isArray(doc.items.lines)) {
+      lines = doc.items.lines;
+    }
+    if (lines.length > 0) {
+      lines.forEach(it => {
+        this.addBuilderLineItem(it.name, it.quantity, it.price, it.taxRate !== undefined ? it.taxRate : 0, it.unit || '', it.discount || 0);
       });
     } else {
-      this.addBuilderLineItem('', 1, 0);
+      this.addBuilderLineItem('', 1, 0, 0, '', 0);
     }
 
     this.populateBuilderCatalogDropdown();
@@ -3034,9 +3115,9 @@ window.KivoApp = {
   },
 
   /**
-   * Adds a line item row in builder
+   * Adds a line item row in builder with multiline designation, unit, discount %, and row reordering
    */
-  addBuilderLineItem: function (name = '', qty = 1, price = '', tax = 0) {
+  addBuilderLineItem: function (name = '', qty = 1, price = '', tax = 0, unit = '', discount = 0) {
     const tbody = document.getElementById('builder-items-tbody');
     if (!tbody) return;
 
@@ -3044,18 +3125,24 @@ window.KivoApp = {
     const tr = document.createElement('tr');
     tr.id = rowId;
 
+    const lockedClass = this._isBuilderLocked ? ' builder-input-locked' : '';
+    const lockedDisabled = this._isBuilderLocked ? ' disabled' : '';
+
     tr.innerHTML = `
       <td style="padding-bottom: 0.5rem; padding-right: 0.5rem;">
-        <input type="text" class="form-input item-name" value="${name}" placeholder="Désignation du service ou produit" oninput="KivoApp.updateLiveInvoicePreview()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;">
+        <textarea class="form-input item-name${lockedClass}" rows="1" placeholder="Désignation du service ou produit (supporte plusieurs lignes)" oninput="KivoApp.updateLiveInvoicePreview()" style="width: 100%; padding: 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; resize: vertical; box-sizing: border-box;"${lockedDisabled}>${name}</textarea>
       </td>
-      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem;">
-        <input type="number" class="form-input item-qty" value="${qty}" min="1" oninput="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: center;">
+      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem; width: 9%;">
+        <input type="number" class="form-input item-qty${lockedClass}" value="${qty}" min="0.01" step="any" oninput="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: center; box-sizing: border-box;"${lockedDisabled}>
       </td>
-      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem;">
-        <input type="number" class="form-input item-price" value="${price}" min="0" oninput="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: right;">
+      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem; width: 9%;">
+        <input type="text" class="form-input item-unit${lockedClass}" value="${unit || ''}" placeholder="j, h, u..." oninput="KivoApp.updateLiveInvoicePreview()" style="width: 100%; padding: 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: center; box-sizing: border-box;"${lockedDisabled}>
       </td>
-      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem;">
-        <select class="form-select item-tax" onchange="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;">
+      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem; width: 16%;">
+        <input type="number" class="form-input item-price${lockedClass}" value="${price}" min="0" step="any" oninput="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: right; box-sizing: border-box;"${lockedDisabled}>
+      </td>
+      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem; width: 9%;">
+        <select class="form-select item-tax${lockedClass}" onchange="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; box-sizing: border-box;"${lockedDisabled}>
           <option value="0" ${tax == 0 ? 'selected' : ''}>0%</option>
           <option value="18" ${tax == 18 ? 'selected' : ''}>18%</option>
           <option value="20" ${tax == 20 ? 'selected' : ''}>20%</option>
@@ -3063,11 +3150,24 @@ window.KivoApp = {
           <option value="5" ${tax == 5 ? 'selected' : ''}>5%</option>
         </select>
       </td>
-      <td style="text-align: right; vertical-align: middle; padding-bottom: 0.5rem;">
-        <strong class="item-total-display" style="font-size: 0.85rem; color: #0F172A;">${(qty * (parseFloat(price) || 0)).toLocaleString('fr-FR')} FCFA</strong>
+      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem; width: 9%;">
+        <input type="number" class="form-input item-discount${lockedClass}" value="${discount || 0}" min="0" max="100" placeholder="0%" oninput="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: center; box-sizing: border-box;"${lockedDisabled}>
       </td>
-      <td style="text-align: center; vertical-align: middle; padding-bottom: 0.5rem;">
-        <button class="btn btn-danger btn-sm" onclick="this.closest('tr').remove(); KivoApp.recalculateBuilderTotals(); KivoApp.updateLiveInvoicePreview();" style="background: transparent; border: none; color: #EF4444; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 4px;" title="Supprimer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <td style="text-align: right; vertical-align: middle; padding-bottom: 0.5rem; width: 14%;">
+        <strong class="item-total-display" style="font-size: 0.85rem; color: #0F172A;">0 FCFA</strong>
+      </td>
+      <td style="text-align: center; vertical-align: middle; padding-bottom: 0.5rem; width: 10%;">
+        <div style="display: inline-flex; align-items: center; gap: 2px;">
+          <button type="button" class="btn-line-action" onclick="KivoApp.moveBuilderLineItem(this, -1)" title="Monter la ligne"${lockedDisabled}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
+          <button type="button" class="btn-line-action" onclick="KivoApp.moveBuilderLineItem(this, 1)" title="Descendre la ligne"${lockedDisabled}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <button type="button" class="btn-line-action btn-line-delete" onclick="KivoApp.removeBuilderLineItem(this)" title="Supprimer la ligne"${lockedDisabled}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
       </td>
     `;
 
@@ -3077,37 +3177,229 @@ window.KivoApp = {
   },
 
   /**
-   * Recalculates Subtotal HT, VAT amount, and Total TTC in builder
+   * Reorders a line item up or down
+   */
+  moveBuilderLineItem: function (btn, direction) {
+    if (this._isBuilderLocked) return;
+    const tr = btn.closest('tr');
+    if (!tr) return;
+    if (direction === -1 && tr.previousElementSibling) {
+      tr.parentNode.insertBefore(tr, tr.previousElementSibling);
+    } else if (direction === 1 && tr.nextElementSibling) {
+      tr.parentNode.insertBefore(tr.nextElementSibling, tr);
+    }
+    this.recalculateBuilderTotals();
+  },
+
+  /**
+   * Deletes a line item row
+   */
+  removeBuilderLineItem: function (btn) {
+    if (this._isBuilderLocked) return;
+    const tr = btn.closest('tr');
+    if (tr) {
+      tr.remove();
+      this.recalculateBuilderTotals();
+    }
+  },
+
+  /**
+   * Toggles custom column and totals labels panel
+   */
+  toggleColumnLabelsCustomizer: function () {
+    const p = document.getElementById('builder-column-labels-panel');
+    if (p) p.style.display = (p.style.display === 'none' || !p.style.display) ? 'block' : 'none';
+  },
+
+  /**
+   * Resets all custom column and totals labels to system defaults
+   */
+  resetBuilderLabels: function () {
+    const setV = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    setV('builder-col-desc', 'Description');
+    setV('builder-col-qty', 'Quantité');
+    setV('builder-col-unit', 'Unité');
+    setV('builder-col-price', 'Prix Unitaire');
+    setV('builder-col-tax', 'TVA');
+    setV('builder-col-discount', 'Remise');
+    setV('builder-col-total', 'Total HT');
+    setV('builder-lbl-subtotal', 'Sous-total HT');
+    setV('builder-lbl-tax', 'TVA');
+    setV('builder-lbl-total', 'Total TTC');
+    setV('builder-lbl-deposit', 'Acompte déjà versé');
+    setV('builder-lbl-balance', 'Solde net à payer');
+    this.updateLiveInvoicePreview();
+    this.showToast('Libellés réinitialisés par défaut', 'info');
+  },
+
+  /**
+   * Controls builder lock state (read-only for Sent/Paid/Overdue, editable for Draft)
+   */
+  setBuilderLockState: function (locked, status = 'sent') {
+    this._isBuilderLocked = !!locked;
+    const banner = document.getElementById('builder-locked-banner');
+    const statusTextEl = document.getElementById('builder-locked-status-text');
+    if (banner) {
+      banner.style.display = locked ? 'flex' : 'none';
+      if (statusTextEl) {
+        const readableStatus = (status === 'paid' || status === 'payée') ? 'Payé' : (status === 'overdue' ? 'En retard' : 'Envoyé');
+        statusTextEl.textContent = `Ce document est ${readableStatus}. Les modifications directes sont verrouillées pour préserver l'historique comptable.`;
+      }
+    }
+    const formPanel = document.querySelector('.builder-form-panel') || document.querySelector('.builder-editor-scroll') || document.getElementById('view-document-builder');
+    if (formPanel) {
+      const inputs = formPanel.querySelectorAll('input:not(#builder-unlock-btn), select, textarea, button:not(#builder-unlock-btn):not(.btn-back-dashboard):not(#btn-save-builder-doc)');
+      inputs.forEach(el => {
+        if (el.id === 'builder-unlock-btn') return;
+        el.disabled = locked;
+        if (locked) {
+          el.classList.add('builder-input-locked');
+        } else {
+          el.classList.remove('builder-input-locked');
+        }
+      });
+    }
+    const saveBtn = document.getElementById('btn-save-builder-doc');
+    if (saveBtn) {
+      saveBtn.disabled = locked;
+      saveBtn.style.opacity = locked ? '0.5' : '1';
+      saveBtn.style.cursor = locked ? 'not-allowed' : 'pointer';
+    }
+  },
+
+  /**
+   * Reopens document in draft mode and unlocks all fields while keeping the exact document number
+   */
+  unlockCurrentBuilderDoc: function () {
+    const statusSelect = document.getElementById('builder-doc-status');
+    if (statusSelect) statusSelect.value = 'draft';
+    this.setBuilderLockState(false);
+    this.showToast('Document rouvert en mode Brouillon. Vous pouvez le modifier.', 'info');
+    this.recalculateBuilderTotals();
+  },
+
+  /**
+   * Handles toggle discount visibility
+   */
+  onBuilderDiscountToggle: function () {
+    const chk = document.getElementById('builder-toggle-discount');
+    const row = document.getElementById('builder-discount-inputs-row');
+    if (row && chk) {
+      row.style.display = chk.checked ? 'flex' : 'none';
+    }
+    this.recalculateBuilderTotals();
+  },
+
+  /**
+   * Handles toggle deposit visibility
+   */
+  onBuilderDepositToggle: function () {
+    const chk = document.getElementById('builder-toggle-deposit');
+    const row = document.getElementById('builder-deposit-inputs-row');
+    if (row && chk) {
+      row.style.display = chk.checked ? 'flex' : 'none';
+    }
+    this.recalculateBuilderTotals();
+  },
+
+  /**
+   * Recalculates Subtotal HT, line discounts, global discount, VAT amount, deposit, and Total TTC in builder
    */
   recalculateBuilderTotals: function () {
     let subtotal = 0;
     let totalTaxAmount = 0;
     const currency = document.getElementById('builder-doc-currency') ? document.getElementById('builder-doc-currency').value : (this.state.business.currency || 'FCFA');
+    const showVat = document.getElementById('builder-toggle-vat') ? document.getElementById('builder-toggle-vat').checked : true;
 
     document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
-      const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
-      const price = parseFloat(tr.querySelector('.item-price').value) || 0;
-      const taxRate = parseFloat(tr.querySelector('.item-tax').value) || 0;
+      const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 0;
+      const price = parseFloat(tr.querySelector('.item-price')?.value) || 0;
+      const taxRate = showVat ? (parseFloat(tr.querySelector('.item-tax')?.value) || 0) : 0;
+      const rowDiscount = parseFloat(tr.querySelector('.item-discount')?.value) || 0;
       
-      const rowTotalHT = qty * price;
-      const rowTaxAmount = rowTotalHT * (taxRate / 100);
+      let rowTotalHT = qty * price;
+      if (rowDiscount > 0) {
+        rowTotalHT = Math.max(0, rowTotalHT - (rowTotalHT * (rowDiscount / 100)));
+      }
+      const rowTaxAmount = showVat ? rowTotalHT * (taxRate / 100) : 0;
       
-      tr.querySelector('.item-total-display').textContent = rowTotalHT.toLocaleString('fr-FR') + ' ' + currency;
+      const totDisp = tr.querySelector('.item-total-display');
+      if (totDisp) totDisp.textContent = rowTotalHT.toLocaleString('fr-FR') + ' ' + currency;
       
       subtotal += rowTotalHT;
       totalTaxAmount += rowTaxAmount;
     });
 
-    const grandTotal = Math.max(0, subtotal + totalTaxAmount);
+    // Global discount
+    const chkDiscount = document.getElementById('builder-toggle-discount');
+    const showDiscount = chkDiscount ? chkDiscount.checked : false;
+    const discountVal = parseFloat(document.getElementById('builder-discount-value')?.value) || 0;
+    const discountType = document.getElementById('builder-discount-type')?.value || 'amount';
+    let globalDiscount = 0;
+    if (showDiscount && discountVal > 0) {
+      if (discountType === 'percent') {
+        globalDiscount = subtotal * (discountVal / 100);
+      } else {
+        globalDiscount = discountVal;
+      }
+      globalDiscount = Math.min(globalDiscount, subtotal);
+    }
 
+    const taxableAmount = Math.max(0, subtotal - globalDiscount);
+    const grandTotal = Math.max(0, taxableAmount + (showVat ? totalTaxAmount : 0));
+
+    // Deposit
+    const chkDeposit = document.getElementById('builder-toggle-deposit');
+    const showDeposit = chkDeposit ? chkDeposit.checked : false;
+    const depositAmt = showDeposit ? (parseFloat(document.getElementById('builder-deposit-amount')?.value) || 0) : 0;
+    const balanceDue = Math.max(0, grandTotal - depositAmt);
+
+    // Update UI elements
     const subtotalEl = document.getElementById('builder-calc-subtotal');
     if (subtotalEl) subtotalEl.textContent = subtotal.toLocaleString('fr-FR') + ' ' + currency;
-    
+
+    const discRow = document.getElementById('builder-calc-discount-row');
+    const discAmtEl = document.getElementById('builder-calc-discount-amount');
+    if (discRow && discAmtEl) {
+      if (showDiscount && globalDiscount > 0) {
+        discRow.style.display = 'flex';
+        discAmtEl.textContent = '-' + globalDiscount.toLocaleString('fr-FR') + ' ' + currency;
+      } else {
+        discRow.style.display = 'none';
+      }
+    }
+
+    const taxRow = document.getElementById('builder-calc-tax-row');
     const taxAmtEl = document.getElementById('builder-calc-tax-amount');
-    if (taxAmtEl) taxAmtEl.textContent = totalTaxAmount.toLocaleString('fr-FR') + ' ' + currency;
-    
+    if (taxRow && taxAmtEl) {
+      taxRow.style.display = showVat ? 'flex' : 'none';
+      taxAmtEl.textContent = totalTaxAmount.toLocaleString('fr-FR') + ' ' + currency;
+    }
+
     const totalEl = document.getElementById('builder-calc-total');
     if (totalEl) totalEl.textContent = grandTotal.toLocaleString('fr-FR') + ' ' + currency;
+
+    const depRow = document.getElementById('builder-calc-deposit-row');
+    const depEl = document.getElementById('builder-calc-deposit-display');
+    if (depRow && depEl) {
+      if (showDeposit && depositAmt > 0) {
+        depRow.style.display = 'flex';
+        depEl.textContent = '-' + depositAmt.toLocaleString('fr-FR') + ' ' + currency;
+      } else {
+        depRow.style.display = 'none';
+      }
+    }
+
+    const balRow = document.getElementById('builder-calc-balance-row');
+    const balEl = document.getElementById('builder-calc-balance-display');
+    if (balRow && balEl) {
+      if (showDeposit && depositAmt > 0) {
+        balRow.style.display = 'flex';
+        balEl.textContent = balanceDue.toLocaleString('fr-FR') + ' ' + currency;
+      } else {
+        balRow.style.display = 'none';
+      }
+    }
 
     this.updateLiveInvoicePreview();
   },
@@ -3973,6 +4265,7 @@ window.KivoApp = {
     const customClientEmail = (document.getElementById('builder-client-email')?.value || '').trim();
     const customClientPhone = (document.getElementById('builder-client-phone')?.value || '').trim();
     const customClientAddress = (document.getElementById('builder-client-address')?.value || '').trim();
+    const customClientTaxId = (document.getElementById('builder-client-taxid')?.value || '').trim();
 
     const clientObj = (this.state.clients || []).find(c => String(c.id) === String(clientId)) || {
       id: clientId || 'cli_anon',
@@ -3980,6 +4273,7 @@ window.KivoApp = {
       email: customClientEmail,
       phone: customClientPhone,
       address: customClientAddress,
+      taxId: customClientTaxId,
       clientType: 'B2C'
     };
     const issueDate = document.getElementById('builder-issue-date').value;
@@ -3987,21 +4281,81 @@ window.KivoApp = {
     const rawBuilderStatus = (document.getElementById('builder-doc-status')?.value || 'draft').toLowerCase().trim();
     const isStatusPaid = rawBuilderStatus === 'paid' || rawBuilderStatus === 'payée' || rawBuilderStatus === 'payee';
     const status = isStatusPaid ? 'paid' : (rawBuilderStatus || 'draft');
-    const notes = document.getElementById('builder-notes').value;
-    const terms = document.getElementById('builder-terms').value;
 
+    // Point B: Custom header and issuer fields (stored per-document, NEVER modifies state.business profile)
+    const docTitleText = (document.getElementById('builder-doc-title-text')?.value || '').trim();
+    const subject = (document.getElementById('builder-doc-subject')?.value || '').trim();
+    const showSubject = document.getElementById('builder-toggle-subject') ? document.getElementById('builder-toggle-subject').checked : true;
+    const showLogo = document.getElementById('builder-toggle-logo') ? document.getElementById('builder-toggle-logo').checked : true;
+    const logoSize = parseInt(document.getElementById('builder-logo-size')?.value) || 70;
+    const logoPosition = document.getElementById('builder-logo-position')?.value || 'right';
+    const issuerName = (document.getElementById('builder-biz-name')?.value || '').trim() || this.getBusinessName();
+    const issuerAddress = (document.getElementById('builder-biz-address')?.value || '').trim();
+    const issuerPhone = (document.getElementById('builder-biz-phone')?.value || '').trim();
+    const issuerEmail = (document.getElementById('builder-biz-email')?.value || '').trim();
+    const issuerLegal = (document.getElementById('builder-biz-legal')?.value || '').trim();
+
+    // Column custom labels
+    const columnLabels = {
+      desc: (document.getElementById('builder-col-desc')?.value || '').trim() || 'Description',
+      qty: (document.getElementById('builder-col-qty')?.value || '').trim() || 'Quantité',
+      unit: (document.getElementById('builder-col-unit')?.value || '').trim() || 'Unité',
+      price: (document.getElementById('builder-col-price')?.value || '').trim() || 'Prix Unitaire',
+      tax: (document.getElementById('builder-col-tax')?.value || '').trim() || 'TVA',
+      discount: (document.getElementById('builder-col-discount')?.value || '').trim() || 'Remise',
+      total: (document.getElementById('builder-col-total')?.value || '').trim() || 'Total HT'
+    };
+
+    // Totals custom labels
+    const labels = {
+      subtotal: (document.getElementById('builder-lbl-subtotal')?.value || '').trim() || 'Sous-total HT',
+      tax: (document.getElementById('builder-lbl-tax')?.value || '').trim() || 'TVA',
+      total: (document.getElementById('builder-lbl-total')?.value || '').trim() || 'Total TTC',
+      deposit: (document.getElementById('builder-lbl-deposit')?.value || '').trim() || 'Acompte déjà versé',
+      balance: (document.getElementById('builder-lbl-balance')?.value || '').trim() || 'Solde net à payer'
+    };
+
+    // Toggles & options
+    const showVat = document.getElementById('builder-toggle-vat') ? document.getElementById('builder-toggle-vat').checked : true;
+    const showDiscount = document.getElementById('builder-toggle-discount') ? document.getElementById('builder-toggle-discount').checked : false;
+    const discountVal = parseFloat(document.getElementById('builder-discount-value')?.value) || 0;
+    const discountType = document.getElementById('builder-discount-type')?.value || 'percent';
+
+    const showDeposit = document.getElementById('builder-toggle-deposit') ? document.getElementById('builder-toggle-deposit').checked : false;
+    const depositAmount = showDeposit ? (parseFloat(document.getElementById('builder-deposit-amount')?.value) || 0) : 0;
+
+    const terms = document.getElementById('builder-terms')?.value || 'À réception';
+    const paymentMethod = document.getElementById('builder-payment-method')?.value || 'Virement bancaire';
+    const showPaymentMethods = document.getElementById('builder-toggle-payment-methods') ? document.getElementById('builder-toggle-payment-methods').checked : true;
+    const paymentDetails = (document.getElementById('builder-payment-details')?.value || '').trim();
+
+    const notes = (document.getElementById('builder-notes')?.value || '').trim();
+    const showNotes = document.getElementById('builder-toggle-notes') ? document.getElementById('builder-toggle-notes').checked : true;
+
+    const thankYouText = (document.getElementById('builder-thankyou')?.value || '').trim() || 'Merci pour votre confiance !';
+    const showThankYou = document.getElementById('builder-toggle-thankyou') ? document.getElementById('builder-toggle-thankyou').checked : true;
+
+    const legalNoticesText = (document.getElementById('builder-legal-notices')?.value || '').trim();
+    const showLegalNotices = document.getElementById('builder-toggle-legal') ? document.getElementById('builder-toggle-legal').checked : true;
+
+    // Items table read
     const items = [];
     let subtotal = 0;
     let totalTaxAmount = 0;
     document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
       const name = (tr.querySelector('.item-name')?.value || '').trim();
       const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 1;
+      const unit = (tr.querySelector('.item-unit')?.value || '').trim();
       const price = parseFloat(tr.querySelector('.item-price')?.value) || 0;
-      const taxRate = parseFloat(tr.querySelector('.item-tax') ? tr.querySelector('.item-tax').value : 0) || 0;
-      const totalHT = qty * price;
-      const taxAmount = totalHT * (taxRate / 100);
-      if (name) {
-        items.push({ name, quantity: qty, price, taxRate, total: totalHT + taxAmount, totalHT });
+      const taxRate = (showVat && tr.querySelector('.item-tax')) ? (parseFloat(tr.querySelector('.item-tax').value) || 0) : 0;
+      const rowDiscount = parseFloat(tr.querySelector('.item-discount')?.value) || 0;
+      let totalHT = qty * price;
+      if (rowDiscount > 0) {
+        totalHT = Math.max(0, totalHT - (totalHT * (rowDiscount / 100)));
+      }
+      const taxAmount = showVat ? totalHT * (taxRate / 100) : 0;
+      if (name || price > 0) {
+        items.push({ name, quantity: qty, unit, price, taxRate, discount: rowDiscount, total: totalHT + taxAmount, totalHT });
         subtotal += totalHT;
         totalTaxAmount += taxAmount;
       }
@@ -4012,9 +4366,19 @@ window.KivoApp = {
       return;
     }
 
-    const grandTotal = Math.max(0, subtotal + totalTaxAmount);
-    const discount = 0;
-    const taxRate = 0; // Per-line taxes used instead
+    let globalDiscount = 0;
+    if (showDiscount && discountVal > 0) {
+      if (discountType === 'percent') {
+        globalDiscount = subtotal * (discountVal / 100);
+      } else {
+        globalDiscount = discountVal;
+      }
+      globalDiscount = Math.min(globalDiscount, subtotal);
+    }
+
+    const taxableAmount = Math.max(0, subtotal - globalDiscount);
+    const grandTotal = Math.max(0, taxableAmount + (showVat ? totalTaxAmount : 0));
+    const finalAmountPaid = isStatusPaid ? grandTotal : (showDeposit && depositAmount > 0 ? Math.min(depositAmount, grandTotal) : 0);
 
     const docId = existingDocId || this.generateUUID();
 
@@ -4024,26 +4388,53 @@ window.KivoApp = {
       type: type,
       status: status,
       currency: currency,
-      bizName: (document.getElementById('builder-biz-name') || {}).value || this.getBusinessName(),
+      docTitleText: docTitleText,
+      subject: subject,
+      showSubject: showSubject,
+      showLogo: showLogo,
+      logoSize: logoSize,
+      logoPosition: logoPosition,
+      bizName: issuerName,
+      issuerName: issuerName,
+      issuerAddress: issuerAddress,
+      issuerPhone: issuerPhone,
+      issuerEmail: issuerEmail,
+      issuerLegal: issuerLegal,
       clientId: clientObj.id,
       clientName: customClientName || clientObj.name || 'Client Destinataire',
       clientType: clientObj.clientType || 'B2C',
-      clientTaxId: clientObj.taxId || '',
+      clientTaxId: customClientTaxId || clientObj.taxId || '',
       clientLegalFieldName: clientObj.legalFieldName || '',
       clientEmail: customClientEmail || clientObj.email || '',
       clientPhone: customClientPhone || clientObj.phone || '',
       clientAddress: customClientAddress || clientObj.address || '',
       issueDate: issueDate,
       dueDate: dueDate,
+      columnLabels: columnLabels,
+      labels: labels,
       items: items,
       subtotal: subtotal,
-      discount: discount,
-      taxRate: taxRate,
-      tax: totalTaxAmount,
+      discount: globalDiscount,
+      showDiscount: showDiscount,
+      discountVal: discountVal,
+      discountType: discountType,
+      showVat: showVat,
+      taxRate: 0, // Per-line taxes used
+      tax: showVat ? totalTaxAmount : 0,
       total: grandTotal,
-      amountPaid: isStatusPaid ? grandTotal : 0,
+      showDeposit: showDeposit,
+      depositAmount: depositAmount,
+      amountPaid: finalAmountPaid,
       notes: notes,
+      showNotes: showNotes,
       terms: terms,
+      paymentMethod: paymentMethod,
+      paymentDetails: paymentDetails,
+      showPaymentMethods: showPaymentMethods,
+      thankYouText: thankYouText,
+      showThankYou: showThankYou,
+      legalNoticesText: legalNoticesText,
+      showLegalNotices: showLegalNotices,
       visualTemplate: document.getElementById('builder-visual-template') ? document.getElementById('builder-visual-template').value : ((this.state.business && this.state.business.visualTemplate) || 'minimalist'),
       templateId: document.getElementById('builder-visual-template') ? document.getElementById('builder-visual-template').value : ((this.state.business && this.state.business.visualTemplate) || 'minimalist'),
       logoUrl: this._invoiceLogoRemoved ? null : (this.builderCustomLogoUrl !== undefined && this.builderCustomLogoUrl !== null ? this.builderCustomLogoUrl : ((this.state.business && this.state.business.logoUrl) || null)),
@@ -4102,38 +4493,9 @@ window.KivoApp = {
 
     this.saveState();
 
-    // Sync to Supabase
+    // Sync to Supabase with full custom payload wrapped in items column
     if (window.KivoDb && this.supabaseConnected) {
-      // FIX: saveDocument() attend des clés camelCase — ne pas envoyer snake_case
-      window.KivoDb.saveDocument({
-        id: docObj.id,
-        number: docObj.number,
-        type: docObj.type,
-        status: docObj.status,
-        currency: docObj.currency,
-        clientId: docObj.clientId !== 'cli_anon' ? docObj.clientId : null,
-        clientName: docObj.clientName || '',
-        clientType: docObj.clientType || 'B2C',
-        clientTaxId: docObj.clientTaxId || '',
-        clientEmail: docObj.clientEmail || '',
-        clientPhone: docObj.clientPhone || '',
-        issueDate: docObj.issueDate,
-        dueDate: docObj.dueDate,
-        items: docObj.items,
-        subtotal: docObj.subtotal,
-        discount: docObj.discount,
-        taxRate: docObj.taxRate || 0,
-        taxAmount: docObj.tax,
-        total: docObj.total,
-        amountPaid: docObj.amountPaid || 0,
-        notes: docObj.notes,
-        conditions: docObj.terms,
-        publicToken: docObj.publicToken,
-        viewsCount: docObj.viewsCount || 0,
-        primaryColor: docObj.primaryColor,
-        secondaryColor: docObj.secondaryColor,
-        templateId: docObj.templateId
-      }).catch(e => {
+      window.KivoDb.saveDocument(docObj).catch(e => {
         console.error('[KivoApp] Supabase saveDocument error:', e);
         this.showToast(this.friendlySupabaseError(e, this._t('toast_doc_cloud_fail')), "warning");
       });
@@ -8381,59 +8743,118 @@ window.KivoApp = {
       const currencyStr = targetDoc.currency || biz.currency || 'FCFA';
 
       let rawDocItems = targetDoc.items;
+      let meta = {};
       if (rawDocItems && typeof rawDocItems === 'object' && !Array.isArray(rawDocItems) && Array.isArray(rawDocItems.lines)) {
+        meta = rawDocItems;
         rawDocItems = rawDocItems.lines;
       } else if (typeof rawDocItems === 'string') {
         try {
           const parsed = JSON.parse(rawDocItems);
-          rawDocItems = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.lines) ? parsed.lines : []);
+          if (Array.isArray(parsed)) {
+            rawDocItems = parsed;
+          } else if (parsed && Array.isArray(parsed.lines)) {
+            meta = parsed;
+            rawDocItems = parsed.lines;
+          } else {
+            rawDocItems = [];
+          }
         } catch (_) {
           rawDocItems = [];
         }
       }
       if (!Array.isArray(rawDocItems)) rawDocItems = [];
 
-      const defaultBizName = targetDoc.bizName || biz.name || biz.owner || (window.KivoAuth?.user?.user_metadata?.full_name) || 'Mon Entreprise';
+      const defaultBizName = targetDoc.issuerName || meta.issuerName || targetDoc.bizName || biz.name || biz.owner || (window.KivoAuth?.user?.user_metadata?.full_name) || 'Mon Entreprise';
       const docBiz = Object.assign({}, biz, {
         name: defaultBizName,
-        logoUrl: (targetDoc.logoUrl !== undefined && targetDoc.logoUrl !== null) ? targetDoc.logoUrl : biz.logoUrl,
-        primaryColor: targetDoc.primaryColor || biz.primaryColor || '#0F172A',
-        secondaryColor: targetDoc.secondaryColor || biz.secondaryColor || '#64748B'
+        address: targetDoc.issuerAddress || meta.issuerAddress || biz.address || '',
+        phone: targetDoc.issuerPhone || meta.issuerPhone || biz.phone || '',
+        email: targetDoc.issuerEmail || meta.issuerEmail || biz.email || '',
+        legal: targetDoc.issuerLegal || meta.issuerLegal || biz.legal || '',
+        logoUrl: (targetDoc.logoUrl !== undefined && targetDoc.logoUrl !== null) ? targetDoc.logoUrl : (meta.logoUrl !== undefined ? meta.logoUrl : biz.logoUrl),
+        logoSize: targetDoc.logoSize || meta.logoSize || biz.logoSize || 70,
+        logoPosition: targetDoc.logoPosition || meta.logoPosition || biz.logoPosition || 'right',
+        primaryColor: targetDoc.primaryColor || meta.primaryColor || biz.primaryColor || '#0F172A',
+        secondaryColor: targetDoc.secondaryColor || meta.secondaryColor || biz.secondaryColor || '#64748B'
       });
+
+      const colLabels = targetDoc.columnLabels || meta.columnLabels || {};
+      const totLabels = targetDoc.labels || meta.labels || {};
+
+      const subtotal = Number(targetDoc.subtotal) || Number(targetDoc.total) || 0;
+      const discount = Number(targetDoc.discount) || 0;
+      const showDiscount = targetDoc.showDiscount !== undefined ? !!targetDoc.showDiscount : (meta.showDiscount !== undefined ? !!meta.showDiscount : (discount > 0));
+      const showVat = targetDoc.showVat !== undefined ? !!targetDoc.showVat : (meta.showVat !== undefined ? !!meta.showVat : true);
+      const taxAmount = Number(targetDoc.tax) || Number(targetDoc.taxAmount) || Number(targetDoc.tax_amount) || 0;
+      const grandTotal = Number(targetDoc.total) || 0;
+      const deposit = targetDoc.depositAmount !== undefined ? Number(targetDoc.depositAmount) : (Number(meta.depositAmount) || 0);
+      const showDeposit = targetDoc.showDeposit !== undefined ? !!targetDoc.showDeposit : (meta.showDeposit !== undefined ? !!meta.showDeposit : (deposit > 0));
+      const balanceDue = Math.max(0, grandTotal - deposit);
 
       const docData = {
         biz: docBiz,
+        docTitleText: targetDoc.docTitleText || meta.docTitleText || '',
         docType: targetDoc.type || 'invoice',
         docNum: targetDoc.number || 'FAC-2026-0001',
-        issueDate: targetDoc.issueDate || new Date().toISOString().split('T')[0],
-        dueDate: targetDoc.dueDate || '',
+        issueDate: targetDoc.issueDate || meta.issueDate || new Date().toISOString().split('T')[0],
+        dueDate: targetDoc.dueDate || meta.dueDate || '',
         status: targetDoc.status || 'draft',
-        paymentMethod: targetDoc.paymentMethod || 'Virement bancaire',
-        terms: targetDoc.terms || targetDoc.conditions || 'À réception',
-        notes: targetDoc.notes || '',
+        subject: targetDoc.subject || meta.subject || '',
+        showSubject: targetDoc.showSubject !== undefined ? !!targetDoc.showSubject : (meta.showSubject !== undefined ? !!meta.showSubject : true),
+        showLogo: targetDoc.showLogo !== undefined ? !!targetDoc.showLogo : (meta.showLogo !== undefined ? !!meta.showLogo : true),
+        paymentMethod: targetDoc.paymentMethod || meta.paymentMethod || 'Virement bancaire',
+        paymentDetails: targetDoc.paymentDetails || meta.paymentDetails || '',
+        showPaymentMethods: targetDoc.showPaymentMethods !== undefined ? !!targetDoc.showPaymentMethods : (meta.showPaymentMethods !== undefined ? !!meta.showPaymentMethods : true),
+        terms: targetDoc.terms || targetDoc.conditions || meta.terms || 'À réception',
+        notes: targetDoc.notes || meta.notes || '',
+        showNotes: targetDoc.showNotes !== undefined ? !!targetDoc.showNotes : (meta.showNotes !== undefined ? !!meta.showNotes : true),
+        thankYouText: targetDoc.thankYouText || meta.thankYouText || 'Merci pour votre confiance !',
+        showThankYou: targetDoc.showThankYou !== undefined ? !!targetDoc.showThankYou : (meta.showThankYou !== undefined ? !!meta.showThankYou : true),
+        legalNotices: targetDoc.legalNoticesText || meta.legalNoticesText || targetDoc.legalNotices || meta.legalNotices || (biz.legal || ''),
+        showLegalNotices: targetDoc.showLegalNotices !== undefined ? !!targetDoc.showLegalNotices : (meta.showLegalNotices !== undefined ? !!meta.showLegalNotices : true),
         client: {
           name: targetDoc.clientName || 'Client Destinataire',
           company: targetDoc.clientCompany || '',
           phone: targetDoc.clientPhone || '',
           email: targetDoc.clientEmail || '',
-          address: targetDoc.clientAddress || '',
-          taxId: targetDoc.clientTaxId || (targetDoc.client && targetDoc.client.taxId) || '',
-          legalFieldName: targetDoc.clientLegalFieldName || (targetDoc.client && targetDoc.client.legalFieldName) || ''
+          address: targetDoc.clientAddress || meta.clientAddress || '',
+          taxId: targetDoc.clientTaxId || meta.clientTaxId || (targetDoc.client && targetDoc.client.taxId) || '',
+          legalFieldName: targetDoc.clientLegalFieldName || meta.clientLegalFieldName || (targetDoc.client && targetDoc.client.legalFieldName) || ''
         },
+        colDesc: colLabels.desc || 'Description',
+        colQty: colLabels.qty || 'Quantité',
+        colUnit: colLabels.unit || 'Unité',
+        colPrice: colLabels.price || 'Prix Unitaire',
+        colTax: colLabels.tax || 'TVA',
+        colDiscount: colLabels.discount || 'Remise',
+        colTotal: colLabels.total || 'Total HT',
+        lblSubtotal: totLabels.subtotal || 'Sous-total HT',
+        lblTax: totLabels.tax || 'TVA',
+        lblTotal: totLabels.total || 'Total TTC',
+        lblDeposit: totLabels.deposit || 'Acompte déjà versé',
+        lblBalance: totLabels.balance || 'Solde net à payer',
         items: rawDocItems.map(it => ({
           name: it.name || 'Article',
           quantity: Number(it.quantity) || 1,
+          unit: it.unit || '',
           price: Number(it.price) || 0,
           taxRate: (it.taxRate !== undefined && it.taxRate !== null) ? Number(it.taxRate) : (biz.defaultVatRate !== undefined ? biz.defaultVatRate : 0),
+          discount: Number(it.discount) || 0,
+          totalHT: Number(it.totalHT) || (Number(it.quantity || 1) * Number(it.price || 0)),
           total: Number(it.total) || (Number(it.quantity || 1) * Number(it.price || 0))
         })),
-        subtotal: Number(targetDoc.subtotal) || Number(targetDoc.total) || 0,
-        discount: Number(targetDoc.discount) || 0,
-        taxAmount: Number(targetDoc.tax) || Number(targetDoc.taxAmount) || Number(targetDoc.tax_amount) || 0,
-        grandTotal: Number(targetDoc.total) || 0,
+        subtotal: subtotal,
+        discount: discount,
+        showDiscount: showDiscount,
+        showVat: showVat,
+        taxAmount: taxAmount,
+        grandTotal: grandTotal,
+        deposit: deposit,
+        showDeposit: showDeposit,
+        balanceDue: balanceDue,
         currency: currencyStr,
-        primaryColor: targetDoc.primaryColor || biz.primaryColor || '#0F172A',
-        secondaryColor: targetDoc.secondaryColor || biz.secondaryColor || '#64748B'
+        primaryColor: targetDoc.primaryColor || meta.primaryColor || biz.primaryColor || '#0F172A',
+        secondaryColor: targetDoc.secondaryColor || meta.secondaryColor || biz.secondaryColor || '#64748B'
       };
 
       const filename = ((targetDoc.number || 'facture_KIVO').trim().replace(/[^a-zA-Z0-9-_]/g, '_')) + '.pdf';

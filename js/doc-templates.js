@@ -44,7 +44,7 @@ window.KivoTemplates = {
   },
 
 
-  rows: function (items, currency, accBg, isDark = false) {
+  rows: function (items, currency, accBg, isDark = false, d = {}) {
     let list = items;
     if (list && typeof list === 'object' && !Array.isArray(list) && Array.isArray(list.lines)) {
       list = list.lines;
@@ -59,28 +59,36 @@ window.KivoTemplates = {
     if (!list || !Array.isArray(list) || list.length === 0) {
       return `<tr><td colspan="5" style="text-align:center;color:${isDark ? '#64748B' : '#94a3b8'};padding:14px;font-size:11px;">Aucun article saisi</td></tr>`;
     }
-    return list.map((it, i) => `
+    const showVat = d.showVat !== false;
+    return list.map((it, i) => {
+      const unitStr = it.unit ? ` <span style="font-size:9.5px;color:${isDark ? '#94A3B8' : '#64748B'};">${it.unit}</span>` : '';
+      const discStr = (it.discount && Number(it.discount) > 0) ? `<div style="font-size:9.5px;color:#EF4444;font-weight:600;">-${it.discount}%</div>` : '';
+      const taxStr = showVat ? ((it.taxRate !== undefined && it.taxRate !== '') ? it.taxRate + ' %' : '-') : '-';
+      return `
       <tr style="background:${isDark ? (i % 2 === 0 ? '#1E222B' : '#181A20') : (i % 2 === 0 ? '#fff' : '#f8fafc')};">
-        <td style="padding:7px 10px;font-size:11px;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#E2E8F0' : '#1E293B'};">
+        <td style="padding:7px 10px;font-size:11px;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#E2E8F0' : '#1E293B'};white-space:pre-wrap;">
           <strong>${it.name || 'Article sans désignation'}</strong>
         </td>
-        <td style="padding:7px 10px;font-size:11px;text-align:center;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#94A3B8' : '#64748B'};">${it.quantity}</td>
-        <td style="padding:7px 10px;font-size:11px;text-align:right;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#E2E8F0' : '#1E293B'};">${this.fmt(it.price, currency)}</td>
-        <td style="padding:7px 10px;font-size:11px;text-align:center;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#94A3B8' : '#64748B'};">${it.taxRate !== undefined && it.taxRate !== '' ? it.taxRate + ' %' : '-'}</td>
-        <td style="padding:7px 10px;font-size:11px;text-align:right;font-weight:700;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};${accBg ? 'background:' + accBg + ';' : ''}color:${isDark ? '#F5D0B5' : '#0F172A'};">${this.fmt(it.total, currency)}</td>
-      </tr>`).join('');
+        <td style="padding:7px 10px;font-size:11px;text-align:center;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#94A3B8' : '#64748B'};">${it.quantity}${unitStr}</td>
+        <td style="padding:7px 10px;font-size:11px;text-align:right;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#E2E8F0' : '#1E293B'};">${this.fmt(it.price, currency)}${discStr}</td>
+        <td style="padding:7px 10px;font-size:11px;text-align:center;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#94A3B8' : '#64748B'};">${taxStr}</td>
+        <td style="padding:7px 10px;font-size:11px;text-align:right;font-weight:700;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};${accBg ? 'background:' + accBg + ';' : ''}color:${isDark ? '#F5D0B5' : '#0F172A'};">${this.fmt(it.totalHT || it.total, currency)}</td>
+      </tr>`;
+    }).join('');
   },
 
   collectData: function (state) {
     const biz = (state && state.business) || {};
     const get = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+    const getChecked = id => { const el = document.getElementById(id); return el ? el.checked : true; };
 
     // Capture live logo from preview element or state — with explicit deletion check
     const isLogoRemoved = window.KivoApp && window.KivoApp._invoiceLogoRemoved;
+    const showLogo = getChecked('builder-toggle-logo');
     const logoImg = document.getElementById('builder-logo-preview-img');
     const previewBox = document.getElementById('builder-logo-preview-box');
     let liveLogoUrl = '';
-    if (!isLogoRemoved) {
+    if (!isLogoRemoved && showLogo) {
       if (logoImg && logoImg.src && previewBox && previewBox.style.display !== 'none' && !logoImg.src.endsWith('/')) {
         liveLogoUrl = logoImg.src;
       } else if (window.KivoApp && window.KivoApp.builderCustomLogoUrl) {
@@ -101,6 +109,7 @@ window.KivoTemplates = {
       address:      get('builder-biz-address') || biz.address || '',
       phone:        get('builder-biz-phone')   || biz.phone   || '',
       email:        get('builder-biz-email')   || biz.email   || '',
+      legal:        get('builder-biz-legal')   || '',
       logoUrl:      liveLogoUrl,
       logoSize:     liveLogoSize,
       logoPosition: liveLogoPos
@@ -112,24 +121,31 @@ window.KivoTemplates = {
     const items = [];
     let subtotal = 0;
     let totalTaxAmount = 0;
+    const showVat = getChecked('builder-toggle-vat');
 
     // Read ALL rows in the table
     const itemRows = document.querySelectorAll('#builder-items-tbody tr');
     itemRows.forEach(tr => {
       const nameInput = tr.querySelector('.item-name');
       const qtyInput  = tr.querySelector('.item-qty');
+      const unitInput = tr.querySelector('.item-unit');
       const priceInput= tr.querySelector('.item-price');
       const taxInput  = tr.querySelector('.item-tax');
+      const discInput = tr.querySelector('.item-discount');
 
       const name  = nameInput ? nameInput.value.trim() : '';
       const qty   = qtyInput ? (parseFloat(qtyInput.value) || 1) : 1;
+      const unit  = unitInput ? unitInput.value.trim() : '';
       const price = priceInput ? (parseFloat(priceInput.value) || 0) : 0;
-      const taxRate = taxInput ? (parseFloat(taxInput.value) || 0) : 0;
+      const taxRate = (showVat && taxInput) ? (parseFloat(taxInput.value) || 0) : 0;
+      const rowDiscount = discInput ? (parseFloat(discInput.value) || 0) : 0;
 
-      // Only count rows that have a name or a price > 0
       if (name || price > 0) {
-        const itemTotal = qty * price;
-        const itemTax = itemTotal * (taxRate / 100);
+        let itemTotal = qty * price;
+        if (rowDiscount > 0) {
+          itemTotal = Math.max(0, itemTotal - (itemTotal * (rowDiscount / 100)));
+        }
+        const itemTax = showVat ? itemTotal * (taxRate / 100) : 0;
 
         subtotal += itemTotal;
         totalTaxAmount += itemTax;
@@ -137,38 +153,84 @@ window.KivoTemplates = {
         items.push({
           name: name || 'Article',
           quantity: qty,
+          unit: unit,
           price: price,
           taxRate: taxRate,
-          total: itemTotal
+          discount: rowDiscount,
+          totalHT: itemTotal,
+          total: itemTotal + itemTax
         });
       }
     });
 
-    const discount   = parseFloat(get('builder-input-discount')) || 0;
+    // Discount calculations
+    const showDiscount = getChecked('builder-toggle-discount');
+    const discountVal  = parseFloat(get('builder-discount-value')) || 0;
+    const discountType = get('builder-discount-type') || 'amount';
+    let discount = 0;
+    if (showDiscount && discountVal > 0) {
+      if (discountType === 'percent') {
+        discount = subtotal * (discountVal / 100);
+      } else {
+        discount = discountVal;
+      }
+    }
+    discount = Math.min(discount, subtotal);
+
+    // Deposit calculations
+    const showDeposit = getChecked('builder-toggle-deposit');
+    const deposit = showDeposit ? (parseFloat(get('builder-deposit-amount')) || 0) : 0;
+
     const taxable    = Math.max(0, subtotal - discount);
-    const grandTotal = Math.max(0, taxable + totalTaxAmount);
+    const grandTotal = Math.max(0, taxable + (showVat ? totalTaxAmount : 0));
+    const balanceDue = Math.max(0, grandTotal - deposit);
     const currency   = get('builder-doc-currency') || biz.currency || 'FCFA';
 
     return {
       biz: activeBiz,
+      docTitleText:   get('builder-doc-title-text')  || '',
       docType:        get('builder-doc-type')        || 'invoice',
       docNum:         get('builder-doc-number')      || '',
       issueDate:      get('builder-issue-date')      || new Date().toISOString().split('T')[0],
       dueDate:        get('builder-due-date')        || '',
       status:         get('builder-doc-status')      || 'draft',
-      paymentMethod:  get('builder-payment-method')  || 'Virement bancaire',
-      terms:          get('builder-terms')           || 'À réception',
-      notes:          get('builder-notes')           || '',
+      subject:        get('builder-doc-subject')     || '',
+      showSubject:    getChecked('builder-toggle-subject'),
+      showLogo:       showLogo,
       client: {
         name:    get('builder-client-name')    || clientFound.name    || clientFound.company || '',
         company: clientFound.company           || '',
         phone:   get('builder-client-phone')   || clientFound.phone   || '',
         email:   get('builder-client-email')   || clientFound.email   || '',
         address: get('builder-client-address') || clientFound.address || '',
-        taxId:   clientFound.taxId || '',
+        taxId:   get('builder-client-taxid')   || clientFound.taxId   || '',
         legalFieldName: clientFound.legalFieldName || ''
       },
-      items, subtotal, discount, taxAmount: totalTaxAmount, grandTotal, currency,
+      colDesc:     get('builder-col-desc')     || 'Description',
+      colQty:      get('builder-col-qty')      || 'Quantité',
+      colUnit:     get('builder-col-unit')     || 'Unité',
+      colPrice:    get('builder-col-price')    || 'Prix Unitaire',
+      colTax:      get('builder-col-tax')      || 'TVA',
+      colDiscount: get('builder-col-discount') || 'Remise',
+      colTotal:    get('builder-col-total')    || 'Total HT',
+      lblSubtotal: get('builder-lbl-subtotal') || 'Sous-total HT',
+      lblTax:      get('builder-lbl-tax')      || 'TVA',
+      lblTotal:    get('builder-lbl-total')    || 'Total TTC',
+      lblDeposit:  get('builder-lbl-deposit')  || 'Acompte déjà versé',
+      lblBalance:  get('builder-lbl-balance')  || 'Solde net à payer',
+      items, subtotal, discount, showDiscount, showVat,
+      taxAmount: showVat ? totalTaxAmount : 0,
+      grandTotal, deposit, showDeposit, balanceDue, currency,
+      terms:               get('builder-terms')                  || 'À réception',
+      paymentMethod:       get('builder-payment-method')         || 'Virement bancaire',
+      paymentDetails:      get('builder-payment-details')        || '',
+      showPaymentMethods:  getChecked('builder-toggle-payment-methods'),
+      notes:               get('builder-notes')                  || '',
+      showNotes:           getChecked('builder-toggle-notes'),
+      thankYouText:        get('builder-thankyou')               || '',
+      showThankYou:        getChecked('builder-toggle-thankyou'),
+      legalNotices:        get('builder-legal-notices')          || '',
+      showLegalNotices:    getChecked('builder-toggle-legal'),
       primaryColor:   (document.getElementById('builder-color-primary')   || {}).value || biz.primaryColor   || '#0F172A',
       secondaryColor: (document.getElementById('builder-color-secondary') || {}).value || biz.secondaryColor || '#64748B',
       lang: (window.KivoApp && KivoApp.state && KivoApp.state.language) || 'fr',
@@ -178,10 +240,16 @@ window.KivoTemplates = {
   // ── Header Renderer Helper (Supports Logo Left, Center, Right) ─────────
   renderHeader: function (d, titleColor, subtitleColor, isDark = false) {
     const _t = (key) => (window.KivoI18n ? KivoI18n.t(key, d.lang || 'fr') : key);
-    const lbl = d.docType === 'quote' ? _t('doc_quote') : _t('doc_invoice');
+    const defaultLbl = d.docType === 'quote' ? _t('doc_quote') : _t('doc_invoice');
+    const lbl = (d.docTitleText && d.docTitleText.trim()) ? d.docTitleText.trim() : defaultLbl;
     const pos = (d.biz && d.biz.logoPosition) || 'right';
-    const logo = this.logoHtml(d.biz, 70, 'square', isDark);
+    const showLogo = d.showLogo !== false;
+    const logo = showLogo ? this.logoHtml(d.biz, 70, 'square', isDark) : '';
     const bizDisplayName = (d.biz && d.biz.name) ? d.biz.name : ((d.biz && d.biz.owner) || 'Mon Entreprise');
+    const bizLegal = (d.biz && d.biz.legal) ? `<div style="font-size:10px;color:${subtitleColor};margin-top:2px;">${d.biz.legal}</div>` : '';
+    const subjectHtml = (d.showSubject !== false && d.subject && d.subject.trim())
+      ? `<div style="margin-top:10px;font-size:12px;font-weight:700;color:${titleColor};background:${isDark ? '#232733' : '#F1F5F9'};padding:4px 10px;border-radius:4px;display:inline-block;"><span style="color:${subtitleColor};font-weight:500;">Objet :</span> ${d.subject.trim()}</div>`
+      : '';
 
     const paidBadge = (d.status === 'paid' && d.docType !== 'quote') ? `
       <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 14px;background:#ECFDF5;border:1.5px solid #10B981;border-radius:20px;font-size:11px;font-weight:800;color:#047857;letter-spacing:0.04em;text-transform:uppercase;margin-top:6px;">
@@ -194,25 +262,29 @@ window.KivoTemplates = {
 
     if (pos === 'left') {
       return `
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">
-          <div style="display:flex;align-items:flex-start;gap:16px;">
-            ${logo}
-            <div>
-              <div style="font-size:19px;font-weight:900;color:${titleColor};">${bizDisplayName}</div>
-              <div style="font-size:11px;color:${subtitleColor};line-height:1.5;margin-top:3px;">
-                ${d.biz.address ? d.biz.address + '<br>' : ''}
-                ${d.biz.phone ? 'Tél.: ' + d.biz.phone + '<br>' : ''}
-                ${d.biz.email || ''}
+        <div style="margin-bottom:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div style="display:flex;align-items:flex-start;gap:16px;">
+              ${logo}
+              <div>
+                <div style="font-size:19px;font-weight:900;color:${titleColor};">${bizDisplayName}</div>
+                <div style="font-size:11px;color:${subtitleColor};line-height:1.5;margin-top:3px;">
+                  ${d.biz.address ? d.biz.address + '<br>' : ''}
+                  ${d.biz.phone ? 'Tél.: ' + d.biz.phone + '<br>' : ''}
+                  ${d.biz.email || ''}
+                  ${bizLegal}
+                </div>
               </div>
             </div>
+            <div style="text-align:right;">
+              <div style="font-size:26px;font-weight:900;color:${titleColor};letter-spacing:-0.02em;">${lbl}</div>
+              <div style="font-size:14px;font-weight:800;color:${titleColor};margin-top:3px;">${d.docNum}</div>
+              ${paidBadge ? `<div style="margin-top:3px;">${paidBadge}</div>` : ''}
+              <div style="font-size:11px;color:${subtitleColor};margin-top:5px;">${_t('doc_issue_date_label')} <strong>${d.issueDate}</strong></div>
+              ${d.dueDate ? `<div style="font-size:11px;color:${subtitleColor};">${_t('doc_due_date_label')} <strong>${d.dueDate}</strong></div>` : ''}
+            </div>
           </div>
-          <div style="text-align:right;">
-            <div style="font-size:28px;font-weight:900;color:${titleColor};letter-spacing:-0.02em;">${lbl}</div>
-            <div style="font-size:14px;font-weight:800;color:${titleColor};margin-top:3px;">${d.docNum}</div>
-            ${paidBadge ? `<div style="margin-top:3px;">${paidBadge}</div>` : ''}
-            <div style="font-size:11px;color:${subtitleColor};margin-top:5px;">${_t('doc_issue_date_label')} <strong>${d.issueDate}</strong></div>
-            ${d.dueDate ? `<div style="font-size:11px;color:${subtitleColor};">${_t('doc_due_date_label')} <strong>${d.dueDate}</strong></div>` : ''}
-          </div>
+          ${subjectHtml}
         </div>
       `;
     }
@@ -220,41 +292,45 @@ window.KivoTemplates = {
     if (pos === 'center') {
       return `
         <div style="text-align:center;margin-bottom:24px;border-bottom:1px solid ${isDark ? '#2D323F' : '#E2E8F0'};padding-bottom:18px;">
-          <div style="margin-bottom:10px;">${logo}</div>
+          ${logo ? `<div style="margin-bottom:10px;">${logo}</div>` : ''}
           <div style="font-size:22px;font-weight:900;color:${titleColor};">${lbl} · ${d.docNum}</div>
           ${paidBadge ? `<div style="margin:4px 0;">${paidBadge}</div>` : ''}
           <div style="font-size:13px;font-weight:700;color:${titleColor};margin-top:3px;">${bizDisplayName}</div>
           <div style="font-size:10.5px;color:${subtitleColor};margin-top:3px;">
-            ${d.biz.address} · ${d.biz.phone} · ${d.biz.email}
+            ${[d.biz.address, d.biz.phone, d.biz.email].filter(Boolean).join(' · ')}
+            ${bizLegal}
           </div>
           <div style="font-size:11px;color:${subtitleColor};margin-top:5px;">
             ${_t('doc_issue_date_label')} <strong>${d.issueDate}</strong> ${d.dueDate ? `· ${_t('doc_due_date_label')} <strong>${d.dueDate}</strong>` : ''}
           </div>
+          ${subjectHtml}
         </div>
       `;
     }
 
     // Default: 'right' (Matches reference image)
     return `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">
-        <div>
-          <div style="font-size:28px;font-weight:900;color:${titleColor};letter-spacing:-0.02em;margin-bottom:4px;">${lbl}</div>
-          <div style="font-size:15px;font-weight:800;color:${titleColor};">${bizDisplayName}</div>
-          <div style="font-size:11px;color:${subtitleColor};line-height:1.5;margin-top:3px;">
-            ${d.biz.address ? d.biz.address + '<br>' : ''}
-            ${d.biz.phone ? 'Tél.: ' + d.biz.phone + '<br>' : ''}
-            ${d.biz.email || ''}
+      <div style="margin-bottom:24px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div style="font-size:26px;font-weight:900;color:${titleColor};letter-spacing:-0.02em;margin-bottom:4px;">${lbl}</div>
+            <div style="font-size:15px;font-weight:800;color:${titleColor};">${bizDisplayName}</div>
+            <div style="font-size:11px;color:${subtitleColor};line-height:1.5;margin-top:3px;">
+              ${d.biz.address ? d.biz.address + '<br>' : ''}
+              ${d.biz.phone ? 'Tél.: ' + d.biz.phone + '<br>' : ''}
+              ${d.biz.email || ''}
+              ${bizLegal}
+            </div>
+          </div>
+          <div style="text-align:right;">
+            ${logo ? `<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">${logo}</div>` : ''}
+            <div style="font-size:15px;font-weight:800;color:${titleColor};">${d.docNum}</div>
+            ${paidBadge ? `<div style="margin-top:3px;">${paidBadge}</div>` : ''}
+            <div style="font-size:11px;color:${subtitleColor};margin-top:5px;">${_t('doc_issue_date_label')} <span style="color:${titleColor};font-weight:600;">${d.issueDate}</span></div>
+            ${d.dueDate ? `<div style="font-size:11px;color:${subtitleColor};">${_t('doc_due_date_label')} <span style="color:${titleColor};font-weight:600;">${d.dueDate}</span></div>` : ''}
           </div>
         </div>
-        <div style="text-align:right;">
-          <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
-            ${logo}
-          </div>
-          <div style="font-size:15px;font-weight:800;color:${titleColor};">${d.docNum}</div>
-          ${paidBadge ? `<div style="margin-top:3px;">${paidBadge}</div>` : ''}
-          <div style="font-size:11px;color:${subtitleColor};margin-top:5px;">${_t('doc_issue_date_label')} <span style="color:${titleColor};font-weight:600;">${d.issueDate}</span></div>
-          ${d.dueDate ? `<div style="font-size:11px;color:${subtitleColor};">${_t('doc_due_date_label')} <span style="color:${titleColor};font-weight:600;">${d.dueDate}</span></div>` : ''}
-        </div>
+        ${subjectHtml}
       </div>
     `;
   },
@@ -263,18 +339,19 @@ window.KivoTemplates = {
   renderClient: function (d, titleColor, subtitleColor, isDark = false) {
     const _t = (key) => (window.KivoI18n ? KivoI18n.t(key, d.lang || 'fr') : key);
     const hasClient = d.client && d.client.name;
-    // Secondary color used for client-box border accent
     const secColor = d.secondaryColor || (isDark ? '#94A3B8' : '#64748B');
     const borderStyle = isDark ? '#2D323F' : (d.secondaryColor || '#E2E8F0');
+    const taxIdVal = (d.client && (d.client.taxId || d.clientTaxId));
     return `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;background:${isDark ? '#222631' : '#F8FAFC'};padding:14px 18px;border-radius:8px;border:1px solid ${borderStyle};border-left:3px solid ${secColor};">
         <div>
           <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">${_t('doc_billed_to')}</div>
           <div style="font-size:15px;font-weight:800;color:${titleColor};margin-top:3px;">${hasClient ? d.client.name : '<span style="font-size:12px;font-weight:400;color:' + subtitleColor + ';font-style:italic;">' + _t('doc_select_client') + '</span>'}</div>
-          ${d.client.address || d.client.phone ? `
+          ${(d.client.address || d.client.phone || taxIdVal) ? `
           <div style="font-size:11px;color:${subtitleColor};line-height:1.4;margin-top:3px;">
             ${d.client.address ? d.client.address + '<br>' : ''}
-            ${d.client.phone ? 'Tél.: ' + d.client.phone : ''}
+            ${d.client.phone ? 'Tél.: ' + d.client.phone + '<br>' : ''}
+            ${taxIdVal ? '<span style="font-weight:600;">N° Fiscal / Registre :</span> ' + taxIdVal : ''}
           </div>` : ''}
         </div>
         <div style="text-align:right;">
@@ -288,71 +365,89 @@ window.KivoTemplates = {
   getLegalLabel: function (biz) {
     if (!biz) return 'N° d\'enregistrement / Identifiant fiscal';
     const c = (biz.country || '').toUpperCase();
-    const phone = (biz.phone || '');
-    const addr = (biz.address || '').toLowerCase();
-
-    // Congo (Brazzaville & RDC) : RCCM + NIU
-    if (c === 'CG' || c === 'CD' || phone.startsWith('+242') || phone.startsWith('+243') || addr.includes('congo') || addr.includes('brazzaville') || addr.includes('kinshasa')) {
-      return 'RCCM + NIU';
-    }
-    // Sénégal : NINEA
-    if (c === 'SN' || phone.startsWith('+221') || addr.includes('sénégal') || addr.includes('senegal') || addr.includes('dakar')) {
-      return 'NINEA';
-    }
-    // France : SIRET
-    if (c === 'FR' || phone.startsWith('+33') || addr.includes('france') || addr.includes('paris')) {
-      return 'SIRET';
-    }
-    // Côte d'Ivoire : RCCM
-    if (c === 'CI' || phone.startsWith('+225') || addr.includes('abidjan')) {
-      return 'RCCM';
-    }
-    // Champ générique sinon
+    if (c === 'CG') return 'RCCM / NIU';
+    if (c === 'CD') return 'RCCM / Id. Nat. / NIF';
+    if (c === 'SN') return 'NINEA';
+    if (c === 'FR') return 'SIRET';
+    if (c === 'CI') return 'RCCM';
     return (biz.legalFieldName && biz.legalFieldName !== 'N° Fiscal') ? biz.legalFieldName : 'N° d\'enregistrement / Identifiant fiscal';
   },
 
   // ── Totals, Payments & Footer Helper ──────────────────────────────────
   renderBottom: function (d, ac, isDark = false) {
     const _t = (key) => (window.KivoI18n ? KivoI18n.t(key, d.lang || 'fr') : key);
+    const lblSubtotal = d.lblSubtotal || _t('doc_subtotal_ht');
+    const lblTax = d.lblTax || _t('doc_vat_calc');
+    const lblTotal = d.lblTotal || _t('doc_total_ttc');
+    const showVat = d.showVat !== false;
+    const showDiscount = d.showDiscount !== false && (d.discount > 0);
+    const showDeposit = d.showDeposit !== false && (d.deposit > 0);
+    const depositAmount = showDeposit ? (d.deposit || 0) : 0;
+    const balanceDue = Math.max(0, (d.grandTotal || 0) - depositAmount);
+
     return `
       <div style="margin-top:auto;padding-top:16px;border-top:1.5px solid ${isDark ? '#2D323F' : '#E2E8F0'};">
         <!-- Totals Block -->
         <div style="display:flex;justify-content:flex-end;margin-bottom:18px;">
-          <div style="width:280px;font-size:12px;">
+          <div style="width:290px;font-size:12px;">
             <div style="display:flex;justify-content:space-between;padding:4px 0;color:${isDark ? '#94A3B8' : '#64748B'};">
-              <span>${_t('doc_subtotal_ht')}</span><strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};">${this.fmt(d.subtotal, d.currency)}</strong>
+              <span>${lblSubtotal}</span><strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};">${this.fmt(d.subtotal, d.currency)}</strong>
             </div>
-            <div style="display:flex;justify-content:space-between;padding:4px 0;color:${isDark ? '#94A3B8' : '#64748B'};">
-              <span>${_t('doc_vat_calc')}</span><strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};">${this.fmt(d.taxAmount, d.currency)}</strong>
-            </div>
-            ${d.discount > 0 ? `
+            ${showDiscount ? `
               <div style="display:flex;justify-content:space-between;padding:4px 0;color:#EF4444;">
-                <span>${_t('doc_discount')}</span><strong>-${this.fmt(d.discount, d.currency)}</strong>
+                <span>Remise</span><strong>-${this.fmt(d.discount, d.currency)}</strong>
+              </div>` : ''}
+            ${showVat ? `
+              <div style="display:flex;justify-content:space-between;padding:4px 0;color:${isDark ? '#94A3B8' : '#64748B'};">
+                <span>${lblTax}</span><strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};">${this.fmt(d.taxAmount, d.currency)}</strong>
               </div>` : ''}
             <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:17px;font-weight:900;color:${isDark ? '#F5D0B5' : ac};border-top:2.5px solid ${ac};padding-top:10px;margin-top:8px;">
-              <span>${_t('doc_total_ttc')}</span><span>${this.fmt(d.grandTotal, d.currency)}</span>
+              <span>${lblTotal}</span><span>${this.fmt(d.grandTotal, d.currency)}</span>
             </div>
+            ${showDeposit ? `
+              <div style="display:flex;justify-content:space-between;padding:5px 0;color:#059669;font-size:12px;margin-top:4px;">
+                <span>${d.lblDeposit || 'Acompte déjà versé'}</span><strong>-${this.fmt(depositAmount, d.currency)}</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:14px;font-weight:800;color:#D97706;border-top:1px dashed ${isDark ? '#475569' : '#CBD5E1'};padding-top:6px;margin-top:4px;">
+                <span>${d.lblBalance || 'Solde net à payer'}</span><span>${this.fmt(balanceDue, d.currency)}</span>
+              </div>` : ''}
           </div>
         </div>
 
         <!-- Payment Info & Notes -->
+        ${(d.showPaymentMethods !== false || (d.showNotes !== false && d.notes)) ? `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;background:${isDark ? '#222631' : '#F8FAFC'};padding:12px 16px;border-radius:8px;font-size:11px;color:${isDark ? '#94A3B8' : '#475569'};margin-bottom:14px;">
           <div>
-            <strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:4px;">${_t('doc_payment_title')}</strong>
-            <div>${_t('doc_mode')} <span style="font-weight:600;color:${isDark ? '#E2E8F0' : '#0F172A'};">${d.paymentMethod}</span></div>
-            <div>${_t('doc_terms')} <span style="font-weight:600;color:${isDark ? '#E2E8F0' : '#0F172A'};">${d.terms}</span></div>
+            ${d.showPaymentMethods !== false ? `
+              <strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:4px;">${_t('doc_payment_title')}</strong>
+              <div>${_t('doc_mode')} <span style="font-weight:600;color:${isDark ? '#E2E8F0' : '#0F172A'};">${d.paymentMethod}</span></div>
+              <div>${_t('doc_terms')} <span style="font-weight:600;color:${isDark ? '#E2E8F0' : '#0F172A'};">${d.terms}</span></div>
+              ${d.paymentDetails ? `<div style="margin-top:4px;white-space:pre-wrap;font-size:10px;color:${isDark ? '#CBD5E1' : '#334155'};">${d.paymentDetails}</div>` : ''}
+            ` : ''}
           </div>
           <div>
-            ${d.notes ? `<strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:4px;">${_t('doc_notes')}</strong><div>${d.notes}</div>` : ''}
+            ${(d.showNotes !== false && d.notes) ? `
+              <strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:4px;">${_t('doc_notes')}</strong>
+              <div style="white-space:pre-wrap;">${d.notes}</div>
+            ` : ''}
           </div>
-        </div>
+        </div>` : ''}
 
-        <!-- Footer -->
+        <!-- Thank-you note -->
+        ${(d.showThankYou !== false && d.thankYouText) ? `
+          <div style="text-align:center;font-size:11.5px;font-weight:700;color:${ac};margin:8px 0 10px 0;letter-spacing:0.02em;">
+            ${d.thankYouText}
+          </div>` : ''}
+
+        <!-- Footer / Mentions légales (TOUJOURS LE DERNIER BLOC) -->
+        ${d.showLegalNotices !== false ? `
         <div style="text-align:center;font-size:9.5px;color:${isDark ? '#64748B' : '#94A3B8'};padding-top:8px;border-top:1px solid ${isDark ? '#2D323F' : '#F1F5F9'};line-height:1.6;">
           <div>${[(d.biz && d.biz.name) || (d.biz && d.biz.owner) || 'Mon Entreprise', d.biz && d.biz.address, d.biz && d.biz.phone, d.biz && d.biz.email].filter(Boolean).join(' · ')}</div>
-          ${(d.biz && d.biz.taxId) ? `<div style="font-size:9px;color:${isDark ? '#94A3B8' : '#64748B'};">${this.getLegalLabel(d.biz)} : <strong>${d.biz.taxId}</strong></div>` : ''}
-          ${(d.client && d.client.taxId) ? `<div style="font-size:8.5px;color:${isDark ? '#94A3B8' : '#64748B'};">Client : ${d.client.name || ''} · ${d.client.legalFieldName || 'N° Fiscal'} : <strong>${d.client.taxId}</strong></div>` : ''}
-        </div>
+          ${d.legalNotices ? `<div style="margin-top:2px;">${d.legalNotices}</div>` : `
+            ${(d.biz && d.biz.taxId) ? `<div style="font-size:9px;color:${isDark ? '#94A3B8' : '#64748B'};">${this.getLegalLabel(d.biz)} : <strong>${d.biz.taxId}</strong></div>` : ''}
+            ${(d.client && d.client.taxId) ? `<div style="font-size:8.5px;color:${isDark ? '#94A3B8' : '#64748B'};">Client : ${d.client.name || ''} · ${d.client.legalFieldName || 'N° Fiscal'} : <strong>${d.client.taxId}</strong></div>` : ''}
+          `}
+        </div>` : ''}
       </div>
     `;
   },

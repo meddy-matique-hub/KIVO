@@ -5578,7 +5578,36 @@ html, body {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
-  min-height: 190px;
+  justify-content: space-between;
+  min-height: 155px;
+  box-sizing: border-box;
+}
+
+.kivo-dash-card-label {
+  font-size: 14px;
+  color: #6B7280;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.kivo-dash-card-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.kivo-dash-card-detail {
+  font-size: 14px;
+  color: #6B7280;
+  font-weight: 500;
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .kivo-dash-table-wrapper {
@@ -6399,5 +6428,35 @@ body.full-width-view .main-content {
   .phone-prefix-dropdown-list {
     width: 240px;
   }
+}
+
+.builder-input-locked {
+  background-color: #F8FAFC !important;
+  cursor: not-allowed !important;
+  opacity: 0.75 !important;
+  border-color: #E2E8F0 !important;
+}
+
+.btn-line-action {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748B;
+  transition: all 0.15s ease;
+}
+
+.btn-line-action:hover {
+  background: #F1F5F9;
+  color: #0F172A;
+}
+
+.btn-line-action.btn-line-delete:hover {
+  background: #FEE2E2;
+  color: #EF4444;
 }
 

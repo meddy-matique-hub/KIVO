@@ -192,6 +192,8 @@ if (window.KivoDb) {
 
       const resolvedCurrency = doc.currency || (window.KivoApp && window.KivoApp.state && window.KivoApp.state.business && window.KivoApp.state.business.currency) || 'FCFA';
 
+      const existingMeta = (doc.items && typeof doc.items === 'object' && !Array.isArray(doc.items)) ? doc.items : {};
+
       const itemsPayload = {
         lines: lines,
         issueDate: resolvedIssueDate,
@@ -199,7 +201,35 @@ if (window.KivoDb) {
         currency: resolvedCurrency,
         primaryColor: doc.primaryColor || doc.primary_color || null,
         secondaryColor: doc.secondaryColor || doc.secondary_color || null,
-        templateId: doc.templateId || doc.visualTemplate || doc.template_id || 'minimalist'
+        templateId: doc.templateId || doc.visualTemplate || doc.template_id || 'minimalist',
+        docTitleText: doc.docTitleText !== undefined ? doc.docTitleText : (existingMeta.docTitleText || ''),
+        subject: doc.subject !== undefined ? doc.subject : (existingMeta.subject || ''),
+        showSubject: doc.showSubject !== undefined ? !!doc.showSubject : (existingMeta.showSubject !== undefined ? !!existingMeta.showSubject : true),
+        showLogo: doc.showLogo !== undefined ? !!doc.showLogo : (existingMeta.showLogo !== undefined ? !!existingMeta.showLogo : true),
+        logoSize: doc.logoSize || existingMeta.logoSize || 70,
+        logoPosition: doc.logoPosition || existingMeta.logoPosition || 'right',
+        logoUrl: doc.logoUrl !== undefined ? doc.logoUrl : (existingMeta.logoUrl || null),
+        issuerName: doc.issuerName !== undefined ? doc.issuerName : (existingMeta.issuerName || doc.bizName || ''),
+        issuerAddress: doc.issuerAddress !== undefined ? doc.issuerAddress : (existingMeta.issuerAddress || ''),
+        issuerPhone: doc.issuerPhone !== undefined ? doc.issuerPhone : (existingMeta.issuerPhone || ''),
+        issuerEmail: doc.issuerEmail !== undefined ? doc.issuerEmail : (existingMeta.issuerEmail || ''),
+        issuerLegal: doc.issuerLegal !== undefined ? doc.issuerLegal : (existingMeta.issuerLegal || ''),
+        clientAddress: doc.clientAddress !== undefined ? doc.clientAddress : (existingMeta.clientAddress || ''),
+        columnLabels: doc.columnLabels || existingMeta.columnLabels || {},
+        showVat: doc.showVat !== undefined ? !!doc.showVat : (existingMeta.showVat !== undefined ? !!existingMeta.showVat : true),
+        showDiscount: doc.showDiscount !== undefined ? !!doc.showDiscount : (existingMeta.showDiscount !== undefined ? !!existingMeta.showDiscount : false),
+        discountType: doc.discountType || existingMeta.discountType || 'percent',
+        discountVal: doc.discountVal !== undefined ? doc.discountVal : (existingMeta.discountVal || 0),
+        showDeposit: doc.showDeposit !== undefined ? !!doc.showDeposit : (existingMeta.showDeposit !== undefined ? !!existingMeta.showDeposit : false),
+        depositAmount: doc.depositAmount !== undefined ? doc.depositAmount : (existingMeta.depositAmount || 0),
+        labels: doc.labels || existingMeta.labels || {},
+        showPaymentMethods: doc.showPaymentMethods !== undefined ? !!doc.showPaymentMethods : (existingMeta.showPaymentMethods !== undefined ? !!existingMeta.showPaymentMethods : true),
+        paymentDetails: doc.paymentDetails !== undefined ? doc.paymentDetails : (existingMeta.paymentDetails || ''),
+        showNotes: doc.showNotes !== undefined ? !!doc.showNotes : (existingMeta.showNotes !== undefined ? !!existingMeta.showNotes : true),
+        showThankYou: doc.showThankYou !== undefined ? !!doc.showThankYou : (existingMeta.showThankYou !== undefined ? !!existingMeta.showThankYou : true),
+        thankYouText: doc.thankYouText !== undefined ? doc.thankYouText : (existingMeta.thankYouText || ''),
+        showLegalNotices: doc.showLegalNotices !== undefined ? !!doc.showLegalNotices : (existingMeta.showLegalNotices !== undefined ? !!existingMeta.showLegalNotices : true),
+        legalNoticesText: doc.legalNoticesText !== undefined ? doc.legalNoticesText : (existingMeta.legalNoticesText || doc.legalNotices || '')
       };
 
       // Strict mapping to valid Supabase columns:
