@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accepter l'invitation — KIVO MATIQUE</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      color: #F1F5F9;
+    }
+    .card {
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 20px;
+      padding: 2.5rem 2rem;
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+    }
+    .logo { display: flex; align-items: center; justify-content: center; gap: 0.6rem; margin-bottom: 2rem; }
+    .logo-text { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.4rem; color: #F1F5F9; letter-spacing: -0.02em; }
+    .icon-wrap {
+      width: 72px; height: 72px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.5rem; transition: background 0.4s;
+    }
+    .icon-wrap.loading    { background: rgba(99, 102, 241, 0.15); }
+    .icon-wrap.success    { background: rgba(16, 185, 129, 0.15); }
+    .icon-wrap.error      { background: rgba(239, 68, 68, 0.15); }
+    .icon-wrap.needs-login{ background: rgba(245, 158, 11, 0.15); }
+    h1 { font-family: 'Outfit', sans-serif; font-size: 1.45rem; font-weight: 700; color: #F1F5F9; margin-bottom: 0.75rem; }
+    p  { font-size: 0.95rem; color: #94A3B8; line-height: 1.6; margin-bottom: 1.5rem; }
+    p strong { color: #E2E8F0; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      padding: 0.75rem 1.75rem; border-radius: 10px;
+      font-family: 'Inter', sans-serif; font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; border: none; text-decoration: none; transition: all 0.2s;
+    }
+    .btn-primary { background: linear-gradient(135deg, #4F46E5, #7C3AED); color: #fff; box-shadow: 0 4px 14px rgba(79,70,229,0.35); }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-secondary { background: rgba(99,102,241,0.1); color: #A5B4FC; border: 1px solid rgba(99,102,241,0.2); }
+    .btn-secondary:hover { background: rgba(99,102,241,0.2); }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid rgba(99,102,241,0.3); border-top-color: #6366F1;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    #login-form { display: none; text-align: left; margin-top: 1.5rem; }
+    #login-form label { font-size: 0.85rem; color: #94A3B8; margin-bottom: 0.4rem; display: block; }
+    #login-form input {
+      width: 100%; background: rgba(15,23,42,0.6);
+      border: 1px solid rgba(99,102,241,0.3); border-radius: 8px;
+      padding: 0.7rem 1rem; color: #F1F5F9;
+      font-size: 0.95rem; font-family: 'Inter', sans-serif;
+      outline: none; margin-bottom: 1rem; transition: border-color 0.2s;
+    }
+    #login-form input:focus { border-color: #6366F1; }
+    #login-form input[readonly] { opacity: 0.6; cursor: not-allowed; }
+    .divider { height: 1px; background: rgba(99,102,241,0.1); margin: 1.5rem 0; }
+    .footer-note { font-size: 0.78rem; color: #475569; margin-top: 1.5rem; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+      <path d="M7 6L14 16L7 26" stroke="#4F46E5" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M16 6L23 16L16 26" stroke="#7C3AED" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span class="logo-text">KIVO MATIQUE</span>
+  </div>
+
+  <div id="state-loading">
+    <div class="icon-wrap loading"><div class="spinner"></div></div>
+    <h1>Verification de l'invitation...</h1>
+    <p class="pulse">Merci de patienter quelques instants.</p>
+  </div>
+
+  <div id="state-needs-login" style="display:none;">
+    <div class="icon-wrap needs-login">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/>
+        <circle cx="12" cy="17" r="0.5" fill="#F59E0B" stroke="none"/>
+      </svg>
+    </div>
+    <h1>Connexion requise</h1>
+    <p>Pour accepter cette invitation, connectez-vous avec l'adresse e-mail a laquelle elle a ete envoyee.</p>
+    <div id="login-form">
+      <label>Adresse e-mail invitee</label>
+      <input type="email" id="invite-email-input" readonly placeholder="chargement...">
+      <label>Mot de passe</label>
+      <input type="password" id="invite-password-input" placeholder="Votre mot de passe">
+      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;" onclick="doLogin()">Se connecter et accepter</button>
+    </div>
+    <div class="divider"></div>
+    <p style="font-size:0.85rem;">Pas de compte ? <a href="#" onclick="doMagicLink()" style="color:#818CF8;">Recevoir un lien de connexion</a></p>
+  </div>
+
+  <div id="state-success" style="display:none;">
+    <div class="icon-wrap success">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <h1>Bienvenue dans l'equipe !</h1>
+    <p>Votre invitation a ete acceptee. Vous etes maintenant membre de l'espace KIVO MATIQUE.</p>
+    <a href="index.html" class="btn btn-primary">Acceder a l'application</a>
+  </div>
+
+  <div id="state-error" style="display:none;">
+    <div class="icon-wrap error">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </div>
+    <h1 id="error-title">Invitation invalide</h1>
+    <p id="error-message">Ce lien est invalide ou a expire. Demandez une nouvelle invitation.</p>
+    <a href="index.html" class="btn btn-secondary">Retour a l'accueil</a>
+  </div>
+
+  <p class="footer-note">KIVO MATIQUE — Invitation equipe securisee</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  var SUPABASE_URL  = 'https://fzdtdfymvhydtoyqpdxd.supabase.co';
+  var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6ZHRkZnltdmh5ZHRveXFwZHhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNjAyMTcsImV4cCI6MjEwMTkzNjIxN30.WK4pbZ1HYq5QDFasw3P3gKPz4KfMObGTfb721s5spdQ';
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  var params       = new URLSearchParams(window.location.search);
+  var inviteToken  = params.get('token') || '';
+  var inviteEmail  = params.get('email') || '';
+
+  function showState(id) {
+    ['state-loading','state-needs-login','state-success','state-error'].forEach(function(s) {
+      document.getElementById(s).style.display = (s === id) ? '' : 'none';
+    });
+  }
+
+  function showError(title, msg) {
+    document.getElementById('error-title').textContent   = title || 'Erreur';
+    document.getElementById('error-message').textContent = msg   || 'Une erreur est survenue.';
+    showState('state-error');
+  }
+
+  async function acceptInvite() {
+    if (!inviteToken) { showError('Lien invalide', 'Aucun token trouve dans le lien.'); return; }
+    var res = await sb.rpc('accept_team_invite', { p_token: inviteToken });
+    if (res.error) { showError('Erreur serveur', res.error.message || 'Impossible de traiter.'); return; }
+    var result = res.data;
+    if (!result || !result.ok) {
+      var errMap = {
+        not_authenticated:        ['Connexion requise',  'Vous devez etre connecte pour accepter cette invitation.'],
+        token_invalid_or_expired: ['Lien expire',        'Ce lien est invalide ou deja utilise.'],
+        email_mismatch:           ['Mauvais compte',     'Connectez-vous avec l\'e-mail qui a recu l\'invitation.'],
+        seats_full:               ['Quota atteint',      'L\'equipe a atteint sa limite de 5 membres (Plan Business).']
+      };
+      var key = result && result.error ? result.error : '';
+      var parts = errMap[key] || ['Invitation invalide', 'Demandez une nouvelle invitation.'];
+      showError(parts[0], parts[1]);
+      return;
+    }
+    showState('state-success');
+  }
+
+  async function init() {
+    // Cas: retour apres magic-link Supabase (hash)
+    if (window.location.hash && window.location.hash.includes('access_token')) {
+      await new Promise(function(r){ setTimeout(r, 900); });
+      var s2 = await sb.auth.getSession();
+      if (s2.data && s2.data.session) { await acceptInvite(); return; }
+    }
+    var sessionRes = await sb.auth.getSession();
+    if (sessionRes.data && sessionRes.data.session) {
+      await acceptInvite();
+    } else {
+      showState('state-needs-login');
+      var ei = document.getElementById('invite-email-input');
+      if (ei && inviteEmail) ei.value = inviteEmail;
+      document.getElementById('login-form').style.display = 'block';
+    }
+  }
+
+  async function doLogin() {
+    var email    = document.getElementById('invite-email-input').value.trim();
+    var password = document.getElementById('invite-password-input').value;
+    if (!email || !password) { alert('Remplissez les deux champs.'); return; }
+    showState('state-loading');
+    var res = await sb.auth.signInWithPassword({ email: email, password: password });
+    if (res.error) {
+      showState('state-needs-login');
+      document.getElementById('login-form').style.display = 'block';
+      alert('Connexion echouee : ' + res.error.message);
+      return;
+    }
+    await acceptInvite();
+  }
+
+  async function doMagicLink() {
+    var email = document.getElementById('invite-email-input').value.trim();
+    if (!email) { alert('Entrez votre adresse e-mail.'); return; }
+    var redirectUrl = window.location.href;
+    var res = await sb.auth.signInWithOtp({ email: email, options: { emailRedirectTo: redirectUrl } });
+    if (res.error) { alert('Erreur : ' + res.error.message); return; }
+    alert('Lien envoye a ' + email + '. Cliquez sur le lien dans l\'e-mail pour revenir ici.');
+  }
+
+  init();
+</script>
+</body>
+</html>

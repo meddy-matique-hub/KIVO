@@ -5371,19 +5371,27 @@ window.KivoApp = {
   },
 
   // ─────────────────────────────────────────────────────────────
-  // TEAM MANAGEMENT (Business Plan — 5 seats, Directeur/Membre)
-  // ─────────────────────────────────────────────────────────────
+  // TEAM MANAGEMENT (Business Plan — 5 sièges, Directeur/Membre)
+  // Toutes les opérations passent par KivoDb (Supabase) — AUCUNE écriture directe côté invité.
+  // ─────────────────────────────────────────────────────────────────────────────────────────
 
-  openInviteMemberModal: function () {
+  // Cache local des membres chargés depuis Supabase
+  _teamMembers: [],
+
+  openInviteMemberModal: async function () {
     const tier = (this.state.business && this.state.business.subscriptionTier) || 'Gratuit';
     if (tier !== 'Business') {
-      this.showToast(this._t('toast_team_invite_business_only'), 'info');
+      this.showToast('Cette fonctionnalité est réservée au plan Business.', 'info');
       this.navigate('settings');
       return;
     }
-    const members = (this.state.business.teamMembers) || [];
-    if (members.length >= 5) {
-      this.showToast(this._t('toast_team_seats_limit'), 'info');
+    // Charger les membres depuis Supabase pour vérifier le quota réel
+    await this.loadTeamMembers();
+    // 1 directeur + max 4 membres = 5 sièges
+    const activeCount = this._teamMembers.filter(m => m.status === 'active').length;
+    const pendingCount = this._teamMembers.filter(m => m.status === 'pending').length;
+    if (activeCount + pendingCount >= 4) {
+      this.showToast('Quota atteint : 4 membres max (+ 1 Directeur = 5 sièges). Retirez un membre pour en ajouter un autre.', 'info');
       return;
     }
     const emailInput = document.getElementById('invite-member-email');
@@ -5391,100 +5399,176 @@ window.KivoApp = {
     this.openModal('modal-invite-member');
   },
 
-  sendMemberInvite: function () {
-    const email = (document.getElementById('invite-member-email') || {}).value || '';
-    const role = (document.getElementById('invite-member-role') || {}).value || 'membre';
+  sendMemberInvite: async function () {
+    const email = ((document.getElementById('invite-member-email') || {}).value || '').trim();
+    const role  = (document.getElementById('invite-member-role')  || {}).value || 'membre';
     if (!email || !email.includes('@')) {
-      this.showToast(this._t('toast_team_email_invalid'), 'error');
+      this.showToast('Adresse e-mail invalide.', 'error');
       return;
     }
-    if (!this.state.business.teamMembers) this.state.business.teamMembers = [];
-    // Check duplicate
-    if (this.state.business.teamMembers.find(m => m.email === email)) {
-      this.showToast(this._t('toast_team_member_exists'), 'error');
+
+    const user = window.KivoAuth && window.KivoAuth.user;
+    if (!user) { this.showToast('Non authentifié.', 'error'); return; }
+
+    // Vérifier doublon en base
+    const existing = this._teamMembers.find(m => m.email.toLowerCase() === email.toLowerCase());
+    if (existing) {
+      this.showToast('Ce collaborateur est déjà invité ou membre.', 'error');
       return;
     }
-    const initials = email.split('@')[0].substring(0, 2).toUpperCase();
-    this.state.business.teamMembers.push({
-      id: 'mbr_' + Date.now(),
-      email: email,
-      role: role,
-      status: 'pending',
-      invitedAt: new Date().toISOString(),
-      initials: initials
-    });
-    this.saveState();
+
+    const inviteToken = this.generateUUID();
+    const row = {
+      id:           this.generateUUID(),
+      user_id:      user.id,
+      email:        email.toLowerCase(),
+      role:         role,
+      name:         email.split('@')[0],
+      status:       'pending',
+      invite_token: inviteToken,
+      invited_at:   new Date().toISOString()
+    };
+
+    // Insérer dans team_members (propriétaire uniquement — RLS garantit user_id = auth.uid())
+    const _kivoClient = window.KivoDb && window.KivoDb.supabase;
+    if (!_kivoClient) { this.showToast('Erreur de connexion Supabase.', 'error'); return; }
+
+    const { error: insertErr } = await _kivoClient.from('team_members').insert(row);
+    if (insertErr) {
+      this.showToast('Erreur lors de l'invitation : ' + (insertErr.message || 'inconnue'), 'error');
+      return;
+    }
+
+    // Envoyer l'e-mail d'invitation via Supabase Auth (magic link vers accept-invite.html)
+    const siteBase = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
+    const acceptUrl = `${siteBase}/accept-invite.html?token=${encodeURIComponent(inviteToken)}&email=${encodeURIComponent(email)}`;
+
+
+    try {
+      // Envoyer un magic link vers accept-invite.html (non bloquant)
+      await _kivoClient.auth.signInWithOtp({
+        email: email,
+        options: {
+          emailRedirectTo: acceptUrl,
+          shouldCreateUser: true,
+          data: { invite_token: inviteToken, invited_by: user.email }
+        }
+      });
+    } catch (_) { /* non bloquant — l'invitation est deja en base */ }
+
+
     this.closeModal('modal-invite-member');
-    this.showToast(this._t('toast_team_invite_sent').replace('{email}', email).replace('{role}', role), 'success');
+    this.showToast(`Invitation envoyée à ${email}. Le lien est valable 24 h.`, 'success');
+
+    // Rafraîchir la liste
+    await this.loadTeamMembers();
     this.renderTeam();
   },
 
-  renderTeam: function () {
+  loadTeamMembers: async function () {
+    const user = window.KivoAuth && window.KivoAuth.user;
+    if (!user) { this._teamMembers = []; return; }
+    const _kivoClient = window.KivoDb && window.KivoDb.supabase;
+    if (!_kivoClient) return;
+    const { data, error } = await _kivoClient
+      .from('team_members')
+      .select('id, email, role, name, status, invited_at, accepted_at, member_user_id, invite_token')
+      .eq('user_id', user.id)
+      .order('invited_at', { ascending: true });
+    this._teamMembers = (error || !data) ? [] : data;
+  },
+
+  renderTeam: async function () {
     const biz = this.state.business || {};
-    const owner = biz.owner || biz.name || 'Propriétaire';
+    const owner      = biz.owner || biz.name || 'Propriétaire';
     const ownerEmail = biz.email || (window.KivoAuth && window.KivoAuth.user ? window.KivoAuth.user.email : '');
-    const members = biz.teamMembers || [];
-    const totalSeats = 1 + members.length;
 
-    // KPIs
+    // Charger depuis Supabase si le cache est vide
+    if (!this._teamMembers || this._teamMembers.length === 0) {
+      await this.loadTeamMembers();
+    }
+    const members = this._teamMembers;
+    const activeCount = members.filter(m => m.status === 'active').length;
+    const totalSeats  = 1 + members.length; // 1 directeur + membres
+
+    // ── KPIs ────────────────────────────────────────────────────────────────
     const seatsEl = document.getElementById('team-kpi-seats');
-    if (seatsEl) seatsEl.innerHTML = `${totalSeats} <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">/ 5 (Plan Business)</span>`;
+    if (seatsEl) seatsEl.innerHTML =
+      `${totalSeats} <span style="font-size:1rem;color:var(--text-muted);font-weight:normal;">/ 5 (Plan Business)</span>`;
     const countEl = document.getElementById('team-active-count');
-    if (countEl) countEl.textContent = `${totalSeats} actif${totalSeats > 1 ? 's' : ''}`;
+    if (countEl) countEl.textContent = `${1 + activeCount} actif${(1 + activeCount) > 1 ? 's' : ''}`;
 
-    // Owner row identity
+    // ── Ligne propriétaire ───────────────────────────────────────────────────
     const ownerAvatarEl = document.getElementById('team-owner-avatar');
-    const ownerNameEl = document.getElementById('team-owner-name');
-    const ownerEmailEl = document.getElementById('team-owner-email');
-    if (ownerAvatarEl) ownerAvatarEl.textContent = owner.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() || 'KM';
-    if (ownerNameEl) ownerNameEl.textContent = owner;
-    if (ownerEmailEl) ownerEmailEl.textContent = ownerEmail;
+    const ownerNameEl   = document.getElementById('team-owner-name');
+    const ownerEmailEl  = document.getElementById('team-owner-email');
+    const initOwner = owner.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() || 'KM';
+    if (ownerAvatarEl) ownerAvatarEl.textContent = initOwner;
+    if (ownerNameEl)   ownerNameEl.textContent   = owner;
+    if (ownerEmailEl)  ownerEmailEl.textContent  = ownerEmail;
 
-    // Extra member rows
+    // ── Tableau des membres ──────────────────────────────────────────────────
     const tbody = document.getElementById('team-members-tbody');
     if (tbody) {
-      // Keep first row (owner), rebuild the rest
       const ownerRow = tbody.querySelector('tr');
       tbody.innerHTML = '';
       if (ownerRow) tbody.appendChild(ownerRow);
 
-      members.forEach(m => {
+      if (members.length === 0) {
         const tr = document.createElement('tr');
-        const statusBadge = m.status === 'pending'
-          ? `<span class="badge" style="background:#FFF7ED;color:#C2410C;">En attente</span>`
-          : `<span class="badge badge-paid">Actif</span>`;
-        const roleBadge = m.role === 'directeur'
-          ? `<span class="badge" style="background:#EEF2FF;color:#4F46E5;">Directeur</span>`
-          : `<span class="badge" style="background:#F0FDF4;color:#166534;">Membre</span>`;
-        tr.innerHTML = `
-          <td>
-            <div style="display:flex;align-items:center;gap:0.75rem;">
-              <div class="avatar" style="width:34px;height:34px;font-size:0.85rem;background:#F0FDF4;color:#166534;font-weight:600;">${m.initials || '??'}</div>
-              <div>
-                <div style="font-weight:600;color:var(--text-primary);">${m.email}</div>
-                <div style="font-size:0.8rem;color:var(--text-muted);">Invité le ${new Date(m.invitedAt).toLocaleDateString('fr-FR')}</div>
-              </div>
-            </div>
-          </td>
-          <td>${roleBadge}</td>
-          <td>${statusBadge}</td>
-          <td style="color:var(--text-muted);font-size:0.85rem;">
-            <button class="btn btn-danger btn-sm" onclick="KivoApp.removeMember('${m.id}')" style="font-size:0.75rem;padding:0.25rem 0.5rem;">Retirer</button>
-          </td>`;
+        tr.innerHTML = `<td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem;font-size:0.9rem;">
+          Aucun collaborateur invité pour l'instant.
+        </td>`;
         tbody.appendChild(tr);
-      });
+      } else {
+        members.forEach(m => {
+          const tr = document.createElement('tr');
+          const initials = (m.name || m.email).split(/[ @]/)[0].substring(0, 2).toUpperCase();
+          const dateLabel = m.invited_at
+            ? new Date(m.invited_at).toLocaleDateString('fr-FR')
+            : '—';
+          const statusBadge = m.status === 'active'
+            ? `<span class="badge badge-paid">Actif</span>`
+            : `<span class="badge" style="background:#FFF7ED;color:#C2410C;">En attente</span>`;
+          const roleBadge = m.role === 'directeur'
+            ? `<span class="badge" style="background:#EEF2FF;color:#4F46E5;">Directeur</span>`
+            : `<span class="badge" style="background:#F0FDF4;color:#166534;">Membre</span>`;
+          const avatarBg  = m.status === 'active' ? '#F0FDF4' : '#FFF7ED';
+          const avatarCol = m.status === 'active' ? '#166534' : '#C2410C';
+          tr.innerHTML = `
+            <td>
+              <div style="display:flex;align-items:center;gap:0.75rem;">
+                <div class="avatar" style="width:34px;height:34px;font-size:0.85rem;background:${avatarBg};color:${avatarCol};font-weight:600;">${initials}</div>
+                <div>
+                  <div style="font-weight:600;color:var(--text-primary);">${m.email}</div>
+                  <div style="font-size:0.8rem;color:var(--text-muted);">Invité le ${dateLabel}</div>
+                </div>
+              </div>
+            </td>
+            <td>${roleBadge}</td>
+            <td>${statusBadge}</td>
+            <td style="color:var(--text-muted);font-size:0.85rem;">
+              <button class="btn btn-danger btn-sm"
+                onclick="KivoApp.confirmRemoveMember('${m.id}', '${m.email}')"
+                style="font-size:0.75rem;padding:0.25rem 0.6rem;">Retirer</button>
+            </td>`;
+          tbody.appendChild(tr);
+        });
+      }
     }
 
-    // Show draft invoices by team members
-    const drafts = this.state.documents.filter(d => d.status === 'draft' && d.memberEmail);
+    // ── Brouillons membres ───────────────────────────────────────────────────
+    const memberEmails = members.filter(m => m.status === 'active').map(m => m.email);
+    const drafts = (this.state.documents || []).filter(d =>
+      d.status === 'draft' && d.memberEmail && memberEmails.includes(d.memberEmail)
+    );
     const draftsCard = document.getElementById('team-drafts-card');
     const draftsList = document.getElementById('team-drafts-list');
     if (draftsCard) draftsCard.style.display = drafts.length > 0 ? 'block' : 'none';
     if (draftsList) {
-      if (drafts.length === 0) {
-        draftsList.textContent = 'Aucun brouillon en cours.';
-      } else {
-        draftsList.innerHTML = drafts.map(d => `
+      draftsList.innerHTML = drafts.length === 0
+        ? '<span style="color:var(--text-muted);font-size:0.85rem;">Aucun brouillon en cours.</span>'
+        : drafts.map(d => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 0;border-bottom:1px solid var(--border-color);">
             <div>
               <strong>${d.number}</strong> — ${d.clientName || 'Client non défini'}
@@ -5492,15 +5576,32 @@ window.KivoApp = {
             </div>
             <span class="badge badge-draft">Brouillon</span>
           </div>`).join('');
-      }
     }
   },
 
-  removeMember: function (memberId) {
-    if (!this.state.business.teamMembers) return;
-    this.state.business.teamMembers = this.state.business.teamMembers.filter(m => m.id !== memberId);
-    this.saveState();
-    this.showToast(this._t('toast_team_member_removed'), 'info');
+  confirmRemoveMember: function (memberId, memberEmail) {
+    if (!confirm(`Retirer ${memberEmail} de l'équipe ? Cette action est irréversible.`)) return;
+    this.removeMember(memberId);
+  },
+
+  removeMember: async function (memberId) {
+    const user = window.KivoAuth && window.KivoAuth.user;
+    if (!user) return;
+    const _kivoClient = window.KivoDb && window.KivoDb.supabase;
+    if (!_kivoClient) return;
+
+    const { error } = await _kivoClient
+      .from('team_members')
+      .delete()
+      .eq('id', memberId)
+      .eq('user_id', user.id); // RLS double-check
+
+    if (error) {
+      this.showToast('Erreur lors de la suppression : ' + (error.message || 'inconnue'), 'error');
+      return;
+    }
+    this.showToast('Membre retiré de l'équipe.', 'info');
+    this._teamMembers = this._teamMembers.filter(m => m.id !== memberId);
     this.renderTeam();
   },
 
