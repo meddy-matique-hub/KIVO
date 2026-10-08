@@ -1863,6 +1863,12 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   animation: fadeInDown 0.15s ease-out;
 }
 
+[data-theme="dark"] .doc-action-popup-menu {
+  background: #1E293B;
+  border-color: #334155;
+  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.5);
+}
+
 .action-menu-item {
   display: flex;
   align-items: center;
@@ -1877,9 +1883,18 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   user-select: none;
 }
 
+[data-theme="dark"] .action-menu-item {
+  color: #E2E8F0;
+}
+
 .action-menu-item:hover {
   background: #F1F5F9;
   color: #0F172A;
+}
+
+[data-theme="dark"] .action-menu-item:hover {
+  background: #334155;
+  color: #FFFFFF;
 }
 
 .action-menu-item.text-danger {
@@ -1891,10 +1906,19 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   color: #DC2626;
 }
 
+[data-theme="dark"] .action-menu-item.text-danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+}
+
 .action-menu-divider {
   height: 1px;
   background: #F1F5F9;
   margin: 4px 0;
+}
+
+[data-theme="dark"] .action-menu-divider {
+  background: #334155;
 }
 
 .btn-table-action-kebab {
@@ -6188,6 +6212,51 @@ html, body {
 
   .mobile-header {
     padding: 0.65rem 0.85rem;
+  }
+}
+
+/* ==========================================================================
+   PUBLIC ACTION BAR — Mobile layout (≤ 640px)
+   ========================================================================== */
+@media (max-width: 640px) {
+  .public-action-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.6rem !important;
+    padding: 0.85rem 1rem !important;
+    bottom: 0.75rem !important;
+    border-radius: 14px !important;
+    margin: 0 0.75rem !important;
+    max-width: calc(100vw - 1.5rem) !important;
+  }
+
+  .public-action-bar #pub-bar-buttons-container {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 0.5rem !important;
+  }
+
+  .public-action-bar #pub-bar-buttons-container .btn {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 0.8rem 1rem !important;
+    font-size: 0.92rem !important;
+  }
+}
+
+/* ==========================================================================
+   DOC ACTION POPUP MENU — Mobile clamp
+   ========================================================================== */
+@media (max-width: 768px) {
+  .doc-action-popup-menu {
+    max-width: calc(100vw - 20px) !important;
+    min-width: 170px !important;
+  }
+
+  /* Action buttons row on mobile: ensure tapability */
+  .col-doc-action .btn-row-action {
+    min-width: 32px !important;
+    min-height: 32px !important;
   }
 }
 

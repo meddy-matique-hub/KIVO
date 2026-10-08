@@ -1969,10 +1969,15 @@ window.KivoApp = {
     let paidInvoicesCount = 0;
     let pendingInvoicesCount = 0;
     let overdueInvoicesCount = 0;
+    let totalQuotes = 0;
 
     docs.forEach(doc => {
       const docTotal = doc.total || 0;
-      if (doc.type === 'invoice') {
+      const rawType = (doc.type || 'invoice').toLowerCase().trim();
+      const isInvoice = rawType === 'invoice' || rawType === 'facture';
+      const isQuote = rawType === 'quote' || rawType === 'devis';
+
+      if (isInvoice) {
         totalInvoices++;
         const s = (doc.status || '').toLowerCase().trim();
         const isDocPaid = s === 'paid' || s === 'payée' || s === 'payee';
@@ -1986,8 +1991,16 @@ window.KivoApp = {
           pendingTotal += docTotal;
           pendingInvoicesCount++;
         }
+      } else if (isQuote) {
+        totalQuotes++;
       }
     });
+
+    // Update total documents counter (invoices + quotes)
+    const totalDocsEl = document.getElementById('kpi-total-docs');
+    if (totalDocsEl) totalDocsEl.textContent = totalInvoices + totalQuotes;
+    const totalQuotesEl = document.getElementById('kpi-total-quotes');
+    if (totalQuotesEl) totalQuotesEl.textContent = totalQuotes;
 
     const formatCurrency = (val) => {
       // Map display labels to valid ISO 4217 codes for Intl.NumberFormat
@@ -2484,8 +2497,13 @@ window.KivoApp = {
     menu.dataset.docId = docId;
     menu.className = 'doc-action-popup-menu';
     menu.style.position = 'fixed';
+    // Clamp so menu never overflows viewport on small mobile screens
+    const menuWidth = 200;
+    const vw = window.innerWidth || document.documentElement.clientWidth;
+    const rawLeft = Math.max(10, rect.right - menuWidth);
+    const clampedLeft = Math.min(rawLeft, vw - menuWidth - 8);
     menu.style.top = `${rect.bottom + 4}px`;
-    menu.style.left = `${Math.max(10, rect.right - 190)}px`;
+    menu.style.left = `${Math.max(8, clampedLeft)}px`;
     menu.style.zIndex = '9999';
 
     menu.innerHTML = `
@@ -2526,11 +2544,21 @@ window.KivoApp = {
 
     document.body.appendChild(menu);
 
+    const closeMenu = () => {
+      menu.remove();
+      document.removeEventListener('click', closeHandler);
+      window.removeEventListener('scroll', closeHandler, true);
+    };
+
+    menu.querySelectorAll('.action-menu-item').forEach(item => {
+      item.addEventListener('click', () => {
+        setTimeout(closeMenu, 40);
+      });
+    });
+
     const closeHandler = (evt) => {
       if (!menu.contains(evt.target) && evt.target !== btn && !btn.contains(evt.target)) {
-        menu.remove();
-        document.removeEventListener('click', closeHandler);
-        window.removeEventListener('scroll', closeHandler, true);
+        closeMenu();
       }
     };
     setTimeout(() => {
@@ -2786,7 +2814,9 @@ window.KivoApp = {
     setVal('builder-doc-currency', doc.currency || this.state.business.currency || 'FCFA');
     setVal('builder-issue-date', doc.issueDate || new Date().toISOString().split('T')[0]);
     setVal('builder-due-date', doc.dueDate || new Date().toISOString().split('T')[0]);
-    setVal('builder-doc-status', doc.status || 'sent');
+    const rawDocStatus = (doc.status || 'sent').toLowerCase().trim();
+    const normalizedStatus = (rawDocStatus === 'payée' || rawDocStatus === 'payee') ? 'paid' : (doc.status || 'sent');
+    setVal('builder-doc-status', normalizedStatus);
     setVal('builder-notes', doc.notes || '');
     // Sync payment terms: check if doc.terms matches a known option, otherwise use custom
     const knownTerms = ['À réception', 'Net 7 jours', 'Net 15 jours', 'Net 30 jours', 'Net 45 jours', 'Net 60 jours'];

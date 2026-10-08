@@ -1244,17 +1244,27 @@
                     <div id="chart-revenue" style="margin-top:auto; padding-top:1rem; height:60px;"></div>
                   </div>
 
-                  <!-- Card 2: Factures -->
+                  <!-- Card 2: Documents -->
                   <div style="background:#FFF; border-radius:14px; padding:1.5rem; border:1px solid #E5E7EB; box-shadow:0 2px 4px rgba(0,0,0,0.04); display:flex; flex-direction:column; min-height:190px;">
-                    <div style="font-size:0.85rem; color:#6B7280; font-weight:600; margin-bottom:0.75rem;">Factures émises</div>
-                    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:0.25rem; padding-bottom:0.5rem; border-bottom:1px dashed #E5E7EB;">
+                    <div style="font-size:0.85rem; color:#6B7280; font-weight:600; margin-bottom:0.75rem;">Documents émis</div>
+                    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:0.25rem; padding-bottom:0.5rem; border-bottom:1px dashed #E5E7EB; gap:0.5rem; flex-wrap:wrap;">
                       <div>
-                        <div id="kpi-total-invoices" style="font-family:'Outfit',sans-serif; font-size:2rem; font-weight:800; color:#111827; letter-spacing:-0.02em; line-height:1;">0</div>
-                        <div style="font-size:0.75rem; color:#6B7280; font-weight:500; margin-top:0.35rem;">Total émises</div>
+                        <div id="kpi-total-docs" style="font-family:'Outfit',sans-serif; font-size:2rem; font-weight:800; color:#111827; letter-spacing:-0.02em; line-height:1;">0</div>
+                        <div style="font-size:0.75rem; color:#6B7280; font-weight:500; margin-top:0.35rem;">Total (fact. + devis)</div>
                       </div>
-                      <div style="text-align:right;">
-                        <div id="kpi-paid-invoices" style="font-family:'Outfit',sans-serif; font-size:2rem; font-weight:800; color:#10B981; letter-spacing:-0.02em; line-height:1;">0</div>
-                        <div style="font-size:0.75rem; color:#10B981; font-weight:600; margin-top:0.35rem;">Payées</div>
+                      <div style="text-align:right; display:flex; align-items:flex-end; gap:0.75rem;">
+                        <div>
+                          <div id="kpi-total-invoices" style="font-family:'Outfit',sans-serif; font-size:1.25rem; font-weight:800; color:#111827; line-height:1;">0</div>
+                          <div style="font-size:0.7rem; color:#6B7280; font-weight:500; margin-top:0.25rem;">Factures</div>
+                        </div>
+                        <div>
+                          <div id="kpi-total-quotes" style="font-family:'Outfit',sans-serif; font-size:1.25rem; font-weight:800; color:#6366F1; line-height:1;">0</div>
+                          <div style="font-size:0.7rem; color:#6366F1; font-weight:500; margin-top:0.25rem;">Devis</div>
+                        </div>
+                        <div>
+                          <div id="kpi-paid-invoices" style="font-family:'Outfit',sans-serif; font-size:1.25rem; font-weight:800; color:#10B981; line-height:1;">0</div>
+                          <div style="font-size:0.7rem; color:#10B981; font-weight:600; margin-top:0.25rem;">Payées</div>
+                        </div>
                       </div>
                     </div>
                     <div id="chart-invoices" style="margin-top:auto; padding-top:1rem; height:60px; display:flex; align-items:flex-end; gap:6px;"></div>
@@ -1699,6 +1709,7 @@
                         <option value="prospect">Devis (Prospect)</option>
                         <option value="archived">Devis (Archivé)</option>
                         <option value="paid">Payée (Filigrane)</option>
+                        <option value="payée" style="display:none;">Payée</option>
                         <option value="overdue">En retard</option>
                       </select>
                     </div>
@@ -1781,11 +1792,15 @@
             <!-- RIGHT: A4 PREVIEW (Realistic Stacked Paper with Page-Curl) -->
             <div class="builder-preview-column" id="builder-preview-col">
               
-              <!-- Back to form button on mobile preview -->
-              <div class="builder-mobile-back-form-row">
+              <!-- Back to form and Save buttons on mobile preview -->
+              <div class="builder-mobile-back-form-row" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
                 <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.switchBuilderMobileTab('form')">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
-                  <span>Revenir au formulaire</span>
+                  <span>Modifier</span>
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="KivoApp.saveDocumentFromBuilder()" style="box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  <span>Enregistrer</span>
                 </button>
               </div>
               
