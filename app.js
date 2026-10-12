@@ -243,6 +243,7 @@ window.KivoApp = {
           this.prefillOnboardingWithAuthUser(user);
         }
 
+        this.isSessionLoading = false;
         this.handleRoute();
       } else {
         // Unauthenticated visitor: start with clean blank state, no fake data
@@ -250,6 +251,7 @@ window.KivoApp = {
         this.supabaseConnected = false;
         this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
         this.state.isOnboarded = false;
+        this.isSessionLoading = false;
         this.handleRoute();
       }
     } catch (err) {
