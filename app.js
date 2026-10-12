@@ -187,72 +187,108 @@ window.KivoApp = {
     console.log("[KivoApp] Initializing KIVO MATIQUE application...");
     this.isSessionLoading = true;
 
-    // Safety net: force-hide the overlay after 8 s in case any await hangs silently.
-    // Normal path resolves in < 2 s; this guarantees the app is never permanently blocked.
+    // Safety timeout: force-hide the overlay after 10 s in case of unexpected silence
     const _overlayTimeout = setTimeout(() => {
-      console.warn('[KivoApp] Safety timeout: force-hiding loading overlay after 8 s.');
+      console.warn('[KivoApp] Safety timeout: force-hiding loading overlay after 10 s.');
       this._hideLoadingOverlay();
-    }, 8000);
-    // Clear the safety timeout once we finish (called at every exit point below)
-    const _clearOverlayTimeout = () => clearTimeout(_overlayTimeout);
+    }, 10000);
 
-    if (!this.state) {
-      this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
-    }
-    this.setupRouting();
-    this.setupEventListeners();
+    const _withTimeout = (promise, ms = 10000, errorMsg = 'Timeout') => {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(errorMsg)), ms))
+      ]);
+    };
 
-    // 1. Check if returning from Google OAuth (URL hash contains access_token or query contains code)
-    const hasOAuthCallback = window.location.hash.includes('access_token=') || window.location.search.includes('code=');
-
-    // 2. Initialize Auth client (KivoAuth.init validates session with server)
-    if (window.KivoAuth && typeof window.KivoAuth.init === 'function') {
-      await window.KivoAuth.init();
-    }
-
-    const session = window.KivoAuth?.session || null;
-    const user = window.KivoAuth?.user || null;
-
-    // If returning from OAuth, clean URL hash/query smoothly without breaking router
-    if (hasOAuthCallback && session) {
-      if (window.history && window.history.replaceState) {
-        window.history.replaceState(null, '', window.location.pathname);
+    try {
+      if (!this.state) {
+        this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       }
-    }
+      this.setupRouting();
+      this.setupEventListeners();
 
-    if (user) {
-      localStorage.removeItem('kivo_app_state'); // Purge legacy unscoped state
-      this.loadState();
-      this.state.userEmail = user.email || '';
-      this.supabaseConnected = true;
+      // 1. Check if returning from Google OAuth (URL hash contains access_token or query contains code)
+      const hasOAuthCallback = window.location.hash.includes('access_token=') || window.location.search.includes('code=');
 
-      // Sync user data from Supabase to evaluate real onboarding status
-      try {
-        await this.syncFromSupabase();
-      } catch (e) {
-        console.error('[KivoApp] Supabase sync error on boot:', e);
+      // 2. Initialize Auth client with 10s timeout
+      if (window.KivoAuth && typeof window.KivoAuth.init === 'function') {
+        await _withTimeout(window.KivoAuth.init(), 10000, 'Auth init timeout (10s)');
       }
 
-      // If user is not onboarded yet, pre-fill form with OAuth/signup metadata
-      if (!this.state.isOnboarded) {
-        this.prefillOnboardingWithAuthUser(user);
+      const session = window.KivoAuth?.session || null;
+      const user = window.KivoAuth?.user || null;
+
+      // If returning from OAuth, clean URL hash/query smoothly without breaking router
+      if (hasOAuthCallback && session) {
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
       }
 
+      if (user) {
+        localStorage.removeItem('kivo_app_state'); // Purge legacy unscoped state
+        this.loadState();
+        this.state.userEmail = user.email || '';
+        this.supabaseConnected = true;
+
+        // Sync user data from Supabase with 10s timeout
+        try {
+          await _withTimeout(this.syncFromSupabase(), 10000, 'Supabase sync timeout (10s)');
+        } catch (e) {
+          console.error('[KivoApp] Supabase sync error on boot:', e);
+        }
+
+        // If user is not onboarded yet, pre-fill form with OAuth/signup metadata
+        if (!this.state.isOnboarded) {
+          this.prefillOnboardingWithAuthUser(user);
+        }
+
+        this.handleRoute();
+      } else {
+        // Unauthenticated visitor: start with clean blank state, no fake data
+        console.log('[KivoApp] Visitor session — rendering public landing view.');
+        this.supabaseConnected = false;
+        this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
+        this.state.isOnboarded = false;
+        this.handleRoute();
+      }
+    } catch (err) {
+      console.error("[KivoApp] Erreur critique au démarrage :", err);
+      this.showStartupErrorScreen(err);
+    } finally {
+      clearTimeout(_overlayTimeout);
       this.isSessionLoading = false;
-      _clearOverlayTimeout();
-      this.handleRoute();
-      this._hideLoadingOverlay();
-    } else {
-      // Unauthenticated visitor: start with clean blank state, no fake data
-      console.log('[KivoApp] Visitor session — rendering public landing view.');
-      this.supabaseConnected = false;
-      this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
-      this.state.isOnboarded = false;
-      this.isSessionLoading = false;
-      _clearOverlayTimeout();
-      this.handleRoute();
       this._hideLoadingOverlay();
     }
+  },
+
+  /**
+   * Displays a clean error screen with a "Réessayer" button on critical boot failure
+   */
+  showStartupErrorScreen: function (err) {
+    let errContainer = document.getElementById('app-error-screen');
+    if (!errContainer) {
+      errContainer = document.createElement('div');
+      errContainer.id = 'app-error-screen';
+      errContainer.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--bg-main,#F4F7FA);display:flex;align-items:center;justify-content:center;padding:24px;font-family:Inter,sans-serif;';
+      document.body.appendChild(errContainer);
+    }
+    const errMsg = (err && err.message) ? err.message : 'Une erreur inattendue est survenue au démarrage.';
+    const safeMsg = this._escapeHtml ? this._escapeHtml(errMsg) : errMsg;
+    errContainer.innerHTML = `
+      <div style="max-width:440px;width:100%;background:#ffffff;border:1px solid #E2E8F0;border-radius:16px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1),0 10px 10px -5px rgba(0,0,0,0.04);padding:32px;text-align:center;">
+        <div style="width:52px;height:52px;border-radius:12px;background:#FEE2E2;color:#DC2626;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h2 style="font-family:Outfit,sans-serif;font-size:1.25rem;font-weight:700;color:#0F172A;margin-bottom:8px;">Impossible de charger KIVO MATIQUE</h2>
+        <p style="font-size:0.9rem;color:#64748B;line-height:1.5;margin-bottom:24px;">${safeMsg}</p>
+        <button onclick="window.location.reload()" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px 20px;border-radius:10px;background:linear-gradient(135deg,#2563EB,#7C3AED);color:#fff;font-weight:600;font-size:0.95rem;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,0.25);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          Réessayer
+        </button>
+      </div>
+    `;
+    errContainer.style.display = 'flex';
   },
 
   /**
@@ -5813,7 +5849,7 @@ window.KivoApp = {
 
     const { error: insertErr } = await _kivoClient.from('team_members').insert(row);
     if (insertErr) {
-      this.showToast('Erreur lors de l'invitation : ' + (insertErr.message || 'inconnue'), 'error');
+      this.showToast("Erreur lors de l'invitation : " + (insertErr.message || 'inconnue'), 'error');
       return;
     }
 
@@ -5978,7 +6014,7 @@ window.KivoApp = {
       this.showToast('Erreur lors de la suppression : ' + (error.message || 'inconnue'), 'error');
       return;
     }
-    this.showToast('Membre retiré de l'équipe.', 'info');
+    this.showToast("Membre retiré de l'équipe.", 'info');
     this._teamMembers = this._teamMembers.filter(m => m.id !== memberId);
     this.renderTeam();
   },

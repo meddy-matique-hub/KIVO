@@ -118,20 +118,25 @@ if (window.KivoDb) {
         };
       }
 
-      // Parallel execution for maximum speed (replaces slow sequential fetches)
+      // Parallel execution with 10s safety timeout (guarantees boot never hangs)
       try {
+        const fetchAllPromise = Promise.all([
+          _kivoClient.from('business_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1),
+          _kivoClient.from('clients').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+          _kivoClient.from('catalog').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
+          _kivoClient.from('documents').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+          _kivoClient.from('activities').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50)
+        ]);
+
         const [
           settingsRes,
           clientsRes,
           catalogRes,
           documentsRes,
           activitiesRes
-        ] = await Promise.all([
-          _kivoClient.from('business_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1),
-          _kivoClient.from('clients').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-          _kivoClient.from('catalog').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
-          _kivoClient.from('documents').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-          _kivoClient.from('activities').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50)
+        ] = await Promise.race([
+          fetchAllPromise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('KivoDb loadAll timeout (10s)')), 10000))
         ]);
 
         if (settingsRes.error) console.error('[KivoDb] settings error:', settingsRes.error);

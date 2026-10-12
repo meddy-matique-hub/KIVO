@@ -13,15 +13,23 @@ window.KivoAuth = {
       return;
     }
     
-    // Check current session and validate with getUser() to prevent stale tokens
+    // Check current session and validate with getUser() to prevent stale tokens (10s timeout)
     try {
-      const { data: { session }, error } = await KivoDb.supabase.auth.getSession();
+      const getSessionPromise = KivoDb.supabase.auth.getSession();
+      const { data: { session }, error } = await Promise.race([
+        getSessionPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth getSession timeout (10s)')), 10000))
+      ]);
       if (error) {
         console.error('[KivoAuth] getSession error:', error);
       }
       if (session) {
-        // Validate with server that token is still authentic and user exists
-        const { data: userData, error: userError } = await KivoDb.supabase.auth.getUser();
+        // Validate with server that token is still authentic and user exists (10s timeout)
+        const getUserPromise = KivoDb.supabase.auth.getUser();
+        const { data: userData, error: userError } = await Promise.race([
+          getUserPromise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Auth getUser timeout (10s)')), 10000))
+        ]);
         if (userError || !userData?.user) {
           console.warn('[KivoAuth] Stale or invalid session found — purging.');
           try { await KivoDb.supabase.auth.signOut(); } catch (_) {}
@@ -47,41 +55,44 @@ window.KivoAuth = {
     // re-triggering handlePostLogin on boot — which would re-show the loading overlay.
     const _bootUserId = this.user?.id || null;
 
-    // Listen for auth state changes without triggering unwanted background redirects
-    KivoDb.supabase.auth.onAuthStateChange(async (event, session) => {
+    // Listen for auth state changes — callback MUST be synchronous without await
+    // to avoid supabase-js v2 deadlocks on getSession()
+    KivoDb.supabase.auth.onAuthStateChange((event, session) => {
       console.log(`[KivoAuth] Auth event: ${event}`);
 
-      if (event === 'SIGNED_OUT') {
-        this.session = null;
-        this.user = null;
-        this._isLoggingIn = false;
-        if (window.KivoApp) {
-          window.KivoApp.isSessionLoading = false;
-          window.KivoApp._isAuthenticating = false;
-          window.KivoApp.state = JSON.parse(JSON.stringify(window.KivoApp.BLANK_STATE));
-          window.KivoApp.state.isOnboarded = false;
-          window.KivoApp.supabaseConnected = false;
-          window.KivoApp.navigate('landing');
+      setTimeout(async () => {
+        if (event === 'SIGNED_OUT') {
+          this.session = null;
+          this.user = null;
+          this._isLoggingIn = false;
+          if (window.KivoApp) {
+            window.KivoApp.isSessionLoading = false;
+            window.KivoApp._isAuthenticating = false;
+            window.KivoApp.state = JSON.parse(JSON.stringify(window.KivoApp.BLANK_STATE));
+            window.KivoApp.state.isOnboarded = false;
+            window.KivoApp.supabaseConnected = false;
+            window.KivoApp.navigate('landing');
+          }
+        } else if (event === 'SIGNED_IN' && session?.user) {
+          // Use prevUserId from closure (captured before listener registered) to
+          // distinguish a real new login from Supabase's boot-time SIGNED_IN replay.
+          const prevUserId = this.user?.id || _bootUserId;
+          this.session = session;
+          this.user = session.user;
+          // Only trigger post-login workflow if user was previously not logged in
+          // or changed user, preventing background token refreshes from kicking user to dashboard
+          if (!prevUserId || prevUserId !== session.user.id) {
+            await this.handlePostLogin(session);
+          }
+        } else if (event === 'PASSWORD_RECOVERY') {
+          console.log('[KivoAuth] Auth event: PASSWORD_RECOVERY');
+          this.session = session;
+          this.user = session?.user;
+          if (window.KivoApp && typeof window.KivoApp.showResetPasswordView === 'function') {
+            window.KivoApp.showResetPasswordView();
+          }
         }
-      } else if (event === 'SIGNED_IN' && session?.user) {
-        // Use prevUserId from closure (captured before listener registered) to
-        // distinguish a real new login from Supabase's boot-time SIGNED_IN replay.
-        const prevUserId = this.user?.id || _bootUserId;
-        this.session = session;
-        this.user = session.user;
-        // Only trigger post-login workflow if user was previously not logged in
-        // or changed user, preventing background token refreshes from kicking user to dashboard
-        if (!prevUserId || prevUserId !== session.user.id) {
-          await this.handlePostLogin(session);
-        }
-      } else if (event === 'PASSWORD_RECOVERY') {
-        console.log('[KivoAuth] Auth event: PASSWORD_RECOVERY');
-        this.session = session;
-        this.user = session?.user;
-        if (window.KivoApp && typeof window.KivoApp.showResetPasswordView === 'function') {
-          window.KivoApp.showResetPasswordView();
-        }
-      }
+      }, 0);
     });
 
     // Check if user landed from a password recovery link
