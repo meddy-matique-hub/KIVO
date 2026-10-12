@@ -2335,6 +2335,9 @@ window.KivoApp = {
       }
     }
 
+    // Dynamic Revenue Chart
+    this.renderRevenueChart();
+
     // Invoice Preview Widget
     const widget = document.getElementById('dash-invoice-widget');
     if (widget) {
@@ -2439,66 +2442,131 @@ window.KivoApp = {
     const container = document.getElementById('revenue-chart-container');
     if (!container) return;
 
-    // Build last 9 months of revenue from paid invoices
+    const docs = (this.state && this.state.documents) || [];
+    const self = this;
+
+    // Last 6 months labels & revenue
+    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
     const now = new Date();
-    const monthLabels = [];
-    const dataPoints = [];
+    const monthlyPoints = [];
+    let totalRevenue6M = 0;
 
-    for (let i = 8; i >= 0; i--) {
+    for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const year = d.getFullYear();
-      const month = d.getMonth(); // 0-indexed
-      monthLabels.push(`${d.toLocaleString('fr-FR', { month: 'short' })} ${year}`);
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const label = monthNames[m];
 
-      const monthRevenue = this.state.documents
+      const rev = docs
         .filter(doc => {
-          if (doc.type !== 'invoice') return false;
-          if (doc.status !== 'paid') return false;
-          if (!doc.issueDate) return false;
-          const docDate = new Date(doc.issueDate);
-          return docDate.getFullYear() === year && docDate.getMonth() === month;
+          const type = (doc.type || 'invoice').toLowerCase().trim();
+          if (type !== 'invoice' && type !== 'facture') return false;
+          const s = (doc.status || '').toLowerCase().trim();
+          if (s !== 'paid' && s !== 'payée' && s !== 'payee') return false;
+          const raw = doc.issueDate || doc.date || doc.createdAt;
+          if (!raw) return false;
+          const dt = new Date(raw);
+          return !isNaN(dt.getTime()) && dt.getFullYear() === y && dt.getMonth() === m;
         })
-        .reduce((sum, doc) => sum + (doc.total || 0), 0);
+        .reduce((sum, doc) => sum + (parseFloat(doc.total) || 0), 0);
 
-      dataPoints.push(monthRevenue);
+      totalRevenue6M += rev;
+      monthlyPoints.push({ label: label, amount: rev, month: m, year: y });
     }
 
-    const max = Math.max(...dataPoints, 1); // avoid division by zero
-    const width = 500;
-    const height = 180;
+    const badgeLabel = document.getElementById('dash-chart-total-label');
+    if (badgeLabel) {
+      badgeLabel.textContent = totalRevenue6M > 0 
+        ? self.formatCurrency(totalRevenue6M) + ' encaissés (6 mois)'
+        : 'Données en direct';
+    }
 
-    const points = dataPoints.map((val, idx) => {
-      const x = (idx / (dataPoints.length - 1)) * width;
-      const y = height - (val / max) * (height - 30);
-      return `${x},${y}`;
-    }).join(' ');
+    // Empty state if zero documents
+    if (totalRevenue6M === 0 && docs.length === 0) {
+      container.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2.5rem 1rem;text-align:center;">
+          <div style="width:48px;height:48px;border-radius:12px;background:rgba(79,70,229,0.06);display:flex;align-items:center;justify-content:center;margin-bottom:0.75rem;color:#4F46E5;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+          </div>
+          <div style="font-weight:600;font-size:0.95rem;color:#374151;margin-bottom:0.25rem;">Aucun encaissement sur les 6 derniers mois</div>
+          <p style="color:#9CA3AF;font-size:0.82rem;margin:0;max-width:380px;">Émettez vos premières factures. Vos encaissements réels et l'évolution de votre chiffre d'affaires apparaîtront ici automatiquement.</p>
+        </div>
+      `;
+      return;
+    }
 
-    const areaPoints = `0,${height} ${points} ${width},${height}`;
+    // SVG parameters
+    const svgW = 600;
+    const svgH = 180;
+    const padTop = 24;
+    const padBottom = 32;
+    const padLeft = 45;
+    const padRight = 20;
+    const chartW = svgW - padLeft - padRight;
+    const chartH = svgH - padTop - padBottom;
+
+    const maxVal = Math.max.apply(null, monthlyPoints.map(p => p.amount).concat([1]));
+    const ceiling = Math.max(1, Math.ceil(maxVal * 1.15));
+
+    const coords = monthlyPoints.map((p, idx) => {
+      const x = padLeft + (idx / (monthlyPoints.length - 1)) * chartW;
+      const y = padTop + chartH - (p.amount / ceiling) * chartH;
+      return { x: x, y: y, label: p.label, amount: p.amount };
+    });
+
+    // Build smooth curve
+    let curvePath = 'M ' + coords[0].x.toFixed(1) + ' ' + coords[0].y.toFixed(1);
+    for (let i = 0; i < coords.length - 1; i++) {
+      const p0 = coords[i];
+      const p1 = coords[i + 1];
+      const cpX1 = p0.x + (p1.x - p0.x) / 2;
+      const cpX2 = cpX1;
+      curvePath += ' C ' + cpX1.toFixed(1) + ' ' + p0.y.toFixed(1) + ', ' + cpX2.toFixed(1) + ' ' + p1.y.toFixed(1) + ', ' + p1.x.toFixed(1) + ' ' + p1.y.toFixed(1);
+    }
+    const lastPt = coords[coords.length - 1];
+    const firstPt = coords[0];
+    const areaPath = curvePath + ' L ' + lastPt.x.toFixed(1) + ' ' + (padTop + chartH).toFixed(1) + ' L ' + firstPt.x.toFixed(1) + ' ' + (padTop + chartH).toFixed(1) + ' Z';
+
+    // Grid lines
+    const gridLevels = [0.25, 0.5, 0.75, 1];
+    const gridLines = gridLevels.map(pct => {
+      const gy = (padTop + chartH * (1 - pct)).toFixed(1);
+      const val = self.formatCurrency(ceiling * pct);
+      return '<line x1="' + padLeft + '" y1="' + gy + '" x2="' + (svgW - padRight) + '" y2="' + gy + '" stroke="#F1F5F9" stroke-width="1" stroke-dasharray="3,4" />' +
+        '<text x="' + (padLeft - 8) + '" y="' + (parseFloat(gy) + 3.5).toFixed(1) + '" text-anchor="end" font-size="9" fill="#94A3B8" font-family="Inter,sans-serif">' + val + '</text>';
+    }).join('');
+
+    // Markers and labels
+    const markers = coords.map((pt, idx) => {
+      const valStr = self.formatCurrency(pt.amount);
+      const isLast = idx === coords.length - 1;
+      return '<g class="chart-point-group" style="cursor:pointer;">' +
+        '<text x="' + pt.x.toFixed(1) + '" y="' + (padTop + chartH + 18).toFixed(1) + '" text-anchor="middle" font-size="10.5" fill="#64748B" font-family="Inter,sans-serif">' + pt.label + '</text>' +
+        '<circle cx="' + pt.x.toFixed(1) + '" cy="' + pt.y.toFixed(1) + '" r="' + (isLast ? '5' : '4') + '" fill="#FFFFFF" stroke="#4F46E5" stroke-width="' + (isLast ? '2.5' : '2') + '">' +
+          '<title>' + pt.label + ': ' + valStr + '</title>' +
+        '</circle>' +
+        (pt.amount > 0 ? '<text x="' + pt.x.toFixed(1) + '" y="' + (pt.y - 10).toFixed(1) + '" text-anchor="middle" font-size="9" font-weight="600" fill="#4F46E5" font-family="Outfit,sans-serif">' + valStr + '</text>' : '') +
+      '</g>';
+    }).join('');
 
     container.innerHTML = `
-      <svg viewBox="0 0 ${width} ${height}" style="width: 100%; height: 100%; overflow: visible;">
+      <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;height:auto;overflow:visible;display:block;" aria-label="Évolution du chiffre d'affaires">
         <defs>
-          <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#2563EB" stop-opacity="0.35"/>
-            <stop offset="100%" stop-color="#2563EB" stop-opacity="0.0"/>
+          <linearGradient id="dashRevenueGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#4F46E5" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="#4F46E5" stop-opacity="0.0"/>
           </linearGradient>
         </defs>
-        <polygon points="${areaPoints}" fill="url(#chartGradient)"/>
-        <polyline points="${points}" fill="none" stroke="#2563EB" stroke-width="3" stroke-linecap="round"/>
-        ${dataPoints.map((val, idx) => {
-          const x = (idx / (dataPoints.length - 1)) * width;
-          const y = height - (val / max) * (height - 30);
-          const label = val > 0 ? `<title>${monthLabels[idx]}: ${val.toLocaleString('fr-FR')} FCFA</title>` : '';
-          return `<circle cx="${x}" cy="${y}" r="4" fill="#FFFFFF" stroke="#2563EB" stroke-width="2">${label}</circle>`;
-        }).join('')}
+        ${gridLines}
+        <path d="${areaPath}" fill="url(#dashRevenueGrad)" />
+        <path d="${curvePath}" fill="none" stroke="#4F46E5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        ${markers}
       </svg>
     `;
   },
 
-
-  /**
-   * Helper to format table row for documents with modern SaaS layout and discrete kebab menu
-   */
   createDocTableRowHtml: function (doc) {
     const biz = this.state.business || {};
     const currencyStr = doc.currency || biz.currency || 'FCFA';
@@ -6083,232 +6151,277 @@ window.KivoApp = {
 
     if (docs.length === 0) {
       container.innerHTML = `
-        <div class="card" style="text-align: center; padding: 4.5rem 2rem; max-width: 640px; margin: 2rem auto; border: 1px dashed var(--border-color); border-radius: 16px; background: var(--bg-card);">
-          <div style="width: 64px; height: 64px; border-radius: 16px; background: rgba(79, 70, 229, 0.08); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; color: var(--primary);">
+        <div class="card" style="text-align:center;padding:4.5rem 2rem;max-width:640px;margin:2rem auto;border:1px dashed var(--border-color);border-radius:16px;background:var(--bg-card);">
+          <div style="width:64px;height:64px;border-radius:16px;background:rgba(79,70,229,0.08);display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;color:var(--primary);">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="20" x2="18" y2="10"></line>
               <line x1="12" y1="20" x2="12" y2="4"></line>
               <line x1="6" y1="20" x2="6" y2="14"></line>
             </svg>
           </div>
-          <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.6rem; color: var(--text-primary); font-family: var(--font-heading);">
-            Aucune donnée statistique pour l'instant
-          </h3>
-          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; max-width: 480px; margin: 0 auto 2rem;">
-            Créez et émettez vos premiers devis et factures. Vos statistiques de chiffre d'affaires, taux de recouvrement, conversion et top clients apparaîtront ici automatiquement.
-          </p>
-          <button class="btn btn-primary" onclick="KivoApp.openNewDocModal('invoice')" style="padding: 0.75rem 1.75rem; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 0.5rem; margin: 0 auto;">
+          <h3 style="font-size:1.3rem;font-weight:700;margin-bottom:0.6rem;color:var(--text-primary);font-family:var(--font-heading);">Aucune donnee statistique pour l instant</h3>
+          <p style="color:var(--text-muted);font-size:0.95rem;line-height:1.6;max-width:480px;margin:0 auto 2rem;">Creez et emettez vos premiers devis et factures. Vos statistiques apparaitront ici automatiquement.</p>
+          <button class="btn btn-primary" onclick="KivoApp.openNewDocModal('invoice')" style="padding:0.75rem 1.75rem;font-size:0.95rem;display:inline-flex;align-items:center;gap:0.5rem;margin:0 auto;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            <span>Créer mon premier document</span>
+            <span>Creer mon premier document</span>
           </button>
         </div>
       `;
       return;
     }
 
-    // Calculations
-    const invoices = docs.filter(d => d.type === 'invoice');
-    const quotes = docs.filter(d => d.type === 'quote');
+    // ---- Data calculations ----
+    const invoices = docs.filter(function(d) { return d.type === 'invoice'; });
+    const quotes   = docs.filter(function(d) { return d.type === 'quote'; });
 
-    let paidTotal = 0;
-    let pendingTotal = 0;
-    let overdueTotal = 0;
-    let paidCount = 0;
+    var paidTotal = 0, pendingTotal = 0, overdueTotal = 0;
+    var paidCount = 0, pendingCount = 0, overdueCount = 0, draftCount = 0;
 
-    invoices.forEach(doc => {
-      const tot = doc.total || 0;
-      if (doc.status === 'paid') {
-        paidTotal += tot;
-        paidCount++;
-      } else if (doc.status === 'overdue') {
-        overdueTotal += tot;
-      } else if (doc.status === 'sent' || doc.status === 'viewed') {
-        pendingTotal += tot;
-      }
+    invoices.forEach(function(doc) {
+      var tot = doc.total || 0;
+      var s = (doc.status || '').toLowerCase().trim();
+      var isPaid = s === 'paid' || s === 'payee' || s === 'payee';
+      if (isPaid)                           { paidTotal    += tot; paidCount++;    }
+      else if (s === 'overdue')             { overdueTotal += tot; overdueCount++; }
+      else if (s === 'sent' || s === 'viewed') { pendingTotal += tot; pendingCount++; }
+      else                                  { draftCount++; }
     });
 
-    const totalInvoiced = paidTotal + pendingTotal + overdueTotal;
-    const recoveryRate = totalInvoiced > 0 ? Math.round((paidTotal / totalInvoiced) * 100) : 0;
+    var totalInvoiced   = paidTotal + pendingTotal + overdueTotal;
+    var recoveryRate    = totalInvoiced > 0 ? Math.round((paidTotal / totalInvoiced) * 100) : 0;
+    var acceptedQ       = quotes.filter(function(q) { return q.status === 'accepted' || q.status === 'converted'; }).length;
+    var quoteAccRate    = quotes.length > 0 ? Math.round((acceptedQ / quotes.length) * 100) : 0;
+    var self = this;
 
-    const acceptedQuotesCount = quotes.filter(q => q.status === 'accepted' || q.status === 'converted').length;
-    const quoteAcceptanceRate = quotes.length > 0 ? Math.round((acceptedQuotesCount / quotes.length) * 100) : 0;
-
-    // Top clients
-    const clientRevenueMap = {};
-    docs.forEach(d => {
-      const cName = d.clientName || 'Client divers';
-      if (!clientRevenueMap[cName]) {
-        clientRevenueMap[cName] = { total: 0, docCount: 0, paidTotal: 0 };
-      }
-      clientRevenueMap[cName].total += (d.total || 0);
-      clientRevenueMap[cName].docCount += 1;
-      if (d.status === 'paid') {
-        clientRevenueMap[cName].paidTotal += (d.total || 0);
-      }
+    // ---- Top Clients ----
+    var cmap = {};
+    docs.forEach(function(d) {
+      var n = d.clientName || 'Client divers';
+      if (!cmap[n]) cmap[n] = { total: 0, docCount: 0 };
+      cmap[n].total    += (d.total || 0);
+      cmap[n].docCount += 1;
     });
+    var topClients = Object.keys(cmap).map(function(n) {
+      return { name: n, total: cmap[n].total, docCount: cmap[n].docCount };
+    }).sort(function(a, b) { return b.total - a.total; }).slice(0, 5);
+    var maxCT = topClients.length > 0 ? topClients[0].total : 1;
 
-    const topClients = Object.entries(clientRevenueMap)
-      .map(([name, data]) => ({ name, ...data }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
-
-    const maxClientTotal = topClients.length > 0 ? topClients[0].total : 1;
-
-    // Last 6 months revenues
-    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-    const now = new Date();
-    const monthlyStats = [];
-
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const mIdx = d.getMonth();
-      const y = d.getFullYear();
-      const label = `${monthNames[mIdx]} ${y.toString().slice(-2)}`;
-      
-      let mPaid = 0;
-      let mInvoiced = 0;
-
-      invoices.forEach(inv => {
-        if (!inv.issueDate) return;
-        const invDate = new Date(inv.issueDate);
-        if (invDate.getFullYear() === y && invDate.getMonth() === mIdx) {
+    // ---- Monthly stats (last 6 months) ----
+    var mNames = ['Jan','Fev','Mar','Avr','Mai','Juin','Juil','Aout','Sep','Oct','Nov','Dec'];
+    var now = new Date();
+    var monthlyStats = [];
+    for (var i = 5; i >= 0; i--) {
+      var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      var mIdx = d.getMonth();
+      var y    = d.getFullYear();
+      var mPaid = 0, mInvoiced = 0;
+      invoices.forEach(function(inv) {
+        var raw = inv.issueDate || inv.date || inv.createdAt;
+        if (!raw) return;
+        var dt = new Date(raw);
+        if (isNaN(dt.getTime())) return;
+        if (dt.getFullYear() === y && dt.getMonth() === mIdx) {
           mInvoiced += (inv.total || 0);
-          if (inv.status === 'paid') {
-            mPaid += (inv.total || 0);
-          }
+          var s = (inv.status || '').toLowerCase().trim();
+          if (s === 'paid' || s === 'payee') mPaid += (inv.total || 0);
         }
       });
-
-      monthlyStats.push({ label, paid: mPaid, invoiced: mInvoiced });
+      monthlyStats.push({ label: mNames[mIdx], paid: mPaid, invoiced: mInvoiced });
     }
+    var maxMV = Math.max.apply(null, monthlyStats.map(function(m) { return Math.max(m.invoiced, m.paid); }).concat([1]));
 
-    const maxMonthlyVal = Math.max(...monthlyStats.map(m => Math.max(m.invoiced, m.paid)), 1);
+    // ---- SVG Grouped Bar Chart ----
+    var cW = 520, cH = 160, aH = 130;
+    var nM = monthlyStats.length;
+    var gW = cW / nM;
+    var bW = Math.min(20, gW * 0.32);
+    var bg = bW * 0.45;
 
+    var gridSvg = [0.25, 0.5, 0.75, 1].map(function(p) {
+      var gy = (aH * (1 - p)).toFixed(1);
+      var lbl = self.formatCurrency(maxMV * p);
+      return '<line x1="42" y1="' + gy + '" x2="' + cW + '" y2="' + gy + '" stroke="var(--border-color,#E5E7EB)" stroke-width="1" stroke-dasharray="3,5"/>' +
+             '<text x="38" y="' + (parseFloat(gy) + 4).toFixed(1) + '" text-anchor="end" font-size="9" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">' + lbl + '</text>';
+    }).join('');
+
+    var barsSvg = monthlyStats.map(function(m, idx) {
+      var cx    = gW * idx + gW / 2;
+      var invH  = maxMV > 0 ? Math.max(3, (m.invoiced / maxMV) * aH) : 3;
+      var paidH = maxMV > 0 ? Math.max(3, (m.paid    / maxMV) * aH) : 3;
+      var invY  = aH - invH;
+      var paidY = aH - paidH;
+      var delay = (idx * 0.07).toFixed(2);
+      var fInv  = m.invoiced > 0 ? self.formatCurrency(m.invoiced) : '';
+      var fPaid = m.paid     > 0 ? self.formatCurrency(m.paid)     : '';
+      return '<g>' +
+        '<rect x="' + (cx - bg - bW).toFixed(1) + '" y="' + invY.toFixed(1) + '" width="' + bW + '" height="' + invH.toFixed(1) + '" rx="3" fill="#C7D2FE"' +
+          ' style="transform-origin:' + (cx - bg - bW/2).toFixed(1) + 'px ' + aH + 'px;animation:kivo-bar-grow 0.55s cubic-bezier(.22,1,.36,1) ' + delay + 's both;">' +
+          (fInv ? '<title>' + m.label + ': Emis ' + fInv + '</title>' : '') + '</rect>' +
+        '<rect x="' + (cx + bg).toFixed(1) + '" y="' + paidY.toFixed(1) + '" width="' + bW + '" height="' + paidH.toFixed(1) + '" rx="3" fill="#10B981"' +
+          ' style="transform-origin:' + (cx + bg + bW/2).toFixed(1) + 'px ' + aH + 'px;animation:kivo-bar-grow 0.55s cubic-bezier(.22,1,.36,1) ' + delay + 's both;">' +
+          (fPaid ? '<title>' + m.label + ': Encaisse ' + fPaid + '</title>' : '') + '</rect>' +
+        '<text x="' + cx.toFixed(1) + '" y="' + (aH + 15).toFixed(1) + '" text-anchor="middle" font-size="11" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">' + m.label + '</text>' +
+      '</g>';
+    }).join('');
+
+    var svgBarChart = `
+      <style>
+        @keyframes kivo-bar-grow { from { transform:scaleY(0);opacity:0; } to { transform:scaleY(1);opacity:1; } }
+      </style>
+      <svg viewBox="0 0 ${cW} ${aH + 24}" style="width:100%;overflow:visible;" aria-label="CA mensuel">${gridSvg}${barsSvg}</svg>`;
+
+    // ---- SVG Donut Chart ----
+    var donutData = [
+      { label: 'Payees',      val: paidCount,    color: '#10B981' },
+      { label: 'En attente',  val: pendingCount,  color: '#F59E0B' },
+      { label: 'En retard',   val: overdueCount,  color: '#EF4444' },
+      { label: 'Brouillons',  val: draftCount,    color: '#6B7280' }
+    ].filter(function(x) { return x.val > 0; });
+
+    var totalDV = donutData.reduce(function(s, d) { return s + d.val; }, 0) || 1;
+    var R = 56, DCX = 75, DCY = 75;
+    var cumAngle = -0.5 * Math.PI;
+
+    var donutSegs = donutData.map(function(d) {
+      var frac = d.val / totalDV;
+      var sA = cumAngle;
+      var eA = sA + frac * 2 * Math.PI;
+      cumAngle = eA;
+      var x1 = DCX + R * Math.cos(sA), y1 = DCY + R * Math.sin(sA);
+      var x2 = DCX + R * Math.cos(eA), y2 = DCY + R * Math.sin(eA);
+      var la = frac > 0.5 ? 1 : 0;
+      return '<path d="M ' + DCX + ' ' + DCY + ' L ' + x1.toFixed(2) + ' ' + y1.toFixed(2) +
+             ' A ' + R + ' ' + R + ' 0 ' + la + ' 1 ' + x2.toFixed(2) + ' ' + y2.toFixed(2) + ' Z"' +
+             ' fill="' + d.color + '" opacity="0.9"><title>' + d.label + ': ' + d.val + '</title></path>';
+    }).join('');
+
+    var donutLegend = donutData.map(function(d) {
+      return '<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.82rem;color:var(--text-secondary);">' +
+        '<span style="width:10px;height:10px;border-radius:50%;background:' + d.color + ';flex-shrink:0;"></span>' +
+        '<span>' + d.label + '</span>' +
+        '<span style="margin-left:auto;font-weight:600;color:var(--text-primary);">' + d.val + '</span></div>';
+    }).join('');
+
+    var donutSvg = '<svg viewBox="0 0 150 150" style="width:100%;max-width:150px;display:block;margin:0 auto;" aria-label="Repartition">' +
+      '<circle cx="' + DCX + '" cy="' + DCY + '" r="' + (R + 6) + '" fill="none" stroke="var(--border-color,#F3F4F6)" stroke-width="1"/>' +
+      donutSegs +
+      '<circle cx="' + DCX + '" cy="' + DCY + '" r="' + (R - 16) + '" fill="var(--bg-card,#fff)"/>' +
+      '<text x="' + DCX + '" y="' + (DCY - 4) + '" text-anchor="middle" font-size="20" font-weight="700" fill="var(--text-primary,#111827)" font-family="Outfit,sans-serif">' + invoices.length + '</text>' +
+      '<text x="' + DCX + '" y="' + (DCY + 14) + '" text-anchor="middle" font-size="9.5" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">factures</text>' +
+      '</svg>';
+
+    // ---- Top Clients bars ----
+    var clientColors = ['#4F46E5','#7C3AED','#2563EB','#059669','#D97706'];
+    var clientBarsHtml = topClients.length === 0
+      ? '<p style="color:var(--text-muted);font-size:0.9rem;text-align:center;padding:2rem 0;">Aucun client enregistre.</p>'
+      : topClients.map(function(c, idx) {
+          var pct   = maxCT > 0 ? Math.round((c.total / maxCT) * 100) : 0;
+          var col   = clientColors[idx % clientColors.length];
+          return '<div style="margin-bottom:1.1rem;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem;">' +
+              '<div style="display:flex;align-items:center;gap:0.5rem;">' +
+                '<span style="width:22px;height:22px;border-radius:50%;background:' + col + '22;color:' + col + ';font-size:0.72rem;display:flex;align-items:center;justify-content:center;font-weight:700;">' + (idx+1) + '</span>' +
+                '<span style="font-weight:600;font-size:0.88rem;color:var(--text-primary);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + c.name + '">' + c.name + '</span>' +
+                '<span style="font-size:0.73rem;color:var(--text-muted);">' + c.docCount + ' doc' + (c.docCount > 1 ? 's' : '') + '</span>' +
+              '</div>' +
+              '<span style="font-weight:700;font-size:0.88rem;font-family:var(--font-heading);color:var(--text-primary);white-space:nowrap;">' + self.formatCurrency(c.total) + '</span>' +
+            '</div>' +
+            '<div style="height:6px;background:var(--border-color,#F3F4F6);border-radius:99px;overflow:hidden;">' +
+              '<div style="height:100%;width:' + pct + '%;background:' + col + ';border-radius:99px;transition:width 0.6s cubic-bezier(.22,1,.36,1);"></div>' +
+            '</div></div>';
+        }).join('');
+
+    // ---- Render ----
     container.innerHTML = `
-      <!-- KPI Cards Row -->
-      <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
-        <div class="card kpi-card" style="padding: 1.35rem;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-            <span class="kpi-title" style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">CA Encaissé</span>
-            <span style="display: inline-flex; padding: 4px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); color: #10B981;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-            </span>
-          </div>
-          <div class="kpi-value" style="font-size: 1.6rem; font-weight: 700; color: #10B981; font-family: var(--font-heading); margin-bottom: 0.25rem;">
-            ${this.formatCurrency(paidTotal)}
-          </div>
-          <span class="kpi-subtext" style="font-size: 0.8rem; color: var(--text-muted);">${paidCount} facture(s) réglée(s)</span>
-        </div>
+      <style>
+        @keyframes kivo-bar-grow { from { transform:scaleY(0);opacity:0; } to { transform:scaleY(1);opacity:1; } }
+      </style>
 
-        <div class="card kpi-card" style="padding: 1.35rem;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-            <span class="kpi-title" style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">En attente de règlement</span>
-            <span style="display: inline-flex; padding: 4px; border-radius: 8px; background: rgba(245, 158, 11, 0.1); color: #F59E0B;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <!-- KPI Row -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1rem;margin-bottom:1.75rem;">
+        <div class="card kpi-card" style="padding:1.2rem;border-left:3px solid #10B981;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.35rem;">
+            <span style="color:var(--text-muted);font-size:0.8rem;font-weight:500;">CA Encaisse</span>
+            <span style="display:inline-flex;padding:5px;border-radius:8px;background:rgba(16,185,129,0.1);color:#10B981;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             </span>
           </div>
-          <div class="kpi-value" style="font-size: 1.6rem; font-weight: 700; color: #F59E0B; font-family: var(--font-heading); margin-bottom: 0.25rem;">
-            ${this.formatCurrency(pendingTotal + overdueTotal)}
-          </div>
-          <span class="kpi-subtext" style="font-size: 0.8rem; color: var(--text-muted);">${overdueTotal > 0 ? `${this.formatCurrency(overdueTotal)} en retard` : 'Aucun retard critique'}</span>
+          <div style="font-size:1.5rem;font-weight:700;color:#10B981;font-family:var(--font-heading);margin-bottom:0.15rem;">${this.formatCurrency(paidTotal)}</div>
+          <span style="font-size:0.76rem;color:var(--text-muted);">${paidCount} facture${paidCount > 1 ? 's' : ''} reglee${paidCount > 1 ? 's' : ''}</span>
         </div>
-
-        <div class="card kpi-card" style="padding: 1.35rem;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-            <span class="kpi-title" style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">Taux de recouvrement</span>
-            <span style="display: inline-flex; padding: 4px; border-radius: 8px; background: rgba(79, 70, 229, 0.1); color: var(--primary);">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <div class="card kpi-card" style="padding:1.2rem;border-left:3px solid #F59E0B;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.35rem;">
+            <span style="color:var(--text-muted);font-size:0.8rem;font-weight:500;">En attente</span>
+            <span style="display:inline-flex;padding:5px;border-radius:8px;background:rgba(245,158,11,0.1);color:#F59E0B;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </span>
           </div>
-          <div class="kpi-value" style="font-size: 1.6rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-heading); margin-bottom: 0.25rem;">
-            ${recoveryRate}%
-          </div>
-          <span class="kpi-subtext" style="font-size: 0.8rem; color: var(--text-muted);">Sur ${this.formatCurrency(totalInvoiced)} facturé</span>
+          <div style="font-size:1.5rem;font-weight:700;color:#F59E0B;font-family:var(--font-heading);margin-bottom:0.15rem;">${this.formatCurrency(pendingTotal + overdueTotal)}</div>
+          <span style="font-size:0.76rem;color:var(--text-muted);">${overdueTotal > 0 ? self.formatCurrency(overdueTotal) + ' en retard' : 'Aucun retard'}</span>
         </div>
-
-        <div class="card kpi-card" style="padding: 1.35rem;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-            <span class="kpi-title" style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">Acceptation des Devis</span>
-            <span style="display: inline-flex; padding: 4px; border-radius: 8px; background: rgba(99, 102, 241, 0.1); color: #6366F1;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <div class="card kpi-card" style="padding:1.2rem;border-left:3px solid var(--primary);">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.35rem;">
+            <span style="color:var(--text-muted);font-size:0.8rem;font-weight:500;">Taux recouvrement</span>
+            <span style="display:inline-flex;padding:5px;border-radius:8px;background:rgba(79,70,229,0.1);color:var(--primary);">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             </span>
           </div>
-          <div class="kpi-value" style="font-size: 1.6rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-heading); margin-bottom: 0.25rem;">
-            ${quotes.length > 0 ? `${quoteAcceptanceRate}%` : '—'}
+          <div style="font-size:1.5rem;font-weight:700;color:var(--text-primary);font-family:var(--font-heading);margin-bottom:0.15rem;">${recoveryRate}%</div>
+          <span style="font-size:0.76rem;color:var(--text-muted);">Sur ${self.formatCurrency(totalInvoiced)} facture</span>
+        </div>
+        <div class="card kpi-card" style="padding:1.2rem;border-left:3px solid #6366F1;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.35rem;">
+            <span style="color:var(--text-muted);font-size:0.8rem;font-weight:500;">Acceptation Devis</span>
+            <span style="display:inline-flex;padding:5px;border-radius:8px;background:rgba(99,102,241,0.1);color:#6366F1;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </span>
           </div>
-          <span class="kpi-subtext" style="font-size: 0.8rem; color: var(--text-muted);">${acceptedQuotesCount} sur ${quotes.length} devis accepté(s)</span>
+          <div style="font-size:1.5rem;font-weight:700;color:var(--text-primary);font-family:var(--font-heading);margin-bottom:0.15rem;">${quotes.length > 0 ? quoteAccRate + '%' : '—'}</div>
+          <span style="font-size:0.76rem;color:var(--text-muted);">${acceptedQ} sur ${quotes.length} devis</span>
         </div>
       </div>
 
-      <!-- Charts & Top Clients Grid -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-        
-        <!-- Monthly Revenue Evolution -->
-        <div class="card" style="padding: 1.5rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <!-- Charts Grid -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.4rem;margin-bottom:1.75rem;">
+
+        <!-- Grouped Bar Chart -->
+        <div class="card" style="padding:1.5rem;grid-column:1/-1;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:1.25rem;">
             <div>
-              <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600;">Évolution mensuelle</h3>
-              <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-muted);">Facturation et encaissements des 6 derniers mois</p>
+              <h3 style="margin:0;font-size:1rem;font-weight:600;">Evolution mensuelle du CA</h3>
+              <p style="margin:3px 0 0;font-size:0.78rem;color:var(--text-muted);">Facturation et encaissements - 6 derniers mois</p>
             </div>
-            <div style="display: flex; gap: 1rem; font-size: 0.75rem;">
-              <span style="display: flex; align-items: center; gap: 0.35rem; color: var(--text-muted);"><span style="width: 8px; height: 8px; border-radius: 2px; background: #10B981;"></span> Encaissé</span>
-              <span style="display: flex; align-items: center; gap: 0.35rem; color: var(--text-muted);"><span style="width: 8px; height: 8px; border-radius: 2px; background: #E0E7FF;"></span> Émis</span>
+            <div style="display:flex;gap:1rem;font-size:0.76rem;flex-shrink:0;">
+              <span style="display:flex;align-items:center;gap:0.35rem;color:var(--text-muted);">
+                <span style="width:10px;height:10px;border-radius:3px;background:#C7D2FE;display:inline-block;"></span>Emis
+              </span>
+              <span style="display:flex;align-items:center;gap:0.35rem;color:var(--text-muted);">
+                <span style="width:10px;height:10px;border-radius:3px;background:#10B981;display:inline-block;"></span>Encaisse
+              </span>
             </div>
           </div>
+          ${svgBarChart}
+        </div>
 
-          <div style="height: 190px; display: flex; align-items: flex-end; justify-content: space-between; gap: 0.75rem; padding-top: 1rem; border-bottom: 1px solid var(--border-color);">
-            ${monthlyStats.map(m => {
-              const billedPct = maxMonthlyVal > 0 ? Math.max(8, Math.round((m.invoiced / maxMonthlyVal) * 100)) : 8;
-              const paidPct = maxMonthlyVal > 0 ? Math.max(4, Math.round((m.paid / maxMonthlyVal) * 100)) : 4;
-              return `
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end;">
-                  <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 500;">
-                    ${m.paid > 0 ? this.formatCurrency(m.paid) : (m.invoiced > 0 ? this.formatCurrency(m.invoiced) : '-')}
-                  </div>
-                  <div style="width: 100%; max-width: 38px; display: flex; gap: 3px; align-items: flex-end; height: 130px;">
-                    <div style="flex: 1; height: ${billedPct}%; background: #E0E7FF; border-radius: 4px 4px 0 0;" title="Total émis: ${this.formatCurrency(m.invoiced)}"></div>
-                    <div style="flex: 1; height: ${paidPct}%; background: #10B981; border-radius: 4px 4px 0 0;" title="Encaissé: ${this.formatCurrency(m.paid)}"></div>
-                  </div>
-                  <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">${m.label}</span>
-                </div>
-              `;
-            }).join('')}
+        <!-- Donut: Status distribution -->
+        <div class="card" style="padding:1.5rem;">
+          <div style="margin-bottom:1.25rem;">
+            <h3 style="margin:0;font-size:1rem;font-weight:600;">Repartition des statuts</h3>
+            <p style="margin:3px 0 0;font-size:0.78rem;color:var(--text-muted);">${invoices.length} facture${invoices.length > 1 ? 's' : ''} au total</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+            <div style="flex-shrink:0;width:150px;">${donutSvg}</div>
+            <div style="flex:1;min-width:110px;display:flex;flex-direction:column;gap:0.6rem;">${donutLegend}</div>
           </div>
         </div>
 
         <!-- Top Clients -->
-        <div class="card" style="padding: 1.5rem;">
-          <div style="margin-bottom: 1.5rem;">
-            <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600;">Top Clients</h3>
-            <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-muted);">Répartition du volume d'affaires par client</p>
+        <div class="card" style="padding:1.5rem;">
+          <div style="margin-bottom:1.25rem;">
+            <h3 style="margin:0;font-size:1rem;font-weight:600;">Top Clients</h3>
+            <p style="margin:3px 0 0;font-size:0.78rem;color:var(--text-muted);">Volume d'affaires par client</p>
           </div>
-
-          ${topClients.length === 0 ? `
-            <p style="color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 2rem 0;">Aucun client enregistré.</p>
-          ` : `
-            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
-              ${topClients.map((client, idx) => {
-                const pct = maxClientTotal > 0 ? Math.round((client.total / maxClientTotal) * 100) : 0;
-                return `
-                  <div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                      <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="width: 22px; height: 22px; border-radius: 50%; background: #F3F4F6; color: var(--text-secondary); font-size: 0.75rem; display: flex; align-items: center; justify-content: center; font-weight: 600;">${idx + 1}</span>
-                        <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">${client.name}</span>
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">(${client.docCount} doc${client.docCount > 1 ? 's' : ''})</span>
-                      </div>
-                      <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary); font-family: var(--font-heading);">
-                        ${this.formatCurrency(client.total)}
-                      </span>
-                    </div>
-                    <div style="height: 6px; width: 100%; background: #F3F4F6; border-radius: 999px; overflow: hidden;">
-                      <div style="height: 100%; width: ${pct}%; background: var(--primary); border-radius: 999px;"></div>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          `}
+          ${clientBarsHtml}
         </div>
 
       </div>

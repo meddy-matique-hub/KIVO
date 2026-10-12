@@ -1290,6 +1290,26 @@
                 </div>
               </div>
 
+              <!-- Dashboard Revenue Chart -->
+              <div style="margin-top: 1.5rem; margin-bottom: 2rem;">
+                <div style="background: #FFF; border-radius: 14px; padding: 1.5rem; border: 1px solid #E5E7EB; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem;">
+                    <div>
+                      <h3 style="font-size: 1.05rem; font-weight: 700; color: #111827; margin: 0; font-family: 'Outfit', sans-serif;">Évolution du Chiffre d'Affaires</h3>
+                      <p style="font-size: 0.8rem; color: #6B7280; margin: 3px 0 0;">Encaissements réels des 6 derniers mois</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                      <span id="dash-chart-sync-badge" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 600; padding: 0.3rem 0.75rem; border-radius: 99px; background: rgba(16, 185, 129, 0.1); color: #10B981;">
+                        <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span> <span id="dash-chart-total-label">Synchronisé en direct</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div id="revenue-chart-container" style="width: 100%; min-height: 180px;">
+                    <!-- Dynamically populated SVG Chart -->
+                  </div>
+                </div>
+              </div>
+
               <!-- Recent Invoices -->
               <div>
                 <h2 class="kivo-dash-section-title">Factures récentes</h2>
@@ -3843,7 +3863,7 @@
   <script defer src="js/whatsapp-helper.js?v=3.3"></script>
   <script defer src="js/i18n.js?v=1.1"></script>
   <script defer src="js/doc-templates.js?v=3.3"></script>
-  <script defer src="app.js?v=3.21"></script>
+  <script defer src="app.js?v=3.22"></script>
 </body>
 </html>
 
