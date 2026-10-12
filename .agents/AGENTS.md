@@ -30,5 +30,18 @@
 - **Prévisualisation en direct (Live Preview)** : Panneau d'édition à gauche et aperçu PDF imprimable ultra-réaliste à droite mis à jour en temps réel.
 - **Internationalisation (i18n)** : Support dynamique des langues (Français, English, Español).
 - **Sécurité des actions destructives** : Modal de confirmation avec choix "Annuler" et "Supprimer".
-- **Responsive Mobile** : Support complet sur smartphone et tablettes, menu tiroir et navigation fluide.
-
+## 6. Règle de Validation de Syntaxe Pré-Commit (OBLIGATOIRE)
+- **Avant CHAQUE commit**, lancer systématiquement la vérification de syntaxe :
+  ```bash
+  node --check app.js
+  # et sur chaque fichier dans js/ :
+  node --check js/auth.js
+  node --check js/supabase-client.js
+  node --check js/ai-assistant.js
+  node --check js/payment-provider.js
+  node --check js/whatsapp-helper.js
+  node --check js/i18n.js
+  node --check js/doc-templates.js
+  ```
+- Si une seule erreur de syntaxe apparaît, la corriger IMMÉDIATEMENT avant de commiter ou de pousser.
+- **Interdiction absolue** de pousser un commit sans validation préalable avec `node --check`.
