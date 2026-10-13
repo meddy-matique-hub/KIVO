@@ -2702,6 +2702,7 @@ window.KivoApp = {
   },
 
   createDocTableRowHtml: function (doc) {
+    if (!doc) return '';
     const biz = this.state.business || {};
     const currencyStr = doc.currency || biz.currency || 'FCFA';
 
@@ -2711,10 +2712,21 @@ window.KivoApp = {
     // Determine semantic status & visual row tint matching reference design
     const isDraft = rawStatus === 'draft' || rawStatus === 'brouillon';
     const isPaid = rawStatus === 'paid' || rawStatus === 'payée' || rawStatus === 'payee';
-    const isOverdue = rawStatus === 'overdue' || (!isQuote && !isPaid && !isDraft && !isRefunded && doc.dueDate && new Date(doc.dueDate + 'T23:59:59') < new Date());
     const isRefunded = rawStatus === 'refunded';
     const isArchived = rawStatus === 'archived' || rawStatus === 'archive' || rawStatus === 'cancelled' || rawStatus === 'rejected';
     const isProspect = rawStatus === 'prospect' || (isQuote && (rawStatus === 'sent' || rawStatus === 'viewed' || rawStatus === 'pending'));
+
+    let isPastDue = false;
+    if (!isQuote && !isPaid && !isDraft && !isRefunded && doc.dueDate) {
+      try {
+        const dStr = String(doc.dueDate);
+        const dt = new Date(dStr + (dStr.includes('T') ? '' : 'T23:59:59'));
+        if (!isNaN(dt.getTime()) && dt < new Date()) {
+          isPastDue = true;
+        }
+      } catch (_) {}
+    }
+    const isOverdue = rawStatus === 'overdue' || isPastDue;
 
     let rowStatusClass = 'doc-row-status-draft';
     let statusBadgeHtml = '';
@@ -2880,7 +2892,7 @@ window.KivoApp = {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         <span>Télécharger PDF (A4)</span>
       </div>
-      ${(rawSt === 'overdue' || (!doc.type === 'quote' && !isDocPaid && doc.dueDate && new Date(doc.dueDate + 'T23:59:59') < new Date())) ? `
+      ${(rawSt === 'overdue' || (doc.type !== 'quote' && !isDocPaid && doc.dueDate && new Date(String(doc.dueDate) + (String(doc.dueDate).includes('T') ? '' : 'T23:59:59')) < new Date())) ? `
         <div class="action-menu-item" style="color: #25D366; font-weight: 600;" onclick="KivoApp.shareOnWhatsApp('${doc.id}', true)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
           <span>Relancer WhatsApp</span>
@@ -2935,30 +2947,51 @@ window.KivoApp = {
     const tbody = document.getElementById('documents-list-tbody');
     if (!tbody) return;
 
-    let docs = this.state.documents || [];
+    let docs = (this.state && this.state.documents) || [];
 
     if (filter !== 'all') {
       if (filter === 'invoice' || filter === 'quote') {
-        docs = docs.filter(d => d.type === filter);
+        docs = docs.filter(d => d && d.type === filter);
       } else if (filter === 'draft') {
-        docs = docs.filter(d => (d.status || '').toLowerCase() === 'draft' || (d.status || '').toLowerCase() === 'brouillon');
+        docs = docs.filter(d => {
+          if (!d) return false;
+          const s = (d.status || '').toLowerCase().trim();
+          return s === 'draft' || s === 'brouillon';
+        });
       } else if (filter === 'overdue') {
-        docs = docs.filter(d => (d.status || '').toLowerCase() === 'overdue');
+        docs = docs.filter(d => {
+          if (!d) return false;
+          const s = (d.status || '').toLowerCase().trim();
+          if (s === 'overdue') return true;
+          const isPaid = s === 'paid' || s === 'payée' || s === 'payee';
+          const isDraft = s === 'draft' || s === 'brouillon';
+          if (d.type !== 'quote' && !isPaid && !isDraft && s !== 'refunded' && d.dueDate) {
+            try {
+              const dStr = String(d.dueDate);
+              const dt = new Date(dStr + (dStr.includes('T') ? '' : 'T23:59:59'));
+              return !isNaN(dt.getTime()) && dt < new Date();
+            } catch (_) {}
+          }
+          return false;
+        });
       } else if (filter === 'paid') {
         docs = docs.filter(d => {
+          if (!d) return false;
           const s = (d.status || '').toLowerCase().trim();
           return s === 'paid' || s === 'payée' || s === 'payee';
         });
       } else {
-        docs = docs.filter(d => (d.status || '').toLowerCase() === filter.toLowerCase());
+        docs = docs.filter(d => d && (d.status || '').toLowerCase().trim() === filter.toLowerCase().trim());
       }
     }
 
     if (searchQuery && searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase().trim();
       docs = docs.filter(d => 
-        (d.number || '').toLowerCase().includes(q) ||
-        (d.clientName || '').toLowerCase().includes(q)
+        d && (
+          (d.number || '').toLowerCase().includes(q) ||
+          (d.clientName || '').toLowerCase().includes(q)
+        )
       );
     }
 
@@ -2967,7 +3000,23 @@ window.KivoApp = {
       return;
     }
 
-    tbody.innerHTML = docs.map(doc => this.createDocTableRowHtml(doc)).join('');
+    // Protection par ligne : un document corrompu ne doit JAMAIS vider la liste
+    const rowsHtml = [];
+    for (const doc of docs) {
+      try {
+        const rowHtml = this.createDocTableRowHtml(doc);
+        if (rowHtml) rowsHtml.push(rowHtml);
+      } catch (err) {
+        console.error('[KivoApp] Erreur lors du rendu du document:', doc ? (doc.id || doc.number) : 'inconnu', err);
+      }
+    }
+
+    if (rowsHtml.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2.5rem; background: var(--bg-card, #FFF); border-radius: 8px;">Aucun document trouvé.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rowsHtml.join('');
   },
 
   /**
