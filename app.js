@@ -5574,11 +5574,17 @@ window.KivoApp = {
     }
   },
 
-  shareOnWhatsApp: async function (docId, isReminder = false) {
-    const doc = (this.state.documents || []).find(d => String(d.id) === String(docId));
-    if (!doc) return;
+  shareOnWhatsApp: async function (docOrId, isReminder = false) {
+    const doc = (typeof docOrId === 'object' && docOrId !== null)
+      ? docOrId
+      : (this.state.documents || []).find(d => String(d.id) === String(docOrId));
+    if (!doc) {
+      console.warn('[KivoApp] shareOnWhatsApp: document introuvable pour', docOrId);
+      this.showToast(this._t('toast_doc_not_found') || "Document introuvable", "warning");
+      return;
+    }
 
-    const isQuote = doc.type === 'quote';
+    const isQuote = doc.type === 'quote' || doc.type === 'devis';
     const warnMsg = isQuote
       ? this._t('toast_doc_cannot_share_draft_quote')
       : this._t('toast_doc_cannot_share_draft');
@@ -5594,7 +5600,7 @@ window.KivoApp = {
 
     // Sécurisation du token public (crypto.randomUUID() 32 car.)
     await this.ensurePublicToken(doc);
-    const publicUrl = this.getPublicDocShareUrl(doc);
+    const publicUrl = await this.getPublicDocShareUrl(doc);
     const bizName = this.getBusinessName();
 
     // Récupération du numéro WhatsApp du client si disponible
@@ -5607,8 +5613,13 @@ window.KivoApp = {
     const msgType = isReminder || doc.status === 'overdue' ? 'reminder' : (isQuote ? 'quote' : 'invoice');
     const msg = window.WhatsAppHelper.buildShareMessage(doc, bizName, publicUrl, msgType);
 
-    // PC et Mobile : wa.me ciblé avec numéro si disponible, sinon wa.me/?text=...
+    // Requis : Journaliser le message avant window.open pour traçabilité
+    console.log('[KivoApp] Message WhatsApp construit :', msg);
+
+    // PC et Mobile : URL WhatsApp universelle fiable
     const waUrl = window.WhatsAppHelper.getWhatsAppWebUrl(clientPhone, msg);
+    console.log('[KivoApp] URL WhatsApp finale :', waUrl);
+
     window.open(waUrl, '_blank');
     this.showToast(isReminder ? 'Ouverture de WhatsApp (Relance)...' : this._t('toast_whatsapp_opening'), 'success');
   },
