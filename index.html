@@ -2048,7 +2048,7 @@
                   <!-- Notes avec toggle -->
                   <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.85rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                      <label style="font-size: 0.75rem; font-weight: 600; color: #475569;">Notes &amp; Remarques</label>
+                      <label style="font-size: 0.75rem; font-weight: 600; color: #475569;">Notes &amp; Remarques <span style="font-weight:400; color:#94A3B8;">(instructions, coordonn&eacute;es bancaires&hellip;)</span></label>
                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #64748B; cursor: pointer;">
                         <input type="checkbox" id="builder-toggle-notes" checked onchange="KivoApp.updateLiveInvoicePreview()" style="accent-color: #4F46E5;">
                         <span>Afficher</span>
@@ -2072,7 +2072,7 @@
                   <!-- Mentions légales (toujours le dernier bloc) avec toggle -->
                   <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.85rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                      <label style="font-size: 0.75rem; font-weight: 600; color: #475569;">Mentions légales de pied de page (Dernier bloc)</label>
+                      <label style="font-size: 0.75rem; font-weight: 600; color: #475569;">Mentions légales de pied de page <span style="font-weight:400; color:#94A3B8;">(RCCM, NIU, SIRET&hellip;)</span></label>
                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #64748B; cursor: pointer;">
                         <input type="checkbox" id="builder-toggle-legal" checked onchange="KivoApp.updateLiveInvoicePreview()" style="accent-color: #4F46E5;">
                         <span>Afficher</span>
@@ -2128,13 +2128,6 @@
                 </div>
               </div>
 
-              <!-- 6. Notes -->
-              <div style="margin-bottom: 2rem;">
-                <h3 style="font-size: 1rem; font-weight: 700; color: #0F172A; margin: 0 0 1rem 0;">Notes / Mentions légales</h3>
-                <div style="background: #FFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1.5rem;">
-                  <textarea id="builder-notes" rows="3" style="width: 100%; padding: 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; resize: vertical; font-family: inherit;" placeholder="Notes ou mentions légales (ex: coordonnées bancaires, pénalités de retard...) à afficher sur le document" oninput="KivoApp.updateLiveInvoicePreview()"></textarea>
-                </div>
-              </div>
 
               <!-- 7. Actions de validation au bas du formulaire (essentiel sur mobile) -->
               <div class="builder-bottom-bar" style="margin-bottom: 3.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
