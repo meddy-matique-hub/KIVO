@@ -241,7 +241,17 @@ if (window.KivoDb) {
       // id, user_id, number, type, status, client_id, client_name, client_type,
       // client_tax_id, client_email, client_phone, date_issued, date_due, items,
       // subtotal, discount, tax_rate, tax_amount, total, amount_paid, notes,
-      // conditions, public_token, views_count
+      // Jeton cryptographique sécurisé sans tirets (remplace les anciens 'tok_...')
+      let safePublicToken = doc.publicToken || doc.public_token || '';
+      if (!safePublicToken || safePublicToken.startsWith('tok_') || safePublicToken.length !== 32 || safePublicToken.includes('-')) {
+        try {
+          safePublicToken = crypto.randomUUID().replace(/-/g, '');
+        } catch (_) {
+          safePublicToken = (Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)).substring(0, 32);
+        }
+      }
+
+      // Strict mapping to valid Supabase columns:
       const payload = {
         user_id: user.id,
         number: doc.number || ('FAC-' + Date.now().toString().slice(-6)),
@@ -264,7 +274,7 @@ if (window.KivoDb) {
         amount_paid: Number(doc.amountPaid !== undefined ? doc.amountPaid : doc.amount_paid) || 0,
         notes: doc.notes || '',
         conditions: doc.conditions || doc.terms || '',
-        public_token: doc.publicToken || doc.public_token || ('tok_' + Math.random().toString(36).substring(2, 12)),
+        public_token: safePublicToken,
         views_count: Number(doc.viewsCount !== undefined ? doc.viewsCount : doc.views_count) || 0
       };
 
@@ -331,6 +341,8 @@ if (window.KivoDb) {
       if (!user) throw new Error("Utilisateur non authentifié.");
 
       const payload = { ...settings, user_id: user.id };
+      delete payload.current_plan;
+      delete payload.plan_expires_at;
 
       // Check if existing settings record exists for this user
       const { data: existing } = await _kivoClient

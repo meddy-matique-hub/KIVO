@@ -195,6 +195,8 @@
 
         <!-- Sidebar Footer: User Card + Clean logout -->
         <div class="sidebar-footer-section">
+          <!-- Dynamic Plan Usage Pill -->
+          <div id="sidebar-plan-badge"></div>
           <div class="sidebar-user-card" onclick="KivoApp.navigate('settings')" title="Accéder à mon profil">
             <div class="sidebar-user-avatar" id="sidebar-user-avatar">KM</div>
             <div class="sidebar-user-info">
@@ -2835,9 +2837,12 @@
 
           <div class="profile-container">
             
-            <!-- Page Title Header (Serif as in reference image) -->
+            <!-- Page Title Header -->
             <div class="profile-header-wrap">
-              <h1 class="profile-main-title">Mon profil</h1>
+              <div>
+                <h1 class="profile-main-title">Paramètres & Profil</h1>
+                <p class="page-subtitle" style="margin-top:0.25rem;">Gérez votre identité, vos mentions légales, vos coordonnées de paiement et vos préférences.</p>
+              </div>
               <div class="profile-header-actions">
                 <button class="btn btn-primary profile-save-btn" onclick="KivoApp.saveSettings()">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
@@ -2846,16 +2851,16 @@
               </div>
             </div>
 
-            <!-- 3-Column Grid Matching Reference Image -->
+            <!-- 8 CARDS GRID (3-Column Layout, fully responsive on mobile & desktop) -->
             <div class="profile-grid">
 
-              <!-- COLUMN 1: Profile Identity Dual-Layer Card -->
+              <!-- COLUMN 1: Identity & Security -->
               <div class="profile-col profile-col-identity">
+                
+                <!-- CARD 1: Identité & Forfait -->
                 <div class="profile-id-outer-card">
-                  
-                  <!-- Floating Frosted Glass Card -->
                   <div class="profile-id-glass-card">
-                    <!-- Circular Avatar (Monogram or Photo) -->
+                    <!-- Avatar / Logo -->
                     <div class="profile-avatar-circle" id="profile-avatar-display" onclick="document.getElementById('profile-logo-input').click()" title="Cliquer pour importer ou changer le logo / photo">
                       <svg class="profile-avatar-k-logo" id="profile-avatar-svg" width="40" height="40" viewBox="0 0 32 32" fill="none">
                         <path d="M7 6L14 16L7 26" stroke="#0F172A" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -2865,49 +2870,76 @@
                     </div>
 
                     <!-- User Name & Email -->
-                    <h2 class="profile-id-name" id="profile-id-name-display">Julien Dubois</h2>
-                    <p class="profile-id-email" id="profile-id-email-display">julien.dubois@kivo.com</p>
+                    <h2 class="profile-id-name" id="profile-id-name-display">Mon Compte</h2>
+                    <p class="profile-id-email" id="profile-id-email-display">utilisateur@kivo.com</p>
 
-                    <!-- Status Pill -->
-                    <div class="profile-status-pill-wrap">
+                    <!-- Status Pill & Plan Info -->
+                    <div class="profile-status-pill-wrap" style="display:flex; flex-direction:column; gap:0.4rem; align-items:center;">
                       <span class="profile-status-pill" id="profile-status-badge">Compte Actif</span>
+                      <span id="settings-current-plan-badge" style="font-size: 0.76rem; color: #818CF8; font-weight: 600; cursor: pointer;" onclick="KivoApp.navigate('pricing')">FORFAIT PRO</span>
                     </div>
                   </div>
-
                 </div>
+
+                <!-- CARD 8: Sécurité & Accès -->
+                <div class="profile-card" style="margin-top: 1.5rem;">
+                  <h3 class="profile-card-title">8. Sécurité & Accès</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Protégez l'accès à votre espace de facturation.</p>
+                  
+                  <div class="profile-security-actions" style="display: flex; flex-direction: column; gap: 0.65rem;">
+                    <button type="button" class="profile-btn-outline" onclick="KivoApp.openChangePasswordModal()" style="width: 100%; justify-content: center;">
+                      Changer le mot de passe
+                    </button>
+                    <button type="button" class="profile-btn-outline" onclick="KivoApp.openConnectedAccountsModal()" style="width: 100%; justify-content: center;">
+                      Sessions & Comptes connectés
+                    </button>
+                  </div>
+
+                  <button class="profile-logout-btn" onclick="KivoApp.logout()" title="Se déconnecter de la session" style="margin-top: 1.25rem;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                      <polyline points="16 17 21 12 16 7"></polyline>
+                      <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    <span>Déconnexion</span>
+                  </button>
+                </div>
+
               </div>
 
-              <!-- COLUMN 2: Personal Info + Preferences + Logout -->
+              <!-- COLUMN 2: Personal Info + Preferences + Notifications -->
               <div class="profile-col profile-col-center">
                 
-                <!-- Card 2A: Informations personnelles -->
+                <!-- CARD 2: Informations personnelles -->
                 <div class="profile-card">
-                  <h3 class="profile-card-title">Informations personnelles</h3>
+                  <h3 class="profile-card-title">2. Informations personnelles</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Nom et contact du dirigeant ou gestionnaire du compte.</p>
                   
                   <div class="profile-form-group">
-                    <label class="profile-label" for="setting-biz-owner">Nom</label>
+                    <label class="profile-label" for="setting-biz-owner">Nom & Prénom du responsable *</label>
                     <input type="text" id="setting-biz-owner" class="profile-input" placeholder="Ex: Julien Dubois" oninput="document.getElementById('profile-id-name-display').textContent = this.value || 'Julien Dubois'">
                   </div>
 
                   <div class="profile-form-group">
-                    <label class="profile-label" for="setting-biz-email">Email</label>
+                    <label class="profile-label" for="setting-biz-email">Email personnel / Connexion *</label>
                     <input type="email" id="setting-biz-email" class="profile-input" placeholder="Ex: julien.dubois@kivo.com" oninput="document.getElementById('profile-id-email-display').textContent = this.value || 'julien.dubois@kivo.com'">
                   </div>
                 </div>
 
-                <!-- Card 2B: Préférences -->
+                <!-- CARD 3: Préférences générales & Devises -->
                 <div class="profile-card">
-                  <h3 class="profile-card-title">Préférences</h3>
+                  <h3 class="profile-card-title">3. Préférences & Affichage</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Devise par défaut de vos pièces et style d'édition.</p>
 
                   <div class="profile-form-group">
-                    <label class="profile-label" for="setting-biz-currency">Devise</label>
+                    <label class="profile-label" for="setting-biz-currency">Devise par défaut</label>
                     <div class="profile-select-wrap">
                       <select id="setting-biz-currency" class="profile-select">
-                        <option value="EUR">EUR €</option>
                         <option value="FCFA">FCFA (XOF / XAF)</option>
-                        <option value="USD">USD $</option>
-                        <option value="CAD">CAD $</option>
-                        <option value="GBP">GBP £</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="USD">USD ($)</option>
+                        <option value="CAD">CAD ($)</option>
+                        <option value="GBP">GBP (£)</option>
                         <option value="MAD">MAD</option>
                         <option value="TND">TND</option>
                         <option value="DZD">DZD</option>
@@ -2919,50 +2951,66 @@
                   </div>
 
                   <div class="profile-form-group">
-                    <label class="profile-label" for="setting-biz-language">Langue</label>
+                    <label class="profile-label" for="profile-doc-preference">Modèle par défaut</label>
                     <div class="profile-select-wrap">
-                      <select id="setting-biz-language" class="profile-select" disabled title="Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable." style="opacity: 0.7; cursor: not-allowed; background: var(--bg-subtle, #F8FAFC);">
-                        <option value="fr" selected>Français (Bientôt disponible)</option>
+                      <select id="profile-doc-preference" class="profile-select">
+                        <option value="standard">Facture Standard & Devis Structuré</option>
+                        <option value="detailed">Facture Détaillée (BTP / Prestations)</option>
+                        <option value="minimal">Facture Épurée & Minimaliste</option>
                       </select>
                       <svg class="profile-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
                   </div>
 
                   <div class="profile-form-group">
-                    <label class="profile-label" for="profile-doc-preference">Préférences de documents</label>
+                    <label class="profile-label" for="setting-biz-language">Langue de l'interface</label>
                     <div class="profile-select-wrap">
-                      <select id="profile-doc-preference" class="profile-select">
-                        <option value="standard">Facture Standard | Devis Détaillé</option>
-                        <option value="detailed">Facture Détaillée | Devis Standard</option>
-                        <option value="minimal">Facture Épurée | Devis Simple</option>
+                      <select id="setting-biz-language" class="profile-select">
+                        <option value="fr" selected>Français (Officiel)</option>
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
                       </select>
                       <svg class="profile-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
                   </div>
                 </div>
 
-                <!-- Logout Button Below Column 2 -->
-                <button class="profile-logout-btn" onclick="KivoApp.logout()" title="Se déconnecter de la session">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                  </svg>
-                  <span>Déconnexion</span>
-                </button>
+                <!-- CARD 7: Notifications & Alertes -->
+                <div class="profile-card">
+                  <h3 class="profile-card-title">7. Notifications & Alertes</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Gérez vos alertes d'envoi et de relance automatique.</p>
+
+                  <div style="display:flex; flex-direction:column; gap:0.85rem;">
+                    <label style="display:flex; align-items:flex-start; gap:0.65rem; cursor:pointer; font-size:0.86rem; color:var(--text-primary);">
+                      <input type="checkbox" id="setting-notify-doc-sent" checked style="margin-top:0.15rem; accent-color:#4F46E5;">
+                      <span>Recevoir une copie email à chaque document émis</span>
+                    </label>
+
+                    <label style="display:flex; align-items:flex-start; gap:0.65rem; cursor:pointer; font-size:0.86rem; color:var(--text-primary);">
+                      <input type="checkbox" id="setting-notify-reminder" checked style="margin-top:0.15rem; accent-color:#4F46E5;">
+                      <span>Alerte avant l'échéance des factures impayées</span>
+                    </label>
+
+                    <label style="display:flex; align-items:flex-start; gap:0.65rem; cursor:pointer; font-size:0.86rem; color:var(--text-primary);">
+                      <input type="checkbox" id="setting-notify-payment" checked style="margin-top:0.15rem; accent-color:#4F46E5;">
+                      <span>Notification instantanée lors d'un règlement reçu</span>
+                    </label>
+                  </div>
+                </div>
 
               </div>
 
-              <!-- COLUMN 3: Enterprise + Security -->
+              <!-- COLUMN 3: Enterprise + Tax/Invoicing + Bank/Mobile Money -->
               <div class="profile-col profile-col-right">
                 
-                <!-- Card 3A: Entreprise -->
+                <!-- CARD 4: Entreprise & Marque -->
                 <div class="profile-card">
-                  <h3 class="profile-card-title">Entreprise</h3>
+                  <h3 class="profile-card-title">4. Entreprise & Marque</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Raison sociale, identité visuelle et coordonnées affichées sur vos factures.</p>
 
                   <div class="profile-form-group">
-                    <label class="profile-label" for="setting-biz-name">Nom de l'entreprise</label>
-                    <input type="text" id="setting-biz-name" class="profile-input" placeholder="Ex: Dubois & Co.">
+                    <label class="profile-label" for="setting-biz-name">Raison sociale / Nom commercial *</label>
+                    <input type="text" id="setting-biz-name" class="profile-input" placeholder="Ex: Dubois & Co. SARL">
                   </div>
 
                   <!-- Row: Logo upload box + Address -->
@@ -2983,7 +3031,7 @@
                     </div>
 
                     <div class="profile-address-group">
-                      <label class="profile-label" for="setting-biz-address">Adresse</label>
+                      <label class="profile-label" for="setting-biz-address">Adresse du siège social</label>
                       <textarea id="setting-biz-address" class="profile-textarea" placeholder="12, rue de la Paix, 75002 Paris" rows="2"></textarea>
                     </div>
                   </div>
@@ -2991,7 +3039,7 @@
                   <!-- Row: Téléphone + Email pro -->
                   <div class="profile-two-cols">
                     <div class="profile-form-group">
-                      <label class="profile-label" for="setting-biz-phone">Téléphone</label>
+                      <label class="profile-label" for="setting-biz-phone">Téléphone professionnel</label>
                       <div class="phone-input-group">
                         <select id="setting-biz-phone-prefix" class="form-select phone-prefix-select" style="border-radius:10px; border:1px solid #E2E8F0; font-size:0.88rem; background:#FFFFFF;">
                           <option value="+221">🇸🇳 +221 (SN)</option>
@@ -3026,27 +3074,14 @@
                       </div>
                     </div>
                     <div class="profile-form-group">
-                      <label class="profile-label" for="setting-biz-pro-email">Email de l'entreprise</label>
+                      <label class="profile-label" for="setting-biz-pro-email">Email commercial</label>
                       <input type="email" id="setting-biz-pro-email" class="profile-input" placeholder="contact@dubois.co">
                     </div>
                   </div>
 
-                  <!-- Informations légales -->
-                  <div class="profile-legal-section">
-                    <label class="profile-label">Informations légales</label>
-                    <div class="profile-two-cols">
-                      <div class="profile-form-group" style="margin-bottom:0;">
-                        <input type="text" id="setting-biz-taxid" class="profile-input profile-input-subtle" placeholder="Siret: 123 456 789 00012">
-                      </div>
-                      <div class="profile-form-group" style="margin-bottom:0;">
-                        <input type="text" id="setting-biz-vat" class="profile-input profile-input-subtle" placeholder="TVA: FR 12 123456789">
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Couleurs de la marque (Factures & Devis) -->
-                  <div class="profile-legal-section" style="margin-top: 1.25rem;">
-                    <label class="profile-label">Couleurs de la marque (Factures &amp; Devis)</label>
+                  <!-- Couleurs de marque -->
+                  <div style="margin-top: 1rem;">
+                    <label class="profile-label">Couleurs de la marque sur vos PDF</label>
                     <div class="profile-two-cols">
                       <div class="profile-form-group" style="margin-bottom:0;">
                         <label class="profile-label" style="font-size: 0.75rem; color: #64748B; margin-bottom: 0.25rem;" for="setting-biz-primary-color">Couleur principale</label>
@@ -3066,17 +3101,81 @@
                   </div>
                 </div>
 
-                <!-- Card 3B: Sécurité -->
+                <!-- CARD 5: Fiscalité & Facturation -->
                 <div class="profile-card">
-                  <h3 class="profile-card-title">Sécurité</h3>
-                  
-                  <div class="profile-security-actions">
-                    <button type="button" class="profile-btn-outline" onclick="KivoApp.openChangePasswordModal()">
-                      Changer le mot de passe
-                    </button>
-                    <button type="button" class="profile-btn-outline" onclick="KivoApp.openConnectedAccountsModal()">
-                      Comptes connectés
-                    </button>
+                  <h3 class="profile-card-title">5. Fiscalité & Facturation</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Identifiants fiscaux légaux et séquences de numérotation.</p>
+
+                  <div class="profile-two-cols">
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-taxid">SIRET / NINEA / Registre</label>
+                      <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: SN-DKR-2024-B-1234">
+                    </div>
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-vat-num">N° TVA Intracommunautaire</label>
+                      <input type="text" id="setting-biz-vat-num" class="profile-input" placeholder="Ex: FR 12 123456789">
+                    </div>
+                  </div>
+
+                  <div class="profile-two-cols">
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-vat">Taux TVA par défaut (%)</label>
+                      <input type="number" id="setting-biz-vat" class="profile-input" placeholder="18" min="0" max="100" step="0.5">
+                    </div>
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-website">Site internet</label>
+                      <input type="url" id="setting-biz-website" class="profile-input" placeholder="https://monsite.com">
+                    </div>
+                  </div>
+
+                  <div class="profile-two-cols">
+                    <div class="profile-form-group" style="margin-bottom:0;">
+                      <label class="profile-label" for="setting-biz-prefix">Préfixe Factures</label>
+                      <input type="text" id="setting-biz-prefix" class="profile-input" placeholder="FAC-2026-">
+                    </div>
+                    <div class="profile-form-group" style="margin-bottom:0;">
+                      <label class="profile-label" for="setting-biz-quote-prefix">Préfixe Devis</label>
+                      <input type="text" id="setting-biz-quote-prefix" class="profile-input" placeholder="DEV-2026-">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- CARD 6: Coordonnées Bancaires & Mobile Money -->
+                <div class="profile-card">
+                  <h3 class="profile-card-title">6. Coordonnées Bancaires & Mobile Money</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Affichées en bas de vos factures pour faciliter vos règlements clients.</p>
+
+                  <div class="profile-two-cols">
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-bank-name">Nom de la banque</label>
+                      <input type="text" id="setting-bank-name" class="profile-input" placeholder="Ex: CBAO / Société Générale">
+                    </div>
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-bank-account-name">Titulaire du compte</label>
+                      <input type="text" id="setting-bank-account-name" class="profile-input" placeholder="Ex: DUBOIS SARL">
+                    </div>
+                  </div>
+
+                  <div class="profile-two-cols">
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-bank-iban">IBAN / RIB</label>
+                      <input type="text" id="setting-bank-iban" class="profile-input" placeholder="SN123 01001 001234567890 12">
+                    </div>
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-bank-bic">Code BIC / SWIFT</label>
+                      <input type="text" id="setting-bank-bic" class="profile-input" placeholder="SGSN DAK">
+                    </div>
+                  </div>
+
+                  <div class="profile-two-cols" style="margin-top:0.5rem;">
+                    <div class="profile-form-group" style="margin-bottom:0;">
+                      <label class="profile-label" for="setting-momo-wave">Numéro Wave</label>
+                      <input type="text" id="setting-momo-wave" class="profile-input" placeholder="+221 77 000 00 00">
+                    </div>
+                    <div class="profile-form-group" style="margin-bottom:0;">
+                      <label class="profile-label" for="setting-momo-orange">Orange Money / MTN MoMo</label>
+                      <input type="text" id="setting-momo-orange" class="profile-input" placeholder="+225 07 00 00 00">
+                    </div>
                   </div>
                 </div>
 
@@ -3084,11 +3183,24 @@
 
             </div>
 
+            <!-- STICKY FLOATING SAVE BAR AT BOTTOM -->
+            <div class="profile-sticky-bar" id="profile-sticky-bar">
+              <div class="profile-sticky-bar-inner">
+                <div class="profile-sticky-status">
+                  <span class="status-dot" id="profile-status-dot"></span>
+                  <span id="profile-save-status-text">Tous les changements sont synchronisés</span>
+                </div>
+                <button type="button" class="btn btn-primary profile-sticky-save-btn" onclick="KivoApp.saveSettings()">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Enregistrer les modifications</span>
+                </button>
+              </div>
+            </div>
+
           </div>
 
         </section>
 
-        <!-- ==================== GESTION DE L'ÉQUIPE VIEW ==================== -->
         <section id="view-team" class="view-section" style="display: none;">
           <div class="view-header">
             <div>

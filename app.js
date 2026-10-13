@@ -5,6 +5,140 @@
 
 window.KivoApp = {
   state: null,
+  PLAN_FEATURES: {
+    gratuit:  { docsPerMonth: 3, users: 1, autosave: false, ai: false, allTemplates: false, advancedStyle: false, fullStats: false, team: false },
+    pro:      { docsPerMonth: Infinity, users: 1, autosave: true,  ai: true,  allTemplates: true,  advancedStyle: true,  fullStats: true,  team: false },
+    business: { docsPerMonth: Infinity, users: 5, autosave: true,  ai: true,  allTemplates: true,  advancedStyle: true,  fullStats: true,  team: true }
+  },
+
+  getPlan: function () {
+    const biz = (this.state && this.state.business) || {};
+    let raw = (biz.subscriptionTier || biz.subscription_tier || biz.current_plan || 'gratuit').toLowerCase().trim();
+    if (raw === 'free') raw = 'gratuit';
+    if (!this.PLAN_FEATURES[raw]) raw = 'gratuit';
+
+    // Traite un forfait expiré (plan_expires_at passé) comme Gratuit
+    const expiresAt = biz.plan_expires_at || biz.subscriptionExpiresAt;
+    if (expiresAt && raw !== 'gratuit') {
+      const expDate = new Date(expiresAt);
+      if (!isNaN(expDate.getTime()) && expDate < new Date()) {
+        raw = 'gratuit';
+      }
+    }
+
+    return {
+      name: raw,
+      features: this.PLAN_FEATURES[raw],
+      isGratuit: raw === 'gratuit',
+      isPro: raw === 'pro',
+      isBusiness: raw === 'business'
+    };
+  },
+
+  getMonthlyDocsCount: function () {
+    const docs = (this.state && this.state.documents) || [];
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+    return docs.filter(d => {
+      const rawDate = d.createdAt || d.issueDate || d.date;
+      if (!rawDate) return false;
+      const dt = new Date(rawDate);
+      return !isNaN(dt.getTime()) && dt.getFullYear() === curYear && dt.getMonth() === curMonth;
+    }).length;
+  },
+
+  updatePlanUsageBadge: function () {
+    const badgeEl = document.getElementById('sidebar-plan-badge');
+    if (!badgeEl) return;
+    const plan = this.getPlan();
+    const count = this.getMonthlyDocsCount();
+    const maxDocs = plan.features.docsPerMonth;
+
+    if (plan.isGratuit) {
+      const pct = Math.min(100, Math.round((count / maxDocs) * 100));
+      const isLimit = count >= maxDocs;
+      badgeEl.innerHTML = `
+        <div class="sidebar-plan-pill gratuit ${isLimit ? 'limit-reached' : ''}" onclick="KivoApp.navigate('pricing')" title="Forfait Gratuit - Cliquez pour passer à Pro">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:0.75rem;">
+            <span style="font-weight:600; color:var(--text-primary);">Plan Gratuit</span>
+            <span style="font-weight:700; color:${isLimit ? '#EF4444' : 'var(--primary, #4F46E5)'};">${count}/${maxDocs} docs</span>
+          </div>
+          <div style="height:4px; background:rgba(255,255,255,0.15); border-radius:2px; overflow:hidden;">
+            <div style="width:${pct}%; height:100%; background:${isLimit ? '#EF4444' : 'var(--primary, #4F46E5)'}; border-radius:2px; transition:width 0.3s ease;"></div>
+          </div>
+          ${isLimit ? `<div style="font-size:0.68rem; color:#EF4444; margin-top:3px; font-weight:600;">Limite atteinte • Passer à Pro →</div>` : `<div style="font-size:0.68rem; color:var(--text-muted); margin-top:3px;">Passer à Pro (Illimité) →</div>`}
+        </div>
+      `;
+    } else if (plan.isPro) {
+      badgeEl.innerHTML = `
+        <div class="sidebar-plan-pill pro" onclick="KivoApp.navigate('pricing')" title="Forfait Pro Actif">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700; color:#4F46E5; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              PLAN PRO
+            </span>
+            <span style="font-size:0.68rem; background:rgba(79,70,229,0.12); color:#4F46E5; padding:1px 6px; border-radius:10px; font-weight:600;">Illimité</span>
+          </div>
+        </div>
+      `;
+    } else {
+      badgeEl.innerHTML = `
+        <div class="sidebar-plan-pill business" onclick="KivoApp.navigate('team')" title="Forfait Business Actif">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700; color:#7C3AED; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              PLAN BUSINESS
+            </span>
+            <span style="font-size:0.68rem; background:rgba(124,58,237,0.12); color:#7C3AED; padding:1px 6px; border-radius:10px; font-weight:600;">5 sièges</span>
+          </div>
+        </div>
+      `;
+    }
+  },
+
+  promptProTemplate: function (templateName) {
+    this.showToast(`Le modèle "${templateName}" est réservé aux forfaits PRO & BUSINESS. Passez à Pro pour débloquer tous les modèles !`, 'info');
+    this.closeModal('modal-new-doc-choice');
+    this.navigate('pricing');
+  },
+
+  ensurePublicToken: async function (doc) {
+    if (!doc) return null;
+    let token = doc.public_token || doc.publicToken;
+    const isWeakToken = !token || token.startsWith('tok_') || token.length !== 32 || token.includes('-');
+
+    if (isWeakToken) {
+      try {
+        token = crypto.randomUUID().replace(/-/g, '');
+      } catch (_) {
+        token = (Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)).substring(0, 32);
+      }
+
+      if (window.KivoDb && window.KivoDb.supabase && doc.id) {
+        const { error } = await window.KivoDb.supabase
+          .from('documents')
+          .update({ public_token: token })
+          .eq('id', doc.id);
+        if (error) {
+          console.error('[KivoApp] Failed to update public_token:', error);
+          this.showToast("Erreur lors de la sécurisation du lien de partage.", "error");
+          return null;
+        }
+      }
+      doc.public_token = token;
+      doc.publicToken = token;
+      this.saveState();
+    }
+    return token;
+  },
+
+  getPublicDocShareUrl: async function (doc) {
+    if (!doc) return '';
+    const token = await this.ensurePublicToken(doc);
+    if (!token) return '';
+    return `${window.location.origin}/#public-doc?token=${token}`;
+  },
   activeView: 'dashboard',
   selectedReminderTone: 'courtois',
   activeReminderDocId: null,
@@ -2577,7 +2711,7 @@ window.KivoApp = {
     // Determine semantic status & visual row tint matching reference design
     const isDraft = rawStatus === 'draft' || rawStatus === 'brouillon';
     const isPaid = rawStatus === 'paid' || rawStatus === 'payée' || rawStatus === 'payee';
-    const isOverdue = rawStatus === 'overdue';
+    const isOverdue = rawStatus === 'overdue' || (!isQuote && !isPaid && !isDraft && !isRefunded && doc.dueDate && new Date(doc.dueDate + 'T23:59:59') < new Date());
     const isRefunded = rawStatus === 'refunded';
     const isArchived = rawStatus === 'archived' || rawStatus === 'archive' || rawStatus === 'cancelled' || rawStatus === 'rejected';
     const isProspect = rawStatus === 'prospect' || (isQuote && (rawStatus === 'sent' || rawStatus === 'viewed' || rawStatus === 'pending'));
@@ -2667,6 +2801,12 @@ window.KivoApp = {
         <td class="col-doc-status">${statusBadgeHtml}</td>
         <td class="col-doc-action" style="text-align: right;" onclick="event.stopPropagation();">
           <div style="display: inline-flex; align-items: center; gap: 0.35rem; justify-content: flex-end;">
+            ${isOverdue ? `
+              <button class="btn-row-action btn-action-remind" onclick="KivoApp.shareOnWhatsApp('${doc.id}', true)" title="Relancer le client sur WhatsApp" style="color: #25D366; border-color: rgba(37, 211, 102, 0.4); background: rgba(37, 211, 102, 0.1); font-weight: 600; padding: 0 8px; gap: 4px; display: inline-flex; align-items: center;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                <span class="btn-remind-text" style="font-size: 0.72rem;">Relancer</span>
+              </button>
+            ` : ''}
             ${(!isPaid && !isQuote && !isRefunded && !isDraft) ? `
               <button class="btn-row-action btn-action-pay" onclick="KivoApp.markInvoiceAsPaid('${doc.id}')" title="Marquer comme payée" style="color: #059669; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08);">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -2740,6 +2880,12 @@ window.KivoApp = {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         <span>Télécharger PDF (A4)</span>
       </div>
+      ${(rawSt === 'overdue' || (!doc.type === 'quote' && !isDocPaid && doc.dueDate && new Date(doc.dueDate + 'T23:59:59') < new Date())) ? `
+        <div class="action-menu-item" style="color: #25D366; font-weight: 600;" onclick="KivoApp.shareOnWhatsApp('${doc.id}', true)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          <span>Relancer WhatsApp</span>
+        </div>
+      ` : ''}
       <div class="action-menu-item" onclick="KivoApp.shareOnWhatsApp('${doc.id}')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
         <span>Partager WhatsApp</span>
@@ -2831,6 +2977,17 @@ window.KivoApp = {
   openNewDocModal: function (type = 'invoice') {
     if (!this.state) this.state = {};
     if (!this.state.business) this.state.business = JSON.parse(JSON.stringify(this.BLANK_STATE.business));
+
+    // Guard : limite de 3 documents par mois pour le forfait Gratuit
+    const plan = this.getPlan();
+    if (plan.isGratuit) {
+      const count = this.getMonthlyDocsCount();
+      if (count >= plan.features.docsPerMonth) {
+        this.showToast(`Limite du forfait Gratuit atteinte (${plan.features.docsPerMonth} docs/mois). Passez à PRO pour créer des documents en illimité !`, 'warning');
+        this.navigate('pricing');
+        return;
+      }
+    }
     const gSelect = document.getElementById('gallery-doc-type');
     if (gSelect) gSelect.value = type;
     const aiSelect = document.getElementById('ai-mode-doc-type');
@@ -4145,17 +4302,29 @@ window.KivoApp = {
     }
 
     if (!gallery) return;
-    gallery.innerHTML = window.KivoTemplates.builtIn.map(t => `
-      <div class="kivo-template-card" data-template="${t.id}" style="cursor:pointer;" onclick="KivoApp.startTemplateDocument('${docType}', '${t.id}')">
-        <div class="kivo-template-card-preview" style="height: 140px; padding: 0.75rem 1rem 0 1rem;">
-          ${window.KivoTemplates.miniPreview(t.id, this.state.business?.primaryColor)}
+    const plan = this.getPlan();
+    const canUseAll = plan.features.allTemplates;
+
+    gallery.innerHTML = window.KivoTemplates.builtIn.map((t, idx) => {
+      const isLocked = !canUseAll && idx > 0;
+      return `
+        <div class="kivo-template-card ${isLocked ? 'template-locked' : ''}" data-template="${t.id}" style="cursor:pointer; position:relative;" onclick="${isLocked ? `KivoApp.promptProTemplate('${t.name}')` : `KivoApp.startTemplateDocument('${docType}', '${t.id}')`}">
+          ${isLocked ? `
+            <div style="position:absolute; top:8px; right:8px; z-index:5; background:#4F46E5; color:white; font-size:0.68rem; font-weight:700; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:3px;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              PRO
+            </div>
+          ` : ''}
+          <div class="kivo-template-card-preview" style="height: 140px; padding: 0.75rem 1rem 0 1rem; ${isLocked ? 'opacity:0.65; filter:grayscale(30%);' : ''}">
+            ${window.KivoTemplates.miniPreview(t.id, this.state.business?.primaryColor)}
+          </div>
+          <div class="kivo-template-card-body" style="padding: 1rem;">
+            <h3 class="kivo-template-card-title" style="font-size:0.9rem; margin-bottom:0.25rem;">${t.name}</h3>
+            <p class="kivo-template-card-desc" style="font-size:0.75rem; margin-bottom:0;">${t.desc}</p>
+          </div>
         </div>
-        <div class="kivo-template-card-body" style="padding: 1rem;">
-          <h3 class="kivo-template-card-title" style="font-size:0.9rem; margin-bottom:0.25rem;">${t.name}</h3>
-          <p class="kivo-template-card-desc" style="font-size:0.75rem; margin-bottom:0;">${t.desc}</p>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     // Custom templates
     const cGallery = document.getElementById('gallery-custom');
@@ -5233,7 +5402,7 @@ window.KivoApp = {
     }
   },
 
-  shareOnWhatsApp: function (docId) {
+  shareOnWhatsApp: async function (docId, isReminder = false) {
     const doc = (this.state.documents || []).find(d => String(d.id) === String(docId));
     if (!doc) return;
 
@@ -5251,12 +5420,25 @@ window.KivoApp = {
       return;
     }
 
+    // Sécurisation du token public (crypto.randomUUID() 32 car.)
+    await this.ensurePublicToken(doc);
+    const publicUrl = this.getPublicDocShareUrl(doc);
     const bizName = this.getBusinessName();
-    const msg = window.WhatsAppHelper.buildShareMessage(doc, bizName);
 
-    // PC et Mobile : ouverture directe de WhatsApp via https://wa.me/?text=<message encodé>
-    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
-    this.showToast(this._t('toast_whatsapp_opening'), 'success');
+    // Récupération du numéro WhatsApp du client si disponible
+    let clientPhone = doc.clientPhone || doc.client_phone || '';
+    if (!clientPhone && doc.clientId) {
+      const cli = (this.state.clients || []).find(c => String(c.id) === String(doc.clientId));
+      if (cli) clientPhone = cli.phone || cli.whatsapp || '';
+    }
+
+    const msgType = isReminder || doc.status === 'overdue' ? 'reminder' : (isQuote ? 'quote' : 'invoice');
+    const msg = window.WhatsAppHelper.buildShareMessage(doc, bizName, publicUrl, msgType);
+
+    // PC et Mobile : wa.me ciblé avec numéro si disponible, sinon wa.me/?text=...
+    const waUrl = window.WhatsAppHelper.getWhatsAppWebUrl(clientPhone, msg);
+    window.open(waUrl, '_blank');
+    this.showToast(isReminder ? 'Ouverture de WhatsApp (Relance)...' : this._t('toast_whatsapp_opening'), 'success');
   },
 
   // Legacy — kept as no-op in case called from old HTML; modal-whatsapp-share is no longer used
@@ -6903,7 +7085,6 @@ window.KivoApp = {
           country: w.data.country || 'Senegal',
           currency: w.data.currency || 'FCFA',
           fiscal_id: w.data.taxId || '',
-          current_plan: 'Gratuit',
           onboarding_completed: false,
           onboarding_answers: progressData
         });
@@ -7401,7 +7582,6 @@ window.KivoApp = {
           country: d.country,
           currency: d.currency,
           fiscal_id: d.taxId,
-          current_plan: 'Gratuit',
           onboarding_completed: true,
           onboarding_answers: { step: 11, data: d, completedAt: new Date().toISOString() },
           invoice_prefix: biz.invoicePrefix || 'FAC-2026-',
@@ -7448,11 +7628,23 @@ window.KivoApp = {
   },
 
   renderSettings: function () {
-    const biz = this.state.business;
-    if (document.getElementById('setting-biz-name')) document.getElementById('setting-biz-name').value = biz.name || '';
+    const biz = this.state.business || {};
+
+    // 1. Informations personnelles
     if (document.getElementById('setting-biz-owner')) document.getElementById('setting-biz-owner').value = biz.owner || '';
+    if (document.getElementById('setting-biz-email')) document.getElementById('setting-biz-email').value = biz.email || '';
+
+    // 2. Préférences & Langue
+    if (document.getElementById('setting-biz-currency')) document.getElementById('setting-biz-currency').value = biz.currency || 'FCFA';
+    if (document.getElementById('setting-biz-language')) document.getElementById('setting-biz-language').value = this.state.language || "fr";
+    if (document.getElementById('profile-doc-preference')) document.getElementById('profile-doc-preference').value = biz.docPreference || 'standard';
+
+    // 3. Entreprise & Marque
+    if (document.getElementById('setting-biz-name')) document.getElementById('setting-biz-name').value = biz.name || '';
+    if (document.getElementById('setting-biz-address')) document.getElementById('setting-biz-address').value = biz.address || '';
+    if (document.getElementById('setting-biz-pro-email')) document.getElementById('setting-biz-pro-email').value = biz.proEmail || biz.email || '';
     
-    // Parse biz.phone into prefix + local number
+    // Téléphone avec indicatif
     const phoneInput = document.getElementById('setting-biz-phone');
     const prefixSel = document.getElementById('setting-biz-phone-prefix');
     if (phoneInput) {
@@ -7465,18 +7657,8 @@ window.KivoApp = {
       }
     }
     this.setupPhoneInputs();
-    if (document.getElementById('setting-biz-email')) document.getElementById('setting-biz-email').value = biz.email || '';
-    if (document.getElementById('setting-biz-pro-email')) document.getElementById('setting-biz-pro-email').value = biz.proEmail || biz.email || '';
-    if (document.getElementById('setting-biz-website')) document.getElementById('setting-biz-website').value = biz.website || '';
-    if (document.getElementById('setting-biz-address')) document.getElementById('setting-biz-address').value = biz.address || '';
-    if (document.getElementById('setting-biz-taxid')) document.getElementById('setting-biz-taxid').value = biz.taxId || '';
-    if (document.getElementById('setting-biz-currency')) document.getElementById('setting-biz-currency').value = biz.currency || 'FCFA';
-    if (document.getElementById('setting-biz-prefix')) document.getElementById('setting-biz-prefix').value = biz.invoicePrefix || "FAC-2026-";
-    if (document.getElementById('setting-biz-quote-prefix')) document.getElementById('setting-biz-quote-prefix').value = biz.quotePrefix || "DEV-2026-";
-    if (document.getElementById('setting-biz-vat')) document.getElementById('setting-biz-vat').value = biz.defaultVatRate !== undefined ? biz.defaultVatRate : 0;
-    if (document.getElementById('setting-biz-language')) document.getElementById('setting-biz-language').value = this.state.language || "fr";
 
-    // Restore brand colors
+    // Couleurs de marque
     const primCol = biz.primaryColor || '#4F46E5';
     const secCol = biz.secondaryColor || '#7C3AED';
     if (document.getElementById('setting-biz-primary-color')) document.getElementById('setting-biz-primary-color').value = primCol;
@@ -7484,16 +7666,39 @@ window.KivoApp = {
     if (document.getElementById('setting-biz-secondary-color')) document.getElementById('setting-biz-secondary-color').value = secCol;
     if (document.getElementById('setting-biz-secondary-color-text')) document.getElementById('setting-biz-secondary-color-text').value = secCol;
 
-    // ── Profile Identity Card (Column 1) ─────────────────────────────────
+    // 4. Fiscalité & Facturation
+    if (document.getElementById('setting-biz-taxid')) document.getElementById('setting-biz-taxid').value = biz.taxId || '';
+    if (document.getElementById('setting-biz-vat-num')) document.getElementById('setting-biz-vat-num').value = biz.vatNumber || '';
+    if (document.getElementById('setting-biz-vat')) document.getElementById('setting-biz-vat').value = biz.defaultVatRate !== undefined ? biz.defaultVatRate : (biz.currency === 'FCFA' ? 18 : 20);
+    if (document.getElementById('setting-biz-website')) document.getElementById('setting-biz-website').value = biz.website || '';
+    if (document.getElementById('setting-biz-prefix')) document.getElementById('setting-biz-prefix').value = biz.invoicePrefix || "FAC-2026-";
+    if (document.getElementById('setting-biz-quote-prefix')) document.getElementById('setting-biz-quote-prefix').value = biz.quotePrefix || "DEV-2026-";
+
+    // 5. Coordonnées bancaires & Mobile Money
+    const bDetails = biz.bankDetails || {};
+    const moMo = bDetails.mobileMoney || {};
+    if (document.getElementById('setting-bank-name')) document.getElementById('setting-bank-name').value = bDetails.bankName || '';
+    if (document.getElementById('setting-bank-account-name')) document.getElementById('setting-bank-account-name').value = bDetails.accountName || biz.name || '';
+    if (document.getElementById('setting-bank-iban')) document.getElementById('setting-bank-iban').value = bDetails.iban || '';
+    if (document.getElementById('setting-bank-bic')) document.getElementById('setting-bank-bic').value = bDetails.bic || '';
+    if (document.getElementById('setting-momo-wave')) document.getElementById('setting-momo-wave').value = moMo.wave || '';
+    if (document.getElementById('setting-momo-orange')) document.getElementById('setting-momo-orange').value = moMo.orangeMoney || moMo.mtn || '';
+
+    // 6. Notifications
+    const notifs = biz.notifications || {};
+    if (document.getElementById('setting-notify-doc-sent')) document.getElementById('setting-notify-doc-sent').checked = notifs.notifyDocSent !== false;
+    if (document.getElementById('setting-notify-reminder')) document.getElementById('setting-notify-reminder').checked = notifs.notifyReminder !== false;
+    if (document.getElementById('setting-notify-payment')) document.getElementById('setting-notify-payment').checked = notifs.notifyPayment !== false;
+
+    // 7. Identity Card (Column 1)
     const displayName = biz.owner || biz.name || 'Mon Compte';
     const displayEmail = biz.email || 'contact@entreprise.com';
-
     const nameDisplay = document.getElementById('profile-id-name-display');
     const emailDisplay = document.getElementById('profile-id-email-display');
     if (nameDisplay) nameDisplay.textContent = displayName;
     if (emailDisplay) emailDisplay.textContent = displayEmail;
 
-    // Restore logo in avatar circle
+    // Logo Avatar
     const avatarSvg = document.getElementById('profile-avatar-svg');
     const avatarImg = document.getElementById('profile-avatar-img');
     if (avatarSvg && avatarImg) {
@@ -7507,7 +7712,7 @@ window.KivoApp = {
       }
     }
 
-    // Restore logo in the upload box
+    // Logo Upload box
     const previewArea = document.getElementById('profile-logo-preview');
     const profileSizeControls = document.getElementById('profile-logo-size-controls');
     const profileSizeDisplay = document.getElementById('profile-logo-size-display');
@@ -7519,37 +7724,43 @@ window.KivoApp = {
       profileSizeControls.style.display = 'none';
     }
 
-    // Status badge — show subscription tier
-    const tier = biz.subscriptionTier || 'Pro';
+    // Status pill
+    const plan = this.getPlan();
     const statusBadge = document.getElementById('profile-status-badge');
-    if (statusBadge) {
-      statusBadge.textContent = 'Compte Actif';
-    }
+    if (statusBadge) statusBadge.textContent = 'Compte Actif';
 
-    const badgeEl = document.getElementById('settings-current-plan-badge');
-    if (badgeEl) {
-      badgeEl.textContent = `Forfait Actif : ${tier.toUpperCase()}`;
-    }
+    const planBadge = document.getElementById('settings-current-plan-badge');
+    if (planBadge) planBadge.textContent = `FORFAIT ${plan.name.toUpperCase()}`;
 
-    const plans = ['gratuit', 'pro', 'business'];
-    plans.forEach(p => {
-      const cardEl = document.getElementById(`setting-plan-card-${p}`);
-      if (cardEl) {
-        if (p === tier.toLowerCase()) {
-          cardEl.style.border = '2px solid var(--primary)';
-          cardEl.style.background = 'var(--primary-light)';
-        } else {
-          cardEl.style.border = '1px solid var(--border-color)';
-          cardEl.style.background = 'var(--bg-card)';
-        }
-      }
-    });
+    // Sticky save bar status
+    const statusText = document.getElementById('profile-save-status-text');
+    const statusDot = document.getElementById('profile-status-dot');
+    if (statusText) statusText.textContent = 'Tous les changements sont synchronisés';
+    if (statusDot) statusDot.classList.remove('dirty');
   },
 
   saveSettings: function () {
-    const biz = this.state.business;
-    if (document.getElementById('setting-biz-name')) biz.name = document.getElementById('setting-biz-name').value;
-    if (document.getElementById('setting-biz-owner')) biz.owner = document.getElementById('setting-biz-owner').value;
+    const biz = this.state.business = this.state.business || {};
+
+    // 1. Informations personnelles
+    if (document.getElementById('setting-biz-owner')) biz.owner = document.getElementById('setting-biz-owner').value.trim();
+    if (document.getElementById('setting-biz-email')) biz.email = document.getElementById('setting-biz-email').value.trim();
+
+    // 2. Préférences & Langue
+    if (document.getElementById('setting-biz-currency')) biz.currency = document.getElementById('setting-biz-currency').value;
+    if (document.getElementById('profile-doc-preference')) biz.docPreference = document.getElementById('profile-doc-preference').value;
+    const langSelect = document.getElementById('setting-biz-language');
+    if (langSelect) {
+      this.state.language = langSelect.value;
+      if (window.KivoI18n) KivoI18n.setLang(this.state.language);
+      this.applyLanguage(this.state.language);
+    }
+
+    // 3. Entreprise & Marque
+    if (document.getElementById('setting-biz-name')) biz.name = document.getElementById('setting-biz-name').value.trim();
+    if (document.getElementById('setting-biz-address')) biz.address = document.getElementById('setting-biz-address').value.trim();
+    if (document.getElementById('setting-biz-pro-email')) biz.proEmail = document.getElementById('setting-biz-pro-email').value.trim();
+
     const settingPhoneInput = document.getElementById('setting-biz-phone');
     const settingPrefixSel = document.getElementById('setting-biz-phone-prefix');
     if (settingPhoneInput) {
@@ -7564,47 +7775,46 @@ window.KivoApp = {
         biz.phone = rawVal;
       }
     }
-    if (document.getElementById('setting-biz-email')) biz.email = document.getElementById('setting-biz-email').value;
-    if (document.getElementById('setting-biz-pro-email')) biz.proEmail = document.getElementById('setting-biz-pro-email').value;
-    if (document.getElementById('setting-biz-website')) biz.website = document.getElementById('setting-biz-website').value;
-    if (document.getElementById('setting-biz-address')) biz.address = document.getElementById('setting-biz-address').value;
-    if (document.getElementById('setting-biz-taxid')) biz.taxId = document.getElementById('setting-biz-taxid').value;
-    if (document.getElementById('setting-biz-currency')) biz.currency = document.getElementById('setting-biz-currency').value;
-    if (document.getElementById('setting-biz-prefix')) biz.invoicePrefix = document.getElementById('setting-biz-prefix').value;
-    if (document.getElementById('setting-biz-quote-prefix')) biz.quotePrefix = document.getElementById('setting-biz-quote-prefix').value;
-    if (document.getElementById('setting-biz-vat')) biz.defaultVatRate = parseFloat(document.getElementById('setting-biz-vat').value) || 0;
-    if (document.getElementById('setting-stripe-key')) biz.stripeKey = document.getElementById('setting-stripe-key').value;
 
     const primSetting = document.getElementById('setting-biz-primary-color');
     const secSetting = document.getElementById('setting-biz-secondary-color');
     if (primSetting) biz.primaryColor = primSetting.value;
     if (secSetting) biz.secondaryColor = secSetting.value;
 
-    // Sync to builder if present
-    const builderP = document.getElementById('builder-color-primary');
-    const builderS = document.getElementById('builder-color-secondary');
-    if (builderP && primSetting) {
-      builderP.value = primSetting.value;
-      const builderPT = document.getElementById('builder-color-primary-text');
-      if (builderPT) builderPT.value = primSetting.value;
-    }
-    if (builderS && secSetting) {
-      builderS.value = secSetting.value;
-      const builderST = document.getElementById('builder-color-secondary-text');
-      if (builderST) builderST.value = secSetting.value;
-    }
+    // 4. Fiscalité & Facturation
+    if (document.getElementById('setting-biz-taxid')) biz.taxId = document.getElementById('setting-biz-taxid').value.trim();
+    if (document.getElementById('setting-biz-vat-num')) biz.vatNumber = document.getElementById('setting-biz-vat-num').value.trim();
+    if (document.getElementById('setting-biz-vat')) biz.defaultVatRate = parseFloat(document.getElementById('setting-biz-vat').value) || 0;
+    if (document.getElementById('setting-biz-website')) biz.website = document.getElementById('setting-biz-website').value.trim();
+    if (document.getElementById('setting-biz-prefix')) biz.invoicePrefix = document.getElementById('setting-biz-prefix').value.trim();
+    if (document.getElementById('setting-biz-quote-prefix')) biz.quotePrefix = document.getElementById('setting-biz-quote-prefix').value.trim();
 
-    const langSelect = document.getElementById('setting-biz-language');
-    if (langSelect) {
-      this.state.language = langSelect.value;
-      // Sync KivoI18n engine first, then apply language (which also syncs via applyLanguage)
-      if (window.KivoI18n) KivoI18n.setLang(this.state.language);
-      this.applyLanguage(this.state.language);
-    }
+    // 5. Coordonnées bancaires & Mobile Money
+    biz.bankDetails = biz.bankDetails || {};
+    biz.bankDetails.mobileMoney = biz.bankDetails.mobileMoney || {};
+    if (document.getElementById('setting-bank-name')) biz.bankDetails.bankName = document.getElementById('setting-bank-name').value.trim();
+    if (document.getElementById('setting-bank-account-name')) biz.bankDetails.accountName = document.getElementById('setting-bank-account-name').value.trim();
+    if (document.getElementById('setting-bank-iban')) biz.bankDetails.iban = document.getElementById('setting-bank-iban').value.trim();
+    if (document.getElementById('setting-bank-bic')) biz.bankDetails.bic = document.getElementById('setting-bank-bic').value.trim();
+    if (document.getElementById('setting-momo-wave')) biz.bankDetails.mobileMoney.wave = document.getElementById('setting-momo-wave').value.trim();
+    if (document.getElementById('setting-momo-orange')) biz.bankDetails.mobileMoney.orangeMoney = document.getElementById('setting-momo-orange').value.trim();
+
+    // 6. Notifications
+    biz.notifications = biz.notifications || {};
+    if (document.getElementById('setting-notify-doc-sent')) biz.notifications.notifyDocSent = document.getElementById('setting-notify-doc-sent').checked;
+    if (document.getElementById('setting-notify-reminder')) biz.notifications.notifyReminder = document.getElementById('setting-notify-reminder').checked;
+    if (document.getElementById('setting-notify-payment')) biz.notifications.notifyPayment = document.getElementById('setting-notify-payment').checked;
 
     this.saveState();
+    this.updatePlanUsageBadge();
 
-    // Sync to Supabase
+    // Feedback sticky bar
+    const statusText = document.getElementById('profile-save-status-text');
+    const statusDot = document.getElementById('profile-status-dot');
+    if (statusText) statusText.textContent = 'Enregistré avec succès !';
+    if (statusDot) statusDot.style.background = '#10B981';
+
+    // Synchronisation Supabase
     if (window.KivoDb && this.supabaseConnected) {
       window.KivoDb.saveSettings({
         company_name: biz.name,
@@ -7615,98 +7825,22 @@ window.KivoApp = {
         website: biz.website || '',
         fiscal_id: biz.taxId,
         currency: biz.currency,
-        current_plan: biz.subscriptionTier || 'Gratuit',
         invoice_prefix: biz.invoicePrefix || 'FAC-2026-',
         quote_prefix: biz.quotePrefix || 'DEV-2026-',
         default_vat_rate: biz.defaultVatRate !== undefined ? biz.defaultVatRate : 0,
         logo_url: biz.logoUrl || '',
-        visual_template: biz.visualTemplate || 'classic',
         primary_color: biz.primaryColor || '#4F46E5',
-        secondary_color: biz.secondaryColor || '#7C3AED',
-        logo_size: biz.logoSize || 100,
-        logo_position: biz.logoPosition || 'right',
-        invoice_page_size: biz.invoicePageSize || 'a4',
-        next_invoice_number: biz.nextInvoiceNumber || 1001,
-        next_quote_number: biz.nextQuoteNumber || 1001
-      }).catch(e => {
-        console.error('[KivoApp] Supabase saveSettings error:', e);
-        this.showToast(this.friendlySupabaseError(e, this._t('toast_settings_cloud_fail')), "warning");
+        secondary_color: biz.secondaryColor || '#7C3AED'
+      }).then(() => {
+        console.log('[KivoApp] Settings saved to Supabase');
+      }).catch(err => {
+        console.warn('[KivoApp] Supabase settings sync error:', err);
       });
     }
 
-    this.showToast(this._t('toast_settings_saved'), "success");
-    this.updateUserBrandingUI();
+    this.showToast('Paramètres et profil enregistrés avec succès !', 'success');
   },
 
-  // ── Profile Page: Security & Logo Functions ──────────────────────────────
-
-  /**
-   * Opens the Change Password modal and resets its form
-   */
-  openChangePasswordModal: function () {
-    const form = document.getElementById('form-change-password');
-    if (form) form.reset();
-    const errEl = document.getElementById('profile-password-error');
-    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
-    this.openModal('modal-change-password');
-  },
-
-  /**
-   * Opens the Connected Accounts modal and populates the user's email
-   */
-  openConnectedAccountsModal: function () {
-    const emailEl = document.getElementById('modal-conn-email-text');
-    if (emailEl) {
-      const userEmail = (this.state && this.state.business && this.state.business.email)
-        || (window.KivoAuth && window.KivoAuth.currentUser && window.KivoAuth.currentUser.email)
-        || 'Compte principal KIVO';
-      emailEl.textContent = userEmail;
-    }
-    this.openModal('modal-connected-accounts');
-  },
-
-  /**
-   * Submits a password change via Supabase Auth
-   */
-  submitPasswordChange: async function () {
-    const newPwd = (document.getElementById('profile-new-password') || {}).value || '';
-    const confirmPwd = (document.getElementById('profile-confirm-password') || {}).value || '';
-    const errEl = document.getElementById('profile-password-error');
-    const btn = document.getElementById('btn-submit-pwd-change');
-
-    const showError = (msg) => {
-      if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
-    };
-
-    if (!newPwd || newPwd.length < 6) {
-      return showError('Le mot de passe doit contenir au moins 6 caractères.');
-    }
-    if (newPwd !== confirmPwd) {
-      return showError('Les mots de passe ne correspondent pas.');
-    }
-
-    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
-    if (btn) { btn.disabled = true; btn.textContent = 'Mise à jour…'; }
-
-    try {
-      if (window.KivoDb && window.KivoDb.supabase) {
-        const { error } = await window.KivoDb.supabase.auth.updateUser({ password: newPwd });
-        if (error) throw error;
-      }
-      this.closeModal('modal-change-password');
-      this.showToast(this._t('toast_password_updated'), 'success');
-    } catch (err) {
-      console.error('[KivoApp] submitChangePassword error:', err);
-      showError(this.friendlySupabaseError(err, 'Une erreur est survenue. Réessayez ou contactez le support.'));
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Mettre à jour'; }
-    }
-  },
-
-  /**
-   * Handles logo file upload from the profile page logo upload box.
-   * Shows a live preview in both the upload box and the avatar circle.
-   */
   handleProfileLogoUpload: function (files) {
     if (!files || !files[0]) return;
     const file = files[0];

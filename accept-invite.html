@@ -16,16 +16,16 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 1rem;
+      padding: 1.5rem 1rem;
       color: #F1F5F9;
     }
     .card {
       background: rgba(30, 41, 59, 0.85);
       backdrop-filter: blur(20px);
-      border: 1px solid rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(99, 102, 241, 0.25);
       border-radius: 20px;
       padding: 2.5rem 2rem;
-      max-width: 440px;
+      max-width: 460px;
       width: 100%;
       text-align: center;
       box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
@@ -41,6 +41,7 @@
     .icon-wrap.success    { background: rgba(16, 185, 129, 0.15); }
     .icon-wrap.error      { background: rgba(239, 68, 68, 0.15); }
     .icon-wrap.needs-login{ background: rgba(245, 158, 11, 0.15); }
+    .icon-wrap.enter-name { background: rgba(79, 70, 229, 0.15); }
     h1 { font-family: 'Outfit', sans-serif; font-size: 1.45rem; font-weight: 700; color: #F1F5F9; margin-bottom: 0.75rem; }
     p  { font-size: 0.95rem; color: #94A3B8; line-height: 1.6; margin-bottom: 1.5rem; }
     p strong { color: #E2E8F0; }
@@ -62,19 +63,20 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .pulse { animation: pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-    #login-form { display: none; text-align: left; margin-top: 1.5rem; }
-    #login-form label { font-size: 0.85rem; color: #94A3B8; margin-bottom: 0.4rem; display: block; }
-    #login-form input {
+    .form-box { text-align: left; margin-top: 1.25rem; }
+    .form-box label { font-size: 0.85rem; color: #94A3B8; margin-bottom: 0.4rem; display: block; font-weight: 500; }
+    .form-box input {
       width: 100%; background: rgba(15,23,42,0.6);
       border: 1px solid rgba(99,102,241,0.3); border-radius: 8px;
-      padding: 0.7rem 1rem; color: #F1F5F9;
+      padding: 0.75rem 1rem; color: #F1F5F9;
       font-size: 0.95rem; font-family: 'Inter', sans-serif;
       outline: none; margin-bottom: 1rem; transition: border-color 0.2s;
     }
-    #login-form input:focus { border-color: #6366F1; }
-    #login-form input[readonly] { opacity: 0.6; cursor: not-allowed; }
-    .divider { height: 1px; background: rgba(99,102,241,0.1); margin: 1.5rem 0; }
+    .form-box input:focus { border-color: #6366F1; box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
+    .form-box input[readonly] { opacity: 0.65; cursor: not-allowed; }
+    .divider { height: 1px; background: rgba(99,102,241,0.15); margin: 1.5rem 0; }
     .footer-note { font-size: 0.78rem; color: #475569; margin-top: 1.5rem; }
+    .error-box { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 0.75rem 1rem; color: #FCA5A5; font-size: 0.85rem; margin-bottom: 1rem; text-align: left; }
   </style>
 </head>
 <body>
@@ -87,12 +89,14 @@
     <span class="logo-text">KIVO MATIQUE</span>
   </div>
 
+  <!-- 1. État chargement -->
   <div id="state-loading">
     <div class="icon-wrap loading"><div class="spinner"></div></div>
-    <h1>Verification de l'invitation...</h1>
+    <h1>Vérification de l'invitation...</h1>
     <p class="pulse">Merci de patienter quelques instants.</p>
   </div>
 
+  <!-- 2. État connexion requise -->
   <div id="state-needs-login" style="display:none;">
     <div class="icon-wrap needs-login">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round">
@@ -100,30 +104,63 @@
         <circle cx="12" cy="17" r="0.5" fill="#F59E0B" stroke="none"/>
       </svg>
     </div>
-    <h1>Connexion requise</h1>
-    <p>Pour accepter cette invitation, connectez-vous avec l'adresse e-mail a laquelle elle a ete envoyee.</p>
-    <div id="login-form">
-      <label>Adresse e-mail invitee</label>
-      <input type="email" id="invite-email-input" readonly placeholder="chargement...">
-      <label>Mot de passe</label>
-      <input type="password" id="invite-password-input" placeholder="Votre mot de passe">
-      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;" onclick="doLogin()">Se connecter et accepter</button>
+    <h1>Rejoindre l'équipe</h1>
+    <p>Pour accepter cette invitation, connectez-vous ou créez votre compte KIVO avec l'adresse e-mail invitée.</p>
+    
+    <div id="auth-error-msg" class="error-box" style="display:none;"></div>
+
+    <div class="form-box">
+      <label for="invite-email-input">Adresse e-mail invitée</label>
+      <input type="email" id="invite-email-input" readonly placeholder="Chargement...">
+      
+      <div id="register-name-group" style="display:none;">
+        <label for="invite-reg-name">Votre nom complet</label>
+        <input type="text" id="invite-reg-name" placeholder="Ex: Jean Diop">
+      </div>
+
+      <label for="invite-password-input">Mot de passe</label>
+      <input type="password" id="invite-password-input" placeholder="Votre mot de passe (min. 6 caractères)">
+
+      <button id="btn-login" class="btn btn-primary" style="width:100%;margin-top:0.25rem;" onclick="doLogin()">Se connecter</button>
+      <button id="btn-register" class="btn btn-secondary" style="width:100%;margin-top:0.5rem;" onclick="toggleRegisterMode()">Créer mon compte</button>
     </div>
     <div class="divider"></div>
-    <p style="font-size:0.85rem;">Pas de compte ? <a href="#" onclick="doMagicLink()" style="color:#818CF8;">Recevoir un lien de connexion</a></p>
+    <p style="font-size:0.85rem;">Mot de passe oublié ? <a href="#" onclick="doMagicLink()" style="color:#818CF8;">Recevoir un lien par email</a></p>
   </div>
 
+  <!-- 3. État saisie du nom (une fois connecté) -->
+  <div id="state-enter-name" style="display:none;">
+    <div class="icon-wrap enter-name">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+    </div>
+    <h1>Confirmez votre identité</h1>
+    <p>Saisissez votre nom complet. Vos devis et factures créés seront enregistrés sous ce nom.</p>
+
+    <div id="name-error-msg" class="error-box" style="display:none;"></div>
+
+    <div class="form-box">
+      <label for="member-name-input">Votre nom complet *</label>
+      <input type="text" id="member-name-input" placeholder="Ex: Marie Fall" required autofocus>
+
+      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;" onclick="submitAcceptWithName()">Accepter et rejoindre l'équipe</button>
+    </div>
+  </div>
+
+  <!-- 4. État succès -->
   <div id="state-success" style="display:none;">
     <div class="icon-wrap success">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="20 6 9 17 4 12"/>
       </svg>
     </div>
-    <h1>Bienvenue dans l'equipe !</h1>
-    <p>Votre invitation a ete acceptee. Vous etes maintenant membre de l'espace KIVO MATIQUE.</p>
-    <a href="index.html" class="btn btn-primary">Acceder a l'application</a>
+    <h1>Bienvenue dans l'équipe !</h1>
+    <p>Votre invitation a été validée. Vous avez désormais accès à l'espace d'entreprise KIVO MATIQUE.</p>
+    <a href="index.html#dashboard" class="btn btn-primary">Accéder à mon espace</a>
   </div>
 
+  <!-- 5. État erreur -->
   <div id="state-error" style="display:none;">
     <div class="icon-wrap error">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round">
@@ -131,11 +168,11 @@
       </svg>
     </div>
     <h1 id="error-title">Invitation invalide</h1>
-    <p id="error-message">Ce lien est invalide ou a expire. Demandez une nouvelle invitation.</p>
-    <a href="index.html" class="btn btn-secondary">Retour a l'accueil</a>
+    <p id="error-message">Ce lien est invalide ou a expiré. Demandez une nouvelle invitation.</p>
+    <a href="index.html" class="btn btn-secondary">Retour à l'accueil</a>
   </div>
 
-  <p class="footer-note">KIVO MATIQUE — Invitation equipe securisee</p>
+  <p class="footer-note">KIVO MATIQUE — Invitation équipe sécurisée</p>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -147,9 +184,10 @@
   var params       = new URLSearchParams(window.location.search);
   var inviteToken  = params.get('token') || '';
   var inviteEmail  = params.get('email') || '';
+  var isRegisterMode = false;
 
   function showState(id) {
-    ['state-loading','state-needs-login','state-success','state-error'].forEach(function(s) {
+    ['state-loading','state-needs-login','state-enter-name','state-success','state-error'].forEach(function(s) {
       document.getElementById(s).style.display = (s === id) ? '' : 'none';
     });
   }
@@ -160,66 +198,167 @@
     showState('state-error');
   }
 
-  async function acceptInvite() {
-    if (!inviteToken) { showError('Lien invalide', 'Aucun token trouve dans le lien.'); return; }
-    var res = await sb.rpc('accept_team_invite', { p_token: inviteToken });
-    if (res.error) { showError('Erreur serveur', res.error.message || 'Impossible de traiter.'); return; }
-    var result = res.data;
-    if (!result || !result.ok) {
-      var errMap = {
-        not_authenticated:        ['Connexion requise',  'Vous devez etre connecte pour accepter cette invitation.'],
-        token_invalid_or_expired: ['Lien expire',        'Ce lien est invalide ou deja utilise.'],
-        email_mismatch:           ['Mauvais compte',     'Connectez-vous avec l\'e-mail qui a recu l\'invitation.'],
-        seats_full:               ['Quota atteint',      'L\'equipe a atteint sa limite de 5 membres (Plan Business).']
-      };
-      var key = result && result.error ? result.error : '';
-      var parts = errMap[key] || ['Invitation invalide', 'Demandez une nouvelle invitation.'];
-      showError(parts[0], parts[1]);
+  function mapErrorMessage(rawErr) {
+    var str = String(rawErr || '').toUpperCase();
+    if (str.includes('INVITATION_INTROUVABLE') || str.includes('TOKEN_INVALID') || str.includes('NOT_FOUND')) {
+      return ['Invitation introuvable', 'Invitation introuvable ou déjà utilisée. Demandez une nouvelle invitation.'];
+    }
+    if (str.includes('EMAIL_DIFFERENT') || str.includes('EMAIL_MISMATCH')) {
+      return ['Adresse e-mail différente', 'Cette invitation est réservée à une autre adresse e-mail. Veuillez vous connecter avec le bon compte.'];
+    }
+    if (str.includes('LIMITE_SIEGES_ATTEINTE') || str.includes('SEATS_FULL')) {
+      return ['Limite de sièges atteinte', 'Les 5 sièges de l\'équipe sont déjà occupés. Contactez le Directeur de votre entreprise.'];
+    }
+    if (str.includes('EQUIPE_RESERVEE_BUSINESS') || str.includes('PLAN_BUSINESS')) {
+      return ['Forfait insuffisant', 'L\'équipe est réservée au forfait Business.'];
+    }
+    if (str.includes('NOT_AUTHENTICATED')) {
+      return ['Connexion requise', 'Vous devez être connecté pour accepter cette invitation.'];
+    }
+    return ['Erreur', rawErr || 'Impossible de valider l\'invitation. Demandez un nouveau lien.'];
+  }
+
+  async function callAcceptRpc(name) {
+    if (!inviteToken) {
+      showError('Lien invalide', 'Aucun jeton d\'invitation valide trouvé dans le lien.');
       return;
     }
+    showState('state-loading');
+
+    // Appel officiel conforme : sb.rpc('accept_team_invite', { p_token, p_name })
+    var res = await sb.rpc('accept_team_invite', { p_token: inviteToken, p_name: name });
+    
+    if (res.error) {
+      var mapped = mapErrorMessage(res.error.message);
+      showError(mapped[0], mapped[1]);
+      return;
+    }
+
+    var result = res.data;
+    if (result && result.error) {
+      var mappedData = mapErrorMessage(result.error);
+      showError(mappedData[0], mappedData[1]);
+      return;
+    }
+
     showState('state-success');
   }
 
-  async function init() {
-    // Cas: retour apres magic-link Supabase (hash)
-    if (window.location.hash && window.location.hash.includes('access_token')) {
-      await new Promise(function(r){ setTimeout(r, 900); });
-      var s2 = await sb.auth.getSession();
-      if (s2.data && s2.data.session) { await acceptInvite(); return; }
+  function promptMemberName(defaultName) {
+    showState('state-enter-name');
+    var input = document.getElementById('member-name-input');
+    if (input) {
+      if (defaultName) input.value = defaultName;
+      setTimeout(function() { input.focus(); }, 100);
     }
-    var sessionRes = await sb.auth.getSession();
-    if (sessionRes.data && sessionRes.data.session) {
-      await acceptInvite();
+  }
+
+  function submitAcceptWithName() {
+    var input = document.getElementById('member-name-input');
+    var name = input ? input.value.trim() : '';
+    var errBox = document.getElementById('name-error-msg');
+    if (!name) {
+      if (errBox) { errBox.textContent = 'Veuillez renseigner votre nom complet.'; errBox.style.display = 'block'; }
+      return;
+    }
+    if (errBox) errBox.style.display = 'none';
+    callAcceptRpc(name);
+  }
+
+  function toggleRegisterMode() {
+    isRegisterMode = !isRegisterMode;
+    var nameGroup = document.getElementById('register-name-group');
+    var btnLogin = document.getElementById('btn-login');
+    var btnReg = document.getElementById('btn-register');
+    if (isRegisterMode) {
+      nameGroup.style.display = 'block';
+      btnLogin.textContent = 'Créer mon compte et continuer';
+      btnReg.textContent = 'J\'ai déjà un compte (se connecter)';
     } else {
-      showState('state-needs-login');
-      var ei = document.getElementById('invite-email-input');
-      if (ei && inviteEmail) ei.value = inviteEmail;
-      document.getElementById('login-form').style.display = 'block';
+      nameGroup.style.display = 'none';
+      btnLogin.textContent = 'Se connecter';
+      btnReg.textContent = 'Créer mon compte';
     }
   }
 
   async function doLogin() {
-    var email    = document.getElementById('invite-email-input').value.trim();
-    var password = document.getElementById('invite-password-input').value;
-    if (!email || !password) { alert('Remplissez les deux champs.'); return; }
-    showState('state-loading');
-    var res = await sb.auth.signInWithPassword({ email: email, password: password });
-    if (res.error) {
-      showState('state-needs-login');
-      document.getElementById('login-form').style.display = 'block';
-      alert('Connexion echouee : ' + res.error.message);
+    var email = document.getElementById('invite-email-input').value.trim();
+    var pwd   = document.getElementById('invite-password-input').value;
+    var errBox = document.getElementById('auth-error-msg');
+    if (errBox) errBox.style.display = 'none';
+
+    if (!email || !pwd) {
+      if (errBox) { errBox.textContent = 'Veuillez saisir votre mot de passe.'; errBox.style.display = 'block'; }
       return;
     }
-    await acceptInvite();
+
+    showState('state-loading');
+
+    if (isRegisterMode) {
+      var regName = (document.getElementById('invite-reg-name')?.value || '').trim() || email.split('@')[0];
+      var signRes = await sb.auth.signUp({
+        email: email,
+        password: pwd,
+        options: { data: { full_name: regName } }
+      });
+      if (signRes.error) {
+        showState('state-needs-login');
+        if (errBox) { errBox.textContent = signRes.error.message || 'Erreur lors de l\'inscription.'; errBox.style.display = 'block'; }
+        return;
+      }
+      // Si connecté directement ou confirmation requise
+      if (signRes.data && signRes.data.session) {
+        promptMemberName(regName);
+      } else {
+        showError('Compte créé', 'Un e-mail de confirmation vous a été envoyé. Veuillez cliquer sur le lien puis revenir accepter l\'invitation.');
+      }
+    } else {
+      var res = await sb.auth.signInWithPassword({ email: email, password: pwd });
+      if (res.error) {
+        showState('state-needs-login');
+        if (errBox) { errBox.textContent = 'Identifiants incorrects : ' + res.error.message; errBox.style.display = 'block'; }
+        return;
+      }
+      var defaultName = (res.data && res.data.user && res.data.user.user_metadata && res.data.user.user_metadata.full_name) || email.split('@')[0];
+      promptMemberName(defaultName);
+    }
   }
 
   async function doMagicLink() {
     var email = document.getElementById('invite-email-input').value.trim();
-    if (!email) { alert('Entrez votre adresse e-mail.'); return; }
+    if (!email) { alert('Adresse e-mail requise.'); return; }
     var redirectUrl = window.location.href;
     var res = await sb.auth.signInWithOtp({ email: email, options: { emailRedirectTo: redirectUrl } });
     if (res.error) { alert('Erreur : ' + res.error.message); return; }
-    alert('Lien envoye a ' + email + '. Cliquez sur le lien dans l\'e-mail pour revenir ici.');
+    alert('Lien de connexion envoyé à ' + email + '. Cliquez dessus pour revenir ici.');
+  }
+
+  async function init() {
+    if (!inviteToken) {
+      showError('Lien invalide', 'Le jeton d\'invitation est manquant dans l\'adresse URL.');
+      return;
+    }
+
+    // Cas: retour après magic-link
+    if (window.location.hash && window.location.hash.includes('access_token')) {
+      await new Promise(function(r){ setTimeout(r, 800); });
+      var s2 = await sb.auth.getSession();
+      if (s2.data && s2.data.session) {
+        var uName = (s2.data.session.user && s2.data.session.user.user_metadata && s2.data.session.user.user_metadata.full_name) || '';
+        promptMemberName(uName);
+        return;
+      }
+    }
+
+    var sessionRes = await sb.auth.getSession();
+    if (sessionRes.data && sessionRes.data.session) {
+      var uName = (sessionRes.data.session.user && sessionRes.data.session.user.user_metadata && sessionRes.data.session.user.user_metadata.full_name) || '';
+      promptMemberName(uName);
+    } else {
+      showState('state-needs-login');
+      var ei = document.getElementById('invite-email-input');
+      if (ei && inviteEmail) ei.value = inviteEmail;
+    }
   }
 
   init();

@@ -6460,3 +6460,118 @@ body.full-width-view .main-content {
   color: #EF4444;
 }
 
+
+/* ==================== KIVO MATIQUE - ENHANCEMENTS ==================== */
+
+/* Sidebar Plan Usage Pill */
+.sidebar-plan-pill {
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 0.65rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.sidebar-plan-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+.sidebar-plan-pill.gratuit.limit-reached {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.06);
+}
+.sidebar-plan-pill.pro {
+  background: rgba(79, 70, 229, 0.08);
+  border-color: rgba(79, 70, 229, 0.25);
+}
+.sidebar-plan-pill.business {
+  background: rgba(124, 58, 237, 0.08);
+  border-color: rgba(124, 58, 237, 0.25);
+}
+
+/* Row Action WhatsApp Reminder Button */
+.btn-action-remind {
+  transition: all 0.2s ease;
+}
+.btn-action-remind:hover {
+  background: rgba(37, 211, 102, 0.2) !important;
+  border-color: #25D366 !important;
+  transform: scale(1.04);
+}
+@media (max-width: 768px) {
+  .btn-remind-text {
+    display: none !important;
+  }
+}
+
+/* Sticky Save Bar for Profile */
+.profile-sticky-bar {
+  position: sticky;
+  bottom: 1.25rem;
+  z-index: 90;
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.profile-sticky-bar-inner {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.85rem 1.35rem;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  min-width: 380px;
+  max-width: 92%;
+}
+.profile-sticky-status {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.85rem;
+  color: #E2E8F0;
+  font-weight: 500;
+}
+.profile-sticky-status .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  flex-shrink: 0;
+}
+.profile-sticky-status .status-dot.dirty {
+  background: #F59E0B;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+}
+.profile-sticky-save-btn {
+  padding: 0.55rem 1.25rem;
+  font-size: 0.85rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+@media (max-width: 640px) {
+  .profile-sticky-bar-inner {
+    min-width: unset;
+    width: 100%;
+    border-radius: 16px;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+  }
+  .profile-sticky-save-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

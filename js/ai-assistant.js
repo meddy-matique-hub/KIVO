@@ -224,8 +224,8 @@ window.KivoAI = {
     const docNum = doc.number || `FAC-${doc.id}`;
     const amountStr = (doc.total || 0).toLocaleString("fr-FR") + " " + (doc.currency || "FCFA");
     const clientName = doc.clientName || "Cher client";
-    const token = doc.publicToken || doc.public_token || doc.id;
-    const publicUrl = `${window.location.origin}${window.location.pathname}#public-doc?token=${token}`;
+    const token = doc.publicToken || doc.public_token || "";
+    const publicUrl = `${window.location.origin}/#public-doc?token=${token}`;
     const bizName = (businessName && businessName.trim())
       || (doc.bizName && doc.bizName.trim())
       || (window.KivoApp ? window.KivoApp.getBusinessName() : "")
