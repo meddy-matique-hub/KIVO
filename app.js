@@ -7135,7 +7135,7 @@ window.KivoApp = {
    */
   _wizardPersistProgress: async function () {
     const w = this._wizard;
-    if (!w || w.step >= 11) return;
+    if (!w || w.step >= 12) return;
     const progressData = {
       step: w.step,
       data: JSON.parse(JSON.stringify(w.data)),
@@ -7158,7 +7158,7 @@ window.KivoApp = {
           owner: w.data.owner || '',
           email: w.data.email || '',
           phone: `${w.data.phonePrefix || '+221'} ${w.data.phone || ''}`.trim(),
-          industry: w.data.industry || 'Prestations de services',
+          industry: w.data.industry || 'Prestations de services & Conseil',
           country: w.data.country || 'Senegal',
           currency: w.data.currency || 'FCFA',
           fiscal_id: w.data.taxId || '',
@@ -7225,6 +7225,13 @@ window.KivoApp = {
       this.wizardSelectType(d.profileType, false); // false = don't persist on populate
     }
 
+    if (d.planTier) {
+      this.wizardSelectPlan(d.planTier, false);
+    }
+    if (d.billingCycle) {
+      this.wizardSelectBillingCycle(d.billingCycle);
+    }
+
     if (Array.isArray(d.goals)) {
       ['wz-goal-invoices', 'wz-goal-quotes', 'wz-goal-clients', 'wz-goal-stats', 'wz-goal-other'].forEach(id => {
         const cb = document.getElementById(id);
@@ -7248,7 +7255,7 @@ window.KivoApp = {
     }
     if (!banner) return;
 
-    if (!visible || step <= 1 || step >= 11) {
+    if (!visible || step <= 1 || step >= 12) {
       banner.style.display = 'none';
       return;
     }
@@ -7268,7 +7275,7 @@ window.KivoApp = {
     banner.innerHTML = `
       <div style="display:flex; align-items:center; gap:0.5rem;">
         <span style="font-size:1.1rem; line-height:1;">🔄</span>
-        <span>Progression reprise (<strong>Étape ${step} sur 11</strong>)</span>
+        <span>Progression reprise (<strong>Étape ${step} sur 12</strong>)</span>
       </div>
       <button type="button" onclick="KivoApp.wizardInit(true)" style="background:none; border:none; color:var(--primary); font-weight:600; text-decoration:underline; cursor:pointer; font-size:0.8rem; padding:0;">
         Recommencer
@@ -7288,12 +7295,12 @@ window.KivoApp = {
 
     this._wizard = {
       step: 1,
-      totalSteps: 11,
+      totalSteps: 12,
       data: {
         profileType: null,   // 'Entreprise' | 'Independant'
         bizName: '',
         owner: defOwner,
-        industry: 'Prestations de services',
+        industry: 'Prestations de services & Conseil',
         country: 'Senegal',
         phonePrefix: '+221',
         phone: '',
@@ -7301,7 +7308,9 @@ window.KivoApp = {
         email: defEmail,
         taxId: '',
         goals: [],
-        volume: '6-20'
+        volume: '6-20',
+        planTier: 'Gratuit',
+        billingCycle: 'monthly'
       }
     };
 
@@ -7320,7 +7329,7 @@ window.KivoApp = {
 
     // Check for previous progress to restore
     const saved = this._wizardGetSavedProgress();
-    if (saved && saved.step && saved.step > 1 && saved.step <= 10) {
+    if (saved && saved.step && saved.step > 1 && saved.step <= 11) {
       console.log(`[KivoWizard] Restoring saved progress at step ${saved.step}`, saved.data);
       if (saved.data) {
         this._wizard.data = { ...this._wizard.data, ...saved.data };
@@ -7340,9 +7349,9 @@ window.KivoApp = {
   /** Returns the ordered list of visible step numbers based on wizard data */
   _wizardSteps: function () {
     const w = this._wizard;
-    const base = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11];
+    const base = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12];
     if (!w || !w.data.profileType || w.data.profileType === 'Entreprise') {
-      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     }
     return base;
   },
@@ -7360,12 +7369,12 @@ window.KivoApp = {
     const labelEl = document.getElementById('wizard-step-label');
     const pctEl = document.getElementById('wizard-pct-label');
     const fillEl = document.getElementById('wizard-progress-fill');
-    if (labelEl) labelEl.textContent = `Etape ${position} sur ${total}`;
+    if (labelEl) labelEl.textContent = `Étape ${position} sur ${total}`;
     if (pctEl) pctEl.textContent = `${pct}%`;
     if (fillEl) fillEl.style.width = `${pct}%`;
 
-    // Show/hide step panels
-    for (let i = 1; i <= 11; i++) {
+    // Show/hide step panels (1 to 12)
+    for (let i = 1; i <= 12; i++) {
       const el = document.getElementById(`wz-step-${i}`);
       if (el) el.style.display = (i === w.step) ? '' : 'none';
     }
@@ -7377,13 +7386,24 @@ window.KivoApp = {
     const skipAllWrap = document.getElementById('wizard-skip-all-wrap');
     const nextLabel = document.getElementById('wz-btn-next-label');
 
-    if (backBtn) backBtn.style.display = (idx > 0 && w.step !== 11) ? '' : 'none';
-    if (nextBtn) nextBtn.style.display = (w.step !== 11) ? 'flex' : 'none';
-    if (skipBtn) skipBtn.style.display = (w.step > 1 && w.step !== 11) ? '' : 'none';
-    if (skipAllWrap) skipAllWrap.style.display = (w.step !== 11) ? 'block' : 'none';
+    if (backBtn) backBtn.style.display = (idx > 0 && w.step !== 12) ? '' : 'none';
+    if (nextBtn) nextBtn.style.display = (w.step !== 12) ? 'flex' : 'none';
+    // Skip button is ONLY for step 2 (bizName) and step 9 (taxId)
+    if (skipBtn) {
+      skipBtn.style.display = (w.step === 2 || w.step === 9) ? '' : 'none';
+      skipBtn.textContent = 'Passer';
+    }
+    if (skipAllWrap) skipAllWrap.style.display = 'none';
+
     if (nextLabel) {
-      if (w.step === 10) nextLabel.textContent = 'Finaliser';
-      else nextLabel.textContent = 'Suivant';
+      if (w.step === 11) {
+        const plan = w.data.planTier || 'Gratuit';
+        if (plan === 'Gratuit') nextLabel.textContent = 'Démarrer avec Gratuit';
+        else if (plan === 'Pro') nextLabel.textContent = 'Continuer avec Pro';
+        else if (plan === 'Business') nextLabel.textContent = 'Continuer avec Business';
+      } else {
+        nextLabel.textContent = 'Suivant';
+      }
     }
 
     // Pre-fill email on step 8
@@ -7393,6 +7413,28 @@ window.KivoApp = {
         const authUser = window.KivoAuth?.user;
         if (authUser) wzEmail.value = authUser.email || '';
       }
+    }
+
+    // When on step 6, make sure phone prefix matches country data
+    if (w.step === 6) {
+      const pSel = document.getElementById('wz-phone-prefix');
+      if (pSel && w.data.phonePrefix) {
+        pSel.value = w.data.phonePrefix;
+      }
+    }
+
+    // When on step 7, make sure currency matches country data
+    if (w.step === 7) {
+      const cSel = document.getElementById('wz-currency');
+      if (cSel && w.data.currency) {
+        cSel.value = w.data.currency;
+      }
+    }
+
+    // When on step 11, update plan card visuals
+    if (w.step === 11) {
+      this.wizardSelectPlan(w.data.planTier || 'Gratuit', false);
+      this.wizardSelectBillingCycle(w.data.billingCycle || 'monthly');
     }
   },
 
@@ -7411,6 +7453,7 @@ window.KivoApp = {
         return false;
       }
     }
+    // Step 2 is facultatif
     if (w.step === 3) {
       const v = (document.getElementById('wz-owner')?.value || '').trim();
       if (!v) {
@@ -7418,6 +7461,14 @@ window.KivoApp = {
         if (err) err.style.display = '';
         return false;
       }
+    }
+    if (w.step === 4) {
+      const v = (document.getElementById('wz-industry')?.value || '').trim();
+      if (!v) return false;
+    }
+    if (w.step === 5) {
+      const v = (document.getElementById('wz-country')?.value || '').trim();
+      if (!v) return false;
     }
     if (w.step === 6) {
       const v = (document.getElementById('wz-phone')?.value || '').trim();
@@ -7427,12 +7478,23 @@ window.KivoApp = {
         return false;
       }
     }
+    if (w.step === 7) {
+      const v = (document.getElementById('wz-currency')?.value || '').trim();
+      if (!v) return false;
+    }
     if (w.step === 8) {
       const v = (document.getElementById('wz-email')?.value || '').trim();
       if (!v || !v.includes('@')) {
         const err = document.getElementById('wz-err-8');
         if (err) err.style.display = '';
         return false;
+      }
+    }
+    // Step 9 is facultatif
+    // Step 10 is goals/volume
+    if (w.step === 11) {
+      if (!w.data.planTier) {
+        w.data.planTier = 'Gratuit';
       }
     }
     return true;
@@ -7446,9 +7508,28 @@ window.KivoApp = {
     if (w.step === 2) w.data.bizName = g('wz-biz-name')?.value.trim() || '';
     if (w.step === 3) w.data.owner = g('wz-owner')?.value.trim() || '';
     if (w.step === 4) w.data.industry = g('wz-industry')?.value || '';
-    if (w.step === 5) w.data.country = g('wz-country')?.value || '';
+    if (w.step === 5) {
+      const cSel = g('wz-country');
+      const cVal = cSel?.value || '';
+      w.data.country = cVal;
+      const opt = cSel?.options[cSel?.selectedIndex];
+      if (opt) {
+        const code = opt.getAttribute('data-code');
+        const curr = opt.getAttribute('data-currency');
+        if (code) {
+          w.data.phonePrefix = code;
+          const pSel = g('wz-phone-prefix');
+          if (pSel) pSel.value = code;
+        }
+        if (curr) {
+          w.data.currency = curr;
+          const curSel = g('wz-currency');
+          if (curSel) curSel.value = curr;
+        }
+      }
+    }
     if (w.step === 6) {
-      w.data.phonePrefix = g('wz-phone-prefix')?.value || '+221';
+      w.data.phonePrefix = g('wz-phone-prefix')?.value || w.data.phonePrefix || '+221';
       w.data.phone = g('wz-phone')?.value.trim() || '';
     }
     if (w.step === 7) w.data.currency = g('wz-currency')?.value || 'FCFA';
@@ -7459,6 +7540,10 @@ window.KivoApp = {
         .filter(id => g(id)?.checked)
         .map(id => g(id).value);
       w.data.volume = g('wz-volume')?.value || '6-20';
+    }
+    if (w.step === 11) {
+      w.data.planTier = w.data.planTier || 'Gratuit';
+      w.data.billingCycle = w.data.billingCycle || 'monthly';
     }
   },
 
@@ -7471,7 +7556,7 @@ window.KivoApp = {
     const idx = steps.indexOf(this._wizard.step);
     if (idx < steps.length - 1) {
       this._wizard.step = steps[idx + 1];
-      if (this._wizard.step === 11) {
+      if (this._wizard.step === 12) {
         this._wizardCommit();
         return;
       }
@@ -7500,7 +7585,7 @@ window.KivoApp = {
     const idx = steps.indexOf(this._wizard.step);
     if (idx < steps.length - 1) {
       this._wizard.step = steps[idx + 1];
-      if (this._wizard.step === 11) {
+      if (this._wizard.step === 12) {
         this._wizardCommit();
         return;
       }
@@ -7509,7 +7594,7 @@ window.KivoApp = {
     }
   },
 
-  /** Skip entire onboarding and launch dashboard immediately with clean defaults */
+  /** Skip entire onboarding and launch dashboard immediately with clean defaults (fallback only) */
   wizardSkipAll: async function () {
     if (!this._wizard) this.wizardInit();
     const w = this._wizard;
@@ -7517,12 +7602,13 @@ window.KivoApp = {
     const metaName = authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || '';
     const defOwner = metaName || (authUser?.email ? authUser.email.split('@')[0] : '') || 'Utilisateur';
 
-    if (!w.data.profileType) w.data.profileType = 'Indépendant';
+    if (!w.data.profileType) w.data.profileType = 'Independant';
     if (!w.data.owner) w.data.owner = defOwner;
     if (!w.data.bizName) w.data.bizName = w.data.owner ? `${w.data.owner} Studio` : 'Mon Entreprise';
     if (!w.data.email) w.data.email = authUser?.email || '';
-    if (!w.data.country) w.data.country = 'Sénégal';
+    if (!w.data.country) w.data.country = 'Senegal';
     if (!w.data.currency) w.data.currency = 'FCFA';
+    if (!w.data.planTier) w.data.planTier = 'Gratuit';
 
     await this._wizardCommit();
     this.wizardFinish();
@@ -7589,6 +7675,7 @@ window.KivoApp = {
     const code = opt.getAttribute('data-code');
     const curr = opt.getAttribute('data-currency');
     if (code) {
+      if (this._wizard) this._wizard.data.phonePrefix = code;
       const prefixSel = document.getElementById('wz-phone-prefix');
       if (prefixSel) {
         prefixSel.value = code;
@@ -7605,14 +7692,86 @@ window.KivoApp = {
       }
     }
     if (curr) {
+      if (this._wizard) this._wizard.data.currency = curr;
       const currSel = document.getElementById('wz-currency');
       if (currSel) currSel.value = curr;
     }
   },
 
+  /** Handle wizard plan card selection */
+  wizardSelectPlan: function (plan, persist = true) {
+    if (!this._wizard) this.wizardInit();
+    this._wizard.data.planTier = plan;
+
+    ['wz-plan-gratuit', 'wz-plan-pro', 'wz-plan-business'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.style.borderColor = 'var(--border-color, #E2E8F0)';
+        el.style.background = 'var(--bg-card, #FFFFFF)';
+        el.style.boxShadow = 'none';
+        el.style.transform = 'none';
+      }
+    });
+
+    const activeId = plan === 'Business' ? 'wz-plan-business' : (plan === 'Pro' ? 'wz-plan-pro' : 'wz-plan-gratuit');
+    const activeEl = document.getElementById(activeId);
+    if (activeEl) {
+      activeEl.style.borderColor = 'var(--primary, #4F46E5)';
+      activeEl.style.background = 'rgba(79, 70, 229, 0.06)';
+      activeEl.style.boxShadow = '0 4px 14px rgba(79, 70, 229, 0.15)';
+      activeEl.style.transform = 'translateY(-2px)';
+    }
+
+    const nextLabel = document.getElementById('wz-btn-next-label');
+    if (nextLabel && this._wizard.step === 11) {
+      if (plan === 'Gratuit') nextLabel.textContent = 'Démarrer avec Gratuit';
+      else if (plan === 'Pro') nextLabel.textContent = 'Continuer avec Pro';
+      else if (plan === 'Business') nextLabel.textContent = 'Continuer avec Business';
+    }
+
+    if (persist) {
+      this._wizardPersistProgress();
+    }
+  },
+
+  /** Switch between monthly and yearly billing in wizard step 11 */
+  wizardSelectBillingCycle: function (cycle) {
+    if (!this._wizard) return;
+    this._wizard.data.billingCycle = cycle;
+    const btnM = document.getElementById('wz-billing-monthly');
+    const btnY = document.getElementById('wz-billing-yearly');
+    const isYearly = cycle === 'yearly';
+
+    if (btnM) {
+      btnM.style.background = isYearly ? 'transparent' : 'var(--primary, #4F46E5)';
+      btnM.style.color = isYearly ? 'var(--text-secondary)' : '#fff';
+    }
+    if (btnY) {
+      btnY.style.background = isYearly ? 'var(--primary, #4F46E5)' : 'transparent';
+      btnY.style.color = isYearly ? '#fff' : 'var(--text-secondary)';
+    }
+
+    const pricePro = document.getElementById('wz-price-pro');
+    const periodPro = document.getElementById('wz-period-pro');
+    const priceBiz = document.getElementById('wz-price-biz');
+    const periodBiz = document.getElementById('wz-period-biz');
+
+    if (isYearly) {
+      if (pricePro) pricePro.textContent = '38 380 FCFA';
+      if (periodPro) periodPro.textContent = '/ an (3 190/mois)';
+      if (priceBiz) priceBiz.textContent = '95 880 FCFA';
+      if (periodBiz) periodBiz.textContent = '/ an (7 990/mois)';
+    } else {
+      if (pricePro) pricePro.textContent = '3 990 FCFA';
+      if (periodPro) periodPro.textContent = '/ mois';
+      if (priceBiz) priceBiz.textContent = '9 990 FCFA';
+      if (periodBiz) periodBiz.textContent = '/ mois';
+    }
+  },
+
   /**
-   * Commits wizard data to Supabase + state, then renders step 11 (completion screen).
-   * Called after step 10 validation.
+   * Commits wizard data to Supabase + state, then renders step 12 (completion screen).
+   * Called after step 11 validation.
    */
   _wizardCommit: async function () {
     const w = this._wizard;
@@ -7634,7 +7793,8 @@ window.KivoApp = {
     biz.phone = fullPhone;
     biz.email = d.email;
     biz.taxId = d.taxId;
-    biz.subscriptionTier = 'Gratuit';
+    biz.subscriptionTier = d.planTier || 'Gratuit';
+    biz.billingCycle = d.billingCycle || 'monthly';
     biz.subscriptionStatus = 'active';
 
     if (bizName) {
@@ -7660,7 +7820,7 @@ window.KivoApp = {
           currency: d.currency,
           fiscal_id: d.taxId,
           onboarding_completed: true,
-          onboarding_answers: { step: 11, data: d, completedAt: new Date().toISOString() },
+          onboarding_answers: { step: 12, data: d, completedAt: new Date().toISOString() },
           invoice_prefix: biz.invoicePrefix || 'FAC-2026-',
           quote_prefix: biz.quotePrefix || 'DEV-2026-',
           default_vat_rate: biz.defaultVatRate !== undefined ? biz.defaultVatRate : 0,
@@ -7682,15 +7842,15 @@ window.KivoApp = {
       this._cloudWizardProgress = null;
     } catch (_) {}
 
-    // Show completion screen (step 11)
-    w.step = 11;
+    // Show completion screen (step 12)
+    w.step = 12;
     this._renderResumeBanner(false);
     const readyMsg = document.getElementById('wz-ready-msg');
     if (readyMsg) readyMsg.textContent = `Bienvenue, ${bizOwner || bizName || 'sur KIVO MATIQUE'} ! Votre espace est configuré.`;
     this._wizardRender();
   },
 
-  /** Final button on step 11: navigate to dashboard */
+  /** Final button on step 12: navigate to dashboard */
   wizardFinish: function () {
     this.showToast(this._t('toast_workspace_ready'), 'success');
     this.navigate('dashboard');
