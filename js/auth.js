@@ -111,7 +111,14 @@ window.KivoAuth = {
   handlePostLogin: async function(session) {
     if (!session || !session.user) return;
     if (this._isLoggingIn) return;
+    const now = Date.now();
+    if (this._lastLoggedInUserId === session.user.id && (now - (this._lastLoginTimestamp || 0)) < 4000) {
+      console.log('[KivoAuth] Debouncing duplicate handlePostLogin within 4s for:', session.user.id);
+      return;
+    }
     this._isLoggingIn = true;
+    this._lastLoggedInUserId = session.user.id;
+    this._lastLoginTimestamp = now;
 
     try {
       console.log('[KivoAuth] handlePostLogin — user:', session.user.email);
