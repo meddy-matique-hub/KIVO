@@ -231,8 +231,14 @@ window.KivoTemplates = {
       showThankYou:        getChecked('builder-toggle-thankyou'),
       legalNotices:        get('builder-legal-notices')          || '',
       showLegalNotices:    getChecked('builder-toggle-legal'),
-      primaryColor:   (document.getElementById('builder-color-primary')   || {}).value || biz.primaryColor   || '#0F172A',
-      secondaryColor: (document.getElementById('builder-color-secondary') || {}).value || biz.secondaryColor || '#64748B',
+      primaryColor: (() => {
+        const c = (document.getElementById('builder-color-primary') || {}).value || biz.primaryColor;
+        return (!c || c === '#000000' || c === '#000') ? '#4F46E5' : c;
+      })(),
+      secondaryColor: (() => {
+        const c = (document.getElementById('builder-color-secondary') || {}).value || biz.secondaryColor;
+        return (!c || c === '#000000' || c === '#000') ? '#64748B' : c;
+      })(),
       lang: (window.KivoApp && KivoApp.state && KivoApp.state.language) || 'fr',
     };
   },

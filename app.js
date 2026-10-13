@@ -641,8 +641,8 @@ window.KivoApp = {
         nextQuoteNumber: s.next_quote_number || this.state.business.nextQuoteNumber,
         subscriptionTier: s.current_plan || this.state.business.subscriptionTier,
         visualTemplate: s.visual_template || this.state.business.visualTemplate || 'classic',
-        primaryColor: s.primary_color || this.state.business.primaryColor || '#4F46E5',
-        secondaryColor: s.secondary_color || this.state.business.secondaryColor || '#7C3AED',
+        primaryColor: (!s.primary_color || s.primary_color === '#000000' || s.primary_color === '#000') ? '#4F46E5' : s.primary_color,
+        secondaryColor: (!s.secondary_color || s.secondary_color === '#000000' || s.secondary_color === '#000') ? '#64748B' : s.secondary_color,
         logoSize: s.logo_size !== undefined ? s.logo_size : (this.state.business.logoSize || 100),
         logoPosition: s.logo_position || this.state.business.logoPosition || 'right',
         invoicePageSize: s.invoice_page_size || this.state.business.invoicePageSize || 'a4',
@@ -3235,8 +3235,10 @@ window.KivoApp = {
     setVal('builder-payment-method', 'Virement bancaire');
     setVal('builder-doc-currency', this.state.business.currency || 'FCFA');
     setVal('builder-visual-template', this.state.business.visualTemplate || 'minimalist');
-    const initPrimaryColor = this.state.business.primaryColor || '#4F46E5';
-    const initSecondaryColor = this.state.business.secondaryColor || '#7C3AED';
+    const rawP = this.state.business.primaryColor;
+    const initPrimaryColor = (!rawP || rawP === '#000000' || rawP === '#000') ? '#4F46E5' : rawP;
+    const rawS = this.state.business.secondaryColor;
+    const initSecondaryColor = (!rawS || rawS === '#000000' || rawS === '#000') ? '#64748B' : rawS;
     setVal('builder-color-primary', initPrimaryColor);
     setVal('builder-color-primary-text', initPrimaryColor);
     setVal('builder-color-secondary', initSecondaryColor);
@@ -3494,8 +3496,10 @@ window.KivoApp = {
     // Colors & Template
     const templateVal = doc.templateId || doc.visualTemplate || meta.templateId || biz.visualTemplate || 'minimalist';
     setVal('builder-visual-template', templateVal);
-    const primColor = doc.primaryColor || meta.primaryColor || biz.primaryColor || '#4F46E5';
-    const secColor = doc.secondaryColor || meta.secondaryColor || biz.secondaryColor || '#7C3AED';
+    const rawPrim = doc.primaryColor || meta.primaryColor || biz.primaryColor;
+    const primColor = (!rawPrim || rawPrim === '#000000' || rawPrim === '#000') ? '#4F46E5' : rawPrim;
+    const rawSec = doc.secondaryColor || meta.secondaryColor || biz.secondaryColor;
+    const secColor = (!rawSec || rawSec === '#000000' || rawSec === '#000') ? '#64748B' : rawSec;
     setVal('builder-color-primary', primColor);
     setVal('builder-color-primary-text', primColor);
     setVal('builder-color-secondary', secColor);
@@ -8028,8 +8032,10 @@ window.KivoApp = {
     this.setupPhoneInputs();
 
     // Couleurs de marque
-    const primCol = biz.primaryColor || '#4F46E5';
-    const secCol = biz.secondaryColor || '#7C3AED';
+    const rawSettingP = biz.primaryColor;
+    const primCol = (!rawSettingP || rawSettingP === '#000000' || rawSettingP === '#000') ? '#4F46E5' : rawSettingP;
+    const rawSettingS = biz.secondaryColor;
+    const secCol = (!rawSettingS || rawSettingS === '#000000' || rawSettingS === '#000') ? '#64748B' : rawSettingS;
     if (document.getElementById('setting-biz-primary-color')) document.getElementById('setting-biz-primary-color').value = primCol;
     if (document.getElementById('setting-biz-primary-color-text')) document.getElementById('setting-biz-primary-color-text').value = primCol;
     if (document.getElementById('setting-biz-secondary-color')) document.getElementById('setting-biz-secondary-color').value = secCol;
