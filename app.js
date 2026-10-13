@@ -433,7 +433,14 @@ window.KivoApp = {
   onUserAuthenticated: async function (user) {
     if (!user) return;
     if (this._isAuthenticating) return;
+    const now = Date.now();
+    if (this._lastAuthUserId === user.id && (now - (this._lastAuthTimestamp || 0)) < 4000) {
+      console.log('[KivoApp] Debouncing duplicate onUserAuthenticated within 4s for:', user.id);
+      return;
+    }
     this._isAuthenticating = true;
+    this._lastAuthUserId = user.id;
+    this._lastAuthTimestamp = now;
     this.isSessionLoading = true;
     this._showLoadingOverlay(); // Block all UI until session + settings resolved
 
@@ -3132,12 +3139,11 @@ window.KivoApp = {
 
     // Core fields
     const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
-    setVal('builder-doc-id', '');
-    // FIX point2: reset and pre-generate stable draft IDs for each new document session.
-    // _currentDraftDocId persists the local draft key; _cloudDraftId is the fixed Supabase UUID.
-    // Both must be reset here so stale values from a previous session never bleed into a new doc.
-    this._currentDraftDocId = null;
-    this._cloudDraftId = this.generateUUID(); // generate NOW — same UUID for all subsequent autosaves
+    // Un seul ID UUID stable généré dès le début pour garantir l'upsert par ID
+    const singleNewDocId = this.generateUUID();
+    setVal('builder-doc-id', singleNewDocId);
+    this._currentDraftDocId = singleNewDocId;
+    this._cloudDraftId = singleNewDocId;
     setVal('builder-doc-type', type);
     setVal('builder-doc-number', nextNum);
     setVal('builder-issue-date', today);
@@ -4579,6 +4585,15 @@ window.KivoApp = {
    * Saves Document from Builder into State
    */
   saveDocumentFromBuilder: function () {
+    // Anti-double-save lock: ignore rapid consecutive calls (double-click, double event)
+    if (this._savingDoc) {
+      console.warn('[KivoApp] saveDocumentFromBuilder: already saving, ignoring duplicate call');
+      return;
+    }
+    this._savingDoc = true;
+    // Auto-release lock after 3 seconds in all cases
+    setTimeout(() => { this._savingDoc = false; }, 3000);
+
     const existingDocId = document.getElementById('builder-doc-id').value;
     const type = document.getElementById('builder-doc-type').value;
 
@@ -4720,7 +4735,11 @@ window.KivoApp = {
     const grandTotal = Math.max(0, taxableAmount + (showVat ? totalTaxAmount : 0));
     const finalAmountPaid = isStatusPaid ? grandTotal : (showDeposit && depositAmount > 0 ? Math.min(depositAmount, grandTotal) : 0);
 
-    const docId = existingDocId || this.generateUUID();
+    // Use the UUID pre-generated at builder open (startNewDocument / draft restore),
+    // falling back to _currentDraftDocId, then _cloudDraftId, then a fresh UUID.
+    // This guarantees the same ID is used whether we've auto-saved a draft before,
+    // so Supabase upsert by ID will UPDATE and never INSERT a duplicate row.
+    const docId = existingDocId || this._currentDraftDocId || this._cloudDraftId || this.generateUUID();
 
     const docObj = {
       id: docId,
@@ -4778,9 +4797,13 @@ window.KivoApp = {
       visualTemplate: document.getElementById('builder-visual-template') ? document.getElementById('builder-visual-template').value : ((this.state.business && this.state.business.visualTemplate) || 'minimalist'),
       templateId: document.getElementById('builder-visual-template') ? document.getElementById('builder-visual-template').value : ((this.state.business && this.state.business.visualTemplate) || 'minimalist'),
       logoUrl: this._invoiceLogoRemoved ? null : (this.builderCustomLogoUrl !== undefined && this.builderCustomLogoUrl !== null ? this.builderCustomLogoUrl : ((this.state.business && this.state.business.logoUrl) || null)),
-      primaryColor: document.getElementById('builder-color-primary') ? document.getElementById('builder-color-primary').value : null,
-      secondaryColor: document.getElementById('builder-color-secondary') ? document.getElementById('builder-color-secondary').value : null,
-      publicToken: 'tok_' + Math.random().toString(36).substring(2, 8),
+      primaryColor: (() => { const c = document.getElementById('builder-color-primary')?.value || ''; return (!c || c === '#000000' || c === '#000') ? '#4F46E5' : c; })(),
+      secondaryColor: (() => { const c = document.getElementById('builder-color-secondary')?.value || ''; return (!c || c === '#000000' || c === '#000') ? '#64748B' : c; })(),
+      // Strong token: 32 hex chars from crypto.randomUUID() (no dashes).
+      // Only generate for NEW documents; existing docs keep their token so public links don't break.
+      publicToken: existingDocId
+        ? ((this.state.documents || []).find(d => d.id === existingDocId)?.publicToken || (crypto.randomUUID().replace(/-/g, '')))
+        : (crypto.randomUUID().replace(/-/g, '')),
       viewsCount: 1,
       lastViewedAt: new Date().toLocaleString('fr-FR')
     };
@@ -4843,6 +4866,11 @@ window.KivoApp = {
 
     // Clear auto-saved draft: a finalized document is no longer a draft
     this.clearBuilderDraftOnFinalize();
+    // Reset stable draft IDs so next new document gets a fresh UUID
+    this._currentDraftDocId = null;
+    this._cloudDraftId = null;
+    // Release save lock now that document is committed
+    this._savingDoc = false;
 
     this.showToast(this._t('toast_doc_saved').replace('{num}', num), "success");
     this.viewPublicDoc(docId);
