@@ -48,6 +48,91 @@ window.KivoApp = {
     }).length;
   },
 
+  /**
+   * canUse(feature, meta) — Vérifie si la fonctionnalité est accessible avec le forfait actif.
+   * @param {string} feature  - 'create_doc' | 'template' | 'customizer' | 'ai' | 'team' | 'autosave' | 'stats'
+   * @param {string} [meta]   - templateId si feature === 'template'
+   * @returns {boolean}
+   */
+  canUse: function (feature, meta) {
+    const plan = this.getPlan();
+    const FREE_TEMPLATES = ['minimalist', 'corporate'];
+    switch (feature) {
+      case 'create_doc':
+      case 'new_document':
+        if (plan.isGratuit) return this.getMonthlyDocsCount() < 3;
+        return true;
+      case 'template':
+        if (plan.features.allTemplates) return true;
+        return FREE_TEMPLATES.includes(meta);
+      case 'customizer':
+      case 'advancedStyle':
+        return plan.features.advancedStyle;
+      case 'ai':
+        return plan.features.ai;
+      case 'team':
+        return plan.features.team;
+      case 'autosave':
+        return plan.features.autosave;
+      case 'stats':
+      case 'fullStats':
+        return plan.features.fullStats;
+      default:
+        return true;
+    }
+  },
+
+  /**
+   * showUpgradePrompt(feature, meta) — Ouvre la modale d'upgrade explicite.
+   * Aucune redirection silencieuse. Deux boutons : "Voir les forfaits" & "Fermer".
+   */
+  showUpgradePrompt: function (feature, meta) {
+    const titleEl = document.getElementById('upgrade-prompt-title');
+    const descEl  = document.getElementById('upgrade-prompt-desc');
+    const MSGS = {
+      create_doc:  {
+        title: 'Limite du forfait Gratuit atteinte',
+        desc:  'Vous avez utilisé vos 3 documents gratuits de ce mois. Passez au forfait Pro ou Business pour créer des factures et devis en illimité.'
+      },
+      new_document: {
+        title: 'Limite du forfait Gratuit atteinte',
+        desc:  'Vous avez utilisé vos 3 documents gratuits de ce mois. Passez au forfait Pro ou Business pour créer des factures et devis en illimité.'
+      },
+      template: {
+        title: 'Modèle réservé Pro & Business',
+        desc:  `Le modèle « ${meta || 'sélectionné'} » est réservé aux forfaits Pro et Business. Le forfait Gratuit inclut les modèles Minimalist et Corporate.`
+      },
+      customizer: {
+        title: 'Personnalisation avancée — Pro & Business',
+        desc:  'La sauvegarde de modèles personnalisés est réservée aux forfaits Pro et Business.'
+      },
+      ai: {
+        title: 'Assistant IA — Pro & Business',
+        desc:  "L'assistant IA de génération de documents est disponible dans les forfaits Pro et Business."
+      },
+      team: {
+        title: 'Espace équipe — Business uniquement',
+        desc:  "L'espace équipe et la collaboration multi-utilisateurs sont réservés au forfait Business (5 sièges inclus)."
+      },
+      autosave: {
+        title: 'Sauvegarde automatique — Pro & Business',
+        desc:  'La sauvegarde automatique des brouillons dans le cloud est réservée aux forfaits Pro et Business.'
+      }
+    };
+    const msg = MSGS[feature] || { title: 'Fonctionnalité réservée', desc: 'Cette fonctionnalité est disponible dans un forfait supérieur.' };
+    if (titleEl) titleEl.textContent = msg.title;
+    if (descEl)  descEl.textContent  = msg.desc;
+    this.openModal('modal-upgrade-prompt');
+  },
+
+  /** Ouvre WhatsApp pour demander un siège Business supplémentaire */
+  requestAdditionalSeatWhatsApp: function () {
+    const biz   = (this.state && this.state.business) || {};
+    const owner = biz.owner || biz.name || 'Client Business';
+    const msg   = encodeURIComponent(`Bonjour KIVO MATIQUE ! Je suis ${owner} (forfait Business) et je souhaite ajouter un siège supplémentaire à mon équipe (+1 500 FCFA/mois). Pouvez-vous m\'aider ?`);
+    window.open(`https://wa.me/242068286376?text=${msg}`, '_blank');
+  },
+
   updatePlanUsageBadge: function () {
     const badgeEl = document.getElementById('sidebar-plan-badge');
     if (!badgeEl) return;
@@ -98,9 +183,7 @@ window.KivoApp = {
   },
 
   promptProTemplate: function (templateName) {
-    this.showToast(`Le modèle "${templateName}" est réservé aux forfaits PRO & BUSINESS. Passez à Pro pour débloquer tous les modèles !`, 'info');
-    this.closeModal('modal-new-doc-choice');
-    this.navigate('pricing');
+    this.showUpgradePrompt('template', templateName);
   },
 
   ensurePublicToken: async function (doc) {
@@ -3035,14 +3118,9 @@ window.KivoApp = {
     if (!this.state.business) this.state.business = JSON.parse(JSON.stringify(this.BLANK_STATE.business));
 
     // Guard : limite de 3 documents par mois pour le forfait Gratuit
-    const plan = this.getPlan();
-    if (plan.isGratuit) {
-      const count = this.getMonthlyDocsCount();
-      if (count >= plan.features.docsPerMonth) {
-        this.showToast(`Limite du forfait Gratuit atteinte (${plan.features.docsPerMonth} docs/mois). Passez à PRO pour créer des documents en illimité !`, 'warning');
-        this.navigate('pricing');
-        return;
-      }
+    if (!this.canUse('create_doc')) {
+      this.showUpgradePrompt('create_doc');
+      return;
     }
     const gSelect = document.getElementById('gallery-doc-type');
     if (gSelect) gSelect.value = type;
@@ -4357,11 +4435,9 @@ window.KivoApp = {
     }
 
     if (!gallery) return;
-    const plan = this.getPlan();
-    const canUseAll = plan.features.allTemplates;
 
-    gallery.innerHTML = window.KivoTemplates.builtIn.map((t, idx) => {
-      const isLocked = !canUseAll && idx > 0;
+    gallery.innerHTML = window.KivoTemplates.builtIn.map((t) => {
+      const isLocked = !this.canUse('template', t.id);
       return `
         <div class="kivo-template-card ${isLocked ? 'template-locked' : ''}" data-template="${t.id}" style="cursor:pointer; position:relative;" onclick="${isLocked ? `KivoApp.promptProTemplate('${t.name}')` : `KivoApp.startTemplateDocument('${docType}', '${t.id}')`}">
           ${isLocked ? `
@@ -4417,8 +4493,19 @@ window.KivoApp = {
   },
 
   startTemplateDocument: function (type, templateId, isCustom = false) {
+    // Vérifier limite de documents
+    if (!this.canUse('create_doc')) {
+      this.showUpgradePrompt('create_doc');
+      return;
+    }
+    // Vérifier accès au modèle (sauf modèles custom qui sont toujours accessibles)
+    if (!isCustom && !this.canUse('template', templateId)) {
+      const tmplObj = window.KivoTemplates?.builtIn?.find(t => t.id === templateId);
+      this.showUpgradePrompt('template', tmplObj ? tmplObj.name : templateId);
+      return;
+    }
     this.closeModal('modal-new-doc-choice');
-    
+
     // If not in builder yet, start new document
     const builderSection = document.getElementById('view-document-builder');
     const isAlreadyInBuilder = builderSection && builderSection.style.display !== 'none';
@@ -4448,6 +4535,10 @@ window.KivoApp = {
   },
 
   startFreeDocument: function (type) {
+    if (!this.canUse('create_doc')) {
+      this.showUpgradePrompt('create_doc');
+      return;
+    }
     this.closeModal('modal-new-doc-choice');
     this.startNewDocument(type);
   },
@@ -4488,6 +4579,10 @@ window.KivoApp = {
   },
 
   saveAsTemplate: async function () {
+    if (!this.canUse('customizer')) {
+      this.showUpgradePrompt('customizer');
+      return;
+    }
     const templateId = document.getElementById('builder-visual-template').value;
     const name = prompt("Nom du modèle personnalisé :");
     if (!name) return;
@@ -5971,17 +6066,23 @@ window.KivoApp = {
 
     if (window.KivoTemplates && KivoTemplates.builtIn) {
       container.innerHTML = KivoTemplates.builtIn.map(tmpl => {
-        const isActive = tmpl.id === currentTmpl;
+        const isActive  = tmpl.id === currentTmpl;
+        const isLocked  = !this.canUse('template', tmpl.id);
         return `
-          <div class="kivo-template-card ${isActive ? 'active-card' : ''}" data-template="${tmpl.id}">
-            <div class="kivo-template-card-preview">
+          <div class="kivo-template-card ${isActive ? 'active-card' : ''} ${isLocked ? 'template-locked' : ''}" data-template="${tmpl.id}" style="position:relative;">
+            ${isLocked ? `
+              <div style="position:absolute;top:8px;right:8px;z-index:5;background:#4F46E5;color:white;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:12px;display:inline-flex;align-items:center;gap:3px;">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                PRO
+              </div>` : ''}
+            <div class="kivo-template-card-preview" style="${isLocked ? 'opacity:0.65;filter:grayscale(30%);' : ''}">
               ${KivoTemplates.miniPreview(tmpl.id)}
             </div>
             <div class="kivo-template-card-body">
               <h3 class="kivo-template-card-title">${tmpl.name}</h3>
               <p class="kivo-template-card-desc">${tmpl.desc}</p>
-              <button class="kivo-template-card-btn ${isActive ? 'active-template-btn' : ''}" onclick="KivoApp.useTemplate('${tmpl.id}')">
-                ${isActive ? 'Modèle actif' : 'Utiliser ce modèle'}
+              <button class="kivo-template-card-btn ${isActive ? 'active-template-btn' : ''}" onclick="${isLocked ? `KivoApp.promptProTemplate('${tmpl.name}')` : `KivoApp.useTemplate('${tmpl.id}')`}">
+                ${isActive ? 'Modèle actif' : isLocked ? '🔒 Passer à Pro' : 'Utiliser ce modèle'}
               </button>
             </div>
           </div>
@@ -6008,15 +6109,26 @@ window.KivoApp = {
   },
 
   useTemplate: function (templateId) {
+    // Vérifier accès au modèle
+    if (!this.canUse('template', templateId)) {
+      const tmplObj = window.KivoTemplates?.builtIn?.find(t => t.id === templateId);
+      this.promptProTemplate(tmplObj ? tmplObj.name : templateId);
+      return;
+    }
+    // Vérifier limite de documents
+    if (!this.canUse('create_doc')) {
+      this.showUpgradePrompt('create_doc');
+      return;
+    }
     // 1. Update business template in state
     this.state.business = this.state.business || {};
     this.state.business.visualTemplate = templateId;
     // Note: Ne jamais écraser automatiquement this.state.business.primaryColor
     // Le choix du modèle change uniquement la mise en page.
-    
+
     // 2. Save implicitly to localStorage (and Supabase if connected)
     this.saveState();
-    
+
     const tmplObj = window.KivoTemplates?.builtIn?.find(t => t.id === templateId);
     const tmplName = tmplObj ? tmplObj.name : templateId;
     this.showToast(this._t('toast_template_applied').replace('{name}', tmplName), 'success');
@@ -6122,10 +6234,8 @@ window.KivoApp = {
   _teamMembers: [],
 
   openInviteMemberModal: async function () {
-    const tier = (this.state.business && this.state.business.subscriptionTier) || 'Gratuit';
-    if (tier !== 'Business') {
-      this.showToast('Cette fonctionnalité est réservée au plan Business.', 'info');
-      this.navigate('settings');
+    if (!this.canUse('team')) {
+      this.showUpgradePrompt('team');
       return;
     }
     // Charger les membres depuis Supabase pour vérifier le quota réel
@@ -6222,6 +6332,17 @@ window.KivoApp = {
   },
 
   renderTeam: async function () {
+    // Afficher l'écran verrouillé pour les forfaits non-Business
+    const lockedScreen  = document.getElementById('team-locked-screen');
+    const bizContent    = document.getElementById('team-business-content');
+    if (!this.canUse('team')) {
+      if (lockedScreen) lockedScreen.style.display = 'flex';
+      if (bizContent)   bizContent.style.display   = 'none';
+      return;
+    }
+    if (lockedScreen) lockedScreen.style.display = 'none';
+    if (bizContent)   bizContent.style.display   = 'block';
+
     const biz = this.state.business || {};
     const owner      = biz.owner || biz.name || 'Propriétaire';
     const ownerEmail = biz.email || (window.KivoAuth && window.KivoAuth.user ? window.KivoAuth.user.email : '');

@@ -2408,9 +2408,9 @@
                 <p>Choisissez un style pour vos documents</p>
               </div>
               <div class="kivo-templates-actions">
-                <button class="btn btn-outline" onclick="KivoApp.openTemplateEditor()">
+                <button class="btn btn-outline" disabled style="opacity: 0.6; cursor: not-allowed;" title="Bientôt disponible">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  Créer mon modèle
+                  Bientôt disponible
                 </button>
                 <button class="btn btn-ai" onclick="KivoApp.openAiModal()" title="Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable.">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
@@ -3292,71 +3292,95 @@
         </section>
 
         <section id="view-team" class="view-section" style="display: none;">
-          <div class="view-header">
-            <div>
-              <h1 class="page-title">Gestion de l'équipe</h1>
-              <p class="page-subtitle">Invitez vos collaborateurs sur KIVO MATIQUE (Plan Business — 5 sièges inclus).</p>
+          <!-- Écran verrouillé pour Gratuit et Pro -->
+          <div id="team-locked-screen" style="display:none; text-align:center; padding:3.5rem 1.5rem; max-width:620px; margin:2rem auto; background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--radius-xl); box-shadow:var(--shadow-md);">
+            <div style="width:68px; height:68px; border-radius:50%; background:linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(79, 70, 229, 0.15)); display:inline-flex; align-items:center; justify-content:center; color:#7C3AED; margin-bottom:1.25rem;">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
-            <button class="btn btn-primary" onclick="KivoApp.openInviteMemberModal()">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-              <span>Inviter un membre</span>
+            <h2 style="font-size:1.45rem; font-weight:800; margin-bottom:0.6rem; color:var(--text-primary); font-family:var(--font-heading);">L'équipe est réservée au forfait Business</h2>
+            <p style="color:var(--text-secondary); font-size:0.95rem; line-height:1.6; margin-bottom:2rem;">
+              Collaborez jusqu'à 5 personnes sur votre compte, invitez vos associés ou comptables et attribuez des rôles (Directeur / Membre).
+            </p>
+            <button type="button" class="btn btn-primary btn-lg" onclick="KivoApp.showUpgradePrompt('team')" style="padding:0.75rem 1.75rem; font-weight:700; margin:0 auto; display:inline-flex; align-items:center; gap:0.5rem;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Passer au forfait Business
             </button>
           </div>
 
-          <div class="team-kpi-grid">
-            <div class="card" style="padding: 1.5rem;">
-              <div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.35rem;">Sièges occupés</div>
-              <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-heading);" id="team-kpi-seats">1 <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">/ 5 (Plan Business)</span></div>
+          <!-- Contenu Business : Gestion d'équipe réelle -->
+          <div id="team-business-content">
+            <div class="view-header">
+              <div>
+                <h1 class="page-title">Gestion de l'équipe</h1>
+                <p class="page-subtitle">Invitez vos collaborateurs sur KIVO MATIQUE (Plan Business — 5 sièges inclus).</p>
+              </div>
+              <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                <button type="button" class="btn btn-success" onclick="KivoApp.requestAdditionalSeatWhatsApp()" style="background:#25D366; color:#fff; border:none; display:inline-flex; align-items:center; gap:0.5rem; font-weight:600;" title="Commander un siège d'équipe supplémentaire sur WhatsApp">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                  <span>Demander un siège supplémentaire (+1 500 FCFA/mois)</span>
+                </button>
+                <button type="button" class="btn btn-primary" onclick="KivoApp.openInviteMemberModal()">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                  <span>Inviter un membre</span>
+                </button>
+              </div>
             </div>
-            <div class="card" style="padding: 1.5rem;">
-              <div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.35rem;">Rôles disponibles</div>
-              <div style="font-size: 1.75rem; font-weight: 700; color: var(--primary); font-family: var(--font-heading);">2 <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">(Directeur, Membre)</span></div>
-            </div>
-            <div class="card" style="padding: 1.5rem;">
-              <div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.35rem;">Siège additionnel</div>
-              <div style="font-size: 1.75rem; font-weight: 700; color: #10B981; font-family: var(--font-heading);">+1 500 <span style="font-size: 0.95rem; color: var(--text-muted); font-weight: normal;">FCFA / mois</span></div>
-            </div>
-          </div>
 
-          <div class="card" style="padding: 0; overflow: hidden;">
-            <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-              <h3 style="margin: 0; font-size: 1.05rem;">Membres actuels</h3>
-              <span class="badge badge-paid" id="team-active-count">1 actif</span>
+            <div class="team-kpi-grid">
+              <div class="card" style="padding: 1.5rem;">
+                <div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.35rem;">Sièges occupés</div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-heading);" id="team-kpi-seats">1 <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">/ 5 (Plan Business)</span></div>
+              </div>
+              <div class="card" style="padding: 1.5rem;">
+                <div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.35rem;">Rôles disponibles</div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: var(--primary); font-family: var(--font-heading);">2 <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">(Directeur, Membre)</span></div>
+              </div>
+              <div class="card" style="padding: 1.5rem;">
+                <div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.35rem;">Siège additionnel</div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: #10B981; font-family: var(--font-heading);">+1 500 <span style="font-size: 0.95rem; color: var(--text-muted); font-weight: normal;">FCFA / mois</span></div>
+              </div>
             </div>
-            <div class="table-responsive">
-              <table class="table" style="margin: 0;">
-                <thead>
-                  <tr>
-                    <th>Membre</th>
-                    <th>Rôle</th>
-                    <th>Statut</th>
-                    <th>Dernière activité</th>
-                  </tr>
-                </thead>
-                <tbody id="team-members-tbody">
-                  <tr>
-                    <td>
-                      <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <div class="avatar" style="width: 34px; height: 34px; font-size: 0.85rem; background: #EEF2FF; color: #4F46E5; font-weight: 600;" id="team-owner-avatar">KM</div>
-                        <div>
-                          <div style="font-weight: 600; color: var(--text-primary);" id="team-owner-name">Propriétaire</div>
-                          <div style="font-size: 0.8rem; color: var(--text-muted);" id="team-owner-email">contact@kivo.app</div>
+
+            <div class="card" style="padding: 0; overflow: hidden;">
+              <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 1.05rem;">Membres actuels</h3>
+                <span class="badge badge-paid" id="team-active-count">1 actif</span>
+              </div>
+              <div class="table-responsive">
+                <table class="table" style="margin: 0;">
+                  <thead>
+                    <tr>
+                      <th>Membre</th>
+                      <th>Rôle</th>
+                      <th>Statut</th>
+                      <th>Dernière activité</th>
+                    </tr>
+                  </thead>
+                  <tbody id="team-members-tbody">
+                    <tr>
+                      <td>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                          <div class="avatar" style="width: 34px; height: 34px; font-size: 0.85rem; background: #EEF2FF; color: #4F46E5; font-weight: 600;" id="team-owner-avatar">KM</div>
+                          <div>
+                            <div style="font-weight: 600; color: var(--text-primary);" id="team-owner-name">Propriétaire</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);" id="team-owner-email">contact@kivo.app</div>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td><span class="badge" style="background: #EEF2FF; color: #4F46E5;">Directeur</span></td>
-                    <td><span class="badge badge-paid">Actif</span></td>
-                    <td style="color: var(--text-muted); font-size: 0.85rem;">En ligne</td>
-                  </tr>
-                </tbody>
-              </table>
+                      </td>
+                      <td><span class="badge" style="background: #EEF2FF; color: #4F46E5;">Directeur</span></td>
+                      <td><span class="badge badge-paid">Actif</span></td>
+                      <td style="color: var(--text-muted); font-size: 0.85rem;">En ligne</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
 
-          <!-- Draft invoices by team members -->
-          <div class="card" style="padding: 1.5rem; margin-top: 1.5rem;" id="team-drafts-card" style="display:none;">
-            <h3 style="margin: 0 0 1rem; font-size: 1rem;">Factures en cours (Brouillons membres)</h3>
-            <div id="team-drafts-list" style="color: var(--text-muted); font-size: 0.85rem;">Aucun brouillon en cours.</div>
+            <!-- Draft invoices by team members -->
+            <div class="card" style="padding: 1.5rem; margin-top: 1.5rem;" id="team-drafts-card" style="display:none;">
+              <h3 style="margin: 0 0 1rem; font-size: 1rem;">Factures en cours (Brouillons membres)</h3>
+              <div id="team-drafts-list" style="color: var(--text-muted); font-size: 0.85rem;">Aucun brouillon en cours.</div>
+            </div>
           </div>
         </section>
 
@@ -3585,6 +3609,26 @@
     </div>
   </div>
 
+
+  <!-- Modal Upgrade Prompt (Zero silent redirect) -->
+  <div class="modal-overlay" id="modal-upgrade-prompt">
+    <div class="modal-card" style="max-width: 480px; text-align: center; padding: 2rem 1.75rem;">
+      <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(99, 102, 241, 0.12); color: #6366F1; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      </div>
+      <h2 id="upgrade-prompt-title" style="font-size: 1.35rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.6rem;">Passez à la vitesse supérieure</h2>
+      <p id="upgrade-prompt-desc" style="color: var(--text-secondary); font-size: 0.92rem; line-height: 1.5; margin-bottom: 1.75rem;">
+        Débloquez toutes les fonctionnalités professionnelles de KIVO MATIQUE.
+      </p>
+      <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+        <button type="button" class="btn btn-secondary" onclick="KivoApp.closeModal('modal-upgrade-prompt')">Fermer</button>
+        <button type="button" class="btn btn-primary" onclick="KivoApp.closeModal('modal-upgrade-prompt'); KivoApp.navigate('pricing');" style="background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%); font-weight: 600;">
+          <span>Voir les forfaits</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal 2: KIVO MATIQUE AI Standalone Prompt Modal -->
   <div class="modal-overlay" id="modal-ai-prompt">
