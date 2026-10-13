@@ -2934,336 +2934,395 @@
               </div>
             </div>
 
-            <!-- 8 CARDS GRID (3-Column Layout, fully responsive on mobile & desktop) -->
-            <div class="profile-grid">
+            <!-- MAIN PROFILE LAYOUT: Sticky Side Nav on Left, Single Column of Cards on Right (Max 960px) -->
+            <div class="profile-layout-wrap">
 
-              <!-- COLUMN 1: Identity & Security -->
-              <div class="profile-col profile-col-identity">
-                
-                <!-- CARD 1: Identité & Forfait -->
-                <div class="profile-id-outer-card">
-                  <div class="profile-id-glass-card">
-                    <!-- Avatar / Logo -->
-                    <div class="profile-avatar-circle" id="profile-avatar-display" onclick="document.getElementById('profile-logo-input').click()" title="Cliquer pour importer ou changer le logo / photo">
-                      <svg class="profile-avatar-k-logo" id="profile-avatar-svg" width="40" height="40" viewBox="0 0 32 32" fill="none">
-                        <path d="M7 6L14 16L7 26" stroke="#0F172A" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M16 6L23 16L16 26" stroke="#475569" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- STICKY SUB-MENU (LEFT) -->
+              <aside class="profile-sidebar-nav">
+                <div class="profile-nav-sticky-card">
+                  <div class="profile-mini-identity">
+                    <div class="profile-mini-avatar" id="profile-avatar-display" onclick="document.getElementById('profile-logo-input').click()" title="Changer le logo / photo de profil">
+                      <svg class="profile-avatar-k-logo" id="profile-avatar-svg" width="28" height="28" viewBox="0 0 32 32" fill="none">
+                        <path d="M7 6L14 16L7 26" stroke="#38BDF8" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M16 6L23 16L16 26" stroke="#818CF8" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
                       <img id="profile-avatar-img" src="" alt="Avatar" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
                     </div>
-
-                    <!-- User Name & Email -->
-                    <h2 class="profile-id-name" id="profile-id-name-display">Mon Compte</h2>
-                    <p class="profile-id-email" id="profile-id-email-display">utilisateur@kivo.com</p>
-
-                    <!-- Status Pill & Plan Info -->
-                    <div class="profile-status-pill-wrap" style="display:flex; flex-direction:column; gap:0.4rem; align-items:center;">
-                      <span class="profile-status-pill" id="profile-status-badge">Compte Actif</span>
-                      <span id="settings-current-plan-badge" style="font-size: 0.76rem; color: #818CF8; font-weight: 600; cursor: pointer;" onclick="KivoApp.navigate('pricing')">FORFAIT PRO</span>
+                    <div class="profile-mini-meta">
+                      <h4 id="profile-id-name-display">Mon Compte</h4>
+                      <p id="profile-id-email-display">compte@kivo.com</p>
+                      <span id="settings-current-plan-badge" class="profile-plan-pill" onclick="KivoApp.navigate('pricing')" title="Cliquez pour voir les forfaits">FORFAIT PRO</span>
                     </div>
                   </div>
+
+                  <nav class="profile-nav-links">
+                    <a href="#card-profile-identity" class="profile-nav-link active" onclick="KivoApp.scrollProfileSection(event, 'card-profile-identity')">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                      <span>Identité</span>
+                    </a>
+                    <a href="#card-profile-contact" class="profile-nav-link" onclick="KivoApp.scrollProfileSection(event, 'card-profile-contact')">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                      <span>Coordonnées</span>
+                    </a>
+                    <a href="#card-profile-legal" class="profile-nav-link" onclick="KivoApp.scrollProfileSection(event, 'card-profile-legal')">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                      <span>Légal (RCCM & NIU)</span>
+                    </a>
+                    <a href="#card-profile-billing" class="profile-nav-link" onclick="KivoApp.scrollProfileSection(event, 'card-profile-billing')">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                      <span>Facturation</span>
+                    </a>
+                    <a href="#card-profile-payments" class="profile-nav-link" onclick="KivoApp.scrollProfileSection(event, 'card-profile-payments')">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                      <span>Paiements</span>
+                    </a>
+                    <a href="#card-profile-appearance" class="profile-nav-link" onclick="KivoApp.scrollProfileSection(event, 'card-profile-appearance')">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10"></path></svg>
+                      <span>Apparence</span>
+                    </a>
+                    <a href="#card-profile-notifications" class="profile-nav-link" onclick="KivoApp.scrollProfileSection(event, 'card-profile-notifications')">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                      <span>Notifications</span>
+                    </a>
+                    <a href="#card-profile-security" class="profile-nav-link" onclick="KivoApp.scrollProfileSection(event, 'card-profile-security')">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                      <span>Sécurité</span>
+                    </a>
+                    <a href="#card-profile-plan" class="profile-nav-link" onclick="KivoApp.scrollProfileSection(event, 'card-profile-plan')">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                      <span>Forfait</span>
+                    </a>
+                  </nav>
                 </div>
+              </aside>
 
-                <!-- CARD 8: Sécurité & Accès -->
-                <div class="profile-card" style="margin-top: 1.5rem;">
-                  <h3 class="profile-card-title">8. Sécurité & Accès</h3>
-                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Protégez l'accès à votre espace de facturation.</p>
-                  
-                  <div class="profile-security-actions" style="display: flex; flex-direction: column; gap: 0.65rem;">
-                    <button type="button" class="profile-btn-outline" onclick="KivoApp.openChangePasswordModal()" style="width: 100%; justify-content: center;">
-                      Changer le mot de passe
-                    </button>
-                    <button type="button" class="profile-btn-outline" onclick="KivoApp.openConnectedAccountsModal()" style="width: 100%; justify-content: center;">
-                      Sessions & Comptes connectés
-                    </button>
-                  </div>
+              <!-- CARDS COLUMN (RIGHT - SINGLE FULL-WIDTH COLUMN MAX 960PX) -->
+              <main class="profile-cards-stack">
 
-                  <button class="profile-logout-btn" onclick="KivoApp.logout()" title="Se déconnecter de la session" style="margin-top: 1.25rem;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                      <polyline points="16 17 21 12 16 7"></polyline>
-                      <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
-                    <span>Déconnexion</span>
-                  </button>
-                </div>
+                <!-- 1. IDENTITÉ & RESPONSABLE -->
+                <section class="profile-card" id="card-profile-identity">
+                  <h3 class="profile-card-title">1. Identité du compte & Entreprise</h3>
+                  <p class="profile-card-desc">Informations clés du titulaire et nom commercial de l'établissement.</p>
 
-              </div>
+                  <div class="profile-fields-grid">
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-name">Raison sociale / Nom commercial *</label>
+                      <input type="text" id="setting-biz-name" class="profile-input" placeholder="Ex: Cabinet Alpha Conseil, SARL Kivo">
+                    </div>
 
-              <!-- COLUMN 2: Personal Info + Preferences + Notifications -->
-              <div class="profile-col profile-col-center">
-                
-                <!-- CARD 2: Informations personnelles -->
-                <div class="profile-card">
-                  <h3 class="profile-card-title">2. Informations personnelles</h3>
-                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Nom et contact du dirigeant ou gestionnaire du compte.</p>
-                  
-                  <div class="profile-form-group">
-                    <label class="profile-label" for="setting-biz-owner">Nom & Prénom du responsable *</label>
-                    <input type="text" id="setting-biz-owner" class="profile-input" placeholder="Ex: Julien Dubois" oninput="document.getElementById('profile-id-name-display').textContent = this.value || 'Julien Dubois'">
-                  </div>
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-owner">Nom & Prénom du responsable *</label>
+                      <input type="text" id="setting-biz-owner" class="profile-input" placeholder="Ex: Martin Kouka" oninput="document.getElementById('profile-id-name-display').textContent = this.value || 'Martin Kouka'">
+                    </div>
 
-                  <div class="profile-form-group">
-                    <label class="profile-label" for="setting-biz-email">Email personnel / Connexion *</label>
-                    <input type="email" id="setting-biz-email" class="profile-input" placeholder="Ex: julien.dubois@kivo.com" oninput="document.getElementById('profile-id-email-display').textContent = this.value || 'julien.dubois@kivo.com'">
-                  </div>
-                </div>
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-email">Email personnel / Connexion *</label>
+                      <input type="email" id="setting-biz-email" class="profile-input" placeholder="Ex: contact@entreprise.com" oninput="document.getElementById('profile-id-email-display').textContent = this.value || 'contact@entreprise.com'">
+                    </div>
 
-                <!-- CARD 3: Préférences générales & Devises -->
-                <div class="profile-card">
-                  <h3 class="profile-card-title">3. Préférences & Affichage</h3>
-                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Devise par défaut de vos pièces et style d'édition.</p>
-
-                  <div class="profile-form-group">
-                    <label class="profile-label" for="setting-biz-currency">Devise par défaut</label>
-                    <div class="profile-select-wrap">
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-currency">Devise principale par défaut</label>
                       <select id="setting-biz-currency" class="profile-select">
-                        <option value="FCFA">FCFA (XOF / XAF)</option>
+                        <option value="FCFA">FCFA (XAF / XOF)</option>
                         <option value="EUR">EUR (€)</option>
                         <option value="USD">USD ($)</option>
                         <option value="CAD">CAD ($)</option>
                         <option value="GBP">GBP (£)</option>
-                        <option value="MAD">MAD</option>
-                        <option value="TND">TND</option>
-                        <option value="DZD">DZD</option>
-                        <option value="CDF">CDF</option>
-                        <option value="GNF">GNF</option>
+                        <option value="CDF">CDF (Franc congolais)</option>
+                        <option value="GNF">GNF (Franc guinéen)</option>
+                        <option value="MAD">MAD (Dirham)</option>
                       </select>
-                      <svg class="profile-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
-                  </div>
 
-                  <div class="profile-form-group">
-                    <label class="profile-label" for="profile-doc-preference">Modèle par défaut</label>
-                    <div class="profile-select-wrap">
-                      <select id="profile-doc-preference" class="profile-select">
-                        <option value="standard">Facture Standard & Devis Structuré</option>
-                        <option value="detailed">Facture Détaillée (BTP / Prestations)</option>
-                        <option value="minimal">Facture Épurée & Minimaliste</option>
-                      </select>
-                      <svg class="profile-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                    </div>
-                  </div>
+                    <!-- Logo de l'entreprise -->
+                    <div class="profile-field-full" style="padding-top: 0.5rem; border-top: 1px dashed var(--border-color); margin-top: 0.5rem;">
+                      <label class="profile-label">Logo de votre entreprise (affiché sur les factures et devis)</label>
+                      <div style="display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;">
+                        <div class="profile-logo-upload-box" onclick="document.getElementById('profile-logo-input').click()" title="Importer ou changer le logo de l'entreprise" style="width: 80px; height: 80px; border-radius: 12px; border: 2px dashed var(--border-color); display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; background: var(--bg-subtle);">
+                          <input type="file" id="profile-logo-input" accept="image/*" style="display:none;" onchange="KivoApp.handleProfileLogoUpload(this.files)">
+                          <div id="profile-logo-preview" class="profile-logo-preview-area" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; text-align: center;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            <span class="profile-upload-text" style="font-size: 0.7rem; font-weight: 600;">Logo</span>
+                          </div>
+                        </div>
 
-                  <div class="profile-form-group">
-                    <label class="profile-label" for="setting-biz-language">Langue de l'interface</label>
-                    <div class="profile-select-wrap">
-                      <select id="setting-biz-language" class="profile-select">
-                        <option value="fr" selected>Français (Officiel)</option>
-                        <option value="en">English</option>
-                        <option value="es">Español</option>
-                      </select>
-                      <svg class="profile-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- CARD 7: Notifications & Alertes -->
-                <div class="profile-card">
-                  <h3 class="profile-card-title">7. Notifications & Alertes</h3>
-                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Gérez vos alertes d'envoi et de relance automatique.</p>
-
-                  <div style="display:flex; flex-direction:column; gap:0.85rem;">
-                    <label style="display:flex; align-items:flex-start; gap:0.65rem; cursor:pointer; font-size:0.86rem; color:var(--text-primary);">
-                      <input type="checkbox" id="setting-notify-doc-sent" checked style="margin-top:0.15rem; accent-color:#4F46E5;">
-                      <span>Recevoir une copie email à chaque document émis</span>
-                    </label>
-
-                    <label style="display:flex; align-items:flex-start; gap:0.65rem; cursor:pointer; font-size:0.86rem; color:var(--text-primary);">
-                      <input type="checkbox" id="setting-notify-reminder" checked style="margin-top:0.15rem; accent-color:#4F46E5;">
-                      <span>Alerte avant l'échéance des factures impayées</span>
-                    </label>
-
-                    <label style="display:flex; align-items:flex-start; gap:0.65rem; cursor:pointer; font-size:0.86rem; color:var(--text-primary);">
-                      <input type="checkbox" id="setting-notify-payment" checked style="margin-top:0.15rem; accent-color:#4F46E5;">
-                      <span>Notification instantanée lors d'un règlement reçu</span>
-                    </label>
-                  </div>
-                </div>
-
-              </div>
-
-              <!-- COLUMN 3: Enterprise + Tax/Invoicing + Bank/Mobile Money -->
-              <div class="profile-col profile-col-right">
-                
-                <!-- CARD 4: Entreprise & Marque -->
-                <div class="profile-card">
-                  <h3 class="profile-card-title">4. Entreprise & Marque</h3>
-                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Raison sociale, identité visuelle et coordonnées affichées sur vos factures.</p>
-
-                  <div class="profile-form-group">
-                    <label class="profile-label" for="setting-biz-name">Raison sociale / Nom commercial *</label>
-                    <input type="text" id="setting-biz-name" class="profile-input" placeholder="Ex: Dubois & Co. SARL">
-                  </div>
-
-                  <!-- Row: Logo upload box + Address -->
-                  <div class="profile-logo-address-row">
-                    <div style="display: flex; flex-direction: column; align-items: center; gap: 0.35rem;">
-                      <div class="profile-logo-upload-box" onclick="document.getElementById('profile-logo-input').click()" title="Importer ou changer le logo de l'entreprise">
-                        <input type="file" id="profile-logo-input" accept="image/*" style="display:none;" onchange="KivoApp.handleProfileLogoUpload(this.files)">
-                        <div id="profile-logo-preview" class="profile-logo-preview-area">
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                          <span class="profile-upload-text">Importer logo</span>
+                        <div id="profile-logo-size-controls" style="display: none; align-items: center; gap: 0.5rem;" onclick="event.stopPropagation()">
+                          <span style="font-size: 0.82rem; color: var(--text-secondary); font-weight: 500;">Taille :</span>
+                          <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.adjustLogoSize(-10)" style="width: 32px; height: 32px; padding: 0; font-weight: 700; border-radius: 6px;" title="Réduire">-</button>
+                          <span id="profile-logo-size-display" style="font-size: 0.82rem; font-weight: 700; color: var(--primary); min-width: 40px; text-align: center;">70px</span>
+                          <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.adjustLogoSize(10)" style="width: 32px; height: 32px; padding: 0; font-weight: 700; border-radius: 6px;" title="Augmenter">+</button>
                         </div>
                       </div>
-                      <div id="profile-logo-size-controls" style="display: none; align-items: center; justify-content: center; gap: 0.35rem;" onclick="event.stopPropagation()">
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.adjustLogoSize(-10)" style="width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: 700; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center;" title="Réduire taille">-</button>
-                        <span id="profile-logo-size-display" style="font-size: 0.72rem; font-weight: 600; color: #4F46E5; min-width: 36px; text-align: center;">70px</span>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.adjustLogoSize(10)" style="width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: 700; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center;" title="Augmenter taille">+</button>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- 2. COORDONNÉES PROFESSIONNELLES -->
+                <section class="profile-card" id="card-profile-contact">
+                  <h3 class="profile-card-title">2. Coordonnées & Adresse</h3>
+                  <p class="profile-card-desc">Adresse du siège social et moyens de contact imprimés sur les documents.</p>
+
+                  <div class="profile-fields-grid">
+                    <div class="profile-field-full">
+                      <div class="profile-form-group">
+                        <label class="profile-label" for="setting-biz-address">Adresse du siège social</label>
+                        <textarea id="setting-biz-address" class="profile-textarea" placeholder="Ex: Avenue Amilcar Cabral, Centre-Ville" rows="2"></textarea>
                       </div>
                     </div>
 
-                    <div class="profile-address-group">
-                      <label class="profile-label" for="setting-biz-address">Adresse du siège social</label>
-                      <textarea id="setting-biz-address" class="profile-textarea" placeholder="12, rue de la Paix, 75002 Paris" rows="2"></textarea>
-                    </div>
-                  </div>
-
-                  <!-- Row: Téléphone + Email pro -->
-                  <div class="profile-two-cols">
                     <div class="profile-form-group">
                       <label class="profile-label" for="setting-biz-phone">Téléphone professionnel</label>
-                      <div class="phone-input-group">
-                        <select id="setting-biz-phone-prefix" class="form-select phone-prefix-select" style="border-radius:10px; border:1px solid #E2E8F0; font-size:0.88rem; background:#FFFFFF;">
+                      <div style="display: flex; gap: 0.5rem; width: 100%;">
+                        <select id="setting-biz-phone-prefix" class="phone-prefix-select" style="width: 140px; flex-shrink: 0;">
+                          <option value="+242">🇨🇬 +242 (CG)</option>
+                          <option value="+243">🇨🇩 +243 (CD)</option>
+                          <option value="+241">🇬🇦 +241 (GA)</option>
+                          <option value="+237">🇨🇲 +237 (CM)</option>
                           <option value="+221">🇸🇳 +221 (SN)</option>
                           <option value="+225">🇨🇮 +225 (CI)</option>
-                          <option value="+237">🇨🇲 +237 (CM)</option>
-                          <option value="+243">🇨🇩 +243 (CD)</option>
-                          <option value="+242">🇨🇬 +242 (CG)</option>
-                          <option value="+241">🇬🇦 +241 (GA)</option>
-                          <option value="+223">🇲🇱 +223 (ML)</option>
-                          <option value="+226">🇧🇫 +226 (BF)</option>
-                          <option value="+228">🇹🇬 +228 (TG)</option>
-                          <option value="+229">🇧🇯 +229 (BJ)</option>
-                          <option value="+224">🇬🇳 +224 (GN)</option>
-                          <option value="+227">🇳🇪 +227 (NE)</option>
-                          <option value="+235">🇹🇩 +235 (TD)</option>
-                          <option value="+236">🇨🇫 +236 (CF)</option>
-                          <option value="+261">🇲🇬 +261 (MG)</option>
-                          <option value="+222">🇲🇷 +222 (MR)</option>
-                          <option value="+212">🇲🇦 +212 (MA)</option>
-                          <option value="+213">🇩🇿 +213 (DZ)</option>
-                          <option value="+216">🇹🇳 +216 (TN)</option>
-                          <option value="+250">🇷🇼 +250 (RW)</option>
-                          <option value="+254">🇰🇪 +254 (KE)</option>
-                          <option value="+234">🇳🇬 +234 (NG)</option>
-                          <option value="+233">🇬🇭 +233 (GH)</option>
-                          <option value="+33" selected>🇫🇷 +33 (FR)</option>
+                          <option value="+33">🇫🇷 +33 (FR)</option>
+                          <option value="+1">🇺🇸 +1 (US/CA)</option>
                           <option value="+32">🇧🇪 +32 (BE)</option>
                           <option value="+41">🇨🇭 +41 (CH)</option>
-                          <option value="+1">🇺🇸 +1 (US/CA)</option>
                         </select>
-                        <input type="tel" id="setting-biz-phone" class="profile-input phone-number-input" placeholder="06 12 34 56 78" autocomplete="tel">
+                        <input type="tel" id="setting-biz-phone" class="profile-input" placeholder="06 12 34 56 78" autocomplete="tel">
                       </div>
                     </div>
-                    <div class="profile-form-group">
-                      <label class="profile-label" for="setting-biz-pro-email">Email commercial</label>
-                      <input type="email" id="setting-biz-pro-email" class="profile-input" placeholder="contact@dubois.co">
-                    </div>
-                  </div>
 
-                  <!-- Couleurs de marque -->
-                  <div style="margin-top: 1rem;">
-                    <label class="profile-label">Couleurs de la marque sur vos PDF</label>
-                    <div class="profile-two-cols">
-                      <div class="profile-form-group" style="margin-bottom:0;">
-                        <label class="profile-label" style="font-size: 0.75rem; color: #64748B; margin-bottom: 0.25rem;" for="setting-biz-primary-color">Couleur principale</label>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                          <input type="color" id="setting-biz-primary-color" value="#4F46E5" style="width: 36px; height: 36px; padding: 2px; border-radius: 6px; border: 1px solid #CBD5E1; cursor: pointer;" onchange="document.getElementById('setting-biz-primary-color-text').value = this.value">
-                          <input type="text" id="setting-biz-primary-color-text" value="#4F46E5" style="flex: 1; padding: 0.45rem 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.78rem; font-family: monospace;" oninput="if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) document.getElementById('setting-biz-primary-color').value = this.value">
-                        </div>
-                      </div>
-                      <div class="profile-form-group" style="margin-bottom:0;">
-                        <label class="profile-label" style="font-size: 0.75rem; color: #64748B; margin-bottom: 0.25rem;" for="setting-biz-secondary-color">Couleur secondaire</label>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                          <input type="color" id="setting-biz-secondary-color" value="#7C3AED" style="width: 36px; height: 36px; padding: 2px; border-radius: 6px; border: 1px solid #CBD5E1; cursor: pointer;" onchange="document.getElementById('setting-biz-secondary-color-text').value = this.value">
-                          <input type="text" id="setting-biz-secondary-color-text" value="#7C3AED" style="flex: 1; padding: 0.45rem 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.78rem; font-family: monospace;" oninput="if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) document.getElementById('setting-biz-secondary-color').value = this.value">
-                        </div>
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-pro-email">Email commercial (devis & factures)</label>
+                      <input type="email" id="setting-biz-pro-email" class="profile-input" placeholder="contact@entreprise.com">
+                    </div>
+
+                    <div class="profile-field-full">
+                      <div class="profile-form-group">
+                        <label class="profile-label" for="setting-biz-website">Site internet de l'entreprise</label>
+                        <input type="url" id="setting-biz-website" class="profile-input" placeholder="https://www.entreprise.com">
                       </div>
                     </div>
                   </div>
-                </div>
+                </section>
 
-                <!-- CARD 5: Fiscalité & Facturation -->
-                <div class="profile-card">
-                  <h3 class="profile-card-title">5. Fiscalité & Facturation</h3>
-                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Identifiants fiscaux légaux et séquences de numérotation.</p>
+                <!-- 3. INFORMATIONS LÉGALES (RCCM & NIU CONGO / INTERNATIONAL) -->
+                <section class="profile-card" id="card-profile-legal">
+                  <h3 class="profile-card-title">3. Mentions Légales & Fiscales</h3>
+                  <p class="profile-card-desc">Identifiants d'immatriculation. Les champs RCCM et NIU sont distincts et adaptés au Congo & OHADA.</p>
 
-                  <div class="profile-two-cols">
+                  <div class="profile-fields-grid">
                     <div class="profile-form-group">
-                      <label class="profile-label" for="setting-biz-taxid">SIRET / NINEA / Registre</label>
-                      <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: SN-DKR-2024-B-1234">
+                      <label class="profile-label" for="setting-biz-rccm">Registre du Commerce (RCCM)</label>
+                      <input type="text" id="setting-biz-rccm" class="profile-input" placeholder="Ex: CG-BZV-01-2024-B12-00123">
                     </div>
+
                     <div class="profile-form-group">
-                      <label class="profile-label" for="setting-biz-vat-num">N° TVA Intracommunautaire</label>
-                      <input type="text" id="setting-biz-vat-num" class="profile-input" placeholder="Ex: FR 12 123456789">
+                      <label class="profile-label" for="setting-biz-niu">Numéro d'Identification Unique (NIU)</label>
+                      <input type="text" id="setting-biz-niu" class="profile-input" placeholder="Ex: M20240100012345">
+                    </div>
+
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-taxid">N° Fiscal général / SIRET / NINEA</label>
+                      <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: Identifiant fiscal national">
+                    </div>
+
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-vat-num">N° TVA Intracommunautaire (si assujetti)</label>
+                      <input type="text" id="setting-biz-vat-num" class="profile-input" placeholder="Ex: FR 12 345678901 ou exonéré">
                     </div>
                   </div>
+                </section>
 
-                  <div class="profile-two-cols">
+                <!-- 4. FACTURATION & NUMÉROTATION -->
+                <section class="profile-card" id="card-profile-billing">
+                  <h3 class="profile-card-title">4. Facturation & Séquences</h3>
+                  <p class="profile-card-desc">Taux de TVA standard et préfixes séquentiels de numérotation.</p>
+
+                  <div class="profile-fields-grid">
                     <div class="profile-form-group">
-                      <label class="profile-label" for="setting-biz-vat">Taux TVA par défaut (%)</label>
+                      <label class="profile-label" for="setting-biz-vat">Taux de TVA par défaut (%)</label>
                       <input type="number" id="setting-biz-vat" class="profile-input" placeholder="18" min="0" max="100" step="0.5">
                     </div>
-                    <div class="profile-form-group">
-                      <label class="profile-label" for="setting-biz-website">Site internet</label>
-                      <input type="url" id="setting-biz-website" class="profile-input" placeholder="https://monsite.com">
-                    </div>
-                  </div>
 
-                  <div class="profile-two-cols">
-                    <div class="profile-form-group" style="margin-bottom:0;">
-                      <label class="profile-label" for="setting-biz-prefix">Préfixe Factures</label>
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="profile-doc-preference">Modèle de facture par défaut</label>
+                      <select id="profile-doc-preference" class="profile-select">
+                        <option value="minimalist">Minimalist (Moderne & Épuré)</option>
+                        <option value="corporate">Corporate (En-tête Coloré)</option>
+                        <option value="classic">Classic (Standard Officiel)</option>
+                        <option value="modern">Modern (Style Studio)</option>
+                        <option value="bold">Bold (Fort contraste)</option>
+                      </select>
+                    </div>
+
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-prefix">Préfixe de numérotation Factures</label>
                       <input type="text" id="setting-biz-prefix" class="profile-input" placeholder="FAC-2026-">
                     </div>
-                    <div class="profile-form-group" style="margin-bottom:0;">
-                      <label class="profile-label" for="setting-biz-quote-prefix">Préfixe Devis</label>
+
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-quote-prefix">Préfixe de numérotation Devis</label>
                       <input type="text" id="setting-biz-quote-prefix" class="profile-input" placeholder="DEV-2026-">
                     </div>
                   </div>
-                </div>
+                </section>
 
-                <!-- CARD 6: Coordonnées Bancaires & Mobile Money -->
-                <div class="profile-card">
-                  <h3 class="profile-card-title">6. Coordonnées Bancaires & Mobile Money</h3>
-                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Affichées en bas de vos factures pour faciliter vos règlements clients.</p>
+                <!-- 5. COORDONNÉES BANCAIRES & MOYENS DE PAIEMENT DYNAMIQUES -->
+                <section class="profile-card" id="card-profile-payments">
+                  <h3 class="profile-card-title">5. Coordonnées Bancaires & Moyens de Paiement</h3>
+                  <p class="profile-card-desc">Coordonnées affichées sur vos factures pour faciliter les règlements de vos clients.</p>
 
-                  <div class="profile-two-cols">
+                  <h4 style="margin: 0 0 0.85rem 0; font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">Compte Bancaire Principal</h4>
+                  <div class="profile-fields-grid" style="margin-bottom: 1.5rem;">
                     <div class="profile-form-group">
                       <label class="profile-label" for="setting-bank-name">Nom de la banque</label>
-                      <input type="text" id="setting-bank-name" class="profile-input" placeholder="Ex: CBAO / Société Générale">
+                      <input type="text" id="setting-bank-name" class="profile-input" placeholder="Ex: Société Générale, Ecobank, BGFI...">
                     </div>
+
                     <div class="profile-form-group">
                       <label class="profile-label" for="setting-bank-account-name">Titulaire du compte</label>
-                      <input type="text" id="setting-bank-account-name" class="profile-input" placeholder="Ex: DUBOIS SARL">
+                      <input type="text" id="setting-bank-account-name" class="profile-input" placeholder="Ex: Entreprise SARL">
                     </div>
-                  </div>
 
-                  <div class="profile-two-cols">
                     <div class="profile-form-group">
-                      <label class="profile-label" for="setting-bank-iban">IBAN / RIB</label>
-                      <input type="text" id="setting-bank-iban" class="profile-input" placeholder="SN123 01001 001234567890 12">
+                      <label class="profile-label" for="setting-bank-iban">IBAN / RIB / N° de Compte</label>
+                      <input type="text" id="setting-bank-iban" class="profile-input" placeholder="Ex: CG00 1234 5678 9012 3456 7890 123">
                     </div>
+
                     <div class="profile-form-group">
                       <label class="profile-label" for="setting-bank-bic">Code BIC / SWIFT</label>
-                      <input type="text" id="setting-bank-bic" class="profile-input" placeholder="SGSN DAK">
+                      <input type="text" id="setting-bank-bic" class="profile-input" placeholder="Ex: BGFICGBF">
                     </div>
                   </div>
 
-                  <div class="profile-two-cols" style="margin-top:0.5rem;">
-                    <div class="profile-form-group" style="margin-bottom:0;">
-                      <label class="profile-label" for="setting-momo-wave">Numéro Wave</label>
-                      <input type="text" id="setting-momo-wave" class="profile-input" placeholder="+221 77 000 00 00">
+                  <div style="border-top: 1px dashed var(--border-color); padding-top: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
+                      <div>
+                        <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">Moyens de Paiement Additionnels (Mobile Money, Wave, etc.)</h4>
+                        <p style="margin: 0.2rem 0 0 0; font-size: 0.78rem; color: var(--text-muted);">Gérez librement vos numéros Wave, Airtel Money, MTN MoMo, chèques ou espèces.</p>
+                      </div>
+                      <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.addPaymentMethodRow()" style="gap: 4px; display: inline-flex; align-items: center;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <span>+ Ajouter</span>
+                      </button>
                     </div>
-                    <div class="profile-form-group" style="margin-bottom:0;">
-                      <label class="profile-label" for="setting-momo-orange">Orange Money / MTN MoMo</label>
-                      <input type="text" id="setting-momo-orange" class="profile-input" placeholder="+225 07 00 00 00">
+
+                    <!-- Dynamic payment methods rows container -->
+                    <div id="profile-payment-methods-list" style="display: flex; flex-direction: column; gap: 0.65rem;">
+                      <!-- Populated dynamically by KivoApp.renderPaymentMethods() -->
                     </div>
                   </div>
-                </div>
+                </section>
 
-              </div>
+                <!-- 6. APPARENCE & COULEURS DE MARQUE -->
+                <section class="profile-card" id="card-profile-appearance">
+                  <h3 class="profile-card-title">6. Apparence & Couleurs de Marque</h3>
+                  <p class="profile-card-desc">Personnalisez les teintes appliquées à vos documents PDF.</p>
 
+                  <div class="profile-fields-grid">
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-primary-color">Couleur principale (Titres, En-têtes)</label>
+                      <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <input type="color" id="setting-biz-primary-color" value="#4F46E5" style="width: 48px; height: 48px; padding: 2px; border-radius: 8px; border: 1px solid var(--border-color); cursor: pointer;" onchange="document.getElementById('setting-biz-primary-color-text').value = this.value">
+                        <input type="text" id="setting-biz-primary-color-text" class="profile-input" value="#4F46E5" style="font-family: monospace; font-weight: 600;" oninput="if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) document.getElementById('setting-biz-primary-color').value = this.value">
+                      </div>
+                    </div>
+
+                    <div class="profile-form-group">
+                      <label class="profile-label" for="setting-biz-secondary-color">Couleur secondaire (Bordures, Accents)</label>
+                      <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <input type="color" id="setting-biz-secondary-color" value="#64748B" style="width: 48px; height: 48px; padding: 2px; border-radius: 8px; border: 1px solid var(--border-color); cursor: pointer;" onchange="document.getElementById('setting-biz-secondary-color-text').value = this.value">
+                        <input type="text" id="setting-biz-secondary-color-text" class="profile-input" value="#64748B" style="font-family: monospace; font-weight: 600;" oninput="if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) document.getElementById('setting-biz-secondary-color').value = this.value">
+                      </div>
+                    </div>
+
+                    <div class="profile-field-full">
+                      <div class="profile-form-group">
+                        <label class="profile-label" for="setting-biz-language">Langue de l'interface</label>
+                        <select id="setting-biz-language" class="profile-select">
+                          <option value="fr" selected>Français (Officiel)</option>
+                          <option value="en">English</option>
+                          <option value="es">Español</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- 7. NOTIFICATIONS & ALERTES -->
+                <section class="profile-card" id="card-profile-notifications">
+                  <h3 class="profile-card-title">7. Notifications & Alertes</h3>
+                  <p class="profile-card-desc">Gérez vos alertes d'envoi et de relance automatique (pleine largeur pour une parfaite lisibilité).</p>
+
+                  <div style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+                    <label style="display: flex; align-items: flex-start; gap: 0.85rem; cursor: pointer; padding: 0.75rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
+                      <input type="checkbox" id="setting-notify-doc-sent" checked style="width: 18px; height: 18px; margin-top: 0.15rem; accent-color: #4F46E5;">
+                      <div>
+                        <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Copie email à l'émission</strong>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Recevoir automatiquement une copie par email de chaque devis et facture émis.</span>
+                      </div>
+                    </label>
+
+                    <label style="display: flex; align-items: flex-start; gap: 0.85rem; cursor: pointer; padding: 0.75rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
+                      <input type="checkbox" id="setting-notify-reminder" checked style="width: 18px; height: 18px; margin-top: 0.15rem; accent-color: #4F46E5;">
+                      <div>
+                        <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Alerte de facture impayée</strong>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Être averti avant et après l'échéance d'une facture client impayée.</span>
+                      </div>
+                    </label>
+
+                    <label style="display: flex; align-items: flex-start; gap: 0.85rem; cursor: pointer; padding: 0.75rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
+                      <input type="checkbox" id="setting-notify-payment" checked style="width: 18px; height: 18px; margin-top: 0.15rem; accent-color: #4F46E5;">
+                      <div>
+                        <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Confirmation de règlement</strong>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Notification instantanée dès qu'un paiement en ligne ou virement est enregistré.</span>
+                      </div>
+                    </label>
+                  </div>
+                </section>
+
+                <!-- 8. SÉCURITÉ & ACCÈS -->
+                <section class="profile-card" id="card-profile-security">
+                  <h3 class="profile-card-title">8. Sécurité & Accès</h3>
+                  <p class="profile-card-desc">Changement de mot de passe sécurisé et déconnexion de l'espace.</p>
+
+                  <div class="profile-fields-grid" style="margin-bottom: 1.25rem;">
+                    <button type="button" class="btn btn-secondary" onclick="KivoApp.openChangePasswordModal()" style="height: 48px; font-weight: 600; justify-content: center; width: 100%;">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                      Changer le mot de passe
+                    </button>
+
+                    <button type="button" class="btn btn-secondary" onclick="KivoApp.openConnectedAccountsModal()" style="height: 48px; font-weight: 600; justify-content: center; width: 100%;">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                      Sessions & Comptes connectés
+                    </button>
+                  </div>
+
+                  <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="KivoApp.logout()" style="color: var(--danger-text); border-color: rgba(239, 68, 68, 0.3); font-weight: 600; height: 44px;">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                      Se déconnecter
+                    </button>
+                  </div>
+                </section>
+
+                <!-- 9. FORFAIT & ABONNEMENT -->
+                <section class="profile-card" id="card-profile-plan">
+                  <h3 class="profile-card-title">9. Forfait & Abonnement</h3>
+                  <p class="profile-card-desc">Détails de votre souscription KIVO MATIQUE.</p>
+
+                  <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md); flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                      <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Plan en cours</div>
+                      <div style="font-size: 1.4rem; font-weight: 800; color: var(--text-primary); margin: 0.2rem 0;" id="profile-plan-status-name">Forfait PRO</div>
+                      <div style="font-size: 0.84rem; color: var(--text-secondary);">Facturation illimitée, IA, devis & relances WhatsApp.</div>
+                    </div>
+
+                    <button type="button" class="btn btn-primary" onclick="KivoApp.navigate('pricing')" style="height: 44px; padding: 0 1.25rem; font-weight: 700;">
+                      Changer de forfait
+                    </button>
+                  </div>
+                </section>
+
+              </main>
             </div>
 
             <!-- STICKY FLOATING SAVE BAR AT BOTTOM -->
@@ -4032,11 +4091,11 @@
       <form id="form-change-password" onsubmit="event.preventDefault(); KivoApp.submitPasswordChange();" style="padding-top: 1rem;">
         <div class="form-group">
           <label class="form-label" for="profile-new-password">Nouveau mot de passe</label>
-          <input type="password" id="profile-new-password" class="form-input" placeholder="Au moins 6 caractères" minlength="6" required>
+          <input type="password" id="profile-new-password" class="form-input" placeholder="Au moins 8 caractères" minlength="8" autocomplete="new-password" required>
         </div>
         <div class="form-group">
           <label class="form-label" for="profile-confirm-password">Confirmer le mot de passe</label>
-          <input type="password" id="profile-confirm-password" class="form-input" placeholder="Répéter le mot de passe" minlength="6" required>
+          <input type="password" id="profile-confirm-password" class="form-input" placeholder="Répéter le mot de passe" minlength="8" autocomplete="new-password" required>
         </div>
         <div id="profile-password-error" style="display: none; color: var(--danger-text); font-size: 0.85rem; margin-bottom: 1rem;"></div>
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">

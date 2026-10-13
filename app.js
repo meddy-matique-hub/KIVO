@@ -8041,7 +8041,9 @@ window.KivoApp = {
     if (document.getElementById('setting-biz-secondary-color')) document.getElementById('setting-biz-secondary-color').value = secCol;
     if (document.getElementById('setting-biz-secondary-color-text')) document.getElementById('setting-biz-secondary-color-text').value = secCol;
 
-    // 4. Fiscalité & Facturation
+    // 4. Fiscalité & Facturation & Légal
+    if (document.getElementById('setting-biz-rccm')) document.getElementById('setting-biz-rccm').value = biz.rccm || '';
+    if (document.getElementById('setting-biz-niu')) document.getElementById('setting-biz-niu').value = biz.niu || '';
     if (document.getElementById('setting-biz-taxid')) document.getElementById('setting-biz-taxid').value = biz.taxId || '';
     if (document.getElementById('setting-biz-vat-num')) document.getElementById('setting-biz-vat-num').value = biz.vatNumber || '';
     if (document.getElementById('setting-biz-vat')) document.getElementById('setting-biz-vat').value = biz.defaultVatRate !== undefined ? biz.defaultVatRate : (biz.currency === 'FCFA' ? 18 : 20);
@@ -8049,15 +8051,15 @@ window.KivoApp = {
     if (document.getElementById('setting-biz-prefix')) document.getElementById('setting-biz-prefix').value = biz.invoicePrefix || "FAC-2026-";
     if (document.getElementById('setting-biz-quote-prefix')) document.getElementById('setting-biz-quote-prefix').value = biz.quotePrefix || "DEV-2026-";
 
-    // 5. Coordonnées bancaires & Mobile Money
+    // 5. Coordonnées bancaires & Moyens de Paiement
     const bDetails = biz.bankDetails || {};
-    const moMo = bDetails.mobileMoney || {};
     if (document.getElementById('setting-bank-name')) document.getElementById('setting-bank-name').value = bDetails.bankName || '';
     if (document.getElementById('setting-bank-account-name')) document.getElementById('setting-bank-account-name').value = bDetails.accountName || biz.name || '';
     if (document.getElementById('setting-bank-iban')) document.getElementById('setting-bank-iban').value = bDetails.iban || '';
     if (document.getElementById('setting-bank-bic')) document.getElementById('setting-bank-bic').value = bDetails.bic || '';
-    if (document.getElementById('setting-momo-wave')) document.getElementById('setting-momo-wave').value = moMo.wave || '';
-    if (document.getElementById('setting-momo-orange')) document.getElementById('setting-momo-orange').value = moMo.orangeMoney || moMo.mtn || '';
+    
+    // Moyens de paiement dynamiques (payment_methods)
+    this.renderPaymentMethods();
 
     // 6. Notifications
     const notifs = biz.notifications || {};
@@ -8065,7 +8067,7 @@ window.KivoApp = {
     if (document.getElementById('setting-notify-reminder')) document.getElementById('setting-notify-reminder').checked = notifs.notifyReminder !== false;
     if (document.getElementById('setting-notify-payment')) document.getElementById('setting-notify-payment').checked = notifs.notifyPayment !== false;
 
-    // 7. Identity Card (Column 1)
+    // 7. Identity Card
     const displayName = biz.owner || biz.name || 'Mon Compte';
     const displayEmail = biz.email || 'contact@entreprise.com';
     const nameDisplay = document.getElementById('profile-id-name-display');
@@ -8107,11 +8109,141 @@ window.KivoApp = {
     const planBadge = document.getElementById('settings-current-plan-badge');
     if (planBadge) planBadge.textContent = `FORFAIT ${plan.name.toUpperCase()}`;
 
+    const planStatusName = document.getElementById('profile-plan-status-name');
+    if (planStatusName) planStatusName.textContent = `Forfait ${plan.name.toUpperCase()}`;
+
     // Sticky save bar status
     const statusText = document.getElementById('profile-save-status-text');
     const statusDot = document.getElementById('profile-status-dot');
     if (statusText) statusText.textContent = 'Tous les changements sont synchronisés';
     if (statusDot) statusDot.classList.remove('dirty');
+  },
+
+  scrollProfileSection: function (e, targetId) {
+    if (e && e.preventDefault) e.preventDefault();
+    const el = document.getElementById(targetId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.querySelectorAll('.profile-nav-link').forEach(link => {
+        link.classList.toggle('active', link.getAttribute('href') === `#${targetId}`);
+      });
+    }
+  },
+
+  renderPaymentMethods: function () {
+    const container = document.getElementById('profile-payment-methods-list');
+    if (!container) return;
+    const biz = this.state.business || {};
+    let methods = biz.paymentMethods;
+    if (!Array.isArray(methods)) {
+      methods = [];
+      const moMo = (biz.bankDetails && biz.bankDetails.mobileMoney) || {};
+      if (moMo.wave) {
+        methods.push({ type: 'Wave', name: 'Wave Principal', value: moMo.wave });
+      }
+      if (moMo.orangeMoney || moMo.mtn) {
+        methods.push({ type: 'Orange Money', name: 'Orange / MTN MoMo', value: moMo.orangeMoney || moMo.mtn });
+      }
+      biz.paymentMethods = methods;
+    }
+
+    if (methods.length === 0) {
+      container.innerHTML = `<div style="text-align:center; padding:1rem; color:var(--text-muted); font-size:0.85rem; border:1px dashed var(--border-color); border-radius:8px;">Aucun moyen de paiement supplémentaire enregistré. Cliquez sur "+ Ajouter".</div>`;
+      return;
+    }
+
+    container.innerHTML = methods.map((m, idx) => `
+      <div class="payment-method-row" data-idx="${idx}">
+        <select class="profile-select pm-type" style="height:44px; min-height:44px; font-size:0.85rem;">
+          <option value="Wave" ${m.type === 'Wave' ? 'selected' : ''}>Wave</option>
+          <option value="Orange Money" ${m.type === 'Orange Money' ? 'selected' : ''}>Orange Money</option>
+          <option value="MTN MoMo" ${m.type === 'MTN MoMo' ? 'selected' : ''}>MTN MoMo</option>
+          <option value="Airtel Money" ${m.type === 'Airtel Money' ? 'selected' : ''}>Airtel Money</option>
+          <option value="Virement" ${m.type === 'Virement' ? 'selected' : ''}>Virement</option>
+          <option value="Chèque" ${m.type === 'Chèque' ? 'selected' : ''}>Chèque</option>
+          <option value="Espèces" ${m.type === 'Espèces' ? 'selected' : ''}>Espèces</option>
+          <option value="Autre" ${m.type === 'Autre' ? 'selected' : ''}>Autre</option>
+        </select>
+        <input type="text" class="profile-input pm-name" placeholder="Libellé (ex: Caisse principale)" value="${this.escapeHtml(m.name || '')}" style="height:44px; min-height:44px; font-size:0.85rem;">
+        <input type="text" class="profile-input pm-val" placeholder="Numéro ou détails" value="${this.escapeHtml(m.value || '')}" style="height:44px; min-height:44px; font-size:0.85rem;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.removePaymentMethodRow(${idx})" title="Supprimer" style="height:44px; width:44px; padding:0; display:flex; align-items:center; justify-content:center; color:var(--danger-text); border-color:rgba(239,68,68,0.25);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+    `).join('');
+  },
+
+  addPaymentMethodRow: function () {
+    const biz = this.state.business = this.state.business || {};
+    biz.paymentMethods = biz.paymentMethods || [];
+    biz.paymentMethods.push({ type: 'Wave', name: '', value: '' });
+    this.renderPaymentMethods();
+  },
+
+  removePaymentMethodRow: function (idx) {
+    const biz = this.state.business || {};
+    if (Array.isArray(biz.paymentMethods)) {
+      biz.paymentMethods.splice(idx, 1);
+      this.renderPaymentMethods();
+    }
+  },
+
+  openChangePasswordModal: function () {
+    const errEl = document.getElementById('profile-password-error');
+    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+    const p1 = document.getElementById('profile-new-password');
+    const p2 = document.getElementById('profile-confirm-password');
+    if (p1) p1.value = '';
+    if (p2) p2.value = '';
+    this.openModal('modal-change-password');
+  },
+
+  submitPasswordChange: async function () {
+    const p1 = document.getElementById('profile-new-password')?.value || '';
+    const p2 = document.getElementById('profile-confirm-password')?.value || '';
+    const errEl = document.getElementById('profile-password-error');
+    const btn = document.getElementById('btn-submit-pwd-change');
+
+    if (p1.length < 8) {
+      if (errEl) {
+        errEl.style.display = 'block';
+        errEl.textContent = 'Le mot de passe doit comporter au moins 8 caractères.';
+      }
+      return;
+    }
+    if (p1 !== p2) {
+      if (errEl) {
+        errEl.style.display = 'block';
+        errEl.textContent = 'Les deux mots de passe ne correspondent pas.';
+      }
+      return;
+    }
+
+    if (btn) { btn.disabled = true; btn.textContent = 'Mise à jour...'; }
+
+    try {
+      if (window.KivoDb && window.KivoDb.supabase) {
+        const { error } = await KivoDb.supabase.auth.updateUser({ password: p1 });
+        if (error) {
+          if (errEl) {
+            errEl.style.display = 'block';
+            errEl.textContent = error.message || 'Erreur lors du changement de mot de passe.';
+          }
+          return;
+        }
+      }
+      this.showToast('Mot de passe mis à jour avec succès.', 'success');
+      this.closeModal('modal-change-password');
+    } catch (e) {
+      console.error(e);
+      if (errEl) { errEl.style.display = 'block'; errEl.textContent = 'Erreur inattendue.'; }
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Mettre à jour'; }
+    }
+  },
+
+  openConnectedAccountsModal: function () {
+    this.openModal('modal-connected-accounts');
   },
 
   saveSettings: function () {
@@ -8156,7 +8288,9 @@ window.KivoApp = {
     if (primSetting) biz.primaryColor = primSetting.value;
     if (secSetting) biz.secondaryColor = secSetting.value;
 
-    // 4. Fiscalité & Facturation
+    // 4. Mentions Légales & Fiscalité
+    if (document.getElementById('setting-biz-rccm')) biz.rccm = document.getElementById('setting-biz-rccm').value.trim();
+    if (document.getElementById('setting-biz-niu')) biz.niu = document.getElementById('setting-biz-niu').value.trim();
     if (document.getElementById('setting-biz-taxid')) biz.taxId = document.getElementById('setting-biz-taxid').value.trim();
     if (document.getElementById('setting-biz-vat-num')) biz.vatNumber = document.getElementById('setting-biz-vat-num').value.trim();
     if (document.getElementById('setting-biz-vat')) biz.defaultVatRate = parseFloat(document.getElementById('setting-biz-vat').value) || 0;
@@ -8164,15 +8298,25 @@ window.KivoApp = {
     if (document.getElementById('setting-biz-prefix')) biz.invoicePrefix = document.getElementById('setting-biz-prefix').value.trim();
     if (document.getElementById('setting-biz-quote-prefix')) biz.quotePrefix = document.getElementById('setting-biz-quote-prefix').value.trim();
 
-    // 5. Coordonnées bancaires & Mobile Money
+    // 5. Coordonnées bancaires & Moyens de paiement dynamiques
     biz.bankDetails = biz.bankDetails || {};
-    biz.bankDetails.mobileMoney = biz.bankDetails.mobileMoney || {};
     if (document.getElementById('setting-bank-name')) biz.bankDetails.bankName = document.getElementById('setting-bank-name').value.trim();
     if (document.getElementById('setting-bank-account-name')) biz.bankDetails.accountName = document.getElementById('setting-bank-account-name').value.trim();
     if (document.getElementById('setting-bank-iban')) biz.bankDetails.iban = document.getElementById('setting-bank-iban').value.trim();
     if (document.getElementById('setting-bank-bic')) biz.bankDetails.bic = document.getElementById('setting-bank-bic').value.trim();
-    if (document.getElementById('setting-momo-wave')) biz.bankDetails.mobileMoney.wave = document.getElementById('setting-momo-wave').value.trim();
-    if (document.getElementById('setting-momo-orange')) biz.bankDetails.mobileMoney.orangeMoney = document.getElementById('setting-momo-orange').value.trim();
+
+    // Extraction des moyens de paiement dynamiques
+    const pmRows = document.querySelectorAll('#profile-payment-methods-list .payment-method-row');
+    const savedMethods = [];
+    pmRows.forEach(row => {
+      const type = row.querySelector('.pm-type')?.value || 'Autre';
+      const name = row.querySelector('.pm-name')?.value.trim() || '';
+      const val = row.querySelector('.pm-val')?.value.trim() || '';
+      if (name || val) {
+        savedMethods.push({ type, name, value: val });
+      }
+    });
+    biz.paymentMethods = savedMethods;
 
     // 6. Notifications
     biz.notifications = biz.notifications || {};
@@ -8199,13 +8343,16 @@ window.KivoApp = {
         address: biz.address,
         website: biz.website || '',
         fiscal_id: biz.taxId,
+        rccm: biz.rccm || '',
+        niu: biz.niu || '',
         currency: biz.currency,
         invoice_prefix: biz.invoicePrefix || 'FAC-2026-',
         quote_prefix: biz.quotePrefix || 'DEV-2026-',
         default_vat_rate: biz.defaultVatRate !== undefined ? biz.defaultVatRate : 0,
         logo_url: biz.logoUrl || '',
         primary_color: biz.primaryColor || '#4F46E5',
-        secondary_color: biz.secondaryColor || '#7C3AED'
+        secondary_color: biz.secondaryColor || '#64748B',
+        payment_methods: biz.paymentMethods || []
       }).then(() => {
         console.log('[KivoApp] Settings saved to Supabase');
       }).catch(err => {
