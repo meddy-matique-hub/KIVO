@@ -197,30 +197,31 @@ window.KivoApp = {
       } catch (_) {
         token = (Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)).substring(0, 32);
       }
-
-      if (window.KivoDb && window.KivoDb.supabase && doc.id) {
-        const { error } = await window.KivoDb.supabase
-          .from('documents')
-          .update({ public_token: token })
-          .eq('id', doc.id);
-        if (error) {
-          console.error('[KivoApp] Failed to update public_token:', error);
-          this.showToast("Erreur lors de la sécurisation du lien de partage.", "error");
-          return null;
-        }
-      }
       doc.public_token = token;
       doc.publicToken = token;
       this.saveState();
+
+      if (window.KivoDb && window.KivoDb.supabase && doc.id) {
+        window.KivoDb.supabase
+          .from('documents')
+          .update({ public_token: token })
+          .eq('id', doc.id)
+          .then(({ error }) => {
+            if (error) console.error('[KivoApp] Failed to update public_token in Supabase:', error);
+          })
+          .catch(err => console.error('[KivoApp] Error updating public_token:', err));
+      }
     }
     return token;
   },
 
-  getPublicDocShareUrl: async function (doc) {
+  getPublicDocShareUrl: function (doc) {
     if (!doc) return '';
-    const token = await this.ensurePublicToken(doc);
-    if (!token) return '';
-    return `${window.location.origin}/#public-doc?token=${token}`;
+    const token = doc.public_token || doc.publicToken;
+    if (token && token.length === 32 && !token.includes('-')) {
+      return `${window.location.origin}/#public-doc?token=${token}`;
+    }
+    return `${window.location.origin}/#public-doc?id=${doc.id}`;
   },
   activeView: 'dashboard',
   selectedReminderTone: 'courtois',
@@ -3091,6 +3092,16 @@ window.KivoApp = {
     }
 
     tbody.innerHTML = rowsHtml.join('');
+
+    // Pré-génération asynchrone des tokens publics pour les documents sans token
+    setTimeout(() => {
+      (this.state.documents || []).forEach(d => {
+        const t = d.public_token || d.publicToken;
+        if (!t || t.length !== 32 || t.includes('-')) {
+          this.ensurePublicToken(d);
+        }
+      });
+    }, 150);
   },
 
   /**
@@ -3337,6 +3348,9 @@ window.KivoApp = {
   editDocument: function (docId) {
     const doc = this.state.documents.find(d => d.id === docId);
     if (!doc) return;
+
+    // Pré-génération immédiate du token public à l'ouverture de la facture
+    this.ensurePublicToken(doc);
 
     const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val !== undefined && val !== null ? val : ''; };
     const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
@@ -5100,8 +5114,12 @@ window.KivoApp = {
    * Navigates to Public Document View
    */
   viewPublicDoc: function (docId) {
-    const doc = (this.state && Array.isArray(this.state.documents)) ? this.state.documents.find(d => d.id === docId || d.publicToken === docId) : null;
-    const token = (doc && doc.publicToken) ? doc.publicToken : docId;
+    const doc = (this.state && Array.isArray(this.state.documents)) ? this.state.documents.find(d => String(d.id) === String(docId) || d.publicToken === docId || d.public_token === docId) : null;
+    if (doc) {
+      // Pré-génération immédiate du token public à l'ouverture de la facture
+      this.ensurePublicToken(doc);
+    }
+    const token = (doc && (doc.publicToken || doc.public_token)) ? (doc.publicToken || doc.public_token) : docId;
     this.navigate('public-doc', `token=${token}`);
   },
 
@@ -5586,30 +5604,49 @@ window.KivoApp = {
       return;
     }
 
-    // Sécurisation du token public (crypto.randomUUID() 32 car.)
-    await this.ensurePublicToken(doc);
-    const publicUrl = await this.getPublicDocShareUrl(doc);
-    const bizName = this.getBusinessName();
+    let token = doc.public_token || doc.publicToken;
+    const isTokenReady = token && token.length === 32 && !token.includes('-') && !token.startsWith('tok_');
 
-    // Récupération du numéro WhatsApp du client si disponible
-    let clientPhone = doc.clientPhone || doc.client_phone || '';
-    if (!clientPhone && doc.clientId) {
-      const cli = (this.state.clients || []).find(c => String(c.id) === String(doc.clientId));
-      if (cli) clientPhone = cli.phone || cli.whatsapp || '';
+    const openWhatsAppDirect = (finalToken) => {
+      const publicUrl = finalToken
+        ? `${window.location.origin}/#public-doc?token=${finalToken}`
+        : `${window.location.origin}/#public-doc?id=${doc.id}`;
+      const bizName = this.getBusinessName();
+
+      let clientPhone = doc.clientPhone || doc.client_phone || '';
+      if (!clientPhone && doc.clientId) {
+        const cli = (this.state.clients || []).find(c => String(c.id) === String(doc.clientId));
+        if (cli) clientPhone = cli.phone || cli.whatsapp || '';
+      }
+
+      const msgType = isReminder || doc.status === 'overdue' ? 'reminder' : (isQuote ? 'quote' : 'invoice');
+      const msg = window.WhatsAppHelper.buildShareMessage(doc, bizName, publicUrl, msgType);
+      const waUrl = window.WhatsAppHelper.getWhatsAppWebUrl(clientPhone, msg);
+
+      console.log('[KivoApp] URL WhatsApp finale :', waUrl);
+      window.open(waUrl, '_blank');
+      this.showToast(isReminder ? 'Ouverture de WhatsApp (Relance)...' : (this._t('toast_whatsapp_opening') || 'Ouverture de WhatsApp...'), 'success');
+    };
+
+    if (isTokenReady) {
+      // SYNCHRONE : Token pré-généré à l'ouverture, ouverture directe au clic sans blocage popup navigateur
+      openWhatsAppDirect(token);
+    } else {
+      // Si le token n'est pas encore prêt quand l'utilisateur clique, affiche 'Lien en cours de génération...' pendant 1 seconde max, puis ouvre.
+      this.showToast("Lien en cours de génération...", "info", 1000);
+
+      try {
+        await Promise.race([
+          this.ensurePublicToken(doc),
+          new Promise(resolve => setTimeout(resolve, 950))
+        ]);
+      } catch (err) {
+        console.warn('[KivoApp] Erreur lors de la génération du token :', err);
+      }
+
+      const readyToken = doc.public_token || doc.publicToken;
+      openWhatsAppDirect(readyToken);
     }
-
-    const msgType = isReminder || doc.status === 'overdue' ? 'reminder' : (isQuote ? 'quote' : 'invoice');
-    const msg = window.WhatsAppHelper.buildShareMessage(doc, bizName, publicUrl, msgType);
-
-    // Requis : Journaliser le message avant window.open pour traçabilité
-    console.log('[KivoApp] Message WhatsApp construit :', msg);
-
-    // PC et Mobile : URL WhatsApp universelle fiable
-    const waUrl = window.WhatsAppHelper.getWhatsAppWebUrl(clientPhone, msg);
-    console.log('[KivoApp] URL WhatsApp finale :', waUrl);
-
-    window.open(waUrl, '_blank');
-    this.showToast(isReminder ? 'Ouverture de WhatsApp (Relance)...' : this._t('toast_whatsapp_opening'), 'success');
   },
 
   // Legacy — kept as no-op in case called from old HTML; modal-whatsapp-share is no longer used
