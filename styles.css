@@ -700,6 +700,18 @@ button {
 .delay-2 { animation-delay: 0.2s; }
 .delay-3 { animation-delay: 0.3s; }
 
+/* Respect strict des préférences utilisateur pour la réduction des animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Main Content Area */
 .main-content {
   flex: 1;
@@ -1083,18 +1095,19 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   margin-top: 0.25rem;
 }
 
-/* Cards & Surfaces */
+/* Cards & Surfaces — Ombre douce et bordure fine */
 .card {
   background-color: var(--bg-card);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
   padding: 1.5rem;
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 4px 14px -2px rgba(15, 23, 42, 0.05);
+  transition: box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
 }
 
 .card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 6px 20px -3px rgba(15, 23, 42, 0.08);
+  border-color: rgba(148, 163, 184, 0.45);
 }
 
 .card-header {
@@ -1112,7 +1125,7 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   transform: translateY(-2px);
 }
 
-/* Buttons System */
+/* Buttons System — 3 États : Repos, Survol (:hover), Actif/Cliqué (:active) */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -1122,8 +1135,14 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   border-radius: var(--radius-md);
   font-weight: 600;
   font-size: 0.9rem;
-  transition: all 0.2s ease;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
   white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.98);
 }
 
 .btn-primary {
@@ -1133,29 +1152,53 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 }
 
 .btn-primary:hover {
-  opacity: 0.92;
+  opacity: 0.94;
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+}
+
+.btn-primary:active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
+  filter: brightness(0.92);
 }
 
 .btn-secondary {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .btn-secondary:hover {
   background-color: var(--bg-subtle);
   border-color: #CBD5E1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.btn-secondary:active {
+  transform: translateY(1px) scale(0.98);
+  background-color: var(--border-color);
+  box-shadow: none;
 }
 
 .btn-success {
   background-color: var(--success);
   color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
 }
 
 .btn-success:hover {
   background-color: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+}
+
+.btn-success:active {
+  transform: translateY(1px) scale(0.98);
+  background-color: #047857;
+  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.3);
 }
 
 .btn-danger {
@@ -1166,6 +1209,12 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 
 .btn-danger:hover {
   background-color: #FEE2E2;
+  transform: translateY(-1px);
+}
+
+.btn-danger:active {
+  transform: translateY(1px) scale(0.98);
+  background-color: #FCA5A5;
 }
 
 .btn-sm {
@@ -1191,14 +1240,28 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   transform: translateY(-1px);
 }
 
+.btn-ai:active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: 0 1px 6px rgba(124, 58, 237, 0.35);
+}
+
 .btn-whatsapp {
   background-color: #25D366;
   color: #FFFFFF;
   font-weight: 600;
+  box-shadow: 0 2px 8px rgba(37, 211, 102, 0.25);
 }
 
 .btn-whatsapp:hover {
   background-color: #1DA851;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(37, 211, 102, 0.35);
+}
+
+.btn-whatsapp:active {
+  transform: translateY(1px) scale(0.98);
+  background-color: #128C3E;
+  box-shadow: 0 1px 4px rgba(37, 211, 102, 0.3);
 }
 
 /* Status Badges */
@@ -3972,7 +4035,7 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 }
 
 .ai-page-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--font-heading, 'Outfit', sans-serif);
   font-size: 2.75rem;
   font-weight: 700;
   color: #091124;
