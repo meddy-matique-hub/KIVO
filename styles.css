@@ -2309,6 +2309,371 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 }
 
 /* ==========================================================================
+   LANDING PAGE — ANIMATIONS & MICRO-INTERACTIONS (COMMIT 4)
+   ========================================================================== */
+
+/* ── Keyframes ─────────────────────────────────────────────────────────── */
+@keyframes kivo-fade-up {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes kivo-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes kivo-slide-right {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes kivo-tagline-1 {
+  0%, 28%   { opacity: 1; transform: translateY(0); }
+  33%, 95%  { opacity: 0; transform: translateY(-16px); }
+  100%      { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes kivo-tagline-2 {
+  0%, 28%   { opacity: 0; transform: translateY(16px); }
+  33%, 61%  { opacity: 1; transform: translateY(0); }
+  66%, 100% { opacity: 0; transform: translateY(-16px); }
+}
+
+@keyframes kivo-tagline-3 {
+  0%, 61%   { opacity: 0; transform: translateY(16px); }
+  66%, 95%  { opacity: 1; transform: translateY(0); }
+  100%      { opacity: 0; transform: translateY(-16px); }
+}
+
+@keyframes kivo-pulse-dot {
+  0%, 100% { transform: scale(1);   opacity: 1; }
+  50%       { transform: scale(1.4); opacity: 0.7; }
+}
+
+@keyframes kivo-step-bar {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+@keyframes kivo-float-badge {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+
+/* ── Intersection Observer — entrée au scroll ───────────────────────────── */
+[data-animate] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-animate].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+[data-animate][data-delay="100"] { transition-delay: 0.1s; }
+[data-animate][data-delay="200"] { transition-delay: 0.2s; }
+[data-animate][data-delay="300"] { transition-delay: 0.3s; }
+[data-animate][data-delay="400"] { transition-delay: 0.4s; }
+[data-animate][data-delay="500"] { transition-delay: 0.5s; }
+
+/* ── Hero animé ─────────────────────────────────────────────────────────── */
+.kivo-hero-headline {
+  display: block;
+}
+
+.kivo-hero-headline-static {
+  font-family: var(--font-heading);
+  font-size: 3.25rem;
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: #0F172A;
+  display: block;
+}
+
+.kivo-tagline-wrap {
+  display: block;
+  height: 1.15em;
+  overflow: hidden;
+  position: relative;
+  margin-top: 0.25rem;
+}
+
+.kivo-tagline-item {
+  font-family: var(--font-heading);
+  font-size: 3.25rem;
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  white-space: nowrap;
+  opacity: 0;
+  background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.kivo-tagline-item:nth-child(1) {
+  opacity: 1;
+  animation: kivo-tagline-1 9s ease-in-out infinite;
+}
+.kivo-tagline-item:nth-child(2) {
+  opacity: 0;
+  animation: kivo-tagline-2 9s ease-in-out infinite;
+}
+.kivo-tagline-item:nth-child(3) {
+  opacity: 0;
+  animation: kivo-tagline-3 9s ease-in-out infinite;
+}
+
+.kivo-hero-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.kivo-hero-fact-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-full);
+  padding: 0.35rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.kivo-hero-fact-pill .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10B981;
+  flex-shrink: 0;
+  animation: kivo-pulse-dot 2.4s ease-in-out infinite;
+}
+
+/* ── Section 4 étapes ───────────────────────────────────────────────────── */
+.kivo-steps-section {
+  padding: 5rem 0;
+  border-top: 1px solid #E2E8F0;
+}
+
+.kivo-steps-header {
+  text-align: center;
+  max-width: 580px;
+  margin: 0 auto 3.5rem;
+}
+
+.kivo-steps-eyebrow {
+  display: inline-block;
+  background: #EFF6FF;
+  color: #2563EB;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 14px;
+  border-radius: var(--radius-full);
+  margin-bottom: 1rem;
+}
+
+.kivo-steps-title {
+  font-family: var(--font-heading);
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: #0F172A;
+  line-height: 1.2;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.kivo-steps-subtitle {
+  color: #64748B;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.kivo-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  position: relative;
+}
+
+/* Connecting line between steps */
+.kivo-steps-grid::before {
+  content: '';
+  position: absolute;
+  top: 2.5rem;
+  left: calc(12.5% + 1.5rem);
+  right: calc(12.5% + 1.5rem);
+  height: 2px;
+  background: linear-gradient(90deg, #DBEAFE, #C7D2FE);
+  z-index: 0;
+}
+
+.kivo-step-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1rem;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.25s ease;
+}
+
+.kivo-step-card:hover {
+  transform: translateY(-4px);
+}
+
+.kivo-step-icon-wrap {
+  width: 5rem;
+  height: 5rem;
+  border-radius: var(--radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px -4px rgba(37, 99, 235, 0.2);
+}
+
+.kivo-step-icon-wrap::after {
+  content: attr(data-num);
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #0F172A;
+  color: #FFFFFF;
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  line-height: 22px;
+  text-align: center;
+}
+
+.kivo-step-title {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0F172A;
+  line-height: 1.3;
+}
+
+.kivo-step-desc {
+  font-size: 0.85rem;
+  color: #64748B;
+  line-height: 1.55;
+  max-width: 180px;
+}
+
+/* ── Micro-animations 3D showcase cards ─────────────────────────────────── */
+.kivo-3d-card {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s ease;
+}
+
+.kivo-3d-card:hover {
+  transform: translateY(-8px) rotate(-1deg) scale(1.02) !important;
+}
+
+/* ── Bouton hero CTA — badge "Gratuit" animé ─────────────────────────────── */
+.kivo-cta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  margin-top: 0.85rem;
+}
+
+.kivo-cta-badge svg {
+  color: #10B981;
+}
+
+/* ── Feature cards — hover lift ─────────────────────────────────────────── */
+.kivo-feature-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease !important;
+}
+
+/* ── Steps responsive ───────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .kivo-steps-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .kivo-steps-grid::before {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .kivo-steps-grid {
+    grid-template-columns: 1fr;
+  }
+  .kivo-tagline-item,
+  .kivo-hero-headline-static {
+    font-size: 1.85rem;
+    white-space: nowrap;
+  }
+  .kivo-tagline-wrap {
+    height: 2.3rem;
+  }
+  .kivo-steps-title {
+    font-size: 1.65rem;
+  }
+}
+
+/* ── prefers-reduced-motion ─────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  [data-animate] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .kivo-tagline-item {
+    animation: none !important;
+    opacity: 0;
+  }
+  .kivo-tagline-item:nth-child(1) {
+    opacity: 1;
+    position: static;
+  }
+  .kivo-tagline-wrap {
+    height: auto;
+    overflow: visible;
+    position: static;
+  }
+  .kivo-hero-fact-pill .dot {
+    animation: none !important;
+  }
+  .kivo-step-card:hover {
+    transform: none !important;
+  }
+  .kivo-3d-card:hover {
+    transform: none !important;
+  }
+}
+
+/* ==========================================================================
    LANDING PAGE — 2026 FINTECH ART DIRECTION (MATCHING REFERENCE MOCKUP)
    ========================================================================== */
 

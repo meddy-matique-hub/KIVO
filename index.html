@@ -255,13 +255,31 @@
               <div class="kivo-hero-section">
                 
                 <!-- Left: Headline & CTA -->
-                <div class="kivo-hero-text">
-                  <h1>Créez des factures professionnelles en toute simplicité</h1>
-                  <p>Gagnez du temps et soyez payé plus rapidement avec KIVO.</p>
+                <div class="kivo-hero-text" data-animate>
+                  <h1 class="kivo-hero-headline">
+                    <span class="kivo-hero-headline-static">Facturation&nbsp;pro,</span>
+                    <span class="kivo-tagline-wrap" aria-label="en 2 minutes chrono">
+                      <span class="kivo-tagline-item">en 2 minutes chrono.</span>
+                      <span class="kivo-tagline-item">PDF A4 impeccable.</span>
+                      <span class="kivo-tagline-item">3 documents gratuits.</span>
+                    </span>
+                  </h1>
+                  <p>Créez devis et factures professionnels, partagez par WhatsApp, suivez vos encaissements — depuis n'importe où, fait au Congo.</p>
+                  <div class="kivo-hero-facts">
+                    <span class="kivo-hero-fact-pill"><span class="dot"></span>3 documents gratuits / mois</span>
+                    <span class="kivo-hero-fact-pill"><span class="dot"></span>Export PDF A4 haute définition</span>
+                    <span class="kivo-hero-fact-pill"><span class="dot"></span>Partage WhatsApp en 1 clic</span>
+                  </div>
                   <a href="#auth" class="btn btn-hero-cta">
                     <span>Créer ma première facture</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                   </a>
+                  <p class="kivo-cta-badge">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    Aucune carte bancaire requise — démarrez gratuitement
+                  </p>
                 </div>
+
 
                 <!-- Right: Layered 3D Visual Composition -->
                 <div class="kivo-hero-visual">
@@ -423,7 +441,55 @@
 
               </div>
 
-              <!-- 4. Modèles Showcase Section (Visuel 3D Non-Cliquable) -->
+              <!-- 4. Section 4 Étapes (Comment ça marche) -->
+              <div class="kivo-steps-section" id="landing-steps">
+                <div class="kivo-steps-header" data-animate>
+                  <span class="kivo-steps-eyebrow">Comment ça marche</span>
+                  <h2 class="kivo-steps-title">De zéro à payé, en 4 étapes</h2>
+                  <p class="kivo-steps-subtitle">KIVO simplifie votre facturation de bout en bout — de la création du document jusqu'à l'encaissement.</p>
+                </div>
+                <div class="kivo-steps-grid">
+
+                  <!-- Étape 1 : Créer -->
+                  <div class="kivo-step-card" data-animate data-delay="100">
+                    <div class="kivo-step-icon-wrap" data-num="1" style="background: linear-gradient(135deg, #EFF6FF, #DBEAFE);">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="13" x2="12" y2="17"/><line x1="10" y1="15" x2="14" y2="15"/></svg>
+                    </div>
+                    <div class="kivo-step-title">Créer</div>
+                    <p class="kivo-step-desc">Remplissez vos informations. KIVO génère votre document en quelques secondes.</p>
+                  </div>
+
+                  <!-- Étape 2 : Personnaliser -->
+                  <div class="kivo-step-card" data-animate data-delay="200">
+                    <div class="kivo-step-icon-wrap" data-num="2" style="background: linear-gradient(135deg, #F5F3FF, #EDE9FE);">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 19.07l-1.41 1.41M19.07 19.07l-1.41-1.41M4.93 4.93l1.41 1.41M20 12h2M2 12h2M12 20v2M12 2v2"/></svg>
+                    </div>
+                    <div class="kivo-step-title">Personnaliser</div>
+                    <p class="kivo-step-desc">Choisissez un modèle, ajoutez votre logo, adaptez couleurs et mentions légales.</p>
+                  </div>
+
+                  <!-- Étape 3 : Partager -->
+                  <div class="kivo-step-card" data-animate data-delay="300">
+                    <div class="kivo-step-icon-wrap" data-num="3" style="background: linear-gradient(135deg, #ECFDF5, #D1FAE5);">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                    </div>
+                    <div class="kivo-step-title">Partager</div>
+                    <p class="kivo-step-desc">Envoyez par WhatsApp ou e-mail. Le client reçoit un lien de visualisation PDF instantané.</p>
+                  </div>
+
+                  <!-- Étape 4 : Encaisser -->
+                  <div class="kivo-step-card" data-animate data-delay="400">
+                    <div class="kivo-step-icon-wrap" data-num="4" style="background: linear-gradient(135deg, #FFF7ED, #FED7AA);">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                    </div>
+                    <div class="kivo-step-title">Encaisser</div>
+                    <p class="kivo-step-desc">Suivez les paiements, marquez les factures comme réglées, relancez les impayés.</p>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- 5. Modèles Showcase Section (Visuel 3D Non-Cliquable) -->
               <div id="landing-templates" style="padding: 4.5rem 0; border-top: 1px solid #E2E8F0;">
                 <div style="text-align: center; max-width: 600px; margin: 0 auto 3rem auto;">
                   <span class="badge" style="background: #EFF6FF; color: #2563EB; font-weight: 700; font-size: 0.8rem; padding: 4px 14px; border-radius: 9999px; margin-bottom: 0.75rem; display: inline-block;">Modèles</span>
@@ -743,7 +809,55 @@
 
             </div>
           </div>
+
+          <!-- Intersection Observer — animations au scroll (landing only) -->
+          <script>
+          (function() {
+            if (!('IntersectionObserver' in window)) {
+              // fallback : rendre tout visible
+              document.querySelectorAll('[data-animate]').forEach(function(el) {
+                el.classList.add('is-visible');
+              });
+              return;
+            }
+            var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            var io = new IntersectionObserver(function(entries) {
+              entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                  entry.target.classList.add('is-visible');
+                  io.unobserve(entry.target);
+                }
+              });
+            }, { threshold: 0.12 });
+            function initObserver() {
+              document.querySelectorAll('#view-landing [data-animate]').forEach(function(el) {
+                if (prefersReduced) {
+                  el.classList.add('is-visible');
+                } else {
+                  io.observe(el);
+                }
+              });
+            }
+            // Si la landing est déjà visible, init immédiatement
+            var landing = document.getElementById('view-landing');
+            if (landing && landing.style.display !== 'none') {
+              initObserver();
+            }
+            // Sinon, on réinitialise à chaque fois que la landing devient visible
+            // via un MutationObserver léger sur le style
+            if (landing) {
+              var mo = new MutationObserver(function() {
+                if (landing.style.display !== 'none') {
+                  initObserver();
+                  mo.disconnect();
+                }
+              });
+              mo.observe(landing, { attributes: true, attributeFilter: ['style'] });
+            }
+          })();
+          </script>
         </section>
+
 
 
         <!-- ==================== AUTH VIEW (CONNEXION & INSCRIPTION) ==================== -->
