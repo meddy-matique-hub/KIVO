@@ -1239,7 +1239,7 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 
 .documents-table-container {
   width: 100%;
-  overflow-x: auto;
+  overflow-x: hidden;
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
@@ -1249,9 +1249,23 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 
 .doc-master-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: separate !important;
   border-spacing: 0 10px !important;
   background: transparent !important;
+}
+
+.col-doc-client,
+.col-th-client {
+  overflow: hidden;
+}
+
+.col-doc-client .client-name-cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
 }
 
 .doc-master-table thead th {
@@ -1569,29 +1583,38 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 /* Master Documents Table Mobile Responsiveness */
 @media (max-width: 768px) {
   .documents-table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow-x: hidden;
     width: 100%;
   }
   .doc-master-table {
     width: 100% !important;
+    table-layout: fixed !important;
   }
-  /* Masquer dates et type sur mobile pour une lecture nette */
+  /* Masquer dates, type et statut séparé sur mobile pour une lecture nette */
   .doc-master-table thead th:nth-child(3),
   .doc-master-table tbody td.col-doc-type,
   .doc-master-table thead th:nth-child(4),
   .doc-master-table tbody td.col-doc-issue-date,
   .doc-master-table thead th:nth-child(5),
-  .doc-master-table tbody td.col-doc-due-date {
+  .doc-master-table tbody td.col-doc-due-date,
+  .doc-master-table thead th:nth-child(7),
+  .doc-master-table tbody td.col-doc-status {
     display: none !important;
   }
+  .mobile-only-doc-status {
+    display: block !important;
+  }
+  .doc-master-table thead th.col-th-num { width: 34% !important; }
+  .doc-master-table thead th.col-th-client { width: 34% !important; }
+  .doc-master-table thead th.col-th-total { width: 22% !important; }
+  .doc-master-table thead th.col-th-action { width: 10% !important; }
   .doc-master-table tbody tr td {
-    padding: 0.75rem 0.55rem !important;
-    font-size: 0.82rem !important;
+    padding: 0.75rem 0.35rem !important;
+    font-size: 0.78rem !important;
   }
   .btn-row-action {
-    width: 30px !important;
-    height: 30px !important;
+    width: 28px !important;
+    height: 28px !important;
     padding: 0 !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -4832,14 +4855,17 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
    ========================================================================== */
 
 .profile-page-section {
-  padding: 2.5rem 3rem 4rem 3rem;
-  background: #F8FAFC;
-  min-height: 100vh;
+  padding: 0;
+  background: transparent;
+  width: 100%;
 }
 
 .profile-container {
-  max-width: 1240px;
+  max-width: 1080px;
   margin: 0 auto;
+  padding: 0 0 120px 0;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 /* Page Header with Serif Title */
@@ -4851,13 +4877,13 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 }
 
 .profile-main-title {
-  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
-  font-size: 2.85rem;
-  font-weight: 700;
-  color: #0F172A;
+  font-family: var(--font-heading, 'Outfit', 'Inter', -apple-system, sans-serif);
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
   letter-spacing: -0.02em;
   margin: 0;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .profile-save-btn {
@@ -4885,13 +4911,7 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 /* ========================================================
    PROFILE REDESIGN: Sticky Sub-Menu Left + 1-Col Stack Right
    ======================================================== */
-.profile-container {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 1.5rem 1.5rem 140px 1.5rem;
-  box-sizing: border-box;
-  width: 100%;
-}
+
 
 .profile-layout-wrap {
   display: flex;
@@ -5136,36 +5156,50 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   box-sizing: border-box;
 }
 
-/* Sticky Save Bar (Bottom) with adequate padding */
+/* Compact Floating Save Pill for Profile (Bottom) */
 .profile-sticky-bar {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(15, 23, 42, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 0.85rem 1.5rem;
-  z-index: 100;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(120%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 999;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  display: flex;
+  justify-content: center;
+  width: auto;
+  max-width: 92%;
+}
+
+.profile-sticky-bar.visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .profile-sticky-bar-inner {
-  max-width: 1280px;
-  margin: 0 auto;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 0.55rem 1.15rem;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+  min-width: 320px;
+  max-width: 100%;
 }
 
 .profile-sticky-status {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #F8FAFC;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
+  color: #E2E8F0;
   font-weight: 500;
 }
 
@@ -5174,6 +5208,81 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   height: 8px;
   border-radius: 50%;
   background: #10B981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  flex-shrink: 0;
+}
+
+.profile-sticky-status .status-dot.dirty {
+  background: #F59E0B;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+}
+
+.profile-sticky-save-btn {
+  padding: 0.45rem 1.1rem;
+  font-size: 0.82rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  white-space: nowrap;
+}
+
+/* Team Locked Screen */
+.team-locked-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 560px;
+  width: 100%;
+  margin: 3.5rem auto;
+  padding: 3.25rem 2rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  box-sizing: border-box;
+}
+
+.team-locked-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(79, 70, 229, 0.15));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #7C3AED;
+  margin-bottom: 1.5rem;
+}
+
+.team-locked-title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  max-width: 460px;
+  line-height: 1.3;
+}
+
+.team-locked-desc {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  max-width: 440px;
+}
+
+.team-locked-btn {
+  padding: 0.85rem 1.85rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 /* RESPONSIVE */
@@ -6437,72 +6546,4 @@ body.full-width-view .main-content {
   }
 }
 
-/* Sticky Save Bar for Profile */
-.profile-sticky-bar {
-  position: sticky;
-  bottom: 1.25rem;
-  z-index: 90;
-  margin-top: 2rem;
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-}
-.profile-sticky-bar-inner {
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-  padding: 0.85rem 1.35rem;
-  background: rgba(15, 23, 42, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 9999px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
-  min-width: 380px;
-  max-width: 92%;
-}
-.profile-sticky-status {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  font-size: 0.85rem;
-  color: #E2E8F0;
-  font-weight: 500;
-}
-.profile-sticky-status .status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #10B981;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
-  flex-shrink: 0;
-}
-.profile-sticky-status .status-dot.dirty {
-  background: #F59E0B;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
-}
-.profile-sticky-save-btn {
-  padding: 0.55rem 1.25rem;
-  font-size: 0.85rem;
-  border-radius: 9999px;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-}
-@media (max-width: 640px) {
-  .profile-sticky-bar-inner {
-    min-width: unset;
-    width: 100%;
-    border-radius: 16px;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.85rem 1rem;
-  }
-  .profile-sticky-save-btn {
-    width: 100%;
-    justify-content: center;
-  }
-}
+

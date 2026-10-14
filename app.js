@@ -2891,39 +2891,23 @@ window.KivoApp = {
 
     return `
       <tr class="doc-table-row ${rowStatusClass}" onclick="KivoApp.viewPublicDoc('${doc.id}')">
-        <td class="col-doc-num"><strong style="color: var(--text-primary); font-size: 0.88rem; font-weight: 600;">${doc.number}</strong></td>
+        <td class="col-doc-num">
+          <strong style="color: var(--text-primary); font-size: 0.88rem; font-weight: 600;">${doc.number}</strong>
+          <div class="mobile-only-doc-status" style="margin-top: 4px; display: none;">${statusBadgeHtml}</div>
+        </td>
         <td class="col-doc-client">
-          <div style="font-weight: 600; color: var(--text-primary); line-height: 1.25;">${doc.clientName || 'Client anonyme'}</div>
-          ${doc.clientType ? `<span style="font-size: 0.72rem; color: var(--text-muted);">${doc.clientType}</span>` : ''}
+          <div class="client-name-cell" style="font-weight: 600; color: var(--text-primary); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${doc.clientName || 'Client anonyme'}">${doc.clientName || 'Client anonyme'}</div>
+          ${doc.clientType ? `<span style="font-size: 0.72rem; color: var(--text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${doc.clientType}</span>` : ''}
         </td>
         <td class="col-doc-type">${typeBadgeHtml}</td>
         <td class="col-doc-issue-date" style="color: var(--text-secondary); font-size: 0.88rem;">${doc.issueDate || '-'}</td>
         <td class="col-doc-due-date" style="color: var(--text-secondary); font-size: 0.88rem;">${doc.dueDate || '-'}</td>
-        <td class="col-doc-total"><strong style="color: var(--text-primary); font-size: 0.95rem;">${(doc.total || 0).toLocaleString('fr-FR')} ${currencyStr}</strong></td>
+        <td class="col-doc-total"><strong style="color: var(--text-primary); font-size: 0.95rem; white-space: nowrap;">${(doc.total || 0).toLocaleString('fr-FR')} ${currencyStr}</strong></td>
         <td class="col-doc-status">${statusBadgeHtml}</td>
         <td class="col-doc-action" style="text-align: right;" onclick="event.stopPropagation();">
-          <div style="display: inline-flex; align-items: center; gap: 0.35rem; justify-content: flex-end;">
-            ${isOverdue ? `
-              <button class="btn-row-action btn-action-remind" onclick="KivoApp.shareOnWhatsApp('${doc.id}', true)" title="Relancer le client sur WhatsApp" style="color: #25D366; border-color: rgba(37, 211, 102, 0.4); background: rgba(37, 211, 102, 0.1); font-weight: 600; padding: 0 8px; gap: 4px; display: inline-flex; align-items: center;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-                <span class="btn-remind-text" style="font-size: 0.72rem;">Relancer</span>
-              </button>
-            ` : ''}
-            ${(!isPaid && !isQuote && !isRefunded && !isDraft) ? `
-              <button class="btn-row-action btn-action-pay" onclick="KivoApp.markInvoiceAsPaid('${doc.id}')" title="Marquer comme payée" style="color: #059669; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08);">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              </button>
-            ` : ''}
-            <button class="btn-row-action" onclick="KivoApp.editDocument('${doc.id}')" title="Modifier">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-            <button class="btn-row-action" onclick="KivoApp.downloadPdf('${doc.id}')" title="Télécharger PDF">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </button>
-            <button class="btn-row-action" onclick="KivoApp.toggleDocRowMenu(event, '${doc.id}')" title="Plus d'actions" aria-label="Actions">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
-            </button>
-          </div>
+          <button class="btn-row-action btn-row-kebab" onclick="KivoApp.toggleDocRowMenu(event, '${doc.id}')" title="Actions" aria-label="Actions">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="12" cy="19" r="2.2"/></svg>
+          </button>
         </td>
       </tr>
     `;
@@ -8112,11 +8096,32 @@ window.KivoApp = {
     const planStatusName = document.getElementById('profile-plan-status-name');
     if (planStatusName) planStatusName.textContent = `Forfait ${plan.name.toUpperCase()}`;
 
-    // Sticky save bar status
+    // Sticky save bar status & dirty watcher
     const statusText = document.getElementById('profile-save-status-text');
     const statusDot = document.getElementById('profile-status-dot');
+    const stickyBar = document.getElementById('profile-sticky-bar');
     if (statusText) statusText.textContent = 'Tous les changements sont synchronisés';
     if (statusDot) statusDot.classList.remove('dirty');
+    if (stickyBar) stickyBar.classList.remove('visible');
+    this.initProfileDirtyWatcher();
+  },
+
+  initProfileDirtyWatcher: function () {
+    const profileView = document.getElementById('view-profile');
+    if (!profileView || profileView._dirtyWatcherAttached) return;
+    profileView._dirtyWatcherAttached = true;
+
+    const onInputChange = () => {
+      const stickyBar = document.getElementById('profile-sticky-bar');
+      const statusText = document.getElementById('profile-save-status-text');
+      const statusDot = document.getElementById('profile-status-dot');
+      if (stickyBar) stickyBar.classList.add('visible');
+      if (statusDot) statusDot.classList.add('dirty');
+      if (statusText) statusText.textContent = 'Modifications non enregistrées';
+    };
+
+    profileView.addEventListener('input', onInputChange);
+    profileView.addEventListener('change', onInputChange);
   },
 
   scrollProfileSection: function (e, targetId) {
@@ -8330,8 +8335,20 @@ window.KivoApp = {
     // Feedback sticky bar
     const statusText = document.getElementById('profile-save-status-text');
     const statusDot = document.getElementById('profile-status-dot');
+    const stickyBar = document.getElementById('profile-sticky-bar');
     if (statusText) statusText.textContent = 'Enregistré avec succès !';
-    if (statusDot) statusDot.style.background = '#10B981';
+    if (statusDot) {
+      statusDot.classList.remove('dirty');
+      statusDot.style.background = '#10B981';
+    }
+    if (stickyBar) {
+      stickyBar.classList.add('visible');
+      setTimeout(() => {
+        if (statusDot && !statusDot.classList.contains('dirty')) {
+          stickyBar.classList.remove('visible');
+        }
+      }, 2000);
+    }
 
     // Synchronisation Supabase
     if (window.KivoDb && this.supabaseConnected) {
