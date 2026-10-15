@@ -57,22 +57,22 @@ window.KivoTemplates = {
       }
     }
     if (!list || !Array.isArray(list) || list.length === 0) {
-      return `<tr><td colspan="5" style="text-align:center;color:${isDark ? '#64748B' : '#94a3b8'};padding:14px;font-size:11px;">Aucun article saisi</td></tr>`;
+      return `<tr><td colspan="5" style="text-align:center;color:${isDark ? '#64748B' : '#94a3b8'};padding:14px;font-size:12px;">Aucun article saisi</td></tr>`;
     }
     const showVat = d.showVat !== false;
     return list.map((it, i) => {
-      const unitStr = it.unit ? ` <span style="font-size:9.5px;color:${isDark ? '#94A3B8' : '#64748B'};">${it.unit}</span>` : '';
-      const discStr = (it.discount && Number(it.discount) > 0) ? `<div style="font-size:9.5px;color:#EF4444;font-weight:600;">-${it.discount}%</div>` : '';
+      const unitStr = it.unit ? ` <span style="font-size:11px;color:${isDark ? '#94A3B8' : '#64748B'};">${it.unit}</span>` : '';
+      const discStr = (it.discount && Number(it.discount) > 0) ? `<div style="font-size:11px;color:#EF4444;font-weight:600;">-${it.discount}%</div>` : '';
       const taxStr = showVat ? ((it.taxRate !== undefined && it.taxRate !== '') ? it.taxRate + ' %' : '-') : '-';
       return `
       <tr style="background:${isDark ? (i % 2 === 0 ? '#1E222B' : '#181A20') : (i % 2 === 0 ? '#fff' : '#f8fafc')};">
-        <td style="padding:7px 10px;font-size:11px;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#E2E8F0' : '#1E293B'};white-space:pre-wrap;">
+        <td style="padding:8px 12px;font-size:13px;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#E2E8F0' : '#1E293B'};white-space:pre-wrap;">
           <strong>${it.name || 'Article sans désignation'}</strong>
         </td>
-        <td style="padding:7px 10px;font-size:11px;text-align:center;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#94A3B8' : '#64748B'};">${it.quantity}${unitStr}</td>
-        <td style="padding:7px 10px;font-size:11px;text-align:right;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#E2E8F0' : '#1E293B'};">${this.fmt(it.price, currency)}${discStr}</td>
-        <td style="padding:7px 10px;font-size:11px;text-align:center;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#94A3B8' : '#64748B'};">${taxStr}</td>
-        <td style="padding:7px 10px;font-size:11px;text-align:right;font-weight:700;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};${accBg ? 'background:' + accBg + ';' : ''}color:${isDark ? '#F5D0B5' : '#0F172A'};">${this.fmt(it.totalHT || it.total, currency)}</td>
+        <td style="padding:8px 12px;font-size:13px;text-align:center;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#94A3B8' : '#64748B'};">${it.quantity}${unitStr}</td>
+        <td style="padding:8px 12px;font-size:13px;text-align:right;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#E2E8F0' : '#1E293B'};">${this.fmt(it.price, currency)}${discStr}</td>
+        <td style="padding:8px 12px;font-size:13px;text-align:center;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#94A3B8' : '#64748B'};">${taxStr}</td>
+        <td style="padding:8px 12px;font-size:13px;text-align:right;font-weight:700;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};${accBg ? 'background:' + accBg + ';' : ''}color:${isDark ? '#F5D0B5' : '#0F172A'};">${this.fmt(it.totalHT || it.total, currency)}</td>
       </tr>`;
     }).join('');
   },
@@ -252,9 +252,9 @@ window.KivoTemplates = {
     const showLogo = d.showLogo !== false;
     const logo = showLogo ? this.logoHtml(d.biz, 70, 'square', isDark) : '';
     const bizDisplayName = (d.biz && d.biz.name) ? d.biz.name : ((d.biz && d.biz.owner) || 'Mon Entreprise');
-    const bizLegal = (d.biz && d.biz.legal) ? `<div style="font-size:10px;color:${subtitleColor};margin-top:2px;">${d.biz.legal}</div>` : '';
+    const bizLegal = (d.biz && d.biz.legal) ? `<div style="font-size:11px;color:${subtitleColor};margin-top:2px;">${d.biz.legal}</div>` : '';
     const subjectHtml = (d.showSubject !== false && d.subject && d.subject.trim())
-      ? `<div style="margin-top:10px;font-size:12px;font-weight:700;color:${titleColor};background:${isDark ? '#232733' : '#F1F5F9'};padding:4px 10px;border-radius:4px;display:inline-block;"><span style="color:${subtitleColor};font-weight:500;">Objet :</span> ${d.subject.trim()}</div>`
+      ? `<div style="margin-top:10px;font-size:13px;font-weight:700;color:${titleColor};background:${isDark ? '#232733' : '#F1F5F9'};padding:4px 10px;border-radius:4px;display:inline-block;"><span style="color:${subtitleColor};font-weight:500;">Objet :</span> ${d.subject.trim()}</div>`
       : '';
 
     const paidBadge = (d.status === 'paid' && d.docType !== 'quote') ? `
@@ -274,7 +274,7 @@ window.KivoTemplates = {
               ${logo}
               <div>
                 <div style="font-size:19px;font-weight:900;color:${titleColor};">${bizDisplayName}</div>
-                <div style="font-size:11px;color:${subtitleColor};line-height:1.5;margin-top:3px;">
+                <div style="font-size:13px;color:${subtitleColor};line-height:1.5;margin-top:3px;">
                   ${d.biz.address ? d.biz.address + '<br>' : ''}
                   ${d.biz.phone ? 'Tél.: ' + d.biz.phone + '<br>' : ''}
                   ${d.biz.email || ''}
@@ -286,8 +286,8 @@ window.KivoTemplates = {
               <div style="font-size:26px;font-weight:900;color:${titleColor};letter-spacing:-0.02em;">${lbl}</div>
               <div style="font-size:14px;font-weight:800;color:${titleColor};margin-top:3px;">${d.docNum}</div>
               ${paidBadge ? `<div style="margin-top:3px;">${paidBadge}</div>` : ''}
-              <div style="font-size:11px;color:${subtitleColor};margin-top:5px;">${_t('doc_issue_date_label')} <strong>${d.issueDate}</strong></div>
-              ${d.dueDate ? `<div style="font-size:11px;color:${subtitleColor};">${_t('doc_due_date_label')} <strong>${d.dueDate}</strong></div>` : ''}
+              <div style="font-size:12px;color:${subtitleColor};margin-top:5px;">${_t('doc_issue_date_label')} <strong>${d.issueDate}</strong></div>
+              ${d.dueDate ? `<div style="font-size:12px;color:${subtitleColor};">${_t('doc_due_date_label')} <strong>${d.dueDate}</strong></div>` : ''}
             </div>
           </div>
           ${subjectHtml}
@@ -302,11 +302,11 @@ window.KivoTemplates = {
           <div style="font-size:22px;font-weight:900;color:${titleColor};">${lbl} · ${d.docNum}</div>
           ${paidBadge ? `<div style="margin:4px 0;">${paidBadge}</div>` : ''}
           <div style="font-size:13px;font-weight:700;color:${titleColor};margin-top:3px;">${bizDisplayName}</div>
-          <div style="font-size:10.5px;color:${subtitleColor};margin-top:3px;">
+          <div style="font-size:12px;color:${subtitleColor};margin-top:3px;">
             ${[d.biz.address, d.biz.phone, d.biz.email].filter(Boolean).join(' · ')}
             ${bizLegal}
           </div>
-          <div style="font-size:11px;color:${subtitleColor};margin-top:5px;">
+          <div style="font-size:12px;color:${subtitleColor};margin-top:5px;">
             ${_t('doc_issue_date_label')} <strong>${d.issueDate}</strong> ${d.dueDate ? `· ${_t('doc_due_date_label')} <strong>${d.dueDate}</strong>` : ''}
           </div>
           ${subjectHtml}
@@ -321,7 +321,7 @@ window.KivoTemplates = {
           <div>
             <div style="font-size:26px;font-weight:900;color:${titleColor};letter-spacing:-0.02em;margin-bottom:4px;">${lbl}</div>
             <div style="font-size:15px;font-weight:800;color:${titleColor};">${bizDisplayName}</div>
-            <div style="font-size:11px;color:${subtitleColor};line-height:1.5;margin-top:3px;">
+            <div style="font-size:13px;color:${subtitleColor};line-height:1.5;margin-top:3px;">
               ${d.biz.address ? d.biz.address + '<br>' : ''}
               ${d.biz.phone ? 'Tél.: ' + d.biz.phone + '<br>' : ''}
               ${d.biz.email || ''}
@@ -332,8 +332,8 @@ window.KivoTemplates = {
             ${logo ? `<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">${logo}</div>` : ''}
             <div style="font-size:15px;font-weight:800;color:${titleColor};">${d.docNum}</div>
             ${paidBadge ? `<div style="margin-top:3px;">${paidBadge}</div>` : ''}
-            <div style="font-size:11px;color:${subtitleColor};margin-top:5px;">${_t('doc_issue_date_label')} <span style="color:${titleColor};font-weight:600;">${d.issueDate}</span></div>
-            ${d.dueDate ? `<div style="font-size:11px;color:${subtitleColor};">${_t('doc_due_date_label')} <span style="color:${titleColor};font-weight:600;">${d.dueDate}</span></div>` : ''}
+            <div style="font-size:12px;color:${subtitleColor};margin-top:5px;">${_t('doc_issue_date_label')} <span style="color:${titleColor};font-weight:600;">${d.issueDate}</span></div>
+            ${d.dueDate ? `<div style="font-size:12px;color:${subtitleColor};">${_t('doc_due_date_label')} <span style="color:${titleColor};font-weight:600;">${d.dueDate}</span></div>` : ''}
           </div>
         </div>
         ${subjectHtml}
@@ -351,18 +351,18 @@ window.KivoTemplates = {
     return `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;background:${isDark ? '#222631' : '#F8FAFC'};padding:14px 18px;border-radius:8px;border:1px solid ${borderStyle};border-left:3px solid ${secColor};">
         <div>
-          <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">${_t('doc_billed_to')}</div>
+          <div style="font-size:11px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">${_t('doc_billed_to')}</div>
           <div style="font-size:15px;font-weight:800;color:${titleColor};margin-top:3px;">${hasClient ? d.client.name : '<span style="font-size:12px;font-weight:400;color:' + subtitleColor + ';font-style:italic;">' + _t('doc_select_client') + '</span>'}</div>
           ${(d.client.address || d.client.phone || taxIdVal) ? `
-          <div style="font-size:11px;color:${subtitleColor};line-height:1.4;margin-top:3px;">
+          <div style="font-size:13px;color:${subtitleColor};line-height:1.4;margin-top:3px;">
             ${d.client.address ? d.client.address + '<br>' : ''}
             ${d.client.phone ? 'Tél.: ' + d.client.phone + '<br>' : ''}
             ${taxIdVal ? '<span style="font-weight:600;">N° Fiscal / Registre :</span> ' + taxIdVal : ''}
           </div>` : ''}
         </div>
         <div style="text-align:right;">
-          <div style="font-size:10px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">${_t('doc_contact')}</div>
-          <div style="font-size:12px;font-weight:600;color:${titleColor};margin-top:3px;">${d.client.email || '--'}</div>
+          <div style="font-size:11px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">${_t('doc_contact')}</div>
+          <div style="font-size:13px;font-weight:600;color:${titleColor};margin-top:3px;">${d.client.email || '--'}</div>
         </div>
       </div>
     `;
@@ -395,7 +395,7 @@ window.KivoTemplates = {
       <div style="margin-top:auto;padding-top:16px;border-top:1.5px solid ${isDark ? '#2D323F' : '#E2E8F0'};">
         <!-- Totals Block -->
         <div style="display:flex;justify-content:flex-end;margin-bottom:18px;">
-          <div style="width:290px;font-size:12px;">
+          <div style="width:300px;font-size:13px;">
             <div style="display:flex;justify-content:space-between;padding:4px 0;color:${isDark ? '#94A3B8' : '#64748B'};">
               <span>${lblSubtotal}</span><strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};">${this.fmt(d.subtotal, d.currency)}</strong>
             </div>
@@ -422,13 +422,13 @@ window.KivoTemplates = {
 
         <!-- Payment Info & Notes -->
         ${(d.showPaymentMethods !== false || (d.showNotes !== false && d.notes)) ? `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;background:${isDark ? '#222631' : '#F8FAFC'};padding:12px 16px;border-radius:8px;font-size:11px;color:${isDark ? '#94A3B8' : '#475569'};margin-bottom:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;background:${isDark ? '#222631' : '#F8FAFC'};padding:12px 16px;border-radius:8px;font-size:12px;color:${isDark ? '#94A3B8' : '#475569'};margin-bottom:14px;">
           <div>
             ${d.showPaymentMethods !== false ? `
               <strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:4px;">${_t('doc_payment_title')}</strong>
               <div>${_t('doc_mode')} <span style="font-weight:600;color:${isDark ? '#E2E8F0' : '#0F172A'};">${d.paymentMethod}</span></div>
               <div>${_t('doc_terms')} <span style="font-weight:600;color:${isDark ? '#E2E8F0' : '#0F172A'};">${d.terms}</span></div>
-              ${d.paymentDetails ? `<div style="margin-top:4px;white-space:pre-wrap;font-size:10px;color:${isDark ? '#CBD5E1' : '#334155'};">${d.paymentDetails}</div>` : ''}
+              ${d.paymentDetails ? `<div style="margin-top:4px;white-space:pre-wrap;font-size:12px;color:${isDark ? '#CBD5E1' : '#334155'};">${d.paymentDetails}</div>` : ''}
             ` : ''}
           </div>
           <div>
@@ -441,17 +441,17 @@ window.KivoTemplates = {
 
         <!-- Thank-you note -->
         ${(d.showThankYou !== false && d.thankYouText) ? `
-          <div style="text-align:center;font-size:11.5px;font-weight:700;color:${ac};margin:8px 0 10px 0;letter-spacing:0.02em;">
+          <div style="text-align:center;font-size:13px;font-weight:700;color:${ac};margin:8px 0 10px 0;letter-spacing:0.02em;">
             ${d.thankYouText}
           </div>` : ''}
 
         <!-- Footer / Mentions légales (TOUJOURS LE DERNIER BLOC) -->
         ${d.showLegalNotices !== false ? `
-        <div style="text-align:center;font-size:9.5px;color:${isDark ? '#64748B' : '#94A3B8'};padding-top:8px;border-top:1px solid ${isDark ? '#2D323F' : '#F1F5F9'};line-height:1.6;">
+        <div style="text-align:center;font-size:11px;color:${isDark ? '#64748B' : '#94A3B8'};padding-top:8px;border-top:1px solid ${isDark ? '#2D323F' : '#F1F5F9'};line-height:1.6;">
           <div>${[(d.biz && d.biz.name) || (d.biz && d.biz.owner) || 'Mon Entreprise', d.biz && d.biz.address, d.biz && d.biz.phone, d.biz && d.biz.email].filter(Boolean).join(' · ')}</div>
           ${d.legalNotices ? `<div style="margin-top:2px;">${d.legalNotices}</div>` : `
-            ${(d.biz && d.biz.taxId) ? `<div style="font-size:9px;color:${isDark ? '#94A3B8' : '#64748B'};">${this.getLegalLabel(d.biz)} : <strong>${d.biz.taxId}</strong></div>` : ''}
-            ${(d.client && d.client.taxId) ? `<div style="font-size:8.5px;color:${isDark ? '#94A3B8' : '#64748B'};">Client : ${d.client.name || ''} · ${d.client.legalFieldName || 'N° Fiscal'} : <strong>${d.client.taxId}</strong></div>` : ''}
+            ${(d.biz && d.biz.taxId) ? `<div style="font-size:10px;color:${isDark ? '#94A3B8' : '#64748B'};">${this.getLegalLabel(d.biz)} : <strong>${d.biz.taxId}</strong></div>` : ''}
+            ${(d.client && d.client.taxId) ? `<div style="font-size:10px;color:${isDark ? '#94A3B8' : '#64748B'};">Client : ${d.client.name || ''} · ${d.client.legalFieldName || 'N° Fiscal'} : <strong>${d.client.taxId}</strong></div>` : ''}
           `}
         </div>` : ''}
       </div>
@@ -629,7 +629,7 @@ window.KivoTemplates = {
           ${this.renderHeader(d, ac, '#475569')}
           ${this.renderClient(d, '#0F172A', '#475569')}
 
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px;">
+          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
             <thead>
               <tr style="border-bottom:2px solid ${ac};">
                 <th style="padding:9px 12px;text-align:left;color:#0F172A;font-weight:700;">Description</th>
@@ -660,7 +660,7 @@ window.KivoTemplates = {
           <div style="padding:0 40px;">
             ${this.renderClient(d, '#0F172A', '#64748B')}
 
-            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px;">
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
               <thead>
                 <tr style="background:${ac};color:#FFFFFF;">
                   <th style="padding:9px 12px;text-align:left;font-weight:700;">Description</th>
@@ -691,7 +691,7 @@ window.KivoTemplates = {
           ${this.renderHeader(d, ac, '#6B5C2A')}
           ${this.renderClient(d, '#2D241E', '#6B5C2A')}
 
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px;">
+          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
             <thead>
               <tr style="border-bottom:2px solid ${ac};color:${ac};">
                 <th style="padding:9px 12px;text-align:left;font-weight:700;">Description</th>
@@ -721,7 +721,7 @@ window.KivoTemplates = {
           ${this.renderHeader(d, ac, '#64748B')}
           ${this.renderClient(d, ac, '#64748B')}
 
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px;">
+          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
             <thead>
               <tr style="background:${ac};color:#FFFFFF;">
                 <th style="padding:9px 12px;text-align:left;font-weight:700;border-radius:4px 0 0 4px;">Description</th>
@@ -749,7 +749,7 @@ window.KivoTemplates = {
           ${this.renderHeader(d, ac, '#64748B')}
           ${this.renderClient(d, '#0F172A', '#64748B')}
 
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px;">
+          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
             <thead>
               <tr style="background:${ac};color:#FFFFFF;">
                 <th style="padding:9px 12px;text-align:left;font-weight:700;">Description</th>
@@ -780,7 +780,7 @@ window.KivoTemplates = {
           <div style="padding:0 40px;">
             ${this.renderClient(d, '#111', '#4B5563')}
 
-            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px;">
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
               <thead>
                 <tr style="background:#111;color:#FFFFFF;">
                   <th style="padding:9px 12px;text-align:left;font-weight:800;">DESCRIPTION</th>
@@ -813,7 +813,7 @@ window.KivoTemplates = {
           <div style="height:8px;background:linear-gradient(90deg,${ac} 0%,#FFFFFF 50%,${sec} 100%);border-radius:2px;margin-bottom:20px;box-shadow:0 3px 10px rgba(0,0,0,0.3);"></div>
           ${this.renderClient(d, '#FFFFFF', '#94A3B8', true)}
 
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px;">
+          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
             <thead>
               <tr style="background:#222631;color:${ac};border-bottom:1.5px solid ${ac};">
                 <th style="padding:9px 12px;text-align:left;font-weight:700;">Description</th>
