@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=3.8">
+  <link rel="stylesheet" href="styles.css?v=3.9">
 </head>
 <body>
 
@@ -1052,8 +1052,8 @@
             <!-- Progress Bar -->
             <div style="width:100%; max-width:520px; margin-bottom:1.75rem;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                <span id="wizard-step-label" style="font-size:0.8rem; color:var(--text-secondary); font-weight:600;">Etape 1 sur 11</span>
-                <span id="wizard-pct-label" style="font-size:0.8rem; color:var(--primary); font-weight:700;">0%</span>
+                <span id="wizard-step-label" style="font-size:0.8rem; color:var(--text-secondary); font-weight:600; white-space:nowrap;">Étape 1 sur 11</span>
+                <span id="wizard-pct-label" style="font-size:0.8rem; color:var(--primary); font-weight:700; white-space:nowrap;">0%</span>
               </div>
               <div style="height:6px; background:var(--border-color); border-radius:99px; overflow:hidden;">
                 <div id="wizard-progress-fill" style="height:100%; background:linear-gradient(90deg,var(--primary),var(--secondary)); border-radius:99px; width:0%; transition:width 0.4s ease;"></div>
@@ -1109,92 +1109,34 @@
               <div id="wz-step-4" class="wz-step" style="display:none;">
                 <h2 style="font-size:1.35rem; margin-bottom:0.5rem;">Secteur d'activité <span style="color:var(--danger-text);">*</span></h2>
                 <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:1.5rem;">Sélectionnez votre secteur principal.</p>
-                <select id="wz-industry" class="form-select" style="font-size:1rem; padding:0.9rem 1rem;" required>
-                  <optgroup label="Commerce & Vente">
-                    <option value="Boutique et Commerce de détail">Boutique et Commerce de détail</option>
-                    <option value="Grossiste et Distribution">Grossiste et Distribution</option>
-                    <option value="E-commerce et Vente en ligne">E-commerce et Vente en ligne</option>
-                  </optgroup>
-                  <optgroup label="Services aux entreprises">
-                    <option value="Prestations de services & Conseil" selected>Prestations de services & Conseil</option>
-                    <option value="Agence & Marketing Digital">Agence & Marketing Digital</option>
-                    <option value="Comptabilité, Juridique & RH">Comptabilité, Juridique & RH</option>
-                  </optgroup>
-                  <optgroup label="Technologie">
-                    <option value="Informatique et Développement Web">Informatique et Développement Web</option>
-                    <option value="Télécoms et Réseaux">Télécoms et Réseaux</option>
-                    <option value="Maintenance et Support IT">Maintenance et Support IT</option>
-                  </optgroup>
-                  <optgroup label="Artisanat & Production">
-                    <option value="Artisanat d'art & Création">Artisanat d'art & Création</option>
-                    <option value="Confection, Mode & Textile">Confection, Mode & Textile</option>
-                    <option value="Production locale & Transformation">Production locale & Transformation</option>
-                  </optgroup>
-                  <optgroup label="Bâtiment & Immobilier">
-                    <option value="BTP, Travaux et Rénovation">BTP, Travaux et Rénovation</option>
-                    <option value="Immobilier et Gestion locative">Immobilier et Gestion locative</option>
-                    <option value="Architecture et Ingénierie">Architecture et Ingénierie</option>
-                  </optgroup>
-                  <optgroup label="Santé & Bien-être">
-                    <option value="Santé et Soins médicaux">Santé et Soins médicaux</option>
-                    <option value="Beauté, Esthétique et Coiffure">Beauté, Esthétique et Coiffure</option>
-                    <option value="Sport et Remise en forme">Sport et Remise en forme</option>
-                  </optgroup>
-                  <optgroup label="Transport & Logistique">
-                    <option value="Transport de personnes et VTC">Transport de personnes et VTC</option>
-                    <option value="Livraison, Fret et Logistique">Livraison, Fret et Logistique</option>
-                    <option value="Transit et Import-Export">Transit et Import-Export</option>
-                  </optgroup>
-                  <optgroup label="Restauration & Hôtellerie">
-                    <option value="Restauration et Traiteur">Restauration et Traiteur</option>
-                    <option value="Café, Bar et Snack">Café, Bar et Snack</option>
-                    <option value="Hôtellerie et Hébergement">Hôtellerie et Hébergement</option>
-                  </optgroup>
-                  <optgroup label="Autres">
-                    <option value="Événementiel et Photographie">Événementiel et Photographie</option>
-                    <option value="Éducation et Formation">Éducation et Formation</option>
-                    <option value="Autre secteur d'activité">Autre secteur d'activité</option>
-                  </optgroup>
-                </select>
+                <div class="kivo-select-wrap" id="wz-industry-wrap">
+                  <button type="button" id="wz-industry-trigger" class="kivo-select-trigger" onclick="KivoApp.kivoSelectOpen('industry')" aria-haspopup="listbox" aria-expanded="false">
+                    <span class="kivo-select-trigger-label" id="wz-industry-display">Prestations de services &amp; Conseil</span>
+                    <svg class="kivo-select-trigger-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                </div>
+                <!-- Hidden select for legacy compat -->
+                <select id="wz-industry" style="display:none;" aria-hidden="true"><option value="Prestations de services &amp; Conseil" selected>Prestations de services</option></select>
               </div>
 
               <!-- Step 5 - Pays de résidence (obligatoire) -->
               <div id="wz-step-5" class="wz-step" style="display:none;">
                 <h2 style="font-size:1.35rem; margin-bottom:0.5rem;">Pays de résidence <span style="color:var(--danger-text);">*</span></h2>
                 <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:1.5rem;">Votre pays définit la devise et l'indicatif téléphonique par défaut.</p>
-                <select id="wz-country" class="form-select" style="font-size:1rem; padding:0.9rem 1rem;" onchange="KivoApp.wizardOnCountryChange()" required>
-                  <option value="Senegal" data-code="+221" data-currency="FCFA" selected>🇸🇳 Sénégal (+221)</option>
-                  <option value="Cote d'Ivoire" data-code="+225" data-currency="FCFA">🇨🇮 Côte d'Ivoire (+225)</option>
-                  <option value="Cameroun" data-code="+237" data-currency="FCFA">🇨🇲 Cameroun (+237)</option>
-                  <option value="Congo" data-code="+242" data-currency="FCFA">🇨🇬 Congo (+242)</option>
-                  <option value="RDC" data-code="+243" data-currency="CDF">🇨🇩 RDC (+243)</option>
-                  <option value="Gabon" data-code="+241" data-currency="FCFA">🇬🇦 Gabon (+241)</option>
-                  <option value="Mali" data-code="+223" data-currency="FCFA">🇲🇱 Mali (+223)</option>
-                  <option value="Burkina Faso" data-code="+226" data-currency="FCFA">🇧🇫 Burkina Faso (+226)</option>
-                  <option value="Togo" data-code="+228" data-currency="FCFA">🇹🇬 Togo (+228)</option>
-                  <option value="Benin" data-code="+229" data-currency="FCFA">🇧🇯 Bénin (+229)</option>
-                  <option value="Guinee Conakry" data-code="+224" data-currency="GNF">🇬🇳 Guinée Conakry (+224)</option>
-                  <option value="Niger" data-code="+227" data-currency="FCFA">🇳🇪 Niger (+227)</option>
-                  <option value="Tchad" data-code="+235" data-currency="FCFA">🇹🇩 Tchad (+235)</option>
-                  <option value="RCA" data-code="+236" data-currency="FCFA">🇨🇫 République Centrafricaine (+236)</option>
-                  <option value="Madagascar" data-code="+261" data-currency="MGA">🇲🇬 Madagascar (+261)</option>
-                  <option value="Mauritanie" data-code="+222" data-currency="MRU">🇲🇷 Mauritanie (+222)</option>
-                  <option value="Maroc" data-code="+212" data-currency="MAD">🇲🇦 Maroc (+212)</option>
-                  <option value="Algerie" data-code="+213" data-currency="DZD">🇩🇿 Algérie (+213)</option>
-                  <option value="Tunisie" data-code="+216" data-currency="TND">🇹🇳 Tunisie (+216)</option>
-                  <option value="Rwanda" data-code="+250" data-currency="RWF">🇷🇼 Rwanda (+250)</option>
-                  <option value="Burundi" data-code="+257" data-currency="BIF">🇧🇮 Burundi (+257)</option>
-                  <option value="Kenya" data-code="+254" data-currency="KES">🇰🇪 Kenya (+254)</option>
-                  <option value="Nigeria" data-code="+234" data-currency="NGN">🇳🇬 Nigéria (+234)</option>
-                  <option value="Ghana" data-code="+233" data-currency="GHS">🇬🇭 Ghana (+233)</option>
-                  <option value="France" data-code="+33" data-currency="EUR">🇫🇷 France (+33)</option>
-                  <option value="Belgique" data-code="+32" data-currency="EUR">🇧🇪 Belgique (+32)</option>
-                  <option value="Suisse" data-code="+41" data-currency="CHF">🇨🇭 Suisse (+41)</option>
-                  <option value="Canada" data-code="+1" data-currency="CAD">🇨🇦 Canada (+1)</option>
-                  <option value="Etats-Unis" data-code="+1" data-currency="USD">🇺🇸 États-Unis (+1)</option>
-                  <option value="Autre pays" data-code="+1" data-currency="USD">🌐 Autre pays</option>
-                </select>
+                <div class="kivo-select-wrap" id="wz-country-wrap">
+                  <button type="button" id="wz-country-trigger" class="kivo-select-trigger" onclick="KivoApp.kivoSelectOpen('country')" aria-haspopup="listbox" aria-expanded="false">
+                    <span class="kivo-select-trigger-label" id="wz-country-display">🇸🇳 Sénégal</span>
+                    <svg class="kivo-select-trigger-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                </div>
               </div>
+
+              <!-- (Hidden) legacy country select kept for backward compat -->
+              <select id="wz-country" style="display:none;" aria-hidden="true">
+                  <option value="Congo" data-code="+242" data-currency="FCFA">🇨🇬 Congo (+242)</option>
+                </select>
+              <!-- /Hidden legacy -->
+
 
               <!-- Step 6 - Téléphone (obligatoire) -->
               <div id="wz-step-6" class="wz-step" style="display:none;">
@@ -1239,26 +1181,14 @@
               <div id="wz-step-7" class="wz-step" style="display:none;">
                 <h2 style="font-size:1.35rem; margin-bottom:0.5rem;">Devise principale <span style="color:var(--danger-text);">*</span></h2>
                 <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:1.5rem;">Pré-sélectionnée selon votre pays. Vous pouvez la modifier.</p>
-                <select id="wz-currency" class="form-select" style="font-size:1rem; padding:0.9rem 1rem;" required>
-                  <option value="FCFA" selected>FCFA (XOF / XAF)</option>
-                  <option value="CDF">CDF (Franc Congolais)</option>
-                  <option value="GNF">GNF (Franc Guinéen)</option>
-                  <option value="MGA">MGA (Ariary Malgache)</option>
-                  <option value="MRU">MRU (Ouguiya Mauritanien)</option>
-                  <option value="MAD">MAD (Dirham Marocain)</option>
-                  <option value="DZD">DZD (Dinar Algérien)</option>
-                  <option value="TND">TND (Dinar Tunisien)</option>
-                  <option value="RWF">RWF (Franc Rwandais)</option>
-                  <option value="BIF">BIF (Franc Burundais)</option>
-                  <option value="KES">KES (Shilling Kenyan)</option>
-                  <option value="NGN">NGN (Naira Nigérian)</option>
-                  <option value="GHS">GHS (Cedi Ghanéen)</option>
-                  <option value="EUR">EUR (Euro)</option>
-                  <option value="USD">USD (Dollar US)</option>
-                  <option value="GBP">GBP (Livre Sterling)</option>
-                  <option value="CAD">CAD (Dollar Canadien)</option>
-                  <option value="CHF">CHF (Franc Suisse)</option>
-                </select>
+                <div class="kivo-select-wrap" id="wz-currency-wrap">
+                  <button type="button" id="wz-currency-trigger" class="kivo-select-trigger" onclick="KivoApp.kivoSelectOpen('currency')" aria-haspopup="listbox" aria-expanded="false">
+                    <span class="kivo-select-trigger-label" id="wz-currency-display">FCFA (XOF / XAF)</span>
+                    <svg class="kivo-select-trigger-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                </div>
+                <!-- Hidden select for legacy compat -->
+                <select id="wz-currency" style="display:none;" aria-hidden="true"><option value="FCFA" selected>FCFA</option></select>
               </div>
 
               <!-- Step 8 - E-mail (obligatoire) -->
@@ -4269,7 +4199,7 @@
   <script defer src="js/whatsapp-helper.js?v=3.3"></script>
   <script defer src="js/i18n.js?v=1.1"></script>
   <script defer src="js/doc-templates.js?v=3.3"></script>
-  <script defer src="app.js?v=3.22"></script>
+  <script defer src="app.js?v=3.23"></script>
 </body>
 </html>
 
