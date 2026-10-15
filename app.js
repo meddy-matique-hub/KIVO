@@ -10622,6 +10622,99 @@ window.KivoApp = {
   contactEnterpriseSupport: function () {
     const msg = encodeURIComponent("Bonjour, je suis intéressé par l'offre Enterprise KIVO MATIQUE. Pouvez-vous me contacter ?");
     window.open(`https://wa.me/242068286376?text=${msg}`, '_blank');
+  },
+
+  /**
+   * Commit 3 — Synchronise le cycle de facturation (mensuel / annuel) sur :
+   *  • La section tarifs de la landing page (#landing-pricing)
+   *  • La vue tarifs in-app (#view-pricing) via togglePricingBilling
+   *  • Le wizard step 11 via wizardSelectBillingCycle
+   *  • L'état global this.state.business.billingCycle
+   *
+   * @param {'monthly'|'yearly'} cycle
+   */
+  setBillingCycle: function (cycle) {
+    const isYearly = cycle === 'yearly';
+
+    // ── 1. État global ─────────────────────────────────────────────────
+    if (this.state && this.state.business) {
+      this.state.business.billingCycle = cycle;
+    }
+
+    // ── 2. Landing page toggle ──────────────────────────────────────────
+    const landingBtnM = document.getElementById('landing-toggle-billing-monthly');
+    const landingBtnY = document.getElementById('landing-toggle-billing-yearly');
+    if (landingBtnM) landingBtnM.classList.toggle('active', !isYearly);
+    if (landingBtnY) landingBtnY.classList.toggle('active', isYearly);
+
+    // ── 3. Landing page prix ────────────────────────────────────────────
+    const landingPricePro  = document.getElementById('landing-price-pro');
+    const landingPeriodPro = document.getElementById('landing-period-pro');
+    const landingNotePro   = document.getElementById('landing-note-pro');
+    const landingPriceBiz  = document.getElementById('landing-price-biz');
+    const landingPeriodBiz = document.getElementById('landing-period-biz');
+    const landingNoteBiz   = document.getElementById('landing-note-biz');
+    const landingPriceFree  = document.getElementById('landing-price-free');
+    const landingPeriodFree = document.getElementById('landing-period-free');
+
+    if (isYearly) {
+      if (landingPriceFree)  landingPriceFree.textContent  = '0 FCFA';
+      if (landingPeriodFree) landingPeriodFree.textContent = '/ an';
+      if (landingPricePro)   landingPricePro.textContent   = '38 380 FCFA';
+      if (landingPeriodPro)  landingPeriodPro.textContent  = '/ an';
+      if (landingNotePro)    landingNotePro.textContent    = 'Pour les créateurs, freelances et professionnels actifs (soit 3 190 FCFA / mois · économisez 20 %).';
+      if (landingPriceBiz)   landingPriceBiz.textContent   = '95 880 FCFA';
+      if (landingPeriodBiz)  landingPeriodBiz.textContent  = '/ an';
+      if (landingNoteBiz)    landingNoteBiz.textContent    = 'Pour les entreprises et équipes (soit 7 990 FCFA / mois · économisez 20 % · 5 sièges inclus).';
+    } else {
+      if (landingPriceFree)  landingPriceFree.textContent  = '0 FCFA';
+      if (landingPeriodFree) landingPeriodFree.textContent = '/ mois';
+      if (landingPricePro)   landingPricePro.textContent   = '3 990 FCFA';
+      if (landingPeriodPro)  landingPeriodPro.textContent  = '/ mois';
+      if (landingNotePro)    landingNotePro.textContent    = 'Pour les créateurs, freelances et professionnels actifs (ou 38 380 FCFA / an soit 3 190 FCFA / mois).';
+      if (landingPriceBiz)   landingPriceBiz.textContent   = '9 990 FCFA';
+      if (landingPeriodBiz)  landingPeriodBiz.textContent  = '/ mois';
+      if (landingNoteBiz)    landingNoteBiz.textContent    = 'Pour les entreprises et équipes (ou 95 880 FCFA / an soit 7 990 FCFA / mois · 5 sièges inclus).';
+    }
+
+    // ── 4. In-app pricing view (#view-pricing) ─────────────────────────
+    const billingTypeForApp = isYearly ? 'annual' : 'monthly';
+    this.togglePricingBilling(billingTypeForApp);
+
+    // ── 5. Wizard step 11 ──────────────────────────────────────────────
+    this.wizardSelectBillingCycle(cycle);
+  },
+
+  /**
+   * Commit 3 — Ouvre WhatsApp avec un message pré-rempli pour demander
+   * l'activation d'un plan (Pro ou Business) au cycle courant.
+   *
+   * @param {'Pro'|'Business'} plan
+   */
+  requestPlanActivationWhatsApp: function (plan) {
+    const cycle = (this.state && this.state.business && this.state.business.billingCycle) || 'monthly';
+    const isYearly = cycle === 'yearly';
+
+    // Prix et libellés selon le plan et le cycle
+    const prices = {
+      Pro: {
+        monthly: '3 990 FCFA / mois',
+        yearly:  '38 380 FCFA / an (soit 3 190 FCFA / mois · -20 %)'
+      },
+      Business: {
+        monthly: '9 990 FCFA / mois',
+        yearly:  '95 880 FCFA / an (soit 7 990 FCFA / mois · -20 %)'
+      }
+    };
+
+    const priceLabel  = (prices[plan] || prices.Pro)[cycle] || prices.Pro.monthly;
+    const cycleLabel  = isYearly ? 'annuel' : 'mensuel';
+    const bizName     = (this.state && this.state.business && this.state.business.name) || '';
+    const bizNameLine = bizName ? `\nEntreprise : ${bizName}` : '';
+
+    const message = `Bonjour,\n\nJe souhaite activer le forfait *${plan}* KIVO MATIQUE (abonnement ${cycleLabel}) à ${priceLabel}.${bizNameLine}\n\nMerci de me confirmer l'activation.`;
+    const encoded = encodeURIComponent(message);
+    window.open(`https://wa.me/242068286376?text=${encoded}`, '_blank');
   }
 };
 

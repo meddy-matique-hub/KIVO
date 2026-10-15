@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=3.10">
+  <link rel="stylesheet" href="styles.css?v=3.11">
 </head>
 <body>
 
@@ -728,9 +728,19 @@
 
               <!-- 5. Tarifs Section -->
               <div id="landing-pricing" style="padding: 4rem 0; border-top: 1px solid #E2E8F0;">
-                <div style="text-align: center; max-width: 600px; margin: 0 auto 3rem auto;">
+                <div style="text-align: center; max-width: 600px; margin: 0 auto 2.5rem auto;">
                   <h2 style="font-family: var(--font-heading); font-size: 2.2rem; font-weight: 800; color: #0F172A; margin-bottom: 0.75rem;">Tarifs simples & transparents</h2>
-                  <p style="color: #475569; font-size: 1rem;">Choisissez la formule adaptée à la taille de votre entreprise.</p>
+                  <p style="color: #475569; font-size: 1rem; margin-bottom: 1.5rem;">Choisissez la formule adaptée à la taille de votre entreprise.</p>
+
+                  <!-- Billing Cycle Toggle on Landing Page -->
+                  <div class="pricing-billing-toggle" style="display: inline-flex; margin: 0 auto;">
+                    <button type="button" id="landing-toggle-billing-monthly" class="pricing-toggle-btn active" onclick="KivoApp.setBillingCycle('monthly')">
+                      Mensuel
+                    </button>
+                    <button type="button" id="landing-toggle-billing-yearly" class="pricing-toggle-btn" onclick="KivoApp.setBillingCycle('yearly')">
+                      Annuel <span class="pricing-discount-badge">-20%</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem;">
@@ -739,7 +749,7 @@
                   <div class="card hover-fx" style="padding: 2.25rem; border-radius: 20px; display: flex; flex-direction: column; justify-content: space-between;">
                     <div>
                       <h3 style="font-size: 1.25rem; font-weight: 700; color: #0F172A;">Gratuit</h3>
-                      <div style="font-size: 2.25rem; font-weight: 800; font-family: var(--font-heading); color: #0F172A; margin: 0.75rem 0;">0 FCFA <span style="font-size: 0.9rem; font-weight: 500; color: #64748B;">/ mois</span></div>
+                      <div style="font-size: 2.25rem; font-weight: 800; font-family: var(--font-heading); color: #0F172A; margin: 0.75rem 0;"><span id="landing-price-free">0 FCFA</span> <span id="landing-period-free" style="font-size: 0.9rem; font-weight: 500; color: #64748B;">/ mois</span></div>
                       <p style="color: #64748B; font-size: 0.9rem; margin-bottom: 1.5rem;">Pour tester l'application et démarrer sans engagement.</p>
                       <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem; color: #334155;">
                         <li style="display:flex;align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" style="margin-right:8px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg><span>Jusqu'à 3 factures par mois</span></li>
@@ -755,8 +765,8 @@
                     <span class="badge" style="position: absolute; top: -12px; right: 24px; background: #2563EB; color: #FFF; font-weight: 700; font-size: 0.75rem; padding: 4px 10px;">Recommandé</span>
                     <div>
                       <h3 style="font-size: 1.25rem; font-weight: 700; color: #0F172A;">Pro</h3>
-                      <div style="font-size: 2.25rem; font-weight: 800; font-family: var(--font-heading); color: #2563EB; margin: 0.75rem 0;">3 990 FCFA <span style="font-size: 0.9rem; font-weight: 500; color: #64748B;">/ mois</span></div>
-                      <p style="color: #64748B; font-size: 0.9rem; margin-bottom: 1.5rem;">Pour les créateurs, freelances et professionnels actifs (ou 38 380 FCFA/an soit 3 190 F/mois).</p>
+                      <div style="font-size: 2.25rem; font-weight: 800; font-family: var(--font-heading); color: #2563EB; margin: 0.75rem 0;"><span id="landing-price-pro">3 990 FCFA</span> <span id="landing-period-pro" style="font-size: 0.9rem; font-weight: 500; color: #64748B;">/ mois</span></div>
+                      <p id="landing-note-pro" style="color: #64748B; font-size: 0.9rem; margin-bottom: 1.5rem;">Pour les créateurs, freelances et professionnels actifs (ou 38 380 FCFA / an soit 3 190 FCFA / mois).</p>
                       <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem; color: #334155;">
                         <li style="display:flex;align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5" style="margin-right:8px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg><span>Factures & devis illimités</span></li>
                         <li style="display:flex;align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5" style="margin-right:8px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg><span>Clients & modèles illimités</span></li>
@@ -765,15 +775,15 @@
                         <li style="display:flex;align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5" style="margin-right:8px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg><span>Relances automatiques</span></li>
                       </ul>
                     </div>
-                    <a href="#auth?tab=register" class="btn btn-primary" style="margin-top: 2rem; width: 100%; border-radius: var(--radius-full);">Choisir la formule Pro</a>
+                    <button type="button" class="btn btn-primary" style="margin-top: 2rem; width: 100%; border-radius: var(--radius-full); cursor: pointer;" onclick="KivoApp.requestPlanActivationWhatsApp('Pro')">Choisir la formule Pro</button>
                   </div>
 
                   <!-- Business Plan -->
                   <div class="card hover-fx" style="padding: 2.25rem; border-radius: 20px; display: flex; flex-direction: column; justify-content: space-between;">
                     <div>
                       <h3 style="font-size: 1.25rem; font-weight: 700; color: #0F172A;">Business</h3>
-                      <div style="font-size: 2.25rem; font-weight: 800; font-family: var(--font-heading); color: #0F172A; margin: 0.75rem 0;">9 990 FCFA <span style="font-size: 0.9rem; font-weight: 500; color: #64748B;">/ mois</span></div>
-                      <p style="color: #64748B; font-size: 0.9rem; margin-bottom: 1.5rem;">Pour les entreprises et équipes (ou 95 880 FCFA/an soit 7 990 F/mois · 5 sièges inclus).</p>
+                      <div style="font-size: 2.25rem; font-weight: 800; font-family: var(--font-heading); color: #0F172A; margin: 0.75rem 0;"><span id="landing-price-biz">9 990 FCFA</span> <span id="landing-period-biz" style="font-size: 0.9rem; font-weight: 500; color: #64748B;">/ mois</span></div>
+                      <p id="landing-note-biz" style="color: #64748B; font-size: 0.9rem; margin-bottom: 1.5rem;">Pour les entreprises et équipes (ou 95 880 FCFA/an soit 7 990 F/mois · 5 sièges inclus).</p>
                       <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem; color: #334155;">
                         <li style="display:flex;align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" style="margin-right:8px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg><span>Tout le forfait Pro</span></li>
                         <li style="display:flex;align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" style="margin-right:8px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg><span>5 sièges inclus (+1 500 F/membre sup.)</span></li>
@@ -782,7 +792,7 @@
                         <li style="display:flex;align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" style="margin-right:8px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg><span>Gestion multi-devises & support prioritaire</span></li>
                       </ul>
                     </div>
-                    <a href="#auth?tab=register" class="btn btn-secondary" style="margin-top: 2rem; width: 100%; border-radius: var(--radius-full);">Choisir Business</a>
+                    <button type="button" class="btn btn-secondary" style="margin-top: 2rem; width: 100%; border-radius: var(--radius-full); cursor: pointer;" onclick="KivoApp.requestPlanActivationWhatsApp('Business')">Choisir Business</button>
                   </div>
 
                 </div>
@@ -4194,7 +4204,7 @@
   <script defer src="js/whatsapp-helper.js?v=3.3"></script>
   <script defer src="js/i18n.js?v=1.1"></script>
   <script defer src="js/doc-templates.js?v=3.3"></script>
-  <script defer src="app.js?v=3.24"></script>
+  <script defer src="app.js?v=3.25"></script>
 </body>
 </html>
 
