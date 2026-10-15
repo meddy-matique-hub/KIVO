@@ -2446,43 +2446,17 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   display: block;
 }
 
-.kivo-tagline-wrap {
-  display: block;
-  height: 1.15em;
-  overflow: hidden;
-  position: relative;
-  margin-top: 0.25rem;
-}
-
-.kivo-tagline-item {
+.kivo-hero-headline-accent {
   font-family: var(--font-heading);
   font-size: 3.25rem;
   font-weight: 800;
   line-height: 1.12;
   letter-spacing: -0.03em;
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  white-space: nowrap;
-  opacity: 0;
+  display: block;
   background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-}
-
-.kivo-tagline-item:nth-child(1) {
-  opacity: 1;
-  animation: kivo-tagline-1 9s ease-in-out infinite;
-}
-.kivo-tagline-item:nth-child(2) {
-  opacity: 0;
-  animation: kivo-tagline-2 9s ease-in-out infinite;
-}
-.kivo-tagline-item:nth-child(3) {
-  opacity: 0;
-  animation: kivo-tagline-3 9s ease-in-out infinite;
 }
 
 .kivo-hero-facts {
@@ -2655,6 +2629,7 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   font-weight: 600;
   color: #475569;
   margin-top: 0.85rem;
+  flex-wrap: wrap;
 }
 
 .kivo-cta-badge svg {
@@ -2680,16 +2655,16 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   .kivo-steps-grid {
     grid-template-columns: 1fr;
   }
-  .kivo-tagline-item,
-  .kivo-hero-headline-static {
+  .kivo-hero-headline-static,
+  .kivo-hero-headline-accent {
     font-size: 1.85rem;
-    white-space: nowrap;
-  }
-  .kivo-tagline-wrap {
-    height: 2.3rem;
+    white-space: normal;
   }
   .kivo-steps-title {
     font-size: 1.65rem;
+  }
+  .kivo-cta-badge {
+    font-size: 0.75rem;
   }
 }
 
@@ -2733,19 +2708,6 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   .toast-progress-bar {
     animation: none !important;
     display: none !important;
-  }
-  .kivo-tagline-item {
-    animation: none !important;
-    opacity: 0;
-  }
-  .kivo-tagline-item:nth-child(1) {
-    opacity: 1;
-    position: static;
-  }
-  .kivo-tagline-wrap {
-    height: auto;
-    overflow: visible;
-    position: static;
   }
   .kivo-hero-fact-pill .dot {
     animation: none !important;
@@ -3246,8 +3208,15 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 }
 
 @media (max-width: 640px) {
+  .kivo-landing-container {
+    padding: 0 1rem;
+  }
   .kivo-hero-text h1 {
     font-size: 2.25rem;
+  }
+  .kivo-cta-badge {
+    font-size: 0.72rem;
+    justify-content: center;
   }
   .kivo-features-strip {
     grid-template-columns: 1fr;
