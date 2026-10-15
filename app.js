@@ -2353,6 +2353,43 @@ window.KivoApp = {
   },
 
   /**
+   * Animation progressive de comptage de 0 à la valeur cible (700 ms, une seule fois)
+   */
+  animateCountUp: function (element, endVal, durationMs = 700, formatFn = null) {
+    if (!element) return;
+    const finalNum = typeof endVal === 'number' ? endVal : (parseFloat(endVal) || 0);
+    const isReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (isReduced || element.dataset.counted === 'true') {
+      element.textContent = formatFn ? formatFn(finalNum) : String(finalNum);
+      element.dataset.counted = 'true';
+      return;
+    }
+
+    element.dataset.counted = 'true';
+    const startTime = performance.now();
+    const startVal = 0;
+
+    const tick = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / durationMs, 1);
+      // Easing out cubic pour une décélération naturelle
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const currentVal = startVal + (finalNum - startVal) * eased;
+
+      element.textContent = formatFn ? formatFn(currentVal) : Math.round(currentVal);
+
+      if (progress < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        element.textContent = formatFn ? formatFn(finalNum) : String(finalNum);
+      }
+    };
+
+    requestAnimationFrame(tick);
+  },
+
+  /**
    * Renders Dashboard KPIs and Recent Documents
    */
   renderDashboard: function () {
@@ -2394,10 +2431,18 @@ window.KivoApp = {
       }
     });
 
-    // Update total documents counter (invoices + quotes)
+    // Format currency with Intl.NumberFormat('fr-FR')
+    const formatCurrency = (val) => {
+      const rawCurrency = (biz && biz.currency) || 'FCFA';
+      return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(val || 0)) + ' ' + rawCurrency;
+    };
+
+    // Update total documents counter with count-up animation
     const totalDocs = totalInvoices + totalQuotes;
     const totalDocsEl = document.getElementById('kpi-total-docs');
-    if (totalDocsEl) totalDocsEl.textContent = totalDocs;
+    if (totalDocsEl) {
+      this.animateCountUp(totalDocsEl, totalDocs, 700, (v) => Math.round(v));
+    }
 
     // Segmented bar (Invoices in blue #3B82F6, Quotes in purple #8B5CF6)
     const barInv = document.getElementById('kpi-bar-invoices');
@@ -2419,20 +2464,17 @@ window.KivoApp = {
       docsLegendEl.textContent = `${totalInvoices} facture${totalInvoices > 1 ? 's' : ''} · ${totalQuotes} devis`;
     }
 
-    // Format currency with Intl.NumberFormat('fr-FR')
-    const formatCurrency = (val) => {
-      const rawCurrency = (biz && biz.currency) || 'FCFA';
-      return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(val || 0)) + ' ' + rawCurrency;
-    };
-
+    // Salutation contextuelle avec l'heure ("Bonjour" ou "Bonsoir" + prénom)
     const greetingEl = document.getElementById('dash-greeting');
     if (greetingEl) {
-      const firstName = (biz.owner || '').split(' ')[0] || '';
-      if (window.KivoI18n) {
-        greetingEl.textContent = KivoI18n.getGreeting(firstName || null, this.state.language || 'fr');
-      } else {
-        greetingEl.textContent = `Bonjour ${firstName || 'vous'},`;
-      }
+      const bizOwner = (biz && biz.owner) || '';
+      const userMeta = (window.KivoAuth && window.KivoAuth.user && window.KivoAuth.user.user_metadata) || {};
+      const fullName = bizOwner || userMeta.full_name || (window.KivoAuth && window.KivoAuth.user && window.KivoAuth.user.email ? window.KivoAuth.user.email.split('@')[0] : '');
+      const firstName = fullName.split(' ')[0] || '';
+      
+      const hour = new Date().getHours();
+      const salutation = (hour >= 18 || hour < 5) ? 'Bonsoir' : 'Bonjour';
+      greetingEl.textContent = firstName ? `${salutation} ${firstName},` : `${salutation},`;
     }
     
     // Revenue calculations: current month vs. previous month
@@ -2482,7 +2524,9 @@ window.KivoApp = {
     }
 
     const paidEl = document.getElementById('kpi-paid');
-    if (paidEl) paidEl.textContent = formatCurrency(paidTotal);
+    if (paidEl) {
+      this.animateCountUp(paidEl, paidTotal, 700, (v) => formatCurrency(v));
+    }
     
     const paidInvEl = document.getElementById('kpi-paid-invoices');
     if (paidInvEl) {
@@ -2500,27 +2544,36 @@ window.KivoApp = {
     }
     
     const pendCountEl = document.getElementById('kpi-pending-count');
-    if (pendCountEl) pendCountEl.textContent = `${pendingInvoicesCount} facture${pendingInvoicesCount > 1 ? 's' : ''}`;
+    if (pendCountEl) {
+      this.animateCountUp(pendCountEl, pendingInvoicesCount, 700, (v) => {
+        const n = Math.round(v);
+        return `${n} facture${n > 1 ? 's' : ''}`;
+      });
+    }
     const pendAmountEl = document.getElementById('kpi-pending-amount');
     if (pendAmountEl) {
       if (pendingInvoicesCount > 0) {
-        pendAmountEl.textContent = formatCurrency(pendingTotal);
+        this.animateCountUp(pendAmountEl, pendingTotal, 700, (v) => formatCurrency(v));
       } else {
         pendAmountEl.innerHTML = `<span style="color:#9CA3AF; font-size:14px; font-style:italic;">Aucune facture en attente</span>`;
       }
     }
     
     const overCountEl = document.getElementById('kpi-overdue-count');
-    if (overCountEl) overCountEl.textContent = `${overdueInvoicesCount} facture${overdueInvoicesCount > 1 ? 's' : ''}`;
+    if (overCountEl) {
+      this.animateCountUp(overCountEl, overdueInvoicesCount, 700, (v) => {
+        const n = Math.round(v);
+        return `${n} facture${n > 1 ? 's' : ''}`;
+      });
+    }
     const overAmountEl = document.getElementById('kpi-overdue-amount');
     if (overAmountEl) {
       if (overdueInvoicesCount > 0) {
-        overAmountEl.textContent = formatCurrency(overdueTotal);
+        this.animateCountUp(overAmountEl, overdueTotal, 700, (v) => formatCurrency(v));
       } else {
         overAmountEl.innerHTML = `<span style="color:#9CA3AF; font-size:14px; font-style:italic;">Aucune facture en retard</span>`;
       }
     }
-
 
     const tbody = document.getElementById('dashboard-recent-docs-tbody');
     if (tbody) {
@@ -2529,7 +2582,24 @@ window.KivoApp = {
       if (recentInvoices.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="5" style="text-align: center; padding: 2rem;">${_t('dash_no_recent_invoices') || 'Aucune facture récente'}</td>
+            <td colspan="5" style="padding: 2.75rem 1rem; text-align: center;">
+              <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.65rem;">
+                <div style="width:52px; height:52px; border-radius:14px; background:#EFF6FF; display:flex; align-items:center; justify-content:center; color:#2563EB;">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                  </svg>
+                </div>
+                <div style="font-weight:700; font-size:0.95rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">${_t('dash_no_recent_invoices') || 'Aucune facture récente'}</div>
+                <p style="color:#64748B; font-size:0.82rem; margin:0; max-width:320px; line-height:1.5;">Créez votre première facture professionnelle et commencez à encaisser vos clients.</p>
+                <button onclick="KivoApp.openNewDocModal('invoice')" class="btn-dash-create-primary" style="margin-top:0.4rem; padding:0.5rem 1.15rem; font-size:0.85rem;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>Créer une facture</span>
+                </button>
+              </div>
+            </td>
           </tr>
         `;
       } else {
@@ -2716,7 +2786,11 @@ window.KivoApp = {
             </svg>
           </div>
           <div style="font-weight:600;font-size:0.95rem;color:#374151;margin-bottom:0.25rem;">Aucun encaissement sur les 6 derniers mois</div>
-          <p style="color:#9CA3AF;font-size:0.82rem;margin:0;max-width:380px;">Émettez vos premières factures. Vos encaissements réels et l'évolution de votre chiffre d'affaires apparaîtront ici automatiquement.</p>
+          <p style="color:#9CA3AF;font-size:0.82rem;margin:0 0 0.75rem;max-width:380px;">Émettez vos premières factures. Vos encaissements réels et l'évolution de votre chiffre d'affaires apparaîtront ici automatiquement.</p>
+          <button onclick="KivoApp.openNewDocModal('invoice')" class="btn-dash-create-secondary" style="font-size:0.82rem; padding:0.45rem 1rem;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Créer une facture</span>
+          </button>
         </div>
       `;
       return;
@@ -2785,8 +2859,8 @@ window.KivoApp = {
           </linearGradient>
         </defs>
         ${gridLines}
-        <path d="${areaPath}" fill="url(#dashRevenueGrad)" />
-        <path d="${curvePath}" fill="none" stroke="#4F46E5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        <path class="kivo-chart-area-animated" d="${areaPath}" fill="url(#dashRevenueGrad)" />
+        <path class="kivo-chart-curve-animated" d="${curvePath}" fill="none" stroke="#4F46E5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
         ${markers}
       </svg>
     `;
@@ -3070,8 +3144,38 @@ window.KivoApp = {
       );
     }
 
+    const emptyStateHtml = `
+      <tr>
+        <td colspan="8" style="padding: 3rem 1.5rem; text-align: center; background: #FFFFFF; border-radius: 12px; border: 1px dashed #E2E8F0;">
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+            <div style="width:56px; height:56px; border-radius:16px; background:#F8FAFC; border:1px solid #E2E8F0; display:flex; align-items:center; justify-content:center; color:#64748B;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <line x1="10" y1="9" x2="8" y2="9"></line>
+              </svg>
+            </div>
+            <div style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucun document trouvé</div>
+            <p style="color:#64748B; font-size:0.85rem; margin:0; max-width:340px; line-height:1.5;">Vous n'avez pas encore créé de document pour ce filtre. Émettez une facture ou un devis en quelques clics.</p>
+            <div style="display:flex; gap:0.65rem; margin-top:0.4rem; flex-wrap:wrap; justify-content:center;">
+              <button onclick="KivoApp.openNewDocModal('invoice')" class="btn btn-primary" style="padding:0.5rem 1.15rem; font-size:0.85rem;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Créer une facture</span>
+              </button>
+              <button onclick="KivoApp.openNewDocModal('quote')" class="btn btn-secondary" style="padding:0.5rem 1.15rem; font-size:0.85rem;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Créer un devis</span>
+              </button>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
+
     if (docs.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2.5rem; background: var(--bg-card, #FFF); border-radius: 8px;">Aucun document trouvé.</td></tr>`;
+      tbody.innerHTML = emptyStateHtml;
       return;
     }
 
@@ -3087,7 +3191,7 @@ window.KivoApp = {
     }
 
     if (rowsHtml.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2.5rem; background: var(--bg-card, #FFF); border-radius: 8px;">Aucun document trouvé.</td></tr>`;
+      tbody.innerHTML = emptyStateHtml;
       return;
     }
 
@@ -9147,7 +9251,7 @@ window.KivoApp = {
     return fallback || "Une erreur est survenue. Veuillez réessayer.";
   },
 
-  showToast: function (message, type = 'info') {
+  showToast: function (message, type = 'info', duration = 4000) {
     if (message === undefined || message === null) return;
     let cleanMsg = '';
     const isErrorType = type === 'error' || type === 'danger' || type === 'warning';
@@ -9184,17 +9288,23 @@ window.KivoApp = {
       : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
 
     const toast = document.createElement('div');
-    toast.className = 'toast';
+    toast.className = `toast toast-${type}`;
     toast.innerHTML = `
-      <span style="display:inline-flex;align-items:center;flex-shrink:0;">${iconSvg}</span>
-      <span style="font-weight:500;">${cleanMsg}</span>
+      <div class="toast-body">
+        <span class="toast-icon">${iconSvg}</span>
+        <span class="toast-message">${cleanMsg}</span>
+      </div>
+      <div class="toast-progress-bar" style="animation-duration: ${duration}ms;"></div>
     `;
 
     container.appendChild(toast);
 
     setTimeout(() => {
-      toast.remove();
-    }, 4000);
+      toast.classList.add('toast-leaving');
+      setTimeout(() => {
+        toast.remove();
+      }, 250);
+    }, duration);
   },
 
   // --- VISUAL IDENTITY & PERSONALIZATION ---
