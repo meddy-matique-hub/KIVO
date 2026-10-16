@@ -44,6 +44,30 @@ window.KivoTemplates = {
   },
 
 
+  // ── Colgroup HTML (colonnes fixes pour table-layout:fixed) ────────────
+  tableColgroup: function () {
+    // Ordre colonnes : Description (flex), Quantité 70px, Prix 120px, TVA 70px, Total 130px
+    return `<colgroup>
+      <col style="width:auto;min-width:120px;">
+      <col style="width:70px;">
+      <col style="width:120px;">
+      <col style="width:70px;">
+      <col style="width:130px;">
+    </colgroup>`;
+  },
+
+  // ── Nettoyage description multilignes ─────────────────────────────────
+  cleanDesc: function (str) {
+    if (!str) return '';
+    return str
+      .trim()
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')     // au plus 2 sauts consécutifs
+      .replace(/\n\n/g, '\n')          // puis normalise en 1 saut
+      .replace(/\n/g, '<br>');
+  },
+
   rows: function (items, currency, accBg, isDark = false, d = {}) {
     let list = items;
     if (list && typeof list === 'object' && !Array.isArray(list) && Array.isArray(list.lines)) {
@@ -60,19 +84,31 @@ window.KivoTemplates = {
       return `<tr><td colspan="5" style="text-align:center;color:${isDark ? '#64748B' : '#94a3b8'};padding:14px;font-size:12px;">Aucun article saisi</td></tr>`;
     }
     const showVat = d.showVat !== false;
-    return list.map((it, i) => {
-      const unitStr = it.unit ? ` <span style="font-size:11px;color:${isDark ? '#94A3B8' : '#64748B'};">${it.unit}</span>` : '';
-      const discStr = (it.discount && Number(it.discount) > 0) ? `<div style="font-size:11px;color:#EF4444;font-weight:600;">-${it.discount}%</div>` : '';
-      const taxStr = showVat ? ((it.taxRate !== undefined && it.taxRate !== '') ? it.taxRate + ' %' : '-') : '-';
+    // Filtrer les lignes sans désignation ET sans montant
+    const filtered = list.filter(it => {
+      const hasName = it.name && String(it.name).trim().length > 0;
+      const hasAmount = Number(it.totalHT || it.total || it.price || 0) > 0;
+      return hasName || hasAmount;
+    });
+    if (filtered.length === 0) {
+      return `<tr><td colspan="5" style="text-align:center;color:${isDark ? '#64748B' : '#94a3b8'};padding:14px;font-size:12px;">Aucun article saisi</td></tr>`;
+    }
+    return filtered.map((it, i) => {
+      const unitStr = it.unit ? `\u00a0<span style="font-size:11px;color:${isDark ? '#94A3B8' : '#64748B'};">${it.unit}</span>` : '';
+      const discStr = (it.discount && Number(it.discount) > 0) ? `<div style="font-size:11px;color:#EF4444;font-weight:600;white-space:nowrap;">-${it.discount}%</div>` : '';
+      const taxStr = showVat ? ((it.taxRate !== undefined && it.taxRate !== '') ? it.taxRate + '\u00a0%' : '-') : '-';
+      const descHtml = this.cleanDesc(it.name || 'Article sans désignation');
+      const rowBg = isDark ? (i % 2 === 0 ? '#1E222B' : '#181A20') : (i % 2 === 0 ? '#fff' : '#f8fafc');
+      const border = `1px solid ${isDark ? '#2D323F' : '#f1f5f9'}`;
       return `
-      <tr style="background:${isDark ? (i % 2 === 0 ? '#1E222B' : '#181A20') : (i % 2 === 0 ? '#fff' : '#f8fafc')};">
-        <td style="padding:8px 12px;font-size:13px;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#E2E8F0' : '#1E293B'};white-space:pre-wrap;">
-          <strong>${it.name || 'Article sans désignation'}</strong>
+      <tr style="background:${rowBg};page-break-inside:avoid;break-inside:avoid;">
+        <td style="padding:8px 12px;font-size:13px;vertical-align:top;border-bottom:${border};color:${isDark ? '#E2E8F0' : '#1E293B'};white-space:normal;overflow-wrap:anywhere;word-break:break-word;">
+          <strong>${descHtml}</strong>
         </td>
-        <td style="padding:8px 12px;font-size:13px;text-align:center;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#94A3B8' : '#64748B'};">${it.quantity}${unitStr}</td>
-        <td style="padding:8px 12px;font-size:13px;text-align:right;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#E2E8F0' : '#1E293B'};">${this.fmt(it.price, currency)}${discStr}</td>
-        <td style="padding:8px 12px;font-size:13px;text-align:center;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};color:${isDark ? '#94A3B8' : '#64748B'};">${taxStr}</td>
-        <td style="padding:8px 12px;font-size:13px;text-align:right;font-weight:700;border-bottom:1px solid ${isDark ? '#2D323F' : '#f1f5f9'};${accBg ? 'background:' + accBg + ';' : ''}color:${isDark ? '#F5D0B5' : '#0F172A'};">${this.fmt(it.totalHT || it.total, currency)}</td>
+        <td style="padding:8px 12px;font-size:13px;text-align:center;vertical-align:top;border-bottom:${border};color:${isDark ? '#94A3B8' : '#64748B'};white-space:nowrap;">${it.quantity}${unitStr}</td>
+        <td style="padding:8px 12px;font-size:13px;text-align:right;vertical-align:top;border-bottom:${border};color:${isDark ? '#E2E8F0' : '#1E293B'};white-space:nowrap;">${this.fmt(it.price, currency)}${discStr}</td>
+        <td style="padding:8px 12px;font-size:13px;text-align:center;vertical-align:top;border-bottom:${border};color:${isDark ? '#94A3B8' : '#64748B'};white-space:nowrap;">${taxStr}</td>
+        <td style="padding:8px 12px;font-size:13px;text-align:right;vertical-align:top;font-weight:700;border-bottom:${border};${accBg ? 'background:' + accBg + ';' : ''}color:${isDark ? '#F5D0B5' : '#0F172A'};white-space:nowrap;">${this.fmt(it.totalHT || it.total, currency)}</td>
       </tr>`;
     }).join('');
   },
@@ -447,12 +483,11 @@ window.KivoTemplates = {
 
         <!-- Footer / Mentions légales (TOUJOURS LE DERNIER BLOC) -->
         ${d.showLegalNotices !== false ? `
-        <div style="text-align:center;font-size:11px;color:${isDark ? '#64748B' : '#94A3B8'};padding-top:8px;border-top:1px solid ${isDark ? '#2D323F' : '#F1F5F9'};line-height:1.6;">
+        <div style="text-align:center;font-size:12px;color:${isDark ? '#94A3B8' : '#4B5563'};padding-top:10px;border-top:1px solid ${isDark ? '#2D323F' : '#E2E8F0'};line-height:1.6;">
           <div>${[(d.biz && d.biz.name) || (d.biz && d.biz.owner) || 'Mon Entreprise', d.biz && d.biz.address, d.biz && d.biz.phone, d.biz && d.biz.email].filter(Boolean).join(' · ')}</div>
-          ${d.legalNotices ? `<div style="margin-top:2px;">${d.legalNotices}</div>` : `
-            ${(d.biz && d.biz.taxId) ? `<div style="font-size:10px;color:${isDark ? '#94A3B8' : '#64748B'};">${this.getLegalLabel(d.biz)} : <strong>${d.biz.taxId}</strong></div>` : ''}
-            ${(d.client && d.client.taxId) ? `<div style="font-size:10px;color:${isDark ? '#94A3B8' : '#64748B'};">Client : ${d.client.name || ''} · ${d.client.legalFieldName || 'N° Fiscal'} : <strong>${d.client.taxId}</strong></div>` : ''}
-          `}
+          ${d.legalNotices ? `<div style="margin-top:4px;font-size:12px;color:${isDark ? '#94A3B8' : '#4B5563'};">${d.legalNotices}</div>` : ''}
+          ${(d.biz && d.biz.taxId) ? `<div style="font-size:12px;color:${isDark ? '#94A3B8' : '#4B5563'};margin-top:2px;">${this.getLegalLabel(d.biz)} : <strong>${d.biz.taxId}</strong></div>` : ''}
+          ${(d.client && d.client.taxId) ? `<div style="font-size:12px;color:${isDark ? '#94A3B8' : '#4B5563'};margin-top:2px;">Client : ${d.client.name || ''} · ${d.client.legalFieldName || 'N° Fiscal'} : <strong>${d.client.taxId}</strong></div>` : ''}
         </div>` : ''}
       </div>
     `;
@@ -629,14 +664,15 @@ window.KivoTemplates = {
           ${this.renderHeader(d, ac, '#475569')}
           ${this.renderClient(d, '#0F172A', '#475569')}
 
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
+          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;table-layout:fixed;">
+            ${this.tableColgroup()}
             <thead>
               <tr style="border-bottom:2px solid ${ac};">
                 <th style="padding:9px 12px;text-align:left;color:#0F172A;font-weight:700;">Description</th>
-                <th style="padding:9px 12px;text-align:center;width:10%;color:#0F172A;font-weight:700;">Quantité</th>
-                <th style="padding:9px 12px;text-align:right;width:18%;color:#0F172A;font-weight:700;">Prix Unitaire</th>
-                <th style="padding:9px 12px;text-align:center;width:12%;color:#0F172A;font-weight:700;">TVA</th>
-                <th style="padding:9px 12px;text-align:right;width:18%;color:#0F172A;font-weight:700;">Total</th>
+                <th style="padding:9px 12px;text-align:center;color:#0F172A;font-weight:700;">Quantité</th>
+                <th style="padding:9px 12px;text-align:right;color:#0F172A;font-weight:700;">Prix Unitaire</th>
+                <th style="padding:9px 12px;text-align:center;color:#0F172A;font-weight:700;">TVA</th>
+                <th style="padding:9px 12px;text-align:right;color:#0F172A;font-weight:700;">Total</th>
               </tr>
             </thead>
             <tbody>${this.rows(d.items, d.currency)}</tbody>
@@ -660,14 +696,15 @@ window.KivoTemplates = {
           <div style="padding:0 40px;">
             ${this.renderClient(d, '#0F172A', '#64748B')}
 
-            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;table-layout:fixed;">
+              ${this.tableColgroup()}
               <thead>
                 <tr style="background:${ac};color:#FFFFFF;">
                   <th style="padding:9px 12px;text-align:left;font-weight:700;">Description</th>
-                  <th style="padding:9px 12px;text-align:center;width:10%;font-weight:700;">Quantité</th>
-                  <th style="padding:9px 12px;text-align:right;width:18%;font-weight:700;">Prix Unitaire</th>
-                  <th style="padding:9px 12px;text-align:center;width:12%;font-weight:700;">TVA</th>
-                  <th style="padding:9px 12px;text-align:right;width:18%;font-weight:700;">Total</th>
+                  <th style="padding:9px 12px;text-align:center;font-weight:700;">Quantité</th>
+                  <th style="padding:9px 12px;text-align:right;font-weight:700;">Prix Unitaire</th>
+                  <th style="padding:9px 12px;text-align:center;font-weight:700;">TVA</th>
+                  <th style="padding:9px 12px;text-align:right;font-weight:700;">Total</th>
                 </tr>
               </thead>
               <tbody>${this.rows(d.items, d.currency, '#EFF6FF')}</tbody>
@@ -691,14 +728,15 @@ window.KivoTemplates = {
           ${this.renderHeader(d, ac, '#6B5C2A')}
           ${this.renderClient(d, '#2D241E', '#6B5C2A')}
 
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
+          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;table-layout:fixed;">
+            ${this.tableColgroup()}
             <thead>
               <tr style="border-bottom:2px solid ${ac};color:${ac};">
                 <th style="padding:9px 12px;text-align:left;font-weight:700;">Description</th>
-                <th style="padding:9px 12px;text-align:center;width:10%;font-weight:700;">Quantité</th>
-                <th style="padding:9px 12px;text-align:right;width:18%;font-weight:700;">Prix Unitaire</th>
-                <th style="padding:9px 12px;text-align:center;width:12%;font-weight:700;">TVA</th>
-                <th style="padding:9px 12px;text-align:right;width:18%;font-weight:700;">Montant</th>
+                <th style="padding:9px 12px;text-align:center;font-weight:700;">Quantité</th>
+                <th style="padding:9px 12px;text-align:right;font-weight:700;">Prix Unitaire</th>
+                <th style="padding:9px 12px;text-align:center;font-weight:700;">TVA</th>
+                <th style="padding:9px 12px;text-align:right;font-weight:700;">Montant</th>
               </tr>
             </thead>
             <tbody>${this.rows(d.items, d.currency, '#FDF9EF')}</tbody>
@@ -721,14 +759,15 @@ window.KivoTemplates = {
           ${this.renderHeader(d, ac, '#64748B')}
           ${this.renderClient(d, ac, '#64748B')}
 
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
+          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;table-layout:fixed;">
+            ${this.tableColgroup()}
             <thead>
               <tr style="background:${ac};color:#FFFFFF;">
                 <th style="padding:9px 12px;text-align:left;font-weight:700;border-radius:4px 0 0 4px;">Description</th>
-                <th style="padding:9px 12px;text-align:center;width:10%;font-weight:700;">Quantité</th>
-                <th style="padding:9px 12px;text-align:right;width:18%;font-weight:700;">Prix Unitaire</th>
-                <th style="padding:9px 12px;text-align:center;width:12%;font-weight:700;">TVA</th>
-                <th style="padding:9px 12px;text-align:right;width:18%;font-weight:700;border-radius:0 4px 4px 0;">Total</th>
+                <th style="padding:9px 12px;text-align:center;font-weight:700;">Quantité</th>
+                <th style="padding:9px 12px;text-align:right;font-weight:700;">Prix Unitaire</th>
+                <th style="padding:9px 12px;text-align:center;font-weight:700;">TVA</th>
+                <th style="padding:9px 12px;text-align:right;font-weight:700;border-radius:0 4px 4px 0;">Total</th>
               </tr>
             </thead>
             <tbody>${this.rows(d.items, d.currency, '#F5F3FF')}</tbody>
@@ -749,14 +788,15 @@ window.KivoTemplates = {
           ${this.renderHeader(d, ac, '#64748B')}
           ${this.renderClient(d, '#0F172A', '#64748B')}
 
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
+          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;table-layout:fixed;">
+            ${this.tableColgroup()}
             <thead>
               <tr style="background:${ac};color:#FFFFFF;">
                 <th style="padding:9px 12px;text-align:left;font-weight:700;">Description</th>
-                <th style="padding:9px 12px;text-align:center;width:10%;font-weight:700;">Quantité</th>
-                <th style="padding:9px 12px;text-align:right;width:18%;font-weight:700;">Prix Unitaire</th>
-                <th style="padding:9px 12px;text-align:center;width:12%;font-weight:700;">TVA</th>
-                <th style="padding:9px 12px;text-align:right;width:18%;font-weight:700;">Total</th>
+                <th style="padding:9px 12px;text-align:center;font-weight:700;">Quantité</th>
+                <th style="padding:9px 12px;text-align:right;font-weight:700;">Prix Unitaire</th>
+                <th style="padding:9px 12px;text-align:center;font-weight:700;">TVA</th>
+                <th style="padding:9px 12px;text-align:right;font-weight:700;">Total</th>
               </tr>
             </thead>
             <tbody>${this.rows(d.items, d.currency, '#F0FDFA')}</tbody>
@@ -780,14 +820,15 @@ window.KivoTemplates = {
           <div style="padding:0 40px;">
             ${this.renderClient(d, '#111', '#4B5563')}
 
-            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;table-layout:fixed;">
+              ${this.tableColgroup()}
               <thead>
                 <tr style="background:#111;color:#FFFFFF;">
                   <th style="padding:9px 12px;text-align:left;font-weight:800;">DESCRIPTION</th>
-                  <th style="padding:9px 12px;text-align:center;width:10%;font-weight:800;">QTÉ</th>
-                  <th style="padding:9px 12px;text-align:right;width:18%;font-weight:800;">P.U</th>
-                  <th style="padding:9px 12px;text-align:center;width:12%;font-weight:800;">TVA</th>
-                  <th style="padding:9px 12px;text-align:right;width:18%;font-weight:800;background:${ac};">TOTAL</th>
+                  <th style="padding:9px 12px;text-align:center;font-weight:800;">QTÉ</th>
+                  <th style="padding:9px 12px;text-align:right;font-weight:800;">P.U</th>
+                  <th style="padding:9px 12px;text-align:center;font-weight:800;">TVA</th>
+                  <th style="padding:9px 12px;text-align:right;font-weight:800;background:${ac};">TOTAL</th>
                 </tr>
               </thead>
               <tbody>${this.rows(d.items, d.currency, '#FEE2E2')}</tbody>
@@ -813,14 +854,15 @@ window.KivoTemplates = {
           <div style="height:8px;background:linear-gradient(90deg,${ac} 0%,#FFFFFF 50%,${sec} 100%);border-radius:2px;margin-bottom:20px;box-shadow:0 3px 10px rgba(0,0,0,0.3);"></div>
           ${this.renderClient(d, '#FFFFFF', '#94A3B8', true)}
 
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;">
+          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;table-layout:fixed;">
+            ${this.tableColgroup()}
             <thead>
               <tr style="background:#222631;color:${ac};border-bottom:1.5px solid ${ac};">
                 <th style="padding:9px 12px;text-align:left;font-weight:700;">Description</th>
-                <th style="padding:9px 12px;text-align:center;width:10%;font-weight:700;">Quantité</th>
-                <th style="padding:9px 12px;text-align:right;width:18%;font-weight:700;">Prix Unitaire</th>
-                <th style="padding:9px 12px;text-align:center;width:12%;font-weight:700;">TVA</th>
-                <th style="padding:9px 12px;text-align:right;width:18%;font-weight:700;">Total</th>
+                <th style="padding:9px 12px;text-align:center;font-weight:700;">Quantité</th>
+                <th style="padding:9px 12px;text-align:right;font-weight:700;">Prix Unitaire</th>
+                <th style="padding:9px 12px;text-align:center;font-weight:700;">TVA</th>
+                <th style="padding:9px 12px;text-align:right;font-weight:700;">Total</th>
               </tr>
             </thead>
             <tbody>${this.rows(d.items, d.currency, '#2A221E', true)}</tbody>
