@@ -141,7 +141,8 @@ window.KivoApp = {
   requestAdditionalSeatWhatsApp: function () {
     const biz   = (this.state && this.state.business) || {};
     const owner = biz.owner || biz.name || 'Client Business';
-    const msg   = encodeURIComponent(`Bonjour KIVO MATIQUE ! Je suis ${owner} (forfait Business) et je souhaite ajouter un siège supplémentaire à mon équipe (+1 500 FCFA/mois). Pouvez-vous m\'aider ?`);
+    const email = (window.KivoAuth && window.KivoAuth.user ? window.KivoAuth.user.email : '') || biz.email || '';
+    const msg   = encodeURIComponent(`Bonjour KIVO MATIQUE ! Je suis ${owner} (${email}), abonné au forfait Business (5 sièges). Tous mes sièges sont occupés et je souhaite commander un siège supplémentaire (+1 500 FCFA/mois). Pouvez-vous m'aider ?`);
     window.open(`https://wa.me/242068286376?text=${msg}`, '_blank');
   },
 
@@ -6405,35 +6406,98 @@ window.KivoApp = {
     }
     // Charger les membres depuis Supabase pour vérifier le quota réel
     await this.loadTeamMembers();
-    // 1 directeur + max 4 membres = 5 sièges
-    const activeCount = this._teamMembers.filter(m => m.status === 'active').length;
-    const pendingCount = this._teamMembers.filter(m => m.status === 'pending').length;
-    if (activeCount + pendingCount >= 4) {
-      this.showToast('Quota atteint : 4 membres max (+ 1 Directeur = 5 sièges). Retirez un membre pour en ajouter un autre.', 'info');
-      return;
+    
+    // 1 Directeur (propriétaire) + membres enregistrés
+    const totalOccupied = 1 + (this._teamMembers ? this._teamMembers.length : 0);
+    const isLimitReached = totalOccupied >= 5;
+
+    // Mise à jour du compteur X / 5 sièges
+    const badgeEl = document.getElementById('invite-seats-badge');
+    if (badgeEl) {
+      badgeEl.textContent = `${totalOccupied} / 5 sièges`;
+      badgeEl.style.background = isLimitReached ? '#FEE2E2' : '#F1F5F9';
+      badgeEl.style.color = isLimitReached ? '#B91C1C' : '#334155';
     }
+
+    // Bannière si les 5 sièges sont occupés
+    const limitBanner = document.getElementById('invite-seats-limit-banner');
+    if (limitBanner) {
+      limitBanner.style.display = isLimitReached ? 'block' : 'none';
+    }
+
+    // Bouton d'invitation désactivé si quota atteint
+    const sendBtn = document.getElementById('btn-send-member-invite');
+    if (sendBtn) {
+      sendBtn.disabled = isLimitReached;
+      sendBtn.style.opacity = isLimitReached ? '0.5' : '1';
+      sendBtn.style.cursor = isLimitReached ? 'not-allowed' : 'pointer';
+    }
+
+    // Input email
     const emailInput = document.getElementById('invite-member-email');
-    if (emailInput) emailInput.value = '';
+    if (emailInput) {
+      emailInput.value = '';
+      emailInput.disabled = isLimitReached;
+    }
+
+    // Réinitialiser les sections corps et succès
+    const formBody = document.getElementById('invite-form-body');
+    if (formBody) formBody.style.display = 'block';
+    const successBody = document.getElementById('invite-success-body');
+    if (successBody) successBody.style.display = 'none';
+    const errorEl = document.getElementById('invite-member-error');
+    if (errorEl) {
+      errorEl.style.display = 'none';
+      errorEl.textContent = '';
+    }
+
     this.openModal('modal-invite-member');
   },
 
   sendMemberInvite: async function () {
-    const email = ((document.getElementById('invite-member-email') || {}).value || '').trim();
-    const role  = (document.getElementById('invite-member-role')  || {}).value || 'membre';
-    if (!email || !email.includes('@')) {
-      this.showToast('Adresse e-mail invalide.', 'error');
+    const errorEl = document.getElementById('invite-member-error');
+    const showError = (msg) => {
+      if (errorEl) {
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
+      }
+      this.showToast(msg, 'error');
+    };
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+
+    const emailInput = document.getElementById('invite-member-email');
+    const email = (emailInput ? emailInput.value : '').trim();
+    const role  = 'membre'; // Rôle unique comme spécifié
+    
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      showError("Veuillez saisir une adresse e-mail valide.");
+      return;
+    }
+
+    // Vérifier le quota
+    const totalOccupied = 1 + (this._teamMembers ? this._teamMembers.length : 0);
+    if (totalOccupied >= 5) {
+      showError("Tous vos 5 sièges sont déjà occupés.");
       return;
     }
 
     const user = window.KivoAuth && window.KivoAuth.user;
-    if (!user) { this.showToast('Non authentifié.', 'error'); return; }
+    if (!user) { showError("Vous devez être connecté pour envoyer une invitation."); return; }
 
-    // Vérifier doublon en base
-    const existing = this._teamMembers.find(m => m.email.toLowerCase() === email.toLowerCase());
+    // Vérifier doublon
+    const existing = (this._teamMembers || []).find(m => m.email.toLowerCase() === email.toLowerCase());
     if (existing) {
-      this.showToast('Ce collaborateur est déjà invité ou membre.', 'error');
+      showError("Ce collaborateur est déjà invité ou membre de votre équipe.");
       return;
     }
+
+    // Spinner sur le bouton
+    const sendBtn = document.getElementById('btn-send-member-invite');
+    const btnText = document.getElementById('btn-send-invite-text');
+    const btnSpinner = document.getElementById('btn-send-invite-spinner');
+    if (sendBtn) sendBtn.disabled = true;
+    if (btnText) btnText.textContent = "Envoi en cours...";
+    if (btnSpinner) btnSpinner.style.display = 'inline-block';
 
     const inviteToken = this.generateUUID();
     const row = {
@@ -6447,23 +6511,29 @@ window.KivoApp = {
       invited_at:   new Date().toISOString()
     };
 
-    // Insérer dans team_members (propriétaire uniquement — RLS garantit user_id = auth.uid())
     const _kivoClient = window.KivoDb && window.KivoDb.supabase;
-    if (!_kivoClient) { this.showToast('Erreur de connexion Supabase.', 'error'); return; }
-
-    const { error: insertErr } = await _kivoClient.from('team_members').insert(row);
-    if (insertErr) {
-      this.showToast("Erreur lors de l'invitation : " + (insertErr.message || 'inconnue'), 'error');
+    if (!_kivoClient) {
+      if (sendBtn) sendBtn.disabled = false;
+      if (btnText) btnText.textContent = "Envoyer l'invitation";
+      if (btnSpinner) btnSpinner.style.display = 'none';
+      showError("Impossible d'accéder au service de base de données.");
       return;
     }
 
-    // Envoyer l'e-mail d'invitation via Supabase Auth (magic link vers accept-invite.html)
+    const { error: insertErr } = await _kivoClient.from('team_members').insert(row);
+    if (insertErr) {
+      if (sendBtn) sendBtn.disabled = false;
+      if (btnText) btnText.textContent = "Envoyer l'invitation";
+      if (btnSpinner) btnSpinner.style.display = 'none';
+      showError("Erreur lors de l'enregistrement de l'invitation : " + (insertErr.message || 'veuillez réessayer.'));
+      return;
+    }
+
     const siteBase = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
     const acceptUrl = `${siteBase}/accept-invite.html?token=${encodeURIComponent(inviteToken)}&email=${encodeURIComponent(email)}`;
-
+    this._lastInviteUrl = acceptUrl;
 
     try {
-      // Envoyer un magic link vers accept-invite.html (non bloquant)
       await _kivoClient.auth.signInWithOtp({
         email: email,
         options: {
@@ -6472,15 +6542,58 @@ window.KivoApp = {
           data: { invite_token: inviteToken, invited_by: user.email }
         }
       });
-    } catch (_) { /* non bloquant — l'invitation est deja en base */ }
+    } catch (_) { /* non bloquant */ }
 
+    // Rétablir le bouton
+    if (sendBtn) sendBtn.disabled = false;
+    if (btnText) btnText.textContent = "Envoyer l'invitation";
+    if (btnSpinner) btnSpinner.style.display = 'none';
 
-    this.closeModal('modal-invite-member');
-    this.showToast(`Invitation envoyée à ${email}. Le lien est valable 24 h.`, 'success');
+    // Afficher la section de succès avec le lien d'invitation
+    const formBody = document.getElementById('invite-form-body');
+    const successBody = document.getElementById('invite-success-body');
+    const linkInput = document.getElementById('invite-success-link');
+    const subtitleEl = document.getElementById('invite-success-subtitle');
+    
+    if (formBody) formBody.style.display = 'none';
+    if (successBody) successBody.style.display = 'block';
+    if (linkInput) linkInput.value = acceptUrl;
+    if (subtitleEl) subtitleEl.textContent = `L'invitation a été enregistrée pour ${email}. Vous pouvez lui transmettre ce lien directement.`;
 
-    // Rafraîchir la liste
+    this.showToast(`Invitation créée pour ${email}.`, 'success');
+
+    // Rafraîchir la liste et la vue équipe
     await this.loadTeamMembers();
     this.renderTeam();
+  },
+
+  copyInviteLink: function () {
+    const linkInput = document.getElementById('invite-success-link');
+    const url = (linkInput ? linkInput.value : '') || this._lastInviteUrl || '';
+    if (!url) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        const textSpan = document.getElementById('btn-copy-invite-text');
+        if (textSpan) {
+          const old = textSpan.textContent;
+          textSpan.textContent = 'Copié !';
+          setTimeout(() => { textSpan.textContent = old; }, 2000);
+        }
+        this.showToast('Lien d\'invitation copié dans le presse-papier !', 'success');
+      }).catch(() => {
+        this.fallbackCopyText(url);
+      });
+    } else {
+      this.fallbackCopyText(url);
+    }
+  },
+
+  shareInviteLinkWhatsApp: function () {
+    const linkInput = document.getElementById('invite-success-link');
+    const url = (linkInput ? linkInput.value : '') || this._lastInviteUrl || '';
+    if (!url) return;
+    const msg = encodeURIComponent(`Bonjour ! Voici votre lien d'invitation pour rejoindre notre équipe sur KIVO MATIQUE : ${url}`);
+    window.open(`https://wa.me/?text=${msg}`, '_blank');
   },
 
   loadTeamMembers: async function () {
