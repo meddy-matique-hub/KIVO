@@ -6,9 +6,9 @@
 window.KivoApp = {
   state: null,
   PLAN_FEATURES: {
-    gratuit:  { docsPerMonth: 3, users: 1, autosave: false, ai: false, allTemplates: false, advancedStyle: false, fullStats: false, team: false },
-    pro:      { docsPerMonth: Infinity, users: 1, autosave: true,  ai: true,  allTemplates: true,  advancedStyle: true,  fullStats: true,  team: false },
-    business: { docsPerMonth: Infinity, users: 5, autosave: true,  ai: true,  allTemplates: true,  advancedStyle: true,  fullStats: true,  team: true }
+    gratuit:  { docsPerMonth: 3,        users: 1, autosave: false, ai: 'soon', allTemplates: false, advancedStyle: false, fullStats: false, team: false, integrations: false, notificationsEmail: false, exportCsv: true,  exportExcel: false },
+    pro:      { docsPerMonth: Infinity, users: 1, autosave: true,  ai: 'soon', allTemplates: true,  advancedStyle: true,  fullStats: true,  team: false, integrations: false, notificationsEmail: false, exportCsv: true,  exportExcel: true },
+    business: { docsPerMonth: Infinity, users: 5, autosave: true,  ai: 'soon', allTemplates: true,  advancedStyle: true,  fullStats: true,  team: true,  integrations: true,  notificationsEmail: true,  exportCsv: true,  exportExcel: true }
   },
 
   getPlan: function () {
@@ -77,6 +77,14 @@ window.KivoApp = {
       case 'stats':
       case 'fullStats':
         return plan.features.fullStats;
+      case 'integrations':
+        return plan.features.integrations;
+      case 'notificationsEmail':
+        return plan.features.notificationsEmail;
+      case 'exportCsv':
+        return plan.features.exportCsv;
+      case 'exportExcel':
+        return plan.features.exportExcel;
       default:
         return true;
     }
@@ -117,6 +125,10 @@ window.KivoApp = {
       autosave: {
         title: 'Sauvegarde automatique — Pro & Business',
         desc:  'La sauvegarde automatique des brouillons dans le cloud est réservée aux forfaits Pro et Business.'
+      },
+      integrations: {
+        title: 'Intégrations — Réservé au forfait Business',
+        desc:  'Les intégrations de passerelles de paiement et outils tiers sont réservées au forfait Business.'
       }
     };
     const msg = MSGS[feature] || { title: 'Fonctionnalité réservée', desc: 'Cette fonctionnalité est disponible dans un forfait supérieur.' };
@@ -1068,15 +1080,16 @@ window.KivoApp = {
         viewName = 'dashboard';
       }
 
-      // Restrict AI view to Pro/Business plans only
-      if (viewName === 'ai') {
-        const tier = (this.state && this.state.business && this.state.business.subscriptionTier) || 'Gratuit';
-        const isPaid = (tier === 'Pro' || tier === 'Business');
-        if (!isPaid) {
+      // Restrict integrations view to Business plan only (Gratuit & Pro -> showUpgradePrompt)
+      if (viewName === 'integrations') {
+        const plan = this.getPlan();
+        if (!plan.isBusiness) {
           viewName = 'dashboard';
-          // Show toast after render cycle
+          if (window.location.hash !== '#dashboard') {
+            try { history.replaceState(null, '', '#dashboard'); } catch (e) {}
+          }
           setTimeout(() => {
-            this.showToast(this._t('toast_ai_pro_required'), 'info', 5000);
+            this.showUpgradePrompt('integrations');
           }, 100);
         }
       }
@@ -1170,18 +1183,13 @@ window.KivoApp = {
       }
     });
 
-    // Show/hide AI nav item and related buttons based on subscription plan
-    {
-      const tier = (this.state && this.state.business && this.state.business.subscriptionTier) || 'Gratuit';
-      const isPaid = (tier === 'Pro' || tier === 'Business');
-      // Sidebar / mobile nav items pointing to AI
-      document.querySelectorAll('[data-view="ai"]').forEach(el => {
-        el.style.display = isPaid ? '' : 'none';
-      });
-      // "Voir la page IA" button inside new-doc-choice modal
-      const modalAiBtn = document.getElementById('modal-new-doc-ai-btn');
-      if (modalAiBtn) modalAiBtn.style.display = isPaid ? '' : 'none';
-    }
+    // Keep AI nav items visible with "Bientôt" badge for all plans (no hide, no redirect)
+    document.querySelectorAll('[data-view="ai"]').forEach(el => {
+      el.style.display = '';
+    });
+    const modalAiBtn = document.getElementById('modal-new-doc-ai-btn');
+    if (modalAiBtn) modalAiBtn.style.display = '';
+
 
     // Auto-expand and highlight Billing group when in documents or document-builder
     const billingGroup = document.getElementById('nav-group-billing-items');
@@ -4594,8 +4602,8 @@ window.KivoApp = {
   },
 
   openAIMenu: function () {
-    this.openModal('modal-new-doc-choice');
-    this.switchDocCreationTab('ai');
+    this.closeModal('modal-new-doc-choice');
+    this.navigate('ai');
   },
 
   startTemplateDocument: function (type, templateId, isCustom = false) {
@@ -8551,11 +8559,10 @@ window.KivoApp = {
     // Moyens de paiement dynamiques (payment_methods)
     this.renderPaymentMethods();
 
-    // 6. Notifications
-    const notifs = biz.notifications || {};
-    if (document.getElementById('setting-notify-doc-sent')) document.getElementById('setting-notify-doc-sent').checked = notifs.notifyDocSent !== false;
-    if (document.getElementById('setting-notify-reminder')) document.getElementById('setting-notify-reminder').checked = notifs.notifyReminder !== false;
-    if (document.getElementById('setting-notify-payment')) document.getElementById('setting-notify-payment').checked = notifs.notifyPayment !== false;
+    // 6. Notifications (Désactivées avec badge Business & Bientôt — ne s'activent plus)
+    if (document.getElementById('setting-notify-doc-sent')) document.getElementById('setting-notify-doc-sent').checked = false;
+    if (document.getElementById('setting-notify-reminder')) document.getElementById('setting-notify-reminder').checked = false;
+    if (document.getElementById('setting-notify-payment')) document.getElementById('setting-notify-payment').checked = false;
 
     // 7. Identity Card
     const displayName = biz.owner || biz.name || 'Mon Compte';
@@ -8829,11 +8836,11 @@ window.KivoApp = {
     });
     biz.paymentMethods = savedMethods;
 
-    // 6. Notifications
+    // 6. Notifications (Désactivées avec badge Business & Bientôt — ne s'enregistrent plus comme actives)
     biz.notifications = biz.notifications || {};
-    if (document.getElementById('setting-notify-doc-sent')) biz.notifications.notifyDocSent = document.getElementById('setting-notify-doc-sent').checked;
-    if (document.getElementById('setting-notify-reminder')) biz.notifications.notifyReminder = document.getElementById('setting-notify-reminder').checked;
-    if (document.getElementById('setting-notify-payment')) biz.notifications.notifyPayment = document.getElementById('setting-notify-payment').checked;
+    biz.notifications.notifyDocSent = false;
+    biz.notifications.notifyReminder = false;
+    biz.notifications.notifyPayment = false;
 
     this.saveState();
     this.updatePlanUsageBadge();

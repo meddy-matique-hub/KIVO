@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=3.12">
+  <link rel="stylesheet" href="styles.css?v=3.14">
 </head>
 <body>
 
@@ -147,9 +147,10 @@
           </a>
 
           <!-- Création avec IA -->
-          <a href="#ai" class="nav-item" data-view="ai" title="Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable.">
+          <a href="#ai" class="nav-item" data-view="ai" title="Bientôt disponible">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2a7 7 0 0 1 7 7c0 3.5-2.5 6.5-6 7v2h-2v-2c-3.5-.5-6-3.5-6-7a7 7 0 0 1 7-7z"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
             <span class="nav-label">Création avec IA</span>
+            <span class="nav-badge-soon" style="margin-left: auto; font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 9999px; background: rgba(99, 102, 241, 0.12); color: #6366F1; text-transform: uppercase; letter-spacing: 0.03em;">Bientôt</span>
           </a>
 
           <!-- Rapports -->
@@ -1595,7 +1596,7 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               <span>Créer librement</span>
             </button>
-            <button type="button" class="builder-mode-pill-btn" onclick="KivoApp.openAIMenu()" title="Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable.">
+            <button type="button" class="builder-mode-pill-btn" onclick="KivoApp.navigate('ai')" title="Bientôt disponible">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
               <span>Créer avec IA</span>
             </button>
@@ -2574,20 +2575,19 @@
           <div class="ai-locked-banner" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.35rem; border-radius: 14px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%); border: 1px solid rgba(99, 102, 241, 0.25); box-shadow: 0 4px 16px rgba(99, 102, 241, 0.06); margin-bottom: 2rem;">
             <div style="display: flex; align-items: center; gap: 0.9rem;">
               <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(99, 102, 241, 0.15); display: flex; align-items: center; justify-content: center; color: #6366F1; flex-shrink: 0;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 1 7 7c0 3.5-2.5 6.5-6 7v2h-2v-2c-3.5-.5-6-3.5-6-7a7 7 0 0 1 7-7z"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
               </div>
               <div>
                 <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem;">
                   <span>Bientôt disponible</span>
-                  <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #6366F1; font-weight: 700; font-size: 0.7rem; padding: 2px 8px; border-radius: 9999px;">Pro &amp; Business</span>
                 </div>
                 <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45;">
-                  Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable.
+                  La création avec IA arrive bientôt, pour les forfaits Pro et Business.
                 </div>
               </div>
             </div>
-            <span class="badge" style="background: var(--bg-subtle, #F1F5F9); color: var(--text-muted, #64748B); font-weight: 600; font-size: 0.75rem; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border-color); flex-shrink: 0;">
-              🔒 Verrouillé
+            <span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #6366F1; font-weight: 700; font-size: 0.75rem; padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.25); flex-shrink: 0;">
+              Bientôt
             </span>
           </div>
 
@@ -2620,7 +2620,7 @@
               class="form-textarea"
               rows="5"
               disabled
-              title="Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable."
+              title="La création avec IA arrive bientôt, pour les forfaits Pro et Business."
               style="width: 100%; border-radius: 12px; border: 1px solid var(--border-color); padding: 1rem 1.15rem; font-size: 0.95rem; font-family: inherit; line-height: 1.55; resize: vertical; opacity: 0.6; cursor: not-allowed; background: var(--bg-subtle, #F8FAFC); margin-bottom: 1.25rem; color: var(--text-secondary);"
               placeholder="Exemple : Crée une facture pour Cabinet Martin &amp; Associés : Mission de conseil en transformation digitale à 650 000 FCFA et formation des équipes à 250 000 FCFA. Échéance à 30 jours, TVA 18%..."
             ></textarea>
@@ -2635,9 +2635,9 @@
                 id="ai-generate-btn"
                 class="btn btn-primary"
                 disabled
-                title="Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable."
+                title="La création avec IA arrive bientôt, pour les forfaits Pro et Business."
                 style="opacity: 0.6; cursor: not-allowed; display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.8rem 1.75rem; font-weight: 600; border-radius: 10px;"
-                onclick="KivoApp.showToast('Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable.', 'info')"
+                onclick="KivoApp.showToast('La création avec IA arrive bientôt, pour les forfaits Pro et Business.', 'info')"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
                 <span>Générer</span>
@@ -3281,9 +3281,9 @@
                       <div class="profile-form-group">
                         <label class="profile-label" for="setting-biz-language">Langue de l'interface</label>
                         <select id="setting-biz-language" class="profile-select">
-                          <option value="fr" selected>Français (Officiel)</option>
-                          <option value="en">English</option>
-                          <option value="es">Español</option>
+                          <option value="fr" selected>Français</option>
+                          <option value="en" disabled>English (Bientôt disponible)</option>
+                          <option value="es" disabled>Español (Bientôt disponible)</option>
                         </select>
                       </div>
                     </div>
@@ -3292,30 +3292,45 @@
 
                 <!-- 7. NOTIFICATIONS & ALERTES -->
                 <section class="profile-card" id="card-profile-notifications">
-                  <h3 class="profile-card-title">7. Notifications & Alertes</h3>
-                  <p class="profile-card-desc">Gérez vos alertes d'envoi et de relance automatique (pleine largeur pour une parfaite lisibilité).</p>
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <h3 class="profile-card-title" style="margin: 0;">7. Notifications &amp; Alertes</h3>
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                      <span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #6366F1; font-weight: 700; font-size: 0.7rem; padding: 2px 8px; border-radius: 9999px;">Business</span>
+                      <span class="badge" style="background: var(--bg-subtle, #F1F5F9); color: var(--text-muted, #64748B); font-weight: 600; font-size: 0.7rem; padding: 2px 8px; border-radius: 9999px; border: 1px solid var(--border-color);">Bientôt</span>
+                    </div>
+                  </div>
+                  <p class="profile-card-desc">Gérez vos alertes d'envoi et de relance automatique (réservé au forfait Business — bientôt disponible).</p>
 
                   <div style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
-                    <label style="display: flex; align-items: flex-start; gap: 0.85rem; cursor: pointer; padding: 0.75rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
-                      <input type="checkbox" id="setting-notify-doc-sent" checked style="width: 18px; height: 18px; margin-top: 0.15rem; accent-color: #4F46E5;">
-                      <div>
-                        <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Copie email à l'émission</strong>
+                    <label style="display: flex; align-items: flex-start; gap: 0.85rem; cursor: not-allowed; opacity: 0.6; padding: 0.75rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
+                      <input type="checkbox" id="setting-notify-doc-sent" disabled style="width: 18px; height: 18px; margin-top: 0.15rem; accent-color: #4F46E5; cursor: not-allowed;">
+                      <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                          <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Copie email à l'émission</strong>
+                          <span style="font-size: 0.68rem; font-weight: 600; color: #6366F1; background: rgba(99, 102, 241, 0.1); padding: 1px 6px; border-radius: 4px;">Business • Bientôt</span>
+                        </div>
                         <span style="font-size: 0.8rem; color: var(--text-secondary);">Recevoir automatiquement une copie par email de chaque devis et facture émis.</span>
                       </div>
                     </label>
 
-                    <label style="display: flex; align-items: flex-start; gap: 0.85rem; cursor: pointer; padding: 0.75rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
-                      <input type="checkbox" id="setting-notify-reminder" checked style="width: 18px; height: 18px; margin-top: 0.15rem; accent-color: #4F46E5;">
-                      <div>
-                        <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Alerte de facture impayée</strong>
+                    <label style="display: flex; align-items: flex-start; gap: 0.85rem; cursor: not-allowed; opacity: 0.6; padding: 0.75rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
+                      <input type="checkbox" id="setting-notify-reminder" disabled style="width: 18px; height: 18px; margin-top: 0.15rem; accent-color: #4F46E5; cursor: not-allowed;">
+                      <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                          <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Alerte de facture impayée</strong>
+                          <span style="font-size: 0.68rem; font-weight: 600; color: #6366F1; background: rgba(99, 102, 241, 0.1); padding: 1px 6px; border-radius: 4px;">Business • Bientôt</span>
+                        </div>
                         <span style="font-size: 0.8rem; color: var(--text-secondary);">Être averti avant et après l'échéance d'une facture client impayée.</span>
                       </div>
                     </label>
 
-                    <label style="display: flex; align-items: flex-start; gap: 0.85rem; cursor: pointer; padding: 0.75rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
-                      <input type="checkbox" id="setting-notify-payment" checked style="width: 18px; height: 18px; margin-top: 0.15rem; accent-color: #4F46E5;">
-                      <div>
-                        <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Confirmation de règlement</strong>
+                    <label style="display: flex; align-items: flex-start; gap: 0.85rem; cursor: not-allowed; opacity: 0.6; padding: 0.75rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
+                      <input type="checkbox" id="setting-notify-payment" disabled style="width: 18px; height: 18px; margin-top: 0.15rem; accent-color: #4F46E5; cursor: not-allowed;">
+                      <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                          <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Confirmation de règlement</strong>
+                          <span style="font-size: 0.68rem; font-weight: 600; color: #6366F1; background: rgba(99, 102, 241, 0.1); padding: 1px 6px; border-radius: 4px;">Business • Bientôt</span>
+                        </div>
                         <span style="font-size: 0.8rem; color: var(--text-secondary);">Notification instantanée dès qu'un paiement en ligne ou virement est enregistré.</span>
                       </div>
                     </label>
@@ -3517,6 +3532,26 @@
             </div>
           </div>
 
+          <!-- BANDEAU DE VERROUILLAGE BIENTÔT DISPONIBLE (BUSINESS) -->
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.35rem; border-radius: 14px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%); border: 1px solid rgba(99, 102, 241, 0.25); box-shadow: 0 4px 16px rgba(99, 102, 241, 0.06); margin-bottom: 2rem;">
+            <div style="display: flex; align-items: center; gap: 0.9rem;">
+              <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(99, 102, 241, 0.15); display: flex; align-items: center; justify-content: center; color: #6366F1; flex-shrink: 0;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              </div>
+              <div>
+                <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem;">
+                  <span>Bientôt disponible</span>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45;">
+                  Les intégrations avancées (passerelles de paiement, exports comptables, API) arrivent bientôt pour les abonnés Business.
+                </div>
+              </div>
+            </div>
+            <span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #6366F1; font-weight: 700; font-size: 0.75rem; padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.25); flex-shrink: 0;">
+              Business • Bientôt
+            </span>
+          </div>
+
           <div class="integrations-grid">
             <!-- Carte Bancaire -->
             <div class="card" style="padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between;">
@@ -3627,9 +3662,9 @@
       <div class="tabs-container" style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; gap: 1.5rem;">
         <button class="tab-btn active" id="tab-btn-templates" onclick="KivoApp.switchDocCreationTab('templates')" style="padding: 0.5rem 0; font-weight: 600; color: var(--primary); border-bottom: 2px solid var(--primary); background: transparent; border-top: none; border-left: none; border-right: none; cursor: pointer;">1. Modèles</button>
         <button class="tab-btn" id="tab-btn-free" onclick="KivoApp.switchDocCreationTab('free')" style="padding: 0.5rem 0; font-weight: 600; color: var(--text-secondary); border-bottom: 2px solid transparent; background: transparent; border-top: none; border-left: none; border-right: none; cursor: pointer;">2. Créer librement</button>
-        <button class="tab-btn" id="tab-btn-ai" onclick="KivoApp.switchDocCreationTab('ai')" style="padding: 0.5rem 0; font-weight: 600; color: var(--text-secondary); border-bottom: 2px solid transparent; background: transparent; border-top: none; border-left: none; border-right: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;">
+        <button class="tab-btn" id="tab-btn-ai" onclick="KivoApp.closeModal('modal-new-doc-choice'); KivoApp.navigate('ai');" style="padding: 0.5rem 0; font-weight: 600; color: var(--text-secondary); border-bottom: 2px solid transparent; background: transparent; border-top: none; border-left: none; border-right: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;">
           <span>3. Créer avec l'IA</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          <span style="font-size: 0.65rem; font-weight: 700; padding: 1px 6px; border-radius: 9999px; background: rgba(99, 102, 241, 0.12); color: #6366F1;">Bientôt</span>
         </button>
       </div>
 
@@ -3682,15 +3717,15 @@
           </div>
           <div style="font-weight: 700; margin-bottom: 0.25rem; font-size: 1.1rem; color: var(--text-primary);">Bientôt disponible</div>
           <p style="color: var(--text-secondary); margin-bottom: 1.25rem; font-size: 0.88rem; max-width: 520px; margin-left: auto; margin-right: auto; line-height: 1.45;">
-            Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable.
+            La création avec IA arrive bientôt, pour les forfaits Pro et Business.
           </p>
-          <textarea id="ai-mode-prompt" class="form-textarea" rows="4" disabled title="Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable." style="opacity: 0.6; cursor: not-allowed; background: var(--bg-subtle, #F8FAFC);" placeholder="Ex: Crée une facture de prestation de conseil stratégique à 450 000 FCFA avec 18% de TVA pour le client Tech Corp..."></textarea>
+          <textarea id="ai-mode-prompt" class="form-textarea" rows="4" disabled title="La création avec IA arrive bientôt, pour les forfaits Pro et Business." style="opacity: 0.6; cursor: not-allowed; background: var(--bg-subtle, #F8FAFC);" placeholder="Ex: Crée une facture de prestation de conseil stratégique à 450 000 FCFA avec 18% de TVA pour le client Tech Corp..."></textarea>
           <div style="margin-top: 1rem; display: flex; justify-content: center; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
             <select id="ai-mode-doc-type" class="form-select" style="width: auto;" disabled>
               <option value="invoice">Facture</option>
               <option value="quote">Devis</option>
             </select>
-            <button class="btn btn-primary" disabled title="Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable." style="opacity: 0.6; cursor: not-allowed;" onclick="KivoApp.showToast('Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable.', 'info')">
+            <button class="btn btn-primary" disabled title="La création avec IA arrive bientôt, pour les forfaits Pro et Business." style="opacity: 0.6; cursor: not-allowed;" onclick="KivoApp.showToast('La création avec IA arrive bientôt, pour les forfaits Pro et Business.', 'info')">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
               <span>Générer avec l'IA</span>
             </button>
@@ -3738,8 +3773,8 @@
 
       <!-- Lock notice inside modal -->
       <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.65rem;">
-        <span style="color: #6366F1; display: flex; align-items: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-        <span style="font-size: 0.85rem; color: var(--text-secondary);">Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable.</span>
+        <span style="color: #6366F1; display: flex; align-items: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 1 7 7c0 3.5-2.5 6.5-6 7v2h-2v-2c-3.5-.5-6-3.5-6-7a7 7 0 0 1 7-7z"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></span>
+        <span style="font-size: 0.85rem; color: var(--text-secondary);">La création avec IA arrive bientôt, pour les forfaits Pro et Business.</span>
       </div>
 
       <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
@@ -3747,12 +3782,12 @@
       </p>
 
       <div class="form-group">
-        <textarea id="modal-ai-textarea" class="form-textarea" rows="4" disabled title="Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable." style="opacity: 0.6; cursor: not-allowed; background: var(--bg-subtle, #F8FAFC);" placeholder="Ex: Vidéo pub 30s pour Maison Event à 150 000 FCFA avec 2 visuels à 25 000 FCFA chacun, TVA 18%, livraison ce vendredi."></textarea>
+        <textarea id="modal-ai-textarea" class="form-textarea" rows="4" disabled title="La création avec IA arrive bientôt, pour les forfaits Pro et Business." style="opacity: 0.6; cursor: not-allowed; background: var(--bg-subtle, #F8FAFC);" placeholder="Ex: Vidéo pub 30s pour Maison Event à 150 000 FCFA avec 2 visuels à 25 000 FCFA chacun, TVA 18%, livraison ce vendredi."></textarea>
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
         <button class="btn btn-secondary" onclick="KivoApp.closeModal('modal-ai-prompt')">Fermer</button>
-        <button class="btn btn-ai" disabled title="Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable." style="opacity: 0.6; cursor: not-allowed;" onclick="KivoApp.showToast('Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable.', 'info')">Générer le document</button>
+        <button class="btn btn-ai" disabled title="La création avec IA arrive bientôt, pour les forfaits Pro et Business." style="opacity: 0.6; cursor: not-allowed;" onclick="KivoApp.showToast('La création avec IA arrive bientôt, pour les forfaits Pro et Business.', 'info')">Générer le document</button>
       </div>
     </div>
   </div>
@@ -4204,7 +4239,7 @@
   <script defer src="js/whatsapp-helper.js?v=3.3"></script>
   <script defer src="js/i18n.js?v=1.1"></script>
   <script defer src="js/doc-templates.js?v=3.4"></script>
-  <script defer src="app.js?v=3.26"></script>
+  <script defer src="app.js?v=3.27"></script>
 </body>
 </html>
 
