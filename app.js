@@ -3672,7 +3672,7 @@ window.KivoApp = {
         <input type="number" class="form-input item-discount${lockedClass}" value="${discount || 0}" min="0" max="100" placeholder="0%" oninput="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: center; box-sizing: border-box;"${lockedDisabled}>
       </td>
       <td style="text-align: right; vertical-align: middle; padding-bottom: 0.5rem; width: 14%;">
-        <strong class="item-total-display" style="font-size: 0.85rem; color: #0F172A;">0 FCFA</strong>
+        <strong class="item-total-display" style="font-size: 0.95rem; color: #0F172A;">0 FCFA</strong>
       </td>
       <td style="text-align: center; vertical-align: middle; padding-bottom: 0.5rem; width: 10%;">
         <div style="display: inline-flex; align-items: center; gap: 2px;">
@@ -4814,7 +4814,24 @@ window.KivoApp = {
       }
     }
 
-    const num = document.getElementById('builder-doc-number').value;
+    let num = (document.getElementById('builder-doc-number')?.value || '').trim();
+    if (!num) {
+      num = this.generateDocumentNumber(type);
+      const numInput = document.getElementById('builder-doc-number');
+      if (numInput) numInput.value = num;
+    } else {
+      // Normalisation séquentielle avec préfixe officiel si uniquement des chiffres
+      const year = new Date().getFullYear();
+      const biz = (this.state && this.state.business) || {};
+      const prefix = (type === 'quote') 
+        ? (biz.quotePrefix || `DEV-${year}-`) 
+        : (biz.invoicePrefix || `FAC-${year}-`);
+      if (/^\d+$/.test(num)) {
+        num = `${prefix}${num.padStart(4, '0')}`;
+        const numInput = document.getElementById('builder-doc-number');
+        if (numInput) numInput.value = num;
+      }
+    }
     const currency = document.getElementById('builder-doc-currency').value;
     const clientId = document.getElementById('builder-doc-client-select')?.value || '';
     const customClientName = (document.getElementById('builder-client-name')?.value || '').trim();
