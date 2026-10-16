@@ -129,6 +129,14 @@ window.KivoApp = {
       integrations: {
         title: 'Intégrations — Réservé au forfait Business',
         desc:  'Les intégrations de passerelles de paiement et outils tiers sont réservées au forfait Business.'
+      },
+      exportExcel: {
+        title: 'Export Excel (.xlsx) — Pro & Business',
+        desc:  "L'export Excel multi-onglets avec le détail des lignes d'articles est réservé aux forfaits Pro et Business. L'export CSV reste disponible pour tous les forfaits."
+      },
+      analyticsWhatsApp: {
+        title: 'Résumé WhatsApp — Pro & Business',
+        desc:  "Le partage instantané du résumé financier mensuel sur WhatsApp est réservé aux forfaits Pro et Business."
       }
     };
     const msg = MSGS[feature] || { title: 'Fonctionnalité réservée', desc: 'Cette fonctionnalité est disponible dans un forfait supérieur.' };
@@ -1991,6 +1999,9 @@ window.KivoApp = {
       document.addEventListener('click', (e) => {
         if (!e.target.closest('.phone-prefix-custom-picker')) {
           document.querySelectorAll('.phone-prefix-custom-picker.open').forEach(p => p.classList.remove('open'));
+        }
+        if (!e.target.closest('.export-dropdown-wrap')) {
+          document.querySelectorAll('.export-dropdown-menu').forEach(m => { m.style.display = 'none'; });
         }
       });
     }
@@ -7098,6 +7109,550 @@ window.KivoApp = {
     `;
   },
 
+  /**
+   * Formateur centralisé de dates en format JJ/MM/AAAA.
+   * Accepte string ISO, Date, timestamp ou falsy.
+   * @param {string|Date|number} dateStr
+   * @returns {string} Date formatée ou '-' si vide/invalide
+   */
+  fmtDate: function (dateStr) {
+    if (!dateStr) return '-';
+    try {
+      const d = (dateStr instanceof Date) ? dateStr : new Date(dateStr);
+      if (isNaN(d.getTime())) return '-';
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch (_) {
+      return '-';
+    }
+  },
+
+  /**
+   * Récupère la liste des documents correspondant au filtre et à la recherche actifs
+   * dans la vue documents (#view-documents).
+   * @returns {Array} Liste des documents filtrés
+   */
+  getFilteredDocuments: function () {
+    let docs = (this.state && this.state.documents) || [];
+    const activePill = document.querySelector('.doc-filter-pill-btn.active-pill');
+    const filter = activePill ? (activePill.dataset.filter || 'all') : 'all';
+    const searchInput = document.getElementById('doc-search-input');
+    const searchQuery = searchInput ? searchInput.value : '';
+
+    if (filter !== 'all') {
+      if (filter === 'invoice' || filter === 'quote') {
+        docs = docs.filter(d => d && d.type === filter);
+      } else if (filter === 'draft') {
+        docs = docs.filter(d => {
+          if (!d) return false;
+          const s = (d.status || '').toLowerCase().trim();
+          return s === 'draft' || s === 'brouillon';
+        });
+      } else if (filter === 'overdue') {
+        docs = docs.filter(d => {
+          if (!d) return false;
+          const s = (d.status || '').toLowerCase().trim();
+          if (s === 'overdue') return true;
+          const isPaid = s === 'paid' || s === 'payée' || s === 'payee';
+          const isDraft = s === 'draft' || s === 'brouillon';
+          if (d.type !== 'quote' && !isPaid && !isDraft && s !== 'refunded' && d.dueDate) {
+            try {
+              const dStr = String(d.dueDate);
+              const dt = new Date(dStr + (dStr.includes('T') ? '' : 'T23:59:59'));
+              return !isNaN(dt.getTime()) && dt < new Date();
+            } catch (_) {}
+          }
+          return false;
+        });
+      } else if (filter === 'paid') {
+        docs = docs.filter(d => {
+          if (!d) return false;
+          const s = (d.status || '').toLowerCase().trim();
+          return s === 'paid' || s === 'payée' || s === 'payee';
+        });
+      } else {
+        docs = docs.filter(d => d && (d.status || '').toLowerCase().trim() === filter.toLowerCase().trim());
+      }
+    }
+
+    if (searchQuery && searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase().trim();
+      docs = docs.filter(d =>
+        d && (
+          (d.number || '').toLowerCase().includes(q) ||
+          (d.clientName || '').toLowerCase().includes(q)
+        )
+      );
+    }
+    return docs;
+  },
+
+  /**
+   * Bascule l'affichage du menu déroulant d'export (Documents ou Clients).
+   * @param {'docs'|'clients'} scope
+   */
+  toggleExportDropdown: function (scope) {
+    const menuId = scope === 'clients' ? 'clients-export-menu' : 'docs-export-menu';
+    const menu = document.getElementById(menuId);
+    if (!menu) return;
+    const isVisible = menu.style.display === 'block';
+    this.closeExportDropdown();
+    if (!isVisible) {
+      menu.style.display = 'block';
+    }
+  },
+
+  /**
+   * Ferme les menus déroulants d'exportation.
+   * @param {'docs'|'clients'} [scope]
+   */
+  closeExportDropdown: function (scope) {
+    if (scope) {
+      const menuId = scope === 'clients' ? 'clients-export-menu' : 'docs-export-menu';
+      const menu = document.getElementById(menuId);
+      if (menu) menu.style.display = 'none';
+    } else {
+      const mDocs = document.getElementById('docs-export-menu');
+      const mClients = document.getElementById('clients-export-menu');
+      if (mDocs) mDocs.style.display = 'none';
+      if (mClients) mClients.style.display = 'none';
+    }
+  },
+
+  /**
+   * Export CSV des documents filtrés.
+   * Accessible à tous les forfaits (Gratuit, Pro, Business).
+   * Format UTF-8 avec BOM (\uFEFF) et séparateur point-virgule (;).
+   */
+  exportDocsCsv: function () {
+    const docs = this.getFilteredDocuments();
+    if (!docs || docs.length === 0) {
+      this.showToast('Aucun document à exporter.', 'warning');
+      return;
+    }
+
+    const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+    const headers = [
+      'Numéro',
+      'Type',
+      'Client',
+      'Date d\'émission',
+      'Échéance',
+      'Statut',
+      'Devise',
+      'Sous-total HT',
+      'Remise',
+      'TVA',
+      'Total TTC',
+      'Montant payé',
+      'Solde dû'
+    ];
+
+    const escapeCsv = (str) => {
+      const s = String(str == null ? '' : str);
+      return '"' + s.replace(/"/g, '""') + '"';
+    };
+
+    const rows = docs.map(d => {
+      const typeLabel = d.type === 'invoice' ? 'Facture' : (d.type === 'quote' ? 'Devis' : d.type || '-');
+      const s = (d.status || '').toLowerCase().trim();
+      const isPaid = s === 'paid' || s === 'payée' || s === 'payee';
+      const paid = Number(d.amountPaid != null ? d.amountPaid : (isPaid ? d.total : 0)) || 0;
+      const total = Number(d.total) || 0;
+      const balance = Math.max(0, total - paid);
+
+      return [
+        escapeCsv(d.number || '-'),
+        escapeCsv(typeLabel),
+        escapeCsv(d.clientName || '-'),
+        escapeCsv(this.fmtDate(d.createdAt || d.issueDate || d.date)),
+        escapeCsv(this.fmtDate(d.dueDate)),
+        escapeCsv(d.status || '-'),
+        escapeCsv(currency),
+        escapeCsv((Number(d.subtotal) || 0).toFixed(2)),
+        escapeCsv((Number(d.discount) || 0).toFixed(2)),
+        escapeCsv((Number(d.taxAmount) || 0).toFixed(2)),
+        escapeCsv(total.toFixed(2)),
+        escapeCsv(paid.toFixed(2)),
+        escapeCsv(balance.toFixed(2))
+      ].join(';');
+    });
+
+    const csvContent = [headers.map(escapeCsv).join(';'), ...rows].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    a.href = url;
+    a.download = `kivo-documents-${today}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    this.showToast('Export CSV téléchargé avec succès.', 'success');
+  },
+
+  /**
+   * Export Excel (.xlsx) des documents filtrés avec 2 feuilles : "Documents" et "Lignes".
+   * Réservé aux forfaits Pro et Business.
+   * Charge SheetJS (xlsx 0.18.5) dynamiquement au clic uniquement.
+   */
+  exportDocsExcel: function () {
+    if (!this.canUse('exportExcel')) {
+      this.showUpgradePrompt('exportExcel');
+      return;
+    }
+
+    const docs = this.getFilteredDocuments();
+    if (!docs || docs.length === 0) {
+      this.showToast('Aucun document à exporter.', 'warning');
+      return;
+    }
+
+    const runExport = () => {
+      try {
+        const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+
+        // Feuille 1 : Documents
+        const docsData = docs.map(d => {
+          const typeLabel = d.type === 'invoice' ? 'Facture' : (d.type === 'quote' ? 'Devis' : d.type || '-');
+          const s = (d.status || '').toLowerCase().trim();
+          const isPaid = s === 'paid' || s === 'payée' || s === 'payee';
+          const paid = Number(d.amountPaid != null ? d.amountPaid : (isPaid ? d.total : 0)) || 0;
+          const total = Number(d.total) || 0;
+          const balance = Math.max(0, total - paid);
+
+          return {
+            'Numéro': d.number || '-',
+            'Type': typeLabel,
+            'Client': d.clientName || '-',
+            'Date d\'émission': this.fmtDate(d.createdAt || d.issueDate || d.date),
+            'Échéance': this.fmtDate(d.dueDate),
+            'Statut': d.status || '-',
+            'Devise': currency,
+            'Sous-total HT': Number(d.subtotal) || 0,
+            'Remise': Number(d.discount) || 0,
+            'TVA': Number(d.taxAmount) || 0,
+            'Total TTC': total,
+            'Montant payé': paid,
+            'Solde dû': balance
+          };
+        });
+
+        // Feuille 2 : Lignes d'articles
+        const itemsData = [];
+        docs.forEach(d => {
+          const typeLabel = d.type === 'invoice' ? 'Facture' : (d.type === 'quote' ? 'Devis' : d.type || '-');
+          const items = Array.isArray(d.items) ? d.items : [];
+          items.forEach(it => {
+            const qty = Number(it.quantity) || 0;
+            const price = Number(it.unitPrice || it.price) || 0;
+            const tax = Number(it.taxRate != null ? it.taxRate : (d.taxRate != null ? d.taxRate : 0)) || 0;
+            const totalLine = Number(it.total != null ? it.total : (qty * price)) || 0;
+            itemsData.push({
+              'Numéro Document': d.number || '-',
+              'Type': typeLabel,
+              'Client': d.clientName || '-',
+              'Description': it.description || it.name || '-',
+              'Quantité': qty,
+              'Prix unitaire': price,
+              'TVA (%)': tax,
+              'Total ligne HT': totalLine
+            });
+          });
+        });
+
+        const wb = window.XLSX.utils.book_new();
+        const wsDocs = window.XLSX.utils.json_to_sheet(docsData);
+        window.XLSX.utils.book_append_sheet(wb, wsDocs, 'Documents');
+
+        if (itemsData.length > 0) {
+          const wsItems = window.XLSX.utils.json_to_sheet(itemsData);
+          window.XLSX.utils.book_append_sheet(wb, wsItems, 'Lignes');
+        }
+
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        window.XLSX.writeFile(wb, `kivo-documents-${today}.xlsx`);
+        this.showToast('Export Excel généré avec succès.', 'success');
+      } catch (err) {
+        console.error('[KivoApp] exportDocsExcel error:', err);
+        this.showToast("Erreur lors de la génération de l'export Excel.", 'error');
+      }
+    };
+
+    if (window.XLSX) {
+      runExport();
+    } else {
+      this.showToast('Chargement du module Excel...', 'info');
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      script.onload = () => runExport();
+      script.onerror = () => {
+        this.showToast("Impossible de charger le module d'export Excel. Vérifiez votre connexion.", 'error');
+      };
+      document.head.appendChild(script);
+    }
+  },
+
+  /**
+   * Export CSV des clients avec totaux financiers calculés.
+   * Accessible à tous les forfaits (Gratuit, Pro, Business).
+   */
+  exportClientsCsv: function () {
+    const clients = (this.state && this.state.clients) || [];
+    if (!clients || clients.length === 0) {
+      this.showToast('Aucun client à exporter.', 'warning');
+      return;
+    }
+
+    const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+    const docs = (this.state && this.state.documents) || [];
+
+    const headers = [
+      'Nom',
+      'Type',
+      'Entreprise / Raison sociale',
+      'N° fiscal / SIRET',
+      'Email',
+      'Téléphone',
+      'Adresse',
+      'Total Facturé',
+      'Total Encaissé',
+      'Solde dû',
+      'Devise'
+    ];
+
+    const escapeCsv = (str) => {
+      const s = String(str == null ? '' : str);
+      return '"' + s.replace(/"/g, '""') + '"';
+    };
+
+    const rows = clients.map(c => {
+      const clientDocs = docs.filter(d => d.clientId === c.id || d.clientName === c.name);
+      const totalInvoiced = clientDocs.reduce((sum, d) => sum + (Number(d.total) || 0), 0);
+      const totalPaid = clientDocs
+        .filter(d => {
+          const s = (d.status || '').toLowerCase().trim();
+          return s === 'paid' || s === 'payée' || s === 'payee' || s === 'accepted';
+        })
+        .reduce((sum, d) => sum + (Number(d.amountPaid != null ? d.amountPaid : d.total) || 0), 0);
+      const balanceDue = Math.max(0, totalInvoiced - totalPaid);
+
+      return [
+        escapeCsv(c.name || '-'),
+        escapeCsv(c.clientType || 'B2B'),
+        escapeCsv(c.company || '-'),
+        escapeCsv(c.taxId || '-'),
+        escapeCsv(c.email || '-'),
+        escapeCsv(c.phone || '-'),
+        escapeCsv(c.address || '-'),
+        escapeCsv(totalInvoiced.toFixed(2)),
+        escapeCsv(totalPaid.toFixed(2)),
+        escapeCsv(balanceDue.toFixed(2)),
+        escapeCsv(currency)
+      ].join(';');
+    });
+
+    const csvContent = [headers.map(escapeCsv).join(';'), ...rows].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    a.href = url;
+    a.download = `kivo-clients-${today}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    this.showToast('Export clients CSV téléchargé.', 'success');
+  },
+
+  /**
+   * Export Excel (.xlsx) des clients avec totaux financiers.
+   * Réservé aux forfaits Pro et Business.
+   */
+  exportClientsExcel: function () {
+    if (!this.canUse('exportExcel')) {
+      this.showUpgradePrompt('exportExcel');
+      return;
+    }
+
+    const clients = (this.state && this.state.clients) || [];
+    if (!clients || clients.length === 0) {
+      this.showToast('Aucun client à exporter.', 'warning');
+      return;
+    }
+
+    const runExport = () => {
+      try {
+        const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+        const docs = (this.state && this.state.documents) || [];
+
+        const clientsData = clients.map(c => {
+          const clientDocs = docs.filter(d => d.clientId === c.id || d.clientName === c.name);
+          const totalInvoiced = clientDocs.reduce((sum, d) => sum + (Number(d.total) || 0), 0);
+          const totalPaid = clientDocs
+            .filter(d => {
+              const s = (d.status || '').toLowerCase().trim();
+              return s === 'paid' || s === 'payée' || s === 'payee' || s === 'accepted';
+            })
+            .reduce((sum, d) => sum + (Number(d.amountPaid != null ? d.amountPaid : d.total) || 0), 0);
+          const balanceDue = Math.max(0, totalInvoiced - totalPaid);
+
+          return {
+            'Nom': c.name || '-',
+            'Type': c.clientType || 'B2B',
+            'Entreprise / Raison sociale': c.company || '-',
+            'N° fiscal / SIRET': c.taxId || '-',
+            'Email': c.email || '-',
+            'Téléphone': c.phone || '-',
+            'Adresse': c.address || '-',
+            'Total Facturé': totalInvoiced,
+            'Total Encaissé': totalPaid,
+            'Solde dû': balanceDue,
+            'Devise': currency
+          };
+        });
+
+        const wb = window.XLSX.utils.book_new();
+        const wsClients = window.XLSX.utils.json_to_sheet(clientsData);
+        window.XLSX.utils.book_append_sheet(wb, wsClients, 'Clients');
+
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        window.XLSX.writeFile(wb, `kivo-clients-${today}.xlsx`);
+        this.showToast('Export clients Excel généré avec succès.', 'success');
+      } catch (err) {
+        console.error('[KivoApp] exportClientsExcel error:', err);
+        this.showToast("Erreur lors de la génération de l'export Excel.", 'error');
+      }
+    };
+
+    if (window.XLSX) {
+      runExport();
+    } else {
+      this.showToast('Chargement du module Excel...', 'info');
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      script.onload = () => runExport();
+      script.onerror = () => {
+        this.showToast("Impossible de charger le module d'export Excel.", 'error');
+      };
+      document.head.appendChild(script);
+    }
+  },
+
+  /**
+   * Envoi synchrone du résumé financier sur WhatsApp (fuseau Africa/Brazzaville).
+   * Réservé aux forfaits Pro et Business.
+   */
+  sendAnalyticsSummaryWhatsApp: function () {
+    const plan = this.getPlan();
+    if (plan.isGratuit || (!plan.isPro && !plan.isBusiness)) {
+      this.showUpgradePrompt('analyticsWhatsApp');
+      return;
+    }
+
+    // Fuseau Africa/Brazzaville
+    const nowBrazza = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Brazzaville' }));
+    const curYear = nowBrazza.getFullYear();
+    const curMonth = nowBrazza.getMonth(); // 0-11
+    const mNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    const monthLabel = `${mNames[curMonth]} ${curYear}`;
+    const todayStr = this.fmtDate(nowBrazza);
+
+    const docs = (this.state && this.state.documents) || [];
+    const biz = (this.state && this.state.business) || {};
+    const bizName = biz.name || biz.companyName || 'Mon Entreprise';
+    const currency = biz.currency || 'FCFA';
+
+    // Documents du mois en cours
+    const monthDocs = docs.filter(d => {
+      const raw = d.createdAt || d.issueDate || d.date;
+      if (!raw) return false;
+      const dt = new Date(raw);
+      if (isNaN(dt.getTime())) return false;
+      return dt.getFullYear() === curYear && dt.getMonth() === curMonth;
+    });
+
+    const isPaidDoc = (d) => {
+      const s = (d.status || '').toLowerCase().trim();
+      return s === 'paid' || s === 'payée' || s === 'payee';
+    };
+
+    const isOverdueDoc = (d) => {
+      const s = (d.status || '').toLowerCase().trim();
+      if (s === 'overdue') return true;
+      if (d.type !== 'quote' && !isPaidDoc(d) && s !== 'draft' && s !== 'brouillon' && s !== 'refunded' && d.dueDate) {
+        try {
+          const dt = new Date(d.dueDate);
+          return !isNaN(dt.getTime()) && dt < nowBrazza;
+        } catch (_) {}
+      }
+      return false;
+    };
+
+    // Priorité au mois courant, sinon statistiques globales si mois vide
+    const useAllTime = monthDocs.length === 0 && docs.length > 0;
+    const targetDocs = useAllTime ? docs : monthDocs;
+    const periodHeader = useAllTime ? `Global (au ${todayStr})` : `${monthLabel} (au ${todayStr})`;
+
+    const invoices = targetDocs.filter(d => d.type === 'invoice');
+    const quotes   = targetDocs.filter(d => d.type === 'quote');
+
+    let totalInvoiced = 0;
+    let totalPaid = 0;
+    let paidCount = 0;
+    let overdueCount = 0;
+
+    invoices.forEach(inv => {
+      const tot = Number(inv.total) || 0;
+      totalInvoiced += tot;
+      if (isPaidDoc(inv)) {
+        totalPaid += (Number(inv.amountPaid != null ? inv.amountPaid : tot) || tot);
+        paidCount++;
+      } else {
+        totalPaid += (Number(inv.amountPaid) || 0);
+        if (isOverdueDoc(inv)) overdueCount++;
+      }
+    });
+
+    const pendingBalance = Math.max(0, totalInvoiced - totalPaid);
+    const recoveryRate = totalInvoiced > 0 ? Math.round((totalPaid / totalInvoiced) * 100) : (paidCount > 0 ? 100 : 0);
+
+    const acceptedQuotes = quotes.filter(q => {
+      const s = (q.status || '').toLowerCase().trim();
+      return s === 'accepted' || s === 'converted' || s === 'accepté';
+    }).length;
+    const quoteConvRate = quotes.length > 0 ? Math.round((acceptedQuotes / quotes.length) * 100) : 0;
+
+    const fmtMoney = (val) => {
+      return (Number(val) || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+    };
+
+    const msg = [
+      `📊 *RÉSUMÉ D'ACTIVITÉ KIVO MATIQUE*`,
+      `🏢 Entreprise : *${bizName}*`,
+      `📅 Période : *${periodHeader}*`,
+      ``,
+      `💰 *Chiffre d'Affaires & Facturation*`,
+      `• Total facturé : *${fmtMoney(totalInvoiced)} ${currency}*`,
+      `• Total encaissé : *${fmtMoney(totalPaid)} ${currency}*`,
+      `• Reste à recouvrer : *${fmtMoney(pendingBalance)} ${currency}*`,
+      `• Taux de recouvrement : *${recoveryRate}%*`,
+      ``,
+      `📑 *Documents émis*`,
+      `• Factures : *${invoices.length}* (${paidCount} payée${paidCount > 1 ? 's' : ''}, ${overdueCount} en retard)`,
+      `• Devis : *${quotes.length}* (${acceptedQuotes} accepté${acceptedQuotes > 1 ? 's' : ''} · ${quoteConvRate}% conversion)`,
+      ``,
+      `✨ _Généré avec KIVO MATIQUE — L'assistant commercial des entreprises_`
+    ].join('\n');
+
+    // Ouverture synchrone dans le gestionnaire de clic
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  },
+
   switchAuthTab: function (tab) {
     const tabLogin = document.getElementById('auth-tab-login');
     const tabRegister = document.getElementById('auth-tab-register');
@@ -11050,6 +11605,8 @@ window.KivoApp = {
     window.open(`https://wa.me/242068286376?text=${encoded}`, '_blank');
   }
 };
+
+window.app = window.KivoApp;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
