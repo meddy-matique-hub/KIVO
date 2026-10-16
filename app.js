@@ -1037,6 +1037,17 @@ window.KivoApp = {
       anchorTarget = rawView;
     }
 
+    // Gestion des sous-onglets de la page Profil (#settings/identite, #settings/securite, etc.)
+    let settingsSubTab = null;
+    if (rawView === 'settings' || rawView.startsWith('settings/') || rawView.startsWith('settings-')) {
+      viewName = 'settings';
+      const parts = rawView.split(/[/_-]/);
+      if (parts.length > 1 && parts[1]) {
+        settingsSubTab = parts[1].toLowerCase();
+      }
+      this._settingsPendingSubTab = settingsSubTab;
+    }
+
     const publicViews = ['landing', 'auth', 'public-doc', 'pricing'];
     const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'services', 'products-services', 'catalog', 'reminders', 'analytics', 'settings', 'ai', 'team', 'integrations'];
     const validViews = [...publicViews, ...appViews, 'onboarding'];
@@ -2082,7 +2093,8 @@ window.KivoApp = {
         this.renderPublicDocView();
         break;
       case 'settings':
-        this.renderSettings();
+        this.renderSettings(this._settingsPendingSubTab);
+        this._settingsPendingSubTab = null;
         break;
       case 'ai':
         this.renderAiPage();
@@ -8611,7 +8623,7 @@ window.KivoApp = {
     this.showToast(this._t('toast_plan_activated').replace('{plan}', tier), "success");
   },
 
-  renderSettings: function () {
+  renderSettings: function (subTab) {
     const biz = this.state.business || {};
 
     // 1. Informations personnelles
@@ -8652,11 +8664,9 @@ window.KivoApp = {
     if (document.getElementById('setting-biz-secondary-color')) document.getElementById('setting-biz-secondary-color').value = secCol;
     if (document.getElementById('setting-biz-secondary-color-text')) document.getElementById('setting-biz-secondary-color-text').value = secCol;
 
-    // 4. Fiscalité & Facturation & Légal
-    if (document.getElementById('setting-biz-rccm')) document.getElementById('setting-biz-rccm').value = biz.rccm || '';
-    if (document.getElementById('setting-biz-niu')) document.getElementById('setting-biz-niu').value = biz.niu || '';
-    if (document.getElementById('setting-biz-taxid')) document.getElementById('setting-biz-taxid').value = biz.taxId || '';
-    if (document.getElementById('setting-biz-vat-num')) document.getElementById('setting-biz-vat-num').value = biz.vatNumber || '';
+    // 4. Fiscalité & Facturation & Légal (rendu dynamique selon pays & statut juridique)
+    this.renderProfileLegalCard(biz);
+
     if (document.getElementById('setting-biz-vat')) document.getElementById('setting-biz-vat').value = biz.defaultVatRate !== undefined ? biz.defaultVatRate : (biz.currency === 'FCFA' ? 18 : 20);
     if (document.getElementById('setting-biz-website')) document.getElementById('setting-biz-website').value = biz.website || '';
     if (document.getElementById('setting-biz-prefix')) document.getElementById('setting-biz-prefix').value = biz.invoicePrefix || "FAC-2026-";
@@ -8711,7 +8721,7 @@ window.KivoApp = {
       profileSizeControls.style.display = 'none';
     }
 
-    // Status pill
+    // Status pill & plan badges
     const plan = this.getPlan();
     const statusBadge = document.getElementById('profile-status-badge');
     if (statusBadge) statusBadge.textContent = 'Compte Actif';
@@ -8722,6 +8732,9 @@ window.KivoApp = {
     const planStatusName = document.getElementById('profile-plan-status-name');
     if (planStatusName) planStatusName.textContent = `Forfait ${plan.name.toUpperCase()}`;
 
+    const headerPlanText = document.getElementById('profile-header-plan-text');
+    if (headerPlanText) headerPlanText.textContent = `Forfait ${plan.name.toUpperCase()}`;
+
     // Sticky save bar status & dirty watcher
     const statusText = document.getElementById('profile-save-status-text');
     const statusDot = document.getElementById('profile-status-dot');
@@ -8730,6 +8743,189 @@ window.KivoApp = {
     if (statusDot) statusDot.classList.remove('dirty');
     if (stickyBar) stickyBar.classList.remove('visible');
     this.initProfileDirtyWatcher();
+
+    // Activer l'onglet demandé ou "identity" par défaut
+    this.switchProfileTab(subTab || 'identity', false);
+  },
+
+  /**
+   * Rendu dynamique de la carte Mentions Légales selon le pays et le statut (Particulier / Entreprise)
+   */
+  renderProfileLegalCard: function (biz) {
+    biz = biz || (this.state && this.state.business) || {};
+    const container = document.getElementById('profile-legal-fields-container');
+    const descEl = document.getElementById('profile-legal-desc');
+    const nameLabel = document.getElementById('setting-biz-name-label');
+    
+    // Détection du type de compte (Particulier / Indépendant vs Entreprise)
+    const isIndependant = biz.profileType === 'Independant' || 
+                          biz.profileType === 'Particulier' || 
+                          biz.type === 'particulier' || 
+                          biz.type === 'independant';
+
+    if (nameLabel) {
+      nameLabel.textContent = isIndependant ? "Nom commercial (facultatif)" : "Raison sociale / Nom commercial *";
+    }
+
+    if (!container) return;
+
+    if (isIndependant) {
+      if (descEl) descEl.textContent = "Identifiant fiscal ou numéro d'enregistrement (facultatif pour les particuliers & indépendants).";
+      container.innerHTML = `
+        <div class="profile-form-group" style="grid-column: 1 / -1;">
+          <label class="profile-label" for="setting-biz-taxid">Numéro d'identification (facultatif)</label>
+          <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: NIF, NINA ou identifiant personnel" value="${this.escapeHtml(biz.taxId || '')}">
+        </div>
+      `;
+      return;
+    }
+
+    // Compte entreprise : adapter selon le pays
+    const country = (biz.country || '').toLowerCase();
+    
+    if (country.includes('congo') && !country.includes('rdc') && !country.includes('kinshasa') && !country.includes('démocratique')) {
+      // République du Congo (Brazzaville) : RCCM + NIU (pas de mention générique OHADA)
+      if (descEl) descEl.textContent = "Identifiants officiels d'immatriculation en République du Congo.";
+      container.innerHTML = `
+        <div class="profile-form-group">
+          <label class="profile-label" for="setting-biz-rccm">Numéro RCCM *</label>
+          <input type="text" id="setting-biz-rccm" class="profile-input" placeholder="Ex: CG-BZV-01-2024-B12-00000" value="${this.escapeHtml(biz.rccm || '')}">
+        </div>
+        <div class="profile-form-group">
+          <label class="profile-label" for="setting-biz-niu">Numéro NIU (Numéro d'Identification Unique) *</label>
+          <input type="text" id="setting-biz-niu" class="profile-input" placeholder="Ex: M000000000000" value="${this.escapeHtml(biz.niu || '')}">
+        </div>
+      `;
+    } else if (country.includes('rdc') || country.includes('kinshasa') || country.includes('démocratique')) {
+      // RDC : RCCM + Id. Nat. + NIF
+      if (descEl) descEl.textContent = "Identifiants d'immatriculation en République Démocratique du Congo.";
+      container.innerHTML = `
+        <div class="profile-form-group">
+          <label class="profile-label" for="setting-biz-rccm">Numéro RCCM *</label>
+          <input type="text" id="setting-biz-rccm" class="profile-input" placeholder="Ex: CD/KNG/RCCM/..." value="${this.escapeHtml(biz.rccm || '')}">
+        </div>
+        <div class="profile-form-group">
+          <label class="profile-label" for="setting-biz-taxid">Identification Nationale (Id. Nat.) *</label>
+          <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: 01-83-N00000" value="${this.escapeHtml(biz.taxId || '')}">
+        </div>
+        <div class="profile-form-group">
+          <label class="profile-label" for="setting-biz-niu">Numéro Impôt (NIF) *</label>
+          <input type="text" id="setting-biz-niu" class="profile-input" placeholder="Ex: A0000000X" value="${this.escapeHtml(biz.niu || '')}">
+        </div>
+      `;
+    } else if (country.includes('sénégal') || country.includes('senegal')) {
+      // Sénégal : NINEA + RCCM
+      if (descEl) descEl.textContent = "Identifiants officiels d'immatriculation au Sénégal.";
+      container.innerHTML = `
+        <div class="profile-form-group">
+          <label class="profile-label" for="setting-biz-niu">NINEA *</label>
+          <input type="text" id="setting-biz-niu" class="profile-input" placeholder="Ex: 000000000 2V2" value="${this.escapeHtml(biz.niu || '')}">
+        </div>
+        <div class="profile-form-group">
+          <label class="profile-label" for="setting-biz-rccm">Numéro RCCM *</label>
+          <input type="text" id="setting-biz-rccm" class="profile-input" placeholder="Ex: SN-DKR-2024-B-0000" value="${this.escapeHtml(biz.rccm || '')}">
+        </div>
+      `;
+    } else if (country.includes('côte') || country.includes('cote') || country.includes("d'ivoire") || country.includes('ivoire')) {
+      // Côte d'Ivoire : RCCM + CC (Compte Contribuable)
+      if (descEl) descEl.textContent = "Identifiants d'immatriculation en Côte d'Ivoire.";
+      container.innerHTML = `
+        <div class="profile-form-group">
+          <label class="profile-label" for="setting-biz-rccm">Numéro RCCM *</label>
+          <input type="text" id="setting-biz-rccm" class="profile-input" placeholder="Ex: CI-ABJ-03-2024-B12-00000" value="${this.escapeHtml(biz.rccm || '')}">
+        </div>
+        <div class="profile-form-group">
+          <label class="profile-label" for="setting-biz-niu">Compte Contribuable (CC) *</label>
+          <input type="text" id="setting-biz-niu" class="profile-input" placeholder="Ex: 0000000 X" value="${this.escapeHtml(biz.niu || '')}">
+        </div>
+      `;
+    } else if (country.includes('france')) {
+      // France : SIRET + TVA intracommunautaire
+      if (descEl) descEl.textContent = "Identifiants légaux et fiscaux en France.";
+      container.innerHTML = `
+        <div class="profile-form-group">
+          <label class="profile-label" for="setting-biz-taxid">Numéro SIRET (14 chiffres) *</label>
+          <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: 123 456 789 00012" value="${this.escapeHtml(biz.taxId || '')}">
+        </div>
+        <div class="profile-form-group">
+          <label class="profile-label" for="setting-biz-vat-num">N° TVA Intracommunautaire</label>
+          <input type="text" id="setting-biz-vat-num" class="profile-input" placeholder="Ex: FR 00 123456789" value="${this.escapeHtml(biz.vatNumber || '')}">
+        </div>
+      `;
+    } else {
+      // Autres pays : Numéro fiscal / Tax ID générique
+      if (descEl) descEl.textContent = "Identifiants légaux et fiscaux officiels de votre entreprise.";
+      container.innerHTML = `
+        <div class="profile-form-group">
+          <label class="profile-label" for="setting-biz-taxid">Numéro fiscal / Tax ID</label>
+          <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: Tax ID / N° d'immatriculation" value="${this.escapeHtml(biz.taxId || '')}">
+        </div>
+        <div class="profile-form-group">
+          <label class="profile-label" for="setting-biz-vat-num">Numéro de TVA / Taxe locale</label>
+          <input type="text" id="setting-biz-vat-num" class="profile-input" placeholder="Ex: N° TVA locale (facultatif)" value="${this.escapeHtml(biz.vatNumber || '')}">
+        </div>
+      `;
+    }
+  },
+
+  /**
+   * Navigation exclusive entre les 9 onglets de la page Profil
+   * @param {string} tabKey - Clé ou slug de l'onglet
+   * @param {boolean} pushHash - Mettre à jour l'URL hash ou non
+   */
+  switchProfileTab: function (tabKey, pushHash = true) {
+    const tabMap = {
+      'identity': { id: 'card-profile-identity', slug: 'identite', key: 'identity' },
+      'identite': { id: 'card-profile-identity', slug: 'identite', key: 'identity' },
+      'contact': { id: 'card-profile-contact', slug: 'coordonnees', key: 'contact' },
+      'coordonnees': { id: 'card-profile-contact', slug: 'coordonnees', key: 'contact' },
+      'legal': { id: 'card-profile-legal', slug: 'legal', key: 'legal' },
+      'billing': { id: 'card-profile-billing', slug: 'facturation', key: 'billing' },
+      'facturation': { id: 'card-profile-billing', slug: 'facturation', key: 'billing' },
+      'payments': { id: 'card-profile-payments', slug: 'paiements', key: 'payments' },
+      'paiements': { id: 'card-profile-payments', slug: 'paiements', key: 'payments' },
+      'appearance': { id: 'card-profile-appearance', slug: 'apparence', key: 'appearance' },
+      'apparence': { id: 'card-profile-appearance', slug: 'apparence', key: 'appearance' },
+      'notifications': { id: 'card-profile-notifications', slug: 'notifications', key: 'notifications' },
+      'security': { id: 'card-profile-security', slug: 'securite', key: 'security' },
+      'securite': { id: 'card-profile-security', slug: 'securite', key: 'security' },
+      'plan': { id: 'card-profile-plan', slug: 'forfait', key: 'plan' },
+      'forfait': { id: 'card-profile-plan', slug: 'forfait', key: 'plan' }
+    };
+
+    const target = (tabKey && tabMap[tabKey.toLowerCase()]) || tabMap['identity'];
+
+    // Cacher toutes les cartes du profil
+    const allCards = document.querySelectorAll('.profile-card');
+    allCards.forEach(card => {
+      card.style.display = 'none';
+      card.style.opacity = '0';
+    });
+
+    // Afficher la carte sélectionnée avec fondu 150ms
+    const activeCard = document.getElementById(target.id);
+    if (activeCard) {
+      activeCard.style.display = 'block';
+      setTimeout(() => {
+        activeCard.style.opacity = '1';
+      }, 20);
+    }
+
+    // Mettre à jour la pastille active dans le menu de gauche
+    document.querySelectorAll('.profile-nav-link').forEach(link => {
+      const linkTab = link.getAttribute('data-tab');
+      link.classList.toggle('active', linkTab === target.key);
+    });
+
+    // Mettre à jour l'URL hash sans rechargement de page
+    if (pushHash) {
+      const newHash = `#settings/${target.slug}`;
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', newHash);
+      } else {
+        window.location.hash = newHash;
+      }
+    }
   },
 
   initProfileDirtyWatcher: function () {
