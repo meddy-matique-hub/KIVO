@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=3.16">
+  <link rel="stylesheet" href="styles.css?v=3.17">
 </head>
 <body>
 
@@ -258,16 +258,16 @@
                 <!-- Left: Headline & CTA -->
                 <div class="kivo-hero-text" data-animate>
                   <h1 class="kivo-hero-headline">
-                    <span class="kivo-hero-headline-static">Créez vos factures</span>
-                    <span class="kivo-hero-headline-accent">en 30 secondes.</span>
+                    <span class="kivo-hero-headline-static">FACTURATION ET</span>
+                    <span class="kivo-hero-headline-accent">GESTION COMMERCIALE</span>
                   </h1>
-                  <p>Puis gérez votre activité commerciale à partir de vos factures : suivez vos clients, vos paiements et vos ventes, au même endroit.</p>
+                  <p>Créez vos factures, devis et gérez votre activité commerciale au même endroit — clients, paiements, statistiques et ventes.</p>
                   <div class="kivo-hero-facts">
                     <span class="kivo-hero-fact-pill"><span class="dot"></span>Export PDF A4 haute définition</span>
                     <span class="kivo-hero-fact-pill"><span class="dot"></span>Partage WhatsApp en 1 clic</span>
                   </div>
                   <a href="#auth" class="btn btn-hero-cta">
-                    <span>Commencer gratuitement</span>
+                    <span>COMMENCER GRATUITEMENT</span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                   </a>
                   <p class="kivo-cta-badge">
@@ -868,9 +868,14 @@
 
         <!-- ==================== AUTH VIEW (CONNEXION & INSCRIPTION) ==================== -->
         <section id="view-auth" class="view-section" style="display: none;">
-          <div class="auth-page-card" style="max-width: 480px; margin: 3rem auto; background: var(--bg-card); border-radius: var(--radius-xl); border: 1px solid var(--border-color); padding: 2.5rem; box-shadow: var(--shadow-xl);">
+          <div class="auth-page-card">
             <div style="text-align: center; margin-bottom: 2rem;">
-              <div class="brand-logo-icon" style="width: 50px; height: 50px; font-size: 1.5rem; margin: 0 auto 0.75rem auto;">K</div>
+              <div class="kivo-auth-brand-badge" aria-label="Logo KIVO MATIQUE">
+                <svg width="34" height="34" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7 6L14 16L7 26" stroke="rgba(255,255,255,0.7)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 6L23 16L16 26" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
               <h2 id="auth-main-title">Espace Client KIVO</h2>
               <p id="auth-main-subtitle" style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem;">Accédez à votre assistant commercial & facturation.</p>
             </div>
@@ -974,9 +979,14 @@
 
         <!-- ==================== RESET PASSWORD VIEW ==================== -->
         <section id="view-reset-password" class="view-section" style="display: none;">
-          <div style="max-width: 480px; margin: 3rem auto; background: var(--bg-card); border-radius: var(--radius-xl); border: 1px solid var(--border-color); padding: 2.5rem; box-shadow: var(--shadow-xl);">
+          <div class="auth-page-card">
             <div style="text-align: center; margin-bottom: 2rem;">
-              <div class="brand-logo-icon" style="width: 50px; height: 50px; font-size: 1.5rem; margin: 0 auto 0.75rem auto; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fff; border-radius: 12px; font-weight: 800;">K</div>
+              <div class="kivo-auth-brand-badge" aria-label="Logo KIVO MATIQUE">
+                <svg width="34" height="34" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7 6L14 16L7 26" stroke="rgba(255,255,255,0.7)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 6L23 16L16 26" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
               <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.35rem;">Nouveau mot de passe</h2>
               <p style="color: var(--text-secondary); font-size: 0.9rem;">Définissez un mot de passe sécurisé pour accéder à votre espace KIVO MATIQUE.</p>
             </div>
@@ -3024,7 +3034,7 @@
               </div>
               <div class="profile-header-plan-badge" id="profile-header-plan-badge" style="background: rgba(255, 255, 255, 0.18); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.35); color: #FFFFFF; padding: 6px 14px; border-radius: 9999px; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                <span id="profile-header-plan-text">FORFAIT PRO</span>
+                <span id="profile-header-plan-text">FORFAIT GRATUIT</span>
               </div>
             </div>
 
@@ -3045,7 +3055,7 @@
                     <div class="profile-mini-meta">
                       <h4 id="profile-id-name-display">Mon Compte</h4>
                       <p id="profile-id-email-display">compte@kivo.com</p>
-                      <span id="settings-current-plan-badge" class="profile-plan-pill" onclick="KivoApp.navigate('pricing')" title="Cliquez pour voir les forfaits">FORFAIT PRO</span>
+                      <span id="settings-current-plan-badge" class="profile-plan-pill" onclick="KivoApp.navigate('pricing')" title="Cliquez pour voir les forfaits">FORFAIT GRATUIT</span>
                     </div>
                   </div>
 
@@ -3429,7 +3439,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md); flex-wrap: wrap; gap: 1rem;">
                       <div>
                         <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Plan en cours</div>
-                        <div style="font-size: 1.4rem; font-weight: 800; color: #1E3A8A; margin: 0.2rem 0;" id="profile-plan-status-name">Forfait PRO</div>
+                        <div style="font-size: 1.4rem; font-weight: 800; color: #1E3A8A; margin: 0.2rem 0;" id="profile-plan-status-name">Forfait GRATUIT</div>
                         <div style="font-size: 0.84rem; color: var(--text-secondary);">Facturation illimitée, IA, devis & relances WhatsApp.</div>
                       </div>
 
@@ -4389,7 +4399,7 @@
   <script defer src="js/whatsapp-helper.js?v=3.3"></script>
   <script defer src="js/i18n.js?v=1.1"></script>
   <script defer src="js/doc-templates.js?v=3.5"></script>
-  <script defer src="app.js?v=3.31"></script>
+  <script defer src="app.js?v=3.32"></script>
 </body>
 </html>
 
