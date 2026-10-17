@@ -3707,90 +3707,246 @@ window.KivoApp = {
 
   /**
    * Adds a line item row in builder with multiline designation, unit, discount %, and row reordering
+  /**
+   * Helper pour obtenir le taux de TVA par défaut du profil (0 si vide)
    */
-  addBuilderLineItem: function (name = '', qty = 1, price = '', tax = 0, unit = '', discount = 0) {
-    const tbody = document.getElementById('builder-items-tbody');
-    if (!tbody) return;
+  getDefaultVatRate: function () {
+    const biz = (this.state && this.state.business) || {};
+    if (biz.defaultVatRate !== undefined && biz.defaultVatRate !== null && biz.defaultVatRate !== '') {
+      const val = parseFloat(String(biz.defaultVatRate).replace(',', '.'));
+      return isNaN(val) ? 0 : val;
+    }
+    if (biz.taxRate !== undefined && biz.taxRate !== null && biz.taxRate !== '') {
+      const val = parseFloat(String(biz.taxRate).replace(',', '.'));
+      return isNaN(val) ? 0 : val;
+    }
+    return 0;
+  },
 
-    const rowId = 'row_' + Math.random().toString(36).substring(2, 7);
-    const tr = document.createElement('tr');
-    tr.id = rowId;
+  /**
+   * Génère les options de TVA dynamiques pour une ligne d'article
+   * Supporte 0%, 5%, 10%, 18%, 19.25%, et ajoute tout taux existant absent
+   */
+  renderTaxOptionsHtml: function (currentTax) {
+    let parsedTax = 0;
+    if (currentTax !== undefined && currentTax !== null && currentTax !== '') {
+      parsedTax = parseFloat(String(currentTax).replace(',', '.').replace('%', '').trim());
+      if (isNaN(parsedTax)) parsedTax = 0;
+    }
 
-    const lockedClass = this._isBuilderLocked ? ' builder-input-locked' : '';
-    const lockedDisabled = this._isBuilderLocked ? ' disabled' : '';
+    const standardRates = [
+      { val: 0, label: '0 %' },
+      { val: 5, label: '5 %' },
+      { val: 10, label: '10 %' },
+      { val: 18, label: '18 %' },
+      { val: 19.25, label: '19,25 %' }
+    ];
 
-    tr.innerHTML = `
-      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem;">
-        <textarea class="form-input item-name${lockedClass}" rows="1" placeholder="Désignation du service ou produit (supporte plusieurs lignes)" oninput="KivoApp.updateLiveInvoicePreview()" style="width: 100%; padding: 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; resize: vertical; box-sizing: border-box;"${lockedDisabled}>${name}</textarea>
-      </td>
-      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem; width: 9%;">
-        <input type="number" class="form-input item-qty${lockedClass}" value="${qty}" min="0.01" step="any" oninput="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: center; box-sizing: border-box;"${lockedDisabled}>
-      </td>
-      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem; width: 9%;">
-        <input type="text" class="form-input item-unit${lockedClass}" value="${unit || ''}" placeholder="j, h, u..." oninput="KivoApp.updateLiveInvoicePreview()" style="width: 100%; padding: 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: center; box-sizing: border-box;"${lockedDisabled}>
-      </td>
-      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem; width: 16%;">
-        <input type="number" class="form-input item-price${lockedClass}" value="${price}" min="0" step="any" oninput="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: right; box-sizing: border-box;"${lockedDisabled}>
-      </td>
-      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem; width: 9%;">
-        <select class="form-select item-tax${lockedClass}" onchange="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; box-sizing: border-box;"${lockedDisabled}>
-          <option value="0" ${tax == 0 ? 'selected' : ''}>0%</option>
-          <option value="18" ${tax == 18 ? 'selected' : ''}>18%</option>
-          <option value="20" ${tax == 20 ? 'selected' : ''}>20%</option>
-          <option value="10" ${tax == 10 ? 'selected' : ''}>10%</option>
-          <option value="5" ${tax == 5 ? 'selected' : ''}>5%</option>
-        </select>
-      </td>
-      <td style="padding-bottom: 0.5rem; padding-right: 0.5rem; width: 9%;">
-        <input type="number" class="form-input item-discount${lockedClass}" value="${discount || 0}" min="0" max="100" placeholder="0%" oninput="KivoApp.recalculateBuilderTotals()" style="width: 100%; padding: 0.55rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif; text-align: center; box-sizing: border-box;"${lockedDisabled}>
-      </td>
-      <td style="text-align: right; vertical-align: middle; padding-bottom: 0.5rem; width: 14%;">
-        <strong class="item-total-display" style="font-size: 0.95rem; color: #0F172A;">0 FCFA</strong>
-      </td>
-      <td style="text-align: center; vertical-align: middle; padding-bottom: 0.5rem; width: 10%;">
-        <div style="display: inline-flex; align-items: center; gap: 2px;">
-          <button type="button" class="btn-line-action" onclick="KivoApp.moveBuilderLineItem(this, -1)" title="Monter la ligne"${lockedDisabled}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
-          </button>
-          <button type="button" class="btn-line-action" onclick="KivoApp.moveBuilderLineItem(this, 1)" title="Descendre la ligne"${lockedDisabled}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <button type="button" class="btn-line-action btn-line-delete" onclick="KivoApp.removeBuilderLineItem(this)" title="Supprimer la ligne"${lockedDisabled}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      </td>
-    `;
+    let matched = false;
+    let optionsHtml = '';
 
-    tbody.appendChild(tr);
+    standardRates.forEach(r => {
+      const isSel = Math.abs(r.val - parsedTax) < 0.001;
+      if (isSel) matched = true;
+      optionsHtml += `<option value="${r.val}" ${isSel ? 'selected' : ''}>${r.label}</option>`;
+    });
+
+    // Si le taux du document / profil est absent des taux standards (ex: 20%, 7.5%, etc.)
+    if (!matched && parsedTax >= 0) {
+      const labelCustom = `${parsedTax.toString().replace('.', ',')} %`;
+      optionsHtml = `<option value="${parsedTax}" selected>${labelCustom}</option>` + optionsHtml;
+    }
+
+    optionsHtml += `<option value="__custom__">Autre…</option>`;
+    return optionsHtml;
+  },
+
+  /**
+   * Gestion du changement de TVA, y compris saisie d'un taux personnalisé via "Autre…"
+   */
+  onItemTaxChange: function (select) {
+    if (!select) return;
+    if (select.value === '__custom__') {
+      const userRate = prompt("Entrez le taux de TVA personnalisé (en %) :", "19.25");
+      if (userRate !== null && userRate.trim() !== '') {
+        const parsed = parseFloat(userRate.replace(',', '.').replace('%', '').trim());
+        if (!isNaN(parsed) && parsed >= 0) {
+          let opt = Array.from(select.options).find(o => Math.abs(parseFloat(o.value) - parsed) < 0.001);
+          if (!opt) {
+            opt = document.createElement('option');
+            opt.value = parsed;
+            opt.textContent = `${parsed.toString().replace('.', ',')} %`;
+            select.insertBefore(opt, select.lastElementChild);
+          }
+          select.value = parsed;
+        } else {
+          select.value = '0';
+        }
+      } else {
+        select.value = '0';
+      }
+    }
     this.recalculateBuilderTotals();
     this.updateLiveInvoicePreview();
   },
 
   /**
-   * Reorders a line item up or down
+   * Auto-agrandissement dynamique du textarea sans ascenseur vertical
    */
-  moveBuilderLineItem: function (btn, direction) {
-    if (this._isBuilderLocked) return;
-    const tr = btn.closest('tr');
-    if (!tr) return;
-    if (direction === -1 && tr.previousElementSibling) {
-      tr.parentNode.insertBefore(tr, tr.previousElementSibling);
-    } else if (direction === 1 && tr.nextElementSibling) {
-      tr.parentNode.insertBefore(tr.nextElementSibling, tr);
-    }
-    this.recalculateBuilderTotals();
+  autoResizeTextarea: function (textarea) {
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.max(52, textarea.scrollHeight) + 'px';
   },
 
   /**
-   * Deletes a line item row
+   * Ouvre ou ferme le menu contextuel ⋮ d'une carte d'article
+   */
+  toggleItemMenu: function (rowId) {
+    const menu = document.getElementById('menu_' + rowId);
+    if (!menu) return;
+    const isVisible = menu.classList.contains('active');
+    this.closeAllItemMenus();
+    if (!isVisible) {
+      menu.classList.add('active');
+    }
+  },
+
+  /**
+   * Ferme tous les menus d'actions ouverts
+   */
+  closeAllItemMenus: function () {
+    document.querySelectorAll('.builder-item-menu-dropdown.active').forEach(m => m.classList.remove('active'));
+  },
+
+  /**
+   * Ajoute une carte d'article dans le constructeur (PC et mobile identiques)
+   */
+  addBuilderLineItem: function (name = '', qty = 1, price = '', tax = 0, unit = '', discount = 0) {
+    const container = document.getElementById('builder-items-tbody');
+    if (!container) return;
+
+    const rowId = 'row_' + Math.random().toString(36).substring(2, 7);
+    const card = document.createElement('div');
+    card.className = 'builder-item-card';
+    card.id = rowId;
+
+    const lockedClass = this._isBuilderLocked ? ' builder-input-locked' : '';
+    const lockedDisabled = this._isBuilderLocked ? ' disabled' : '';
+
+    // Résolution TVA par défaut si non spécifié
+    const resolvedTax = (tax !== undefined && tax !== null && tax !== '') ? tax : this.getDefaultVatRate();
+    const taxOptions = this.renderTaxOptionsHtml(resolvedTax);
+
+    // Résolution remise
+    const resolvedDiscount = (discount !== undefined && discount !== null && discount !== '') ? discount : 0;
+
+    card.innerHTML = `
+      <!-- Ligne 1 : Description en pleine largeur + Menu ⋮ -->
+      <div class="builder-item-row-header">
+        <div class="builder-field-group builder-field-desc">
+          <label class="builder-field-label">Description</label>
+          <textarea class="form-input item-name${lockedClass}" rows="2" placeholder="Désignation du service ou produit..." oninput="KivoApp.autoResizeTextarea(this); KivoApp.updateLiveInvoicePreview();" style="resize: none;"${lockedDisabled}>${name}</textarea>
+        </div>
+        <div class="builder-item-menu-wrap">
+          <button type="button" class="builder-item-menu-btn" onclick="KivoApp.toggleItemMenu('${rowId}')" title="Actions sur l'article" aria-label="Actions sur l'article"${lockedDisabled}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="2"/>
+              <circle cx="12" cy="12" r="2"/>
+              <circle cx="12" cy="19" r="2"/>
+            </svg>
+          </button>
+          <div class="builder-item-menu-dropdown" id="menu_${rowId}">
+            <button type="button" class="builder-menu-item" onclick="KivoApp.moveBuilderLineItem(this, -1); KivoApp.closeAllItemMenus();">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+              Monter
+            </button>
+            <button type="button" class="builder-menu-item" onclick="KivoApp.moveBuilderLineItem(this, 1); KivoApp.closeAllItemMenus();">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              Descendre
+            </button>
+            <button type="button" class="builder-menu-item builder-menu-item-delete" onclick="KivoApp.removeBuilderLineItem(this); KivoApp.closeAllItemMenus();">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Supprimer
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ligne 2 : Grille de 3 colonnes (Quantité, Unité, Prix unitaire) -->
+      <div class="builder-item-grid-3">
+        <div class="builder-field-group">
+          <label class="builder-field-label">Quantité</label>
+          <input type="number" class="form-input item-qty${lockedClass}" value="${qty}" min="0.01" step="any" inputmode="decimal" oninput="KivoApp.recalculateBuilderTotals()" placeholder="1"${lockedDisabled}>
+        </div>
+        <div class="builder-field-group">
+          <label class="builder-field-label">Unité</label>
+          <input type="text" class="form-input item-unit${lockedClass}" value="${unit || ''}" list="builder-unit-suggestions" placeholder="Ex: j, h, u" oninput="KivoApp.updateLiveInvoicePreview()"${lockedDisabled}>
+        </div>
+        <div class="builder-field-group">
+          <label class="builder-field-label">Prix unitaire</label>
+          <input type="number" class="form-input item-price${lockedClass}" value="${price}" min="0" step="any" inputmode="decimal" oninput="KivoApp.recalculateBuilderTotals()" placeholder="0"${lockedDisabled}>
+        </div>
+      </div>
+
+      <!-- Ligne 3 : Grille de 3 colonnes (TVA, Remise, Total) -->
+      <div class="builder-item-grid-3">
+        <div class="builder-field-group">
+          <label class="builder-field-label">TVA</label>
+          <select class="form-select item-tax${lockedClass}" onchange="KivoApp.onItemTaxChange(this)"${lockedDisabled}>
+            ${taxOptions}
+          </select>
+        </div>
+        <div class="builder-field-group">
+          <label class="builder-field-label">Remise</label>
+          <div class="builder-input-suffix-wrap">
+            <input type="number" class="form-input item-discount${lockedClass}" value="${resolvedDiscount}" min="0" max="100" step="any" inputmode="decimal" oninput="KivoApp.recalculateBuilderTotals()" placeholder="0"${lockedDisabled}>
+            <span class="builder-input-suffix">%</span>
+          </div>
+        </div>
+        <div class="builder-field-group">
+          <label class="builder-field-label">Total</label>
+          <input type="text" class="form-input item-total-input item-total-display" value="0 FCFA" readonly tabindex="-1">
+        </div>
+      </div>
+    `;
+
+    container.appendChild(card);
+
+    // Auto-resize textarea initial si texte multi-lignes présent
+    const tx = card.querySelector('textarea.item-name');
+    if (tx) this.autoResizeTextarea(tx);
+
+    this.recalculateBuilderTotals();
+    this.updateLiveInvoicePreview();
+  },
+
+  /**
+   * Déplace une carte d'article vers le haut ou le bas
+   */
+  moveBuilderLineItem: function (btn, direction) {
+    if (this._isBuilderLocked) return;
+    const card = btn.closest('.builder-item-card, tr');
+    if (!card) return;
+    if (direction === -1 && card.previousElementSibling) {
+      card.parentNode.insertBefore(card, card.previousElementSibling);
+    } else if (direction === 1 && card.nextElementSibling) {
+      card.parentNode.insertBefore(card.nextElementSibling, card);
+    }
+    this.recalculateBuilderTotals();
+    this.updateLiveInvoicePreview();
+  },
+
+  /**
+   * Supprime une carte d'article
    */
   removeBuilderLineItem: function (btn) {
     if (this._isBuilderLocked) return;
-    const tr = btn.closest('tr');
-    if (tr) {
-      tr.remove();
+    const card = btn.closest('.builder-item-card, tr');
+    if (card) {
+      card.remove();
       this.recalculateBuilderTotals();
+      this.updateLiveInvoicePreview();
     }
   },
 
@@ -3902,7 +4058,7 @@ window.KivoApp = {
     const currency = document.getElementById('builder-doc-currency') ? document.getElementById('builder-doc-currency').value : (this.state.business.currency || 'FCFA');
     const showVat = document.getElementById('builder-toggle-vat') ? document.getElementById('builder-toggle-vat').checked : true;
 
-    document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
+    document.querySelectorAll('#builder-items-tbody .builder-item-card, #builder-items-tbody tr').forEach(tr => {
       const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 0;
       const price = parseFloat(tr.querySelector('.item-price')?.value) || 0;
       const taxRate = showVat ? (parseFloat(tr.querySelector('.item-tax')?.value) || 0) : 0;
@@ -3915,7 +4071,14 @@ window.KivoApp = {
       const rowTaxAmount = showVat ? rowTotalHT * (taxRate / 100) : 0;
       
       const totDisp = tr.querySelector('.item-total-display');
-      if (totDisp) totDisp.textContent = rowTotalHT.toLocaleString('fr-FR') + ' ' + currency;
+      if (totDisp) {
+        const formattedTotal = rowTotalHT.toLocaleString('fr-FR') + ' ' + currency;
+        if (totDisp.tagName === 'INPUT') {
+          totDisp.value = formattedTotal;
+        } else {
+          totDisp.textContent = formattedTotal;
+        }
+      }
       
       subtotal += rowTotalHT;
       totalTaxAmount += rowTaxAmount;
@@ -11107,6 +11270,81 @@ window.KivoApp = {
   },
 
   /**
+   * Ouvre la modale de sélection depuis le catalogue avec recherche
+   */
+  openBuilderCatalogModal: function () {
+    const modal = document.getElementById('modal-builder-catalog');
+    if (!modal) return;
+    modal.classList.add('active');
+    modal.style.display = 'flex';
+    const searchInput = document.getElementById('builder-catalog-search-input');
+    if (searchInput) {
+      searchInput.value = '';
+      setTimeout(() => searchInput.focus(), 60);
+    }
+    this.filterBuilderCatalog('');
+  },
+
+  closeBuilderCatalogModal: function () {
+    const modal = document.getElementById('modal-builder-catalog');
+    if (modal) {
+      modal.classList.remove('active');
+      modal.style.display = 'none';
+    }
+  },
+
+  /**
+   * Filtre en direct la liste des articles du catalogue dans la modale
+   */
+  filterBuilderCatalog: function (query = '') {
+    const listEl = document.getElementById('builder-catalog-modal-list');
+    if (!listEl) return;
+    const catalog = (this.state && this.state.catalog) || [];
+    const currency = this.state?.business?.currency || 'FCFA';
+    const q = (query || '').toLowerCase().trim();
+
+    const filtered = catalog.filter(it => {
+      if (!q) return true;
+      const nameMatch = (it.name || '').toLowerCase().includes(q);
+      const descMatch = (it.description || '').toLowerCase().includes(q);
+      const priceMatch = String(it.price || '').includes(q);
+      return nameMatch || descMatch || priceMatch;
+    });
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = `
+        <div style="text-align: center; padding: 2rem 1rem; color: #64748B;">
+          <p style="margin: 0; font-size: 0.9rem;">${q ? 'Aucun article correspondant à votre recherche.' : 'Votre catalogue est actuellement vide.'}</p>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.closeBuilderCatalogModal(); KivoApp.openCatalogItemModal();" style="margin-top: 0.75rem;">+ Créer un service dans le catalogue</button>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = filtered.map(it => `
+      <div class="builder-catalog-item-card" onclick="KivoApp.selectCatalogItemForBuilder('${it.id}')">
+        <div>
+          <strong style="display: block; font-size: 0.95rem; color: #0F172A;">${it.name}</strong>
+          ${it.description ? `<span style="font-size: 0.78rem; color: #64748B;">${it.description}</span>` : ''}
+          ${it.unit ? `<span style="font-size: 0.75rem; color: #2563EB; background: #EFF6FF; padding: 1px 6px; border-radius: 4px; margin-left: ${it.description ? '6px' : '0'};">Par ${it.unit}</span>` : ''}
+        </div>
+        <div style="text-align: right; flex-shrink: 0; margin-left: 10px;">
+          <span style="font-size: 1rem; font-weight: 700; color: #2563EB;">${Number(it.price || 0).toLocaleString('fr-FR')} ${currency}</span>
+          <div style="font-size: 0.75rem; color: #10B981; font-weight: 600;">+ Insérer</div>
+        </div>
+      </div>
+    `).join('');
+  },
+
+  /**
+   * Sélectionne un article du catalogue pour l'insérer dans le builder
+   */
+  selectCatalogItemForBuilder: function (itemId) {
+    this.closeBuilderCatalogModal();
+    this.onBuilderCatalogSelect(itemId);
+  },
+
+  /**
    * Ajout direct d'un article du catalogue dans les lignes du constructeur
    */
   onBuilderCatalogSelect: function (itemId) {
@@ -11117,7 +11355,7 @@ window.KivoApp = {
     // Si la seule ligne existante est vide (placeholder initial), la remplacer
     const tbody = document.getElementById('builder-items-tbody');
     if (tbody) {
-      const rows = tbody.querySelectorAll('tr');
+      const rows = tbody.querySelectorAll('.builder-item-card, tr');
       if (rows.length === 1) {
         const nameInput = rows[0].querySelector('.item-name');
         const priceInput = rows[0].querySelector('.item-price');
@@ -11129,7 +11367,7 @@ window.KivoApp = {
 
     const defaultVat = this.state.business?.defaultVatRate !== undefined ? this.state.business.defaultVatRate : (this.state.business?.taxRate !== undefined ? this.state.business.taxRate : 0);
     const tax = (item.taxRate !== undefined && item.taxRate !== null) ? Number(item.taxRate) : defaultVat;
-    this.addBuilderLineItem(item.name || 'Article', 1, Number(item.price) || 0, tax);
+    this.addBuilderLineItem(item.name || 'Article', 1, Number(item.price) || 0, tax, item.unit || '', 0);
     this.showToast(this._t('toast_item_added_to_doc').replace('{name}', item.name), 'success');
   },
 

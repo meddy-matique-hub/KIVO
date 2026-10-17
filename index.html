@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=3.17">
+  <link rel="stylesheet" href="styles.css?v=3.18">
 </head>
 <body>
 
@@ -1869,100 +1869,104 @@
               <div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
                   <h3 style="font-size: 1rem; font-weight: 700; color: #0F172A; margin: 0;">Articles &amp; Lignes</h3>
-                  <button type="button" onclick="KivoApp.toggleColumnLabelsCustomizer()" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; padding: 0.3rem 0.65rem;">
-                    Modifier les libellés de colonnes
-                  </button>
                 </div>
 
-                <!-- Panneau repliable de personnalisation des colonnes et libellés -->
-                <div id="builder-column-labels-panel" style="display: none; background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
-                  <div style="font-size: 0.78rem; font-weight: 700; color: #334155; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                    <span>Libellés personnalisés des colonnes :</span>
-                    <button type="button" onclick="KivoApp.resetBuilderLabels()" class="btn btn-secondary btn-sm" style="font-size: 0.7rem; padding: 0.25rem 0.6rem; cursor: pointer;">Réinitialiser les libellés</button>
+                <!-- Panneau repliable de personnalisation des libellés (accordéon sans débordement) -->
+                <details id="builder-column-labels-details" class="builder-column-labels-accordion" style="margin-bottom: 1rem; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; overflow: hidden; width: 100%; box-sizing: border-box;">
+                  <summary style="padding: 0.65rem 0.85rem; font-size: 0.82rem; font-weight: 600; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none;">
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      Modifier les libellés de colonnes
+                    </span>
+                    <span style="font-size: 0.75rem; color: #64748B;">Personnaliser ▾</span>
+                  </summary>
+                  <div style="padding: 0.85rem; border-top: 1px solid #E2E8F0; background: #FFFFFF;">
+                    <div style="font-size: 0.78rem; font-weight: 700; color: #334155; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                      <span>Libellés des colonnes :</span>
+                      <button type="button" onclick="KivoApp.resetBuilderLabels()" class="btn btn-secondary btn-sm" style="font-size: 0.7rem; padding: 0.25rem 0.6rem; cursor: pointer;">Réinitialiser</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem; margin-bottom: 0.85rem;">
+                      <div>
+                        <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Description</label>
+                        <input type="text" id="builder-col-desc" value="Description" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1; box-sizing: border-box;" oninput="KivoApp.updateLiveInvoicePreview()">
+                      </div>
+                      <div>
+                        <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Quantité</label>
+                        <input type="text" id="builder-col-qty" value="Quantité" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1; box-sizing: border-box;" oninput="KivoApp.updateLiveInvoicePreview()">
+                      </div>
+                      <div>
+                        <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Unité</label>
+                        <input type="text" id="builder-col-unit" value="Unité" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1; box-sizing: border-box;" oninput="KivoApp.updateLiveInvoicePreview()">
+                      </div>
+                      <div>
+                        <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Prix Unitaire</label>
+                        <input type="text" id="builder-col-price" value="Prix Unitaire" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1; box-sizing: border-box;" oninput="KivoApp.updateLiveInvoicePreview()">
+                      </div>
+                      <div>
+                        <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">TVA</label>
+                        <input type="text" id="builder-col-tax" value="TVA" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1; box-sizing: border-box;" oninput="KivoApp.updateLiveInvoicePreview()">
+                      </div>
+                      <div>
+                        <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Remise</label>
+                        <input type="text" id="builder-col-discount" value="Remise" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1; box-sizing: border-box;" oninput="KivoApp.updateLiveInvoicePreview()">
+                      </div>
+                      <div>
+                        <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Total</label>
+                        <input type="text" id="builder-col-total" value="Total HT" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1; box-sizing: border-box;" oninput="KivoApp.updateLiveInvoicePreview()">
+                      </div>
+                    </div>
+                    <div style="font-size: 0.78rem; font-weight: 700; color: #334155; margin-bottom: 0.5rem; border-top: 1px dashed #CBD5E1; padding-top: 0.6rem;">Libellés des totaux :</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem;">
+                      <div>
+                        <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Sous-total</label>
+                        <input type="text" id="builder-lbl-subtotal" value="Sous-total HT" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1; box-sizing: border-box;" oninput="KivoApp.updateLiveInvoicePreview()">
+                      </div>
+                      <div>
+                        <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Taxe / TVA</label>
+                        <input type="text" id="builder-lbl-tax" value="TVA" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1; box-sizing: border-box;" oninput="KivoApp.updateLiveInvoicePreview()">
+                      </div>
+                      <div>
+                        <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Total TTC</label>
+                        <input type="text" id="builder-lbl-total" value="Total TTC" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1; box-sizing: border-box;" oninput="KivoApp.updateLiveInvoicePreview()">
+                      </div>
+                      <div>
+                        <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Acompte</label>
+                        <input type="text" id="builder-lbl-deposit" value="Acompte déjà versé" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1; box-sizing: border-box;" oninput="KivoApp.updateLiveInvoicePreview()">
+                      </div>
+                      <div>
+                        <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Reste à payer</label>
+                        <input type="text" id="builder-lbl-balance" value="Solde net à payer" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1; box-sizing: border-box;" oninput="KivoApp.updateLiveInvoicePreview()">
+                      </div>
+                    </div>
                   </div>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem; margin-bottom: 0.85rem;">
-                    <div>
-                      <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Description</label>
-                      <input type="text" id="builder-col-desc" value="Description" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1;" oninput="KivoApp.updateLiveInvoicePreview()">
-                    </div>
-                    <div>
-                      <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Quantité</label>
-                      <input type="text" id="builder-col-qty" value="Quantité" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1;" oninput="KivoApp.updateLiveInvoicePreview()">
-                    </div>
-                    <div>
-                      <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Unité</label>
-                      <input type="text" id="builder-col-unit" value="Unité" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1;" oninput="KivoApp.updateLiveInvoicePreview()">
-                    </div>
-                    <div>
-                      <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Prix Unitaire</label>
-                      <input type="text" id="builder-col-price" value="Prix Unitaire" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1;" oninput="KivoApp.updateLiveInvoicePreview()">
-                    </div>
-                    <div>
-                      <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">TVA</label>
-                      <input type="text" id="builder-col-tax" value="TVA" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1;" oninput="KivoApp.updateLiveInvoicePreview()">
-                    </div>
-                    <div>
-                      <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Remise</label>
-                      <input type="text" id="builder-col-discount" value="Remise" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1;" oninput="KivoApp.updateLiveInvoicePreview()">
-                    </div>
-                    <div>
-                      <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Total</label>
-                      <input type="text" id="builder-col-total" value="Total HT" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1;" oninput="KivoApp.updateLiveInvoicePreview()">
-                    </div>
-                  </div>
-                  <div style="font-size: 0.78rem; font-weight: 700; color: #334155; margin-bottom: 0.5rem; border-top: 1px dashed #CBD5E1; padding-top: 0.6rem;">Libellés personnalisés des totaux :</div>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem;">
-                    <div>
-                      <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Sous-total</label>
-                      <input type="text" id="builder-lbl-subtotal" value="Sous-total HT" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1;" oninput="KivoApp.updateLiveInvoicePreview()">
-                    </div>
-                    <div>
-                      <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Taxe / TVA</label>
-                      <input type="text" id="builder-lbl-tax" value="TVA" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1;" oninput="KivoApp.updateLiveInvoicePreview()">
-                    </div>
-                    <div>
-                      <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Total TTC</label>
-                      <input type="text" id="builder-lbl-total" value="Total TTC" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1;" oninput="KivoApp.updateLiveInvoicePreview()">
-                    </div>
-                    <div>
-                      <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Acompte</label>
-                      <input type="text" id="builder-lbl-deposit" value="Acompte déjà versé" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1;" oninput="KivoApp.updateLiveInvoicePreview()">
-                    </div>
-                    <div>
-                      <label style="font-size: 0.7rem; color: #64748B; font-weight: 600;">Reste à payer</label>
-                      <input type="text" id="builder-lbl-balance" value="Solde net à payer" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:4px; border:1px solid #CBD5E1;" oninput="KivoApp.updateLiveInvoicePreview()">
-                    </div>
-                  </div>
-                </div>
+                </details>
 
-                <div class="card builder-items-card" style="padding: 1.25rem;">
-                  <div class="builder-items-table-wrap">
-                    <table class="builder-items-table" style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;">
-                      <thead>
-                        <tr>
-                          <th style="text-align: left; font-size: 0.75rem; color: #475569; font-weight: 600; padding-bottom: 0.5rem; border-bottom: 1px solid #E2E8F0;">Description</th>
-                          <th style="text-align: center; font-size: 0.75rem; color: #475569; font-weight: 600; padding-bottom: 0.5rem; border-bottom: 1px solid #E2E8F0; width: 9%;">Qté</th>
-                          <th style="text-align: center; font-size: 0.75rem; color: #475569; font-weight: 600; padding-bottom: 0.5rem; border-bottom: 1px solid #E2E8F0; width: 9%;">Unité</th>
-                          <th style="text-align: right; font-size: 0.75rem; color: #475569; font-weight: 600; padding-bottom: 0.5rem; border-bottom: 1px solid #E2E8F0; width: 16%;">P.U.</th>
-                          <th style="text-align: center; font-size: 0.75rem; color: #475569; font-weight: 600; padding-bottom: 0.5rem; border-bottom: 1px solid #E2E8F0; width: 9%;">TVA</th>
-                          <th style="text-align: center; font-size: 0.75rem; color: #475569; font-weight: 600; padding-bottom: 0.5rem; border-bottom: 1px solid #E2E8F0; width: 9%;">Remise</th>
-                          <th style="text-align: right; font-size: 0.75rem; color: #475569; font-weight: 600; padding-bottom: 0.5rem; border-bottom: 1px solid #E2E8F0; width: 14%;">Total HT</th>
-                          <th style="width: 10%; border-bottom: 1px solid #E2E8F0; text-align: center;"></th>
-                        </tr>
-                      </thead>
-                      <tbody id="builder-items-tbody">
-                        <!-- Rows added here via JS -->
-                      </tbody>
-                    </table>
+                <div class="card builder-items-card" style="padding: 1.25rem; border-radius: 14px;">
+                  <!-- Suggestions d'unités via datalist -->
+                  <datalist id="builder-unit-suggestions">
+                    <option value="unité">
+                    <option value="h">
+                    <option value="j">
+                    <option value="forfait">
+                    <option value="kg">
+                    <option value="m²">
+                  </datalist>
+
+                  <!-- Conteneur des cartes d'articles (chaque article est une carte sans tableau) -->
+                  <div id="builder-items-tbody" class="builder-items-cards-list">
+                    <!-- Cartes ajoutées dynamiquement via KivoApp.addBuilderLineItem -->
                   </div>
                   
-                  <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.addBuilderLineItem('', 1, 0, KivoApp.state?.business?.defaultVatRate !== undefined ? KivoApp.state.business.defaultVatRate : (KivoApp.state?.business?.taxRate !== undefined ? KivoApp.state.business.taxRate : 0), '', 0)" style="background: transparent; border: 1px dashed #CBD5E1; color: #0F172A; font-weight: 600; flex: 1; min-width: 140px; padding: 0.75rem; border-radius: 8px;">+ Ajouter une ligne</button>
-                    <div style="flex: 1; min-width: 200px;">
-                      <select id="builder-catalog-select" onchange="KivoApp.onBuilderCatalogSelect(this.value); this.value='';" style="width: 100%; padding: 0.72rem 0.75rem; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 0.85rem; background: #F8FAFC; color: #334155; font-family: 'Inter', sans-serif; cursor: pointer; outline: none;">
-                        <option value="">+ Depuis Services &amp; Prestations...</option>
-                      </select>
-                    </div>
+                  <!-- Boutons d'action : 100% ou 2 colonnes, libellés complets jamais tronqués -->
+                  <div class="builder-items-actions-row">
+                    <button type="button" class="btn btn-secondary builder-add-line-btn" onclick="KivoApp.addBuilderLineItem('', 1, 0, KivoApp.getDefaultVatRate(), '', 0)">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      <span>+ Ajouter une ligne</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary builder-catalog-btn" onclick="KivoApp.openBuilderCatalogModal()">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                      <span>+ Ajouter depuis le catalogue</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -4143,6 +4147,30 @@
         <button class="btn btn-primary" onclick="KivoApp.saveNewClient()">Enregistrer le client</button>
       </div>
     </div>
+  <!-- Modal Sélecteur de Catalogue pour le Builder avec Recherche en direct -->
+  <div class="modal-overlay" id="modal-builder-catalog" onclick="if(event.target===this)KivoApp.closeModal('modal-builder-catalog')">
+    <div class="modal-card" style="max-width: 540px; width: 95%; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.85rem;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <h2 style="font-size: 1.15rem; font-weight: 700; margin: 0; color: #0F172A;">Ajouter depuis le catalogue</h2>
+        </div>
+        <button class="modal-close" onclick="KivoApp.closeModal('modal-builder-catalog')" aria-label="Fermer">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div style="padding: 1rem 0 0.5rem 0;">
+        <div style="position: relative;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" style="position: absolute; left: 14px; top: 13px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="builder-catalog-search-input" placeholder="Rechercher une prestation, article ou prix..." oninput="KivoApp.filterBuilderCatalog(this.value)" style="width: 100%; height: 44px; padding-left: 2.5rem; padding-right: 1rem; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 16px; outline: none; box-sizing: border-box; font-family: 'Inter', sans-serif;">
+        </div>
+      </div>
+
+      <div id="builder-catalog-modal-list" style="overflow-y: auto; flex: 1; min-height: 180px; max-height: 380px; padding: 0.5rem 0; display: flex; flex-direction: column; gap: 8px;">
+        <!-- Articles listés ici dynamiquement -->
+      </div>
+    </div>
   </div>
 
   <!-- Modal: New/Edit Service / Prestation Item -->
@@ -4399,7 +4427,7 @@
   <script defer src="js/whatsapp-helper.js?v=3.3"></script>
   <script defer src="js/i18n.js?v=1.1"></script>
   <script defer src="js/doc-templates.js?v=3.5"></script>
-  <script defer src="app.js?v=3.32"></script>
+  <script defer src="app.js?v=3.33"></script>
 </body>
 </html>
 

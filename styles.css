@@ -6478,16 +6478,325 @@ html, body {
   position: relative;
 }
 
-.builder-items-table-wrap {
+/* ==========================================================================
+   Builder Items & Lines as Responsive Cards (PC & Mobile)
+   ========================================================================== */
+.builder-items-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 1.25rem;
   width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  margin-bottom: 0.75rem;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
-.builder-items-table {
+.builder-item-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 1.15rem;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   width: 100%;
-  min-width: 520px;
+  min-width: 0;
+  box-sizing: border-box;
+  position: relative;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.builder-item-card:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.builder-item-card:focus-within {
+  border-color: #93C5FD;
+}
+
+/* Ligne 1 : Description pleine largeur + Menu ⋮ */
+.builder-item-row-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.builder-item-row-header .builder-field-desc {
+  flex: 1;
+  min-width: 0;
+}
+
+.builder-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.builder-field-label {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #475569 !important;
+  line-height: 1.2;
+  margin: 0;
+  padding: 0;
+  display: block;
+  user-select: none;
+}
+
+/* Textarea de 2 lignes minimum, qui s'agrandit avec le texte, resize: none */
+.builder-item-card textarea.item-name {
+  width: 100% !important;
+  min-height: 52px !important;
+  padding: 0.65rem 0.75rem !important;
+  font-size: 16px !important;
+  line-height: 1.4 !important;
+  font-family: 'Inter', -apple-system, sans-serif !important;
+  border: 1px solid #CBD5E1 !important;
+  border-radius: 8px !important;
+  resize: none !important;
+  box-sizing: border-box !important;
+  color: #0F172A;
+  background: #FFFFFF;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.builder-item-card textarea.item-name:focus {
+  border-color: #2563EB !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Menu d'actions ⋮ */
+.builder-item-menu-wrap {
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 1.25rem;
+}
+
+.builder-item-menu-btn {
+  width: 38px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  color: #64748B;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.builder-item-menu-btn:hover {
+  background: #F1F5F9;
+  color: #0F172A;
+  border-color: #CBD5E1;
+}
+
+.builder-item-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+  min-width: 140px;
+  padding: 6px;
+  z-index: 50;
+  display: none;
+}
+
+.builder-item-menu-dropdown.active {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.builder-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #334155;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.builder-menu-item:hover {
+  background: #F1F5F9;
+  color: #0F172A;
+}
+
+.builder-menu-item-delete {
+  color: #DC2626 !important;
+}
+
+.builder-menu-item-delete:hover {
+  background: #FEE2E2 !important;
+  color: #B91C1C !important;
+}
+
+/* Grilles 3 colonnes pour Ligne 2 (Quantité, Unité, Prix unitaire) et Ligne 3 (TVA, Remise, Total) */
+.builder-item-grid-3 {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Champs standards de 44px de hauteur et police 16px (évite le zoom iOS) */
+.builder-item-card input.form-input,
+.builder-item-card select.form-select {
+  height: 44px !important;
+  min-height: 44px !important;
+  font-size: 16px !important;
+  padding: 0 0.65rem !important;
+  border-radius: 8px !important;
+  border: 1px solid #CBD5E1 !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  font-family: 'Inter', -apple-system, sans-serif !important;
+  color: #0F172A;
+  background: #FFFFFF;
+}
+
+.builder-item-card input.form-input:focus,
+.builder-item-card select.form-select:focus {
+  border-color: #2563EB !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Input suffix pour Remise % */
+.builder-input-suffix-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.builder-input-suffix-wrap input {
+  padding-right: 1.75rem !important;
+  text-align: right;
+}
+
+.builder-input-suffix {
+  position: absolute;
+  right: 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748B;
+  pointer-events: none;
+}
+
+/* Champ Total en lecture seule */
+.builder-item-card input.item-total-input {
+  background: #F8FAFC !important;
+  font-weight: 700 !important;
+  color: #0F172A !important;
+  text-align: right !important;
+  border-color: #E2E8F0 !important;
+  cursor: default;
+}
+
+/* Boutons d'action du bas */
+.builder-items-actions-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin-top: 0.5rem;
+}
+
+.builder-add-line-btn,
+.builder-catalog-btn {
+  height: 44px;
+  min-height: 44px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 0 1rem;
+  box-sizing: border-box;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.builder-add-line-btn {
+  background: #FFFFFF;
+  border: 1px dashed #CBD5E1;
+  color: #0F172A;
+}
+
+.builder-add-line-btn:hover {
+  background: #F8FAFC;
+  border-color: #2563EB;
+  color: #2563EB;
+}
+
+.builder-catalog-btn {
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  color: #1E293B;
+}
+
+.builder-catalog-btn:hover {
+  background: #E2E8F0;
+  color: #0F172A;
+}
+
+/* Modale de sélection de catalogue */
+.builder-catalog-item-card {
+  padding: 0.85rem 1rem;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.builder-catalog-item-card:hover {
+  background: #EFF6FF;
+  border-color: #93C5FD;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 520px) {
+  .builder-items-actions-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1024px) {
