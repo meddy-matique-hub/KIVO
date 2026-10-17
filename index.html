@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=3.15">
+  <link rel="stylesheet" href="styles.css?v=3.16">
 </head>
 <body>
 
@@ -1121,8 +1121,10 @@
                     <svg class="kivo-select-trigger-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                 </div>
-                <!-- Hidden select for legacy compat -->
-                <select id="wz-industry" style="display:none;" aria-hidden="true"><option value="Prestations de services &amp; Conseil" selected>Prestations de services</option></select>
+                <div id="wz-industry-custom-wrap" style="display:none; margin-top:0.75rem;">
+                  <input type="text" id="wz-industry-custom-input" class="form-input" placeholder="Précisez votre secteur d'activité" style="height:48px; font-size:0.95rem; padding:0 1rem; width:100%; border-radius:10px;">
+                </div>
+                <p id="wz-err-4" style="display:none; color:var(--danger-text); font-size:0.82rem; margin-top:0.75rem;">Choisissez votre secteur d'activité.</p>
               </div>
 
               <!-- Step 5 - Pays de résidence (obligatoire) -->
@@ -1131,18 +1133,15 @@
                 <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:1.5rem;">Votre pays définit la devise et l'indicatif téléphonique par défaut.</p>
                 <div class="kivo-select-wrap" id="wz-country-wrap">
                   <button type="button" id="wz-country-trigger" class="kivo-select-trigger" onclick="KivoApp.kivoSelectOpen('country')" aria-haspopup="listbox" aria-expanded="false">
-                    <span class="kivo-select-trigger-label" id="wz-country-display">🇸🇳 Sénégal</span>
+                    <span class="kivo-select-trigger-label" id="wz-country-display" style="display:inline-flex; align-items:center; gap:0.65rem;">
+                      <img class="kivo-flag-img" id="wz-country-flag" src="https://flagcdn.com/w40/cg.png" alt="Congo" loading="lazy">
+                      <span id="wz-country-name">Congo</span>
+                    </span>
                     <svg class="kivo-select-trigger-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                 </div>
+                <p id="wz-err-5" style="display:none; color:var(--danger-text); font-size:0.82rem; margin-top:0.75rem;">Choisissez votre pays.</p>
               </div>
-
-              <!-- (Hidden) legacy country select kept for backward compat -->
-              <select id="wz-country" style="display:none;" aria-hidden="true">
-                  <option value="Congo" data-code="+242" data-currency="FCFA">🇨🇬 Congo (+242)</option>
-                </select>
-              <!-- /Hidden legacy -->
-
 
               <!-- Step 6 - Téléphone (obligatoire) -->
               <div id="wz-step-6" class="wz-step" style="display:none;">
@@ -1150,11 +1149,12 @@
                 <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:1.5rem;">Utilisé pour les relances WhatsApp et vos documents.</p>
                 <div class="phone-input-group">
                   <select id="wz-phone-prefix" class="form-select phone-prefix-select">
-                    <option value="+221">🇸🇳 +221 (SN)</option>
-                    <option value="+225">🇨🇮 +225 (CI)</option>
-                    <option value="+237">🇨🇲 +237 (CM)</option>
                     <option value="+242">🇨🇬 +242 (CG)</option>
                     <option value="+243">🇨🇩 +243 (CD)</option>
+                    <option value="+221">🇸🇳 +221 (SN)</option>
+                    <option value="+225">🇨🇮 +225 (CI)</option>
+                    <option value="+33">🇫🇷 +33 (FR)</option>
+                    <option value="+237">🇨🇲 +237 (CM)</option>
                     <option value="+241">🇬🇦 +241 (GA)</option>
                     <option value="+223">🇲🇱 +223 (ML)</option>
                     <option value="+226">🇧🇫 +226 (BF)</option>
@@ -1173,12 +1173,11 @@
                     <option value="+254">🇰🇪 +254 (KE)</option>
                     <option value="+234">🇳🇬 +234 (NG)</option>
                     <option value="+233">🇬🇭 +233 (GH)</option>
-                    <option value="+33">🇫🇷 +33 (FR)</option>
                     <option value="+32">🇧🇪 +32 (BE)</option>
                     <option value="+41">🇨🇭 +41 (CH)</option>
                     <option value="+1">🇺🇸 +1 (US/CA)</option>
                   </select>
-                  <input type="tel" id="wz-phone" class="form-input phone-number-input" style="font-size:1rem;" placeholder="06 12 34 56" autocomplete="tel" required>
+                  <input type="tel" id="wz-phone" class="form-input phone-number-input" style="font-size:1rem;" placeholder="06 123 4567" autocomplete="tel" required>
                 </div>
                 <p id="wz-err-6" style="display:none; color:var(--danger-text); font-size:0.82rem; margin-top:0.75rem;">Veuillez saisir votre numéro de téléphone.</p>
               </div>
@@ -1189,12 +1188,10 @@
                 <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:1.5rem;">Pré-sélectionnée selon votre pays. Vous pouvez la modifier.</p>
                 <div class="kivo-select-wrap" id="wz-currency-wrap">
                   <button type="button" id="wz-currency-trigger" class="kivo-select-trigger" onclick="KivoApp.kivoSelectOpen('currency')" aria-haspopup="listbox" aria-expanded="false">
-                    <span class="kivo-select-trigger-label" id="wz-currency-display">FCFA (XOF / XAF)</span>
+                    <span class="kivo-select-trigger-label" id="wz-currency-display">FCFA - Franc CFA (XOF / XAF)</span>
                     <svg class="kivo-select-trigger-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                 </div>
-                <!-- Hidden select for legacy compat -->
-                <select id="wz-currency" style="display:none;" aria-hidden="true"><option value="FCFA" selected>FCFA</option></select>
               </div>
 
               <!-- Step 8 - E-mail (obligatoire) -->
@@ -4392,7 +4389,7 @@
   <script defer src="js/whatsapp-helper.js?v=3.3"></script>
   <script defer src="js/i18n.js?v=1.1"></script>
   <script defer src="js/doc-templates.js?v=3.5"></script>
-  <script defer src="app.js?v=3.30"></script>
+  <script defer src="app.js?v=3.31"></script>
 </body>
 </html>
 

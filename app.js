@@ -2008,6 +2008,47 @@ window.KivoApp = {
   },
 
   /**
+   * Met à jour de façon réactive et synchrone un sélecteur custom d'indicatif téléphonique
+   * avec le drapeau du pays et le code indicatif.
+   * @param {string} selectId - ID du select natif (ex. 'wz-phone-prefix')
+   * @param {string} dialCode - Indicatif (ex. '+242')
+   * @param {string} countryIso - Code ISO (ex. 'CG')
+   */
+  updatePhonePrefixPicker: function (selectId, dialCode, countryIso) {
+    const selectEl = document.getElementById(selectId);
+    if (!selectEl) return;
+    const iso = (countryIso || 'CG').toLowerCase();
+
+    // S'assurer que le select natif possède l'option
+    let found = Array.from(selectEl.options).find(o => o.value === dialCode);
+    if (!found) {
+      const newOpt = document.createElement('option');
+      newOpt.value = dialCode;
+      newOpt.textContent = `${dialCode} (${iso.toUpperCase()})`;
+      selectEl.appendChild(newOpt);
+    }
+    selectEl.value = dialCode;
+
+    // Mise à jour visuelle immédiate du custom picker
+    const wrap = document.getElementById(`custom-picker-${selectId}`);
+    if (wrap) {
+      const flagImg = wrap.querySelector('.phone-flag-img');
+      const label = wrap.querySelector('.phone-prefix-label');
+      if (flagImg) {
+        flagImg.src = `https://flagcdn.com/w40/${iso}.png`;
+        flagImg.alt = iso.toUpperCase();
+        flagImg.style.display = 'inline-block';
+      }
+      if (label) {
+        label.textContent = dialCode;
+      }
+      wrap.querySelectorAll('.phone-prefix-option').forEach(optEl => {
+        optEl.classList.toggle('active', optEl.dataset.value === dialCode);
+      });
+    }
+  },
+
+  /**
    * Smart sticky mobile header: hides when scrolling down, shows when scrolling up.
    * Only active on mobile (<= 1024px). Uses rAF for 60fps performance.
    */
@@ -8178,14 +8219,58 @@ window.KivoApp = {
 
     setVal('wz-biz-name', d.bizName);
     setVal('wz-owner', d.owner);
-    setVal('wz-industry', d.industry);
-    setVal('wz-country', d.country);
-    setVal('wz-phone-prefix', d.phonePrefix);
-    setVal('wz-phone', d.phone);
-    setVal('wz-currency', d.currency);
     setVal('wz-email', d.email);
     setVal('wz-taxid', d.taxId);
     setVal('wz-volume', d.volume || '6-20');
+
+    // 1. Secteur
+    const indDisplay = document.getElementById('wz-industry-display');
+    if (indDisplay && d.industry) {
+      indDisplay.textContent = d.industry;
+    }
+    const indCustomWrap = document.getElementById('wz-industry-custom-wrap');
+    const indCustomInput = document.getElementById('wz-industry-custom-input');
+    if (indCustomWrap && indCustomInput) {
+      const isKnown = this.SECTOR_DATA && this.SECTOR_DATA.some(g => g.items.includes(d.industry));
+      if (!isKnown && d.industry && d.industry !== 'Prestations de services & Conseil') {
+        indCustomWrap.style.display = 'block';
+        indCustomInput.value = d.industry;
+      } else {
+        indCustomWrap.style.display = 'none';
+      }
+    }
+
+    // 2. Pays (une seule source : code ISO, ex. 'CG', 'FR', 'SN', 'CD')
+    if (d.country) {
+      const countryInfo = this.getCountryInfo(d.country);
+      if (countryInfo) {
+        d.country = countryInfo.iso;
+        const countryDisplay = document.getElementById('wz-country-display');
+        if (countryDisplay) {
+          countryDisplay.innerHTML = `
+            <img class="kivo-flag-img" src="https://flagcdn.com/w40/${countryInfo.iso.toLowerCase()}.png" alt="${countryInfo.name}" loading="lazy">
+            <span id="wz-country-name">${countryInfo.name}</span>
+          `;
+        }
+        // Indicatif et placeholder
+        d.phonePrefix = countryInfo.dialCode;
+        this.updatePhonePrefixPicker('wz-phone-prefix', countryInfo.dialCode, countryInfo.iso);
+        const phoneInput = document.getElementById('wz-phone');
+        if (phoneInput) {
+          phoneInput.placeholder = countryInfo.phonePlaceholder || 'Votre numéro';
+        }
+      }
+    }
+
+    // 3. Téléphone
+    setVal('wz-phone', d.phone);
+
+    // 4. Devise
+    const currDisplay = document.getElementById('wz-currency-display');
+    if (currDisplay && d.currency) {
+      const currInfo = this.CURRENCY_DATA ? this.CURRENCY_DATA.find(c => c.value === d.currency) : null;
+      currDisplay.textContent = currInfo ? currInfo.label : d.currency;
+    }
 
     if (d.profileType) {
       this.wizardSelectType(d.profileType, false); // false = don't persist on populate
@@ -8267,8 +8352,8 @@ window.KivoApp = {
         bizName: '',
         owner: defOwner,
         industry: 'Prestations de services & Conseil',
-        country: 'Senegal',
-        phonePrefix: '+221',
+        country: 'CG',       // Par défaut Congo (ISO: CG)
+        phonePrefix: '+242', // Indicatif Congo (+242)
         phone: '',
         currency: 'FCFA',
         email: defEmail,
@@ -8298,6 +8383,10 @@ window.KivoApp = {
     if (saved && saved.step && saved.step > 1 && saved.step <= 11) {
       console.log(`[KivoWizard] Restoring saved progress at step ${saved.step}`, saved.data);
       if (saved.data) {
+        if (saved.data.country) {
+          const cInfo = this.getCountryInfo(saved.data.country);
+          if (cInfo) saved.data.country = cInfo.iso;
+        }
         this._wizard.data = { ...this._wizard.data, ...saved.data };
       }
       this._wizard.step = saved.step;
@@ -8381,31 +8470,50 @@ window.KivoApp = {
       }
     }
 
-    // When on step 6, recalculate phone prefix from w.data.country (fix 1b)
-    if (w.step === 6) {
-      // Always derive prefix from the stored country via COUNTRY_DATA, not from stale w.data.phonePrefix
-      const countryKey = w.data.country || 'Senegal';
-      const countryInfo = KivoApp.COUNTRY_DATA
-        ? KivoApp.COUNTRY_DATA.find(c => c.value === countryKey)
-        : null;
-      const derivedPrefix = countryInfo ? countryInfo.dialCode : (w.data.phonePrefix || '+221');
-      w.data.phonePrefix = derivedPrefix;
-      const pSel = document.getElementById('wz-phone-prefix');
-      if (pSel) {
-        pSel.value = derivedPrefix;
-        if (pSel.value !== derivedPrefix) {
-          const o = document.createElement('option');
-          o.value = derivedPrefix; o.textContent = derivedPrefix;
-          pSel.appendChild(o);
-          pSel.value = derivedPrefix;
+    // When on step 4, sync sector trigger display
+    if (w.step === 4) {
+      const indDisplay = document.getElementById('wz-industry-display');
+      if (indDisplay && w.data.industry) {
+        indDisplay.textContent = w.data.industry;
+      }
+    }
+
+    // When on step 5, sync country trigger display (drapeau 24x18 + nom du pays, rien d'autre)
+    if (w.step === 5) {
+      const countryDisplay = document.getElementById('wz-country-display');
+      if (countryDisplay) {
+        if (w.data.country) {
+          const cInfo = this.getCountryInfo(w.data.country);
+          if (cInfo) {
+            countryDisplay.innerHTML = `
+              <img class="kivo-flag-img" src="https://flagcdn.com/w40/${cInfo.iso.toLowerCase()}.png" alt="${cInfo.name}" loading="lazy">
+              <span id="wz-country-name">${cInfo.name}</span>
+            `;
+          }
+        } else {
+          countryDisplay.innerHTML = `<span style="color:var(--text-muted);">Choisissez votre pays</span>`;
         }
+      }
+    }
+
+    // When on step 6, recalculate phone prefix, flag, currency and placeholder from w.data.country (ISO)
+    if (w.step === 6) {
+      const countryIso = (w.data.country || 'CG').toUpperCase();
+      const countryInfo = this.getCountryInfo(countryIso) || this.COUNTRY_DATA[0];
+      const derivedPrefix = countryInfo.dialCode;
+      w.data.phonePrefix = derivedPrefix;
+      if (!w.data.currency) {
+        w.data.currency = countryInfo.currency;
+      }
+      this.updatePhonePrefixPicker('wz-phone-prefix', derivedPrefix, countryInfo.iso);
+      const phoneInput = document.getElementById('wz-phone');
+      if (phoneInput) {
+        phoneInput.placeholder = countryInfo.phonePlaceholder || 'Votre numéro';
       }
     }
 
     // When on step 7, refresh currency display label from w.data.currency
     if (w.step === 7) {
-      const cSel = document.getElementById('wz-currency');
-      if (cSel && w.data.currency) cSel.value = w.data.currency;
       const dispEl = document.getElementById('wz-currency-display');
       if (dispEl && w.data.currency) {
         const found = KivoApp.CURRENCY_DATA
@@ -8426,7 +8534,7 @@ window.KivoApp = {
   _wizardValidate: function () {
     const w = this._wizard;
     if (!w) return true;
-    ['wz-err-1','wz-err-3','wz-err-6','wz-err-8'].forEach(id => {
+    ['wz-err-1','wz-err-3','wz-err-4','wz-err-5','wz-err-6','wz-err-8'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -8447,12 +8555,30 @@ window.KivoApp = {
       }
     }
     if (w.step === 4) {
-      const v = (document.getElementById('wz-industry')?.value || '').trim();
-      if (!v) return false;
+      let ind = (w.data.industry || '').trim();
+      if (ind === 'Autre') {
+        const customVal = (document.getElementById('wz-industry-custom-input')?.value || '').trim();
+        if (customVal) {
+          ind = customVal;
+          w.data.industry = customVal;
+        }
+      }
+      if (!ind) {
+        const err = document.getElementById('wz-err-4');
+        if (err) err.style.display = '';
+        return false;
+      }
     }
     if (w.step === 5) {
-      const v = (document.getElementById('wz-country')?.value || '').trim();
-      if (!v) return false;
+      const cIso = (w.data.country || '').trim();
+      if (!cIso) {
+        const err = document.getElementById('wz-err-5');
+        if (err) {
+          err.textContent = 'Choisissez votre pays';
+          err.style.display = '';
+        }
+        return false;
+      }
     }
     if (w.step === 6) {
       const v = (document.getElementById('wz-phone')?.value || '').trim();
@@ -8463,8 +8589,7 @@ window.KivoApp = {
       }
     }
     if (w.step === 7) {
-      const v = (document.getElementById('wz-currency')?.value || '').trim();
-      if (!v) return false;
+      if (!w.data.currency) w.data.currency = 'FCFA';
     }
     if (w.step === 8) {
       const v = (document.getElementById('wz-email')?.value || '').trim();
@@ -8491,32 +8616,32 @@ window.KivoApp = {
     const g = (id) => document.getElementById(id);
     if (w.step === 2) w.data.bizName = g('wz-biz-name')?.value.trim() || '';
     if (w.step === 3) w.data.owner = g('wz-owner')?.value.trim() || '';
-    if (w.step === 4) w.data.industry = g('wz-industry')?.value || '';
+    if (w.step === 4) {
+      if (w.data.industry === 'Autre') {
+        const customVal = g('wz-industry-custom-input')?.value.trim();
+        if (customVal) w.data.industry = customVal;
+      }
+    }
     if (w.step === 5) {
-      const cSel = g('wz-country');
-      const cVal = cSel?.value || '';
-      w.data.country = cVal;
-      const opt = cSel?.options[cSel?.selectedIndex];
-      if (opt) {
-        const code = opt.getAttribute('data-code');
-        const curr = opt.getAttribute('data-currency');
-        if (code) {
-          w.data.phonePrefix = code;
-          const pSel = g('wz-phone-prefix');
-          if (pSel) pSel.value = code;
-        }
-        if (curr) {
-          w.data.currency = curr;
-          const curSel = g('wz-currency');
-          if (curSel) curSel.value = curr;
+      // Lecture directe de la valeur du composant (w.data.country ISO)
+      if (w.data.country) {
+        const cInfo = this.getCountryInfo(w.data.country);
+        if (cInfo) {
+          w.data.country = cInfo.iso;
+          w.data.phonePrefix = cInfo.dialCode;
+          if (!w.data.currency) {
+            w.data.currency = cInfo.currency;
+          }
         }
       }
     }
     if (w.step === 6) {
-      w.data.phonePrefix = g('wz-phone-prefix')?.value || w.data.phonePrefix || '+221';
+      w.data.phonePrefix = g('wz-phone-prefix')?.value || w.data.phonePrefix || '+242';
       w.data.phone = g('wz-phone')?.value.trim() || '';
     }
-    if (w.step === 7) w.data.currency = g('wz-currency')?.value || 'FCFA';
+    if (w.step === 7) {
+      w.data.currency = w.data.currency || 'FCFA';
+    }
     if (w.step === 8) w.data.email = g('wz-email')?.value.trim() || '';
     if (w.step === 9) w.data.taxId = g('wz-taxid')?.value.trim() || '';
     if (w.step === 10) {
@@ -8682,128 +8807,185 @@ window.KivoApp = {
   },
 
   // ─────────────────────────────────────────────────────────────────
-  // KIVO SELECT — Composant sélecteur moderne (Commit 1c)
+  // KIVO PICKER — Composant unique pour Secteur, Pays et Devise
   // ─────────────────────────────────────────────────────────────────
 
-  /** Country reference table. ISO code used as w.data.country */
+  /** Table de référence des pays. Clé ISO unique (ex. CG, CD, SN, CI, FR) */
   COUNTRY_DATA: [
-    { value: 'Senegal',        flag: '🇸🇳', label: 'Sénégal',                  dialCode: '+221', currency: 'FCFA' },
-    { value: "Cote d'Ivoire",  flag: '🇨🇮', label: "Côte d'Ivoire",            dialCode: '+225', currency: 'FCFA' },
-    { value: 'Cameroun',       flag: '🇨🇲', label: 'Cameroun',                  dialCode: '+237', currency: 'FCFA' },
-    { value: 'Congo',          flag: '🇨🇬', label: 'Congo',                     dialCode: '+242', currency: 'FCFA' },
-    { value: 'RDC',            flag: '🇨🇩', label: 'RD Congo',                  dialCode: '+243', currency: 'CDF'  },
-    { value: 'Gabon',          flag: '🇬🇦', label: 'Gabon',                     dialCode: '+241', currency: 'FCFA' },
-    { value: 'Mali',           flag: '🇲🇱', label: 'Mali',                      dialCode: '+223', currency: 'FCFA' },
-    { value: 'Burkina Faso',   flag: '🇧🇫', label: 'Burkina Faso',              dialCode: '+226', currency: 'FCFA' },
-    { value: 'Togo',           flag: '🇹🇬', label: 'Togo',                      dialCode: '+228', currency: 'FCFA' },
-    { value: 'Benin',          flag: '🇧🇯', label: 'Bénin',                     dialCode: '+229', currency: 'FCFA' },
-    { value: 'Guinee Conakry', flag: '🇬🇳', label: 'Guinée Conakry',            dialCode: '+224', currency: 'GNF'  },
-    { value: 'Niger',          flag: '🇳🇪', label: 'Niger',                     dialCode: '+227', currency: 'FCFA' },
-    { value: 'Tchad',          flag: '🇹🇩', label: 'Tchad',                     dialCode: '+235', currency: 'FCFA' },
-    { value: 'RCA',            flag: '🇨🇫', label: 'Rép. Centrafricaine',       dialCode: '+236', currency: 'FCFA' },
-    { value: 'Madagascar',     flag: '🇲🇬', label: 'Madagascar',                dialCode: '+261', currency: 'MGA'  },
-    { value: 'Mauritanie',     flag: '🇲🇷', label: 'Mauritanie',                dialCode: '+222', currency: 'MRU'  },
-    { value: 'Maroc',          flag: '🇲🇦', label: 'Maroc',                     dialCode: '+212', currency: 'MAD'  },
-    { value: 'Algerie',        flag: '🇩🇿', label: 'Algérie',                   dialCode: '+213', currency: 'DZD'  },
-    { value: 'Tunisie',        flag: '🇹🇳', label: 'Tunisie',                   dialCode: '+216', currency: 'TND'  },
-    { value: 'Rwanda',         flag: '🇷🇼', label: 'Rwanda',                    dialCode: '+250', currency: 'RWF'  },
-    { value: 'Burundi',        flag: '🇧🇮', label: 'Burundi',                   dialCode: '+257', currency: 'BIF'  },
-    { value: 'Kenya',          flag: '🇰🇪', label: 'Kenya',                     dialCode: '+254', currency: 'KES'  },
-    { value: 'Nigeria',        flag: '🇳🇬', label: 'Nigéria',                   dialCode: '+234', currency: 'NGN'  },
-    { value: 'Ghana',          flag: '🇬🇭', label: 'Ghana',                     dialCode: '+233', currency: 'GHS'  },
-    { value: 'France',         flag: '🇫🇷', label: 'France',                    dialCode: '+33',  currency: 'EUR'  },
-    { value: 'Belgique',       flag: '🇧🇪', label: 'Belgique',                  dialCode: '+32',  currency: 'EUR'  },
-    { value: 'Suisse',         flag: '🇨🇭', label: 'Suisse',                    dialCode: '+41',  currency: 'CHF'  },
-    { value: 'Canada',         flag: '🇨🇦', label: 'Canada',                    dialCode: '+1',   currency: 'CAD'  },
-    { value: 'Etats-Unis',     flag: '🇺🇸', label: 'États-Unis',                dialCode: '+1',   currency: 'USD'  },
-    { value: 'Autre pays',     flag: '🌐', label: 'Autre pays',                 dialCode: '+1',   currency: 'USD'  },
+    { iso: 'CG', name: 'Congo',                dialCode: '+242', currency: 'FCFA', phonePlaceholder: '06 123 4567' },
+    { iso: 'CD', name: 'RD Congo',             dialCode: '+243', currency: 'CDF',  phonePlaceholder: '081 234 5678' },
+    { iso: 'SN', name: 'Sénégal',              dialCode: '+221', currency: 'FCFA', phonePlaceholder: '77 123 45 67' },
+    { iso: 'CI', name: "Côte d'Ivoire",        dialCode: '+225', currency: 'FCFA', phonePlaceholder: '07 12 34 56 78' },
+    { iso: 'FR', name: 'France',               dialCode: '+33',  currency: 'EUR',  phonePlaceholder: '06 12 34 56 78' },
+    { iso: 'CM', name: 'Cameroun',             dialCode: '+237', currency: 'FCFA', phonePlaceholder: 'Votre numéro' },
+    { iso: 'GA', name: 'Gabon',                dialCode: '+241', currency: 'FCFA', phonePlaceholder: 'Votre numéro' },
+    { iso: 'ML', name: 'Mali',                 dialCode: '+223', currency: 'FCFA', phonePlaceholder: 'Votre numéro' },
+    { iso: 'BF', name: 'Burkina Faso',         dialCode: '+226', currency: 'FCFA', phonePlaceholder: 'Votre numéro' },
+    { iso: 'TG', name: 'Togo',                 dialCode: '+228', currency: 'FCFA', phonePlaceholder: 'Votre numéro' },
+    { iso: 'BJ', name: 'Bénin',                dialCode: '+229', currency: 'FCFA', phonePlaceholder: 'Votre numéro' },
+    { iso: 'GN', name: 'Guinée Conakry',       dialCode: '+224', currency: 'GNF',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'NE', name: 'Niger',                dialCode: '+227', currency: 'FCFA', phonePlaceholder: 'Votre numéro' },
+    { iso: 'TD', name: 'Tchad',                dialCode: '+235', currency: 'FCFA', phonePlaceholder: 'Votre numéro' },
+    { iso: 'CF', name: 'Rép. Centrafricaine',  dialCode: '+236', currency: 'FCFA', phonePlaceholder: 'Votre numéro' },
+    { iso: 'MG', name: 'Madagascar',           dialCode: '+261', currency: 'MGA',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'MR', name: 'Mauritanie',           dialCode: '+222', currency: 'MRU',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'MA', name: 'Maroc',                dialCode: '+212', currency: 'MAD',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'DZ', name: 'Algérie',              dialCode: '+213', currency: 'DZD',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'TN', name: 'Tunisie',              dialCode: '+216', currency: 'TND',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'RW', name: 'Rwanda',               dialCode: '+250', currency: 'RWF',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'BI', name: 'Burundi',              dialCode: '+257', currency: 'BIF',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'KE', name: 'Kenya',                dialCode: '+254', currency: 'KES',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'NG', name: 'Nigéria',              dialCode: '+234', currency: 'NGN',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'GH', name: 'Ghana',                dialCode: '+233', currency: 'GHS',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'BE', name: 'Belgique',             dialCode: '+32',  currency: 'EUR',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'CH', name: 'Suisse',               dialCode: '+41',  currency: 'CHF',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'CA', name: 'Canada',               dialCode: '+1',   currency: 'CAD',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'US', name: 'États-Unis',           dialCode: '+1',   currency: 'USD',  phonePlaceholder: 'Votre numéro' },
+    { iso: 'XX', name: 'Autre pays',           dialCode: '+1',   currency: 'USD',  phonePlaceholder: 'Votre numéro' }
   ],
 
-  /** Currency reference table */
+  /**
+   * Retrouve l'objet pays par son code ISO ou son nom
+   * @param {string} query
+   * @returns {Object|null}
+   */
+  getCountryInfo: function (query) {
+    if (!query) return null;
+    const q = String(query).trim();
+    const qUpper = q.toUpperCase();
+    let found = this.COUNTRY_DATA.find(c => c.iso === qUpper);
+    if (!found) {
+      const qLow = q.toLowerCase();
+      found = this.COUNTRY_DATA.find(c => c.name.toLowerCase() === qLow);
+    }
+    return found || null;
+  },
+
+  /** Table de référence des devises (code + nom) */
   CURRENCY_DATA: [
-    { value: 'FCFA', label: 'FCFA (XOF / XAF)' },
-    { value: 'CDF',  label: 'CDF (Franc Congolais)' },
-    { value: 'GNF',  label: 'GNF (Franc Guinéen)' },
-    { value: 'MGA',  label: 'MGA (Ariary Malgache)' },
-    { value: 'MRU',  label: 'MRU (Ouguiya Mauritanien)' },
-    { value: 'MAD',  label: 'MAD (Dirham Marocain)' },
-    { value: 'DZD',  label: 'DZD (Dinar Algérien)' },
-    { value: 'TND',  label: 'TND (Dinar Tunisien)' },
-    { value: 'RWF',  label: 'RWF (Franc Rwandais)' },
-    { value: 'BIF',  label: 'BIF (Franc Burundais)' },
-    { value: 'KES',  label: 'KES (Shilling Kenyan)' },
-    { value: 'NGN',  label: 'NGN (Naira Nigérian)' },
-    { value: 'GHS',  label: 'GHS (Cedi Ghanéen)' },
-    { value: 'EUR',  label: 'EUR (Euro)' },
-    { value: 'USD',  label: 'USD (Dollar US)' },
-    { value: 'GBP',  label: 'GBP (Livre Sterling)' },
-    { value: 'CAD',  label: 'CAD (Dollar Canadien)' },
-    { value: 'CHF',  label: 'CHF (Franc Suisse)' },
+    { value: 'FCFA', label: 'FCFA - Franc CFA (XOF / XAF)' },
+    { value: 'CDF',  label: 'CDF - Franc Congolais' },
+    { value: 'EUR',  label: 'EUR - Euro (€)' },
+    { value: 'USD',  label: 'USD - Dollar US ($)' },
+    { value: 'GNF',  label: 'GNF - Franc Guinéen' },
+    { value: 'MGA',  label: 'MGA - Ariary Malgache' },
+    { value: 'MRU',  label: 'MRU - Ouguiya Mauritanien' },
+    { value: 'MAD',  label: 'MAD - Dirham Marocain' },
+    { value: 'DZD',  label: 'DZD - Dinar Algérien' },
+    { value: 'TND',  label: 'TND - Dinar Tunisien' },
+    { value: 'RWF',  label: 'RWF - Franc Rwandais' },
+    { value: 'BIF',  label: 'BIF - Franc Burundais' },
+    { value: 'KES',  label: 'KES - Shilling Kenyan' },
+    { value: 'NGN',  label: 'NGN - Naira Nigérian' },
+    { value: 'GHS',  label: 'GHS - Cedi Ghanéen' },
+    { value: 'CAD',  label: 'CAD - Dollar Canadien ($)' },
+    { value: 'GBP',  label: 'GBP - Livre Sterling (£)' },
+    { value: 'CHF',  label: 'CHF - Franc Suisse (CHF)' }
   ],
 
-  /** Sector/industry reference table grouped */
+  /** Table de référence des secteurs d'activité avec catégories et icônes SVG */
   SECTOR_DATA: [
-    { group: 'Commerce & Vente', icon: '🛍️', items: [
-      'Boutique et Commerce de détail',
-      'Grossiste et Distribution',
-      'E-commerce et Vente en ligne',
-    ]},
-    { group: 'Services aux entreprises', icon: '💼', items: [
-      'Prestations de services & Conseil',
-      'Agence & Marketing Digital',
-      'Comptabilité, Juridique & RH',
-    ]},
-    { group: 'Technologie', icon: '💻', items: [
-      'Informatique et Développement Web',
-      'Télécoms et Réseaux',
-      'Maintenance et Support IT',
-    ]},
-    { group: 'Artisanat & Production', icon: '🔨', items: [
-      "Artisanat d'art & Création",
-      'Confection, Mode & Textile',
-      'Production locale & Transformation',
-    ]},
-    { group: 'Bâtiment & Immobilier', icon: '🏗️', items: [
-      'BTP, Travaux et Rénovation',
-      'Immobilier et Gestion locative',
-      'Architecture et Ingénierie',
-    ]},
-    { group: 'Santé & Bien-être', icon: '❤️', items: [
-      'Santé et Soins médicaux',
-      'Beauté, Esthétique et Coiffure',
-      'Sport et Remise en forme',
-    ]},
-    { group: 'Transport & Logistique', icon: '🚚', items: [
-      'Transport de personnes et VTC',
-      'Livraison, Fret et Logistique',
-      'Transit et Import-Export',
-    ]},
-    { group: 'Restauration & Hôtellerie', icon: '🍽️', items: [
-      'Restauration et Traiteur',
-      'Café, Bar et Snack',
-      'Hôtellerie et Hébergement',
-    ]},
-    { group: 'Autres', icon: '✨', items: [
-      'Événementiel et Photographie',
-      'Éducation et Formation',
-      "Autre secteur d'activité",
-    ]},
+    {
+      group: 'Commerce & Vente',
+      iconSvg: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
+      items: [
+        'Commerce de détail',
+        'Commerce de gros',
+        'Import-Export',
+        'Vente en ligne'
+      ]
+    },
+    {
+      group: 'Services aux entreprises',
+      iconSvg: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
+      items: [
+        'Conseil & Cabinet de conseil',
+        'Comptabilité & Finance',
+        'Juridique',
+        'Ressources humaines & Recrutement',
+        'Marketing & Communication',
+        'Formation & Éducation'
+      ]
+    },
+    {
+      group: 'Technologie',
+      iconSvg: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+      items: [
+        'Informatique & Développement',
+        'Design & Création graphique',
+        'Télécommunications'
+      ]
+    },
+    {
+      group: 'Artisanat & Production',
+      iconSvg: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
+      items: [
+        'Artisanat',
+        'Industrie & Fabrication',
+        'Agriculture & Agroalimentaire',
+        'Textile & Mode'
+      ]
+    },
+    {
+      group: 'Bâtiment & Immobilier',
+      iconSvg: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="22" x2="9" y2="12"/><line x1="15" y1="22" x2="15" y2="12"/><line x1="9" y1="12" x2="15" y2="12"/></svg>`,
+      items: [
+        'BTP & Construction',
+        'Immobilier',
+        'Architecture & Urbanisme'
+      ]
+    },
+    {
+      group: 'Santé & Bien-être',
+      iconSvg: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+      items: [
+        'Santé & Médical',
+        'Beauté & Bien-être',
+        'Sport & Fitness'
+      ]
+    },
+    {
+      group: 'Transport & Logistique',
+      iconSvg: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
+      items: [
+        'Transport',
+        'Logistique & Entreposage'
+      ]
+    },
+    {
+      group: 'Restauration & Hôtellerie',
+      iconSvg: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>`,
+      items: [
+        'Restauration',
+        'Hôtellerie & Tourisme',
+        'Événementiel'
+      ]
+    },
+    {
+      group: 'Autres',
+      iconSvg: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+      items: [
+        'Nettoyage & Entretien',
+        'Sécurité',
+        'ONG & Associatif',
+        'Autre'
+      ]
+    }
   ],
 
-  /** Active kivo-select instance state */
+  /** Instance active du Picker */
   _kivoSelect: null,
 
   /**
-   * Open a KivoSelect panel.
+   * Ouvre le panneau du Picker (Secteur, Pays, Devise).
    * @param {'industry'|'country'|'currency'} type
    */
   kivoSelectOpen: function (type) {
-    // Close any open panel first
     this.kivoSelectClose();
 
     const isMobile = window.innerWidth <= 768;
-    const triggerId = `wz-${type === 'industry' ? 'industry' : type === 'country' ? 'country' : 'currency'}-trigger`;
-    const wrapId   = `wz-${type === 'industry' ? 'industry' : type === 'country' ? 'country' : 'currency'}-wrap`;
+    const triggerId = `wz-${type}-trigger`;
+    const wrapId   = `wz-${type}-wrap`;
     const trigger  = document.getElementById(triggerId);
     const wrap     = document.getElementById(wrapId);
     if (!trigger || !wrap) return;
@@ -8811,16 +8993,16 @@ window.KivoApp = {
     trigger.classList.add('open');
     trigger.setAttribute('aria-expanded', 'true');
 
-    // Determine current value
+    // Valeur courante
     const w = this._wizard;
     let currentVal = '';
-    if (w) {
+    if (w && w.data) {
       if (type === 'industry') currentVal = w.data.industry || '';
-      if (type === 'country')  currentVal = w.data.country  || 'Senegal';
+      if (type === 'country')  currentVal = w.data.country  || '';
       if (type === 'currency') currentVal = w.data.currency || 'FCFA';
     }
 
-    // Build panel
+    // Création du panneau
     const panel = document.createElement('div');
     panel.className = 'kivo-select-panel' + (isMobile ? ' mobile-sheet' : '');
     panel.setAttribute('role', 'listbox');
@@ -8829,23 +9011,26 @@ window.KivoApp = {
     if (isMobile) {
       const handle = document.createElement('span');
       handle.className = 'kivo-sheet-handle';
+      handle.addEventListener('click', () => this.kivoSelectClose());
       panel.appendChild(handle);
     }
 
-    // Search bar
-    const searchWrap = document.createElement('div');
-    searchWrap.className = 'kivo-select-search';
-    const searchIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--text-secondary)"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
-    searchWrap.innerHTML = searchIcon;
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    const placeholder = type === 'industry' ? 'Rechercher un secteur…' : type === 'country' ? 'Rechercher un pays…' : 'Rechercher une devise…';
-    searchInput.placeholder = placeholder;
-    searchInput.setAttribute('autocomplete', 'off');
-    searchWrap.appendChild(searchInput);
-    panel.appendChild(searchWrap);
+    let searchInput = null;
+    // Recherche en haut du panneau pour Pays et Secteur
+    if (type === 'country' || type === 'industry') {
+      const searchWrap = document.createElement('div');
+      searchWrap.className = 'kivo-select-search';
+      const searchIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--text-secondary)"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+      searchWrap.innerHTML = searchIcon;
+      searchInput = document.createElement('input');
+      searchInput.type = 'text';
+      searchInput.placeholder = (type === 'country') ? 'Rechercher un pays…' : 'Rechercher un secteur…';
+      searchInput.setAttribute('autocomplete', 'off');
+      searchWrap.appendChild(searchInput);
+      panel.appendChild(searchWrap);
+    }
 
-    // List container
+    // Conteneur de liste défilable
     const list = document.createElement('div');
     list.className = 'kivo-select-list';
     panel.appendChild(list);
@@ -8854,9 +9039,34 @@ window.KivoApp = {
 
     const renderList = (query) => {
       list.innerHTML = '';
-      const q = query.toLowerCase().trim();
+      const q = (query || '').toLowerCase().trim();
 
-      if (type === 'industry') {
+      if (type === 'country') {
+        const filtered = this.COUNTRY_DATA.filter(c =>
+          !q || c.name.toLowerCase().includes(q)
+        );
+        if (!filtered.length) {
+          list.innerHTML = `<div class="kivo-select-no-result">Aucun pays trouvé.</div>`;
+        } else {
+          filtered.forEach(c => {
+            const isSelected = (c.iso === currentVal);
+            const opt = document.createElement('div');
+            opt.className = 'kivo-select-option' + (isSelected ? ' selected' : '');
+            opt.setAttribute('role', 'option');
+            opt.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+            opt.setAttribute('data-value', c.iso);
+            // Pays : drapeau + nom du pays, rien d'autre (ni "CG", ni indicatif)
+            opt.innerHTML = `
+              <img class="kivo-flag-img" src="https://flagcdn.com/w40/${c.iso.toLowerCase()}.png" alt="${c.name}" loading="lazy">
+              <span style="flex:1; font-weight:${isSelected ? '600' : '400'};">${c.name}</span>
+              ${CHECK_SVG}
+            `;
+            opt.addEventListener('click', () => this.kivoSelectPick('country', c));
+            list.appendChild(opt);
+          });
+        }
+
+      } else if (type === 'industry') {
         let anyResult = false;
         this.SECTOR_DATA.forEach(group => {
           const filteredItems = group.items.filter(item =>
@@ -8864,17 +9074,25 @@ window.KivoApp = {
           );
           if (!filteredItems.length) return;
           anyResult = true;
+
+          // En-tête de catégorie collant avec petite icône SVG
           const header = document.createElement('div');
           header.className = 'kivo-select-group-header';
-          header.innerHTML = `<span>${group.icon}</span><span>${group.group}</span>`;
+          header.innerHTML = `
+            <span style="display:inline-flex; align-items:center; color:var(--primary, #2563EB);">${group.iconSvg}</span>
+            <span>${group.group}</span>
+          `;
           list.appendChild(header);
+
           filteredItems.forEach(item => {
+            const isSelected = (item === currentVal);
             const opt = document.createElement('div');
-            opt.className = 'kivo-select-option' + (item === currentVal ? ' selected' : '');
+            opt.className = 'kivo-select-option' + (isSelected ? ' selected' : '');
             opt.setAttribute('role', 'option');
-            opt.setAttribute('aria-selected', item === currentVal ? 'true' : 'false');
-            opt.innerHTML = `<span style="flex:1">${item}</span>${CHECK_SVG}`;
-            opt.addEventListener('click', () => this.kivoSelectPick(type, { value: item, label: item }));
+            opt.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+            opt.setAttribute('data-value', item);
+            opt.innerHTML = `<span style="flex:1;">${item}</span>${CHECK_SVG}`;
+            opt.addEventListener('click', () => this.kivoSelectPick('industry', { value: item, label: item }));
             list.appendChild(opt);
           });
         });
@@ -8882,124 +9100,157 @@ window.KivoApp = {
           list.innerHTML = `<div class="kivo-select-no-result">Aucun secteur trouvé.</div>`;
         }
 
-      } else if (type === 'country') {
-        const filtered = this.COUNTRY_DATA.filter(c =>
-          !q || c.label.toLowerCase().includes(q) || c.dialCode.includes(q)
-        );
-        if (!filtered.length) {
-          list.innerHTML = `<div class="kivo-select-no-result">Aucun pays trouvé.</div>`;
-        } else {
-          filtered.forEach(c => {
-            const opt = document.createElement('div');
-            opt.className = 'kivo-select-option' + (c.value === currentVal ? ' selected' : '');
-            opt.setAttribute('role', 'option');
-            opt.setAttribute('aria-selected', c.value === currentVal ? 'true' : 'false');
-            opt.innerHTML = `<span style="font-size:1.3em;line-height:1">${c.flag}</span><span style="flex:1">${c.label}</span>${CHECK_SVG}`;
-            opt.addEventListener('click', () => this.kivoSelectPick(type, c));
-            list.appendChild(opt);
-          });
-        }
-
       } else if (type === 'currency') {
-        const filtered = this.CURRENCY_DATA.filter(c =>
-          !q || c.label.toLowerCase().includes(q) || c.value.toLowerCase().includes(q)
-        );
-        if (!filtered.length) {
-          list.innerHTML = `<div class="kivo-select-no-result">Aucune devise trouvée.</div>`;
-        } else {
-          filtered.forEach(c => {
-            const opt = document.createElement('div');
-            opt.className = 'kivo-select-option' + (c.value === currentVal ? ' selected' : '');
-            opt.setAttribute('role', 'option');
-            opt.innerHTML = `<span style="font-weight:600;min-width:48px">${c.value}</span><span style="flex:1;color:var(--text-secondary);font-size:0.88em">${c.label.replace(c.value + ' ', '')}</span>${CHECK_SVG}`;
-            opt.addEventListener('click', () => this.kivoSelectPick(type, c));
-            list.appendChild(opt);
-          });
-        }
+        // Devise : code + nom
+        this.CURRENCY_DATA.forEach(c => {
+          const isSelected = (c.value === currentVal);
+          const opt = document.createElement('div');
+          opt.className = 'kivo-select-option' + (isSelected ? ' selected' : '');
+          opt.setAttribute('role', 'option');
+          opt.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+          opt.setAttribute('data-value', c.value);
+          opt.innerHTML = `
+            <span style="flex:1;">${c.label}</span>
+            ${CHECK_SVG}
+          `;
+          opt.addEventListener('click', () => this.kivoSelectPick('currency', c));
+          list.appendChild(opt);
+        });
       }
     };
 
     renderList('');
-    searchInput.addEventListener('input', () => renderList(searchInput.value));
+    if (searchInput) {
+      searchInput.addEventListener('input', () => renderList(searchInput.value));
+    }
 
-    // Keyboard navigation
+    // Navigation au clavier
     let focusIdx = -1;
     panel.addEventListener('keydown', (e) => {
       const opts = list.querySelectorAll('.kivo-select-option');
-      if (e.key === 'Escape') { this.kivoSelectClose(); return; }
+      if (e.key === 'Escape') {
+        this.kivoSelectClose();
+        return;
+      }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         opts.forEach(o => o.classList.remove('focused'));
         focusIdx = Math.min(focusIdx + 1, opts.length - 1);
-        if (opts[focusIdx]) { opts[focusIdx].classList.add('focused'); opts[focusIdx].scrollIntoView({ block: 'nearest' }); }
+        if (opts[focusIdx]) {
+          opts[focusIdx].classList.add('focused');
+          opts[focusIdx].scrollIntoView({ block: 'nearest' });
+        }
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         opts.forEach(o => o.classList.remove('focused'));
         focusIdx = Math.max(focusIdx - 1, 0);
-        if (opts[focusIdx]) { opts[focusIdx].classList.add('focused'); opts[focusIdx].scrollIntoView({ block: 'nearest' }); }
+        if (opts[focusIdx]) {
+          opts[focusIdx].classList.add('focused');
+          opts[focusIdx].scrollIntoView({ block: 'nearest' });
+        }
       } else if (e.key === 'Enter') {
+        e.preventDefault();
         if (opts[focusIdx]) opts[focusIdx].click();
       }
     });
 
-    // Position panel (desktop: below trigger)
+    // Positionnement desktop DIRECTEMENT sous le champ (ou vers le haut si pas de place)
     if (!isMobile) {
-      panel.style.top = (trigger.offsetHeight + 4) + 'px';
-      panel.style.left = '0';
+      const rect = trigger.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 320 && rect.top > 320) {
+        panel.classList.add('opens-up');
+      } else {
+        panel.classList.remove('opens-up');
+      }
     }
+
     wrap.appendChild(panel);
 
-    // Backdrop
+    // Backdrop transparent sur desktop (fermeture au clic extérieur) ou assombri sur mobile
     const backdrop = document.createElement('div');
     backdrop.className = 'kivo-select-backdrop' + (isMobile ? ' mobile-sheet-backdrop' : '');
     backdrop.addEventListener('click', () => this.kivoSelectClose());
+    backdrop.addEventListener('touchstart', () => this.kivoSelectClose(), { passive: true });
     document.body.appendChild(backdrop);
 
     this._kivoSelect = { type, panel, backdrop, trigger };
 
-    // Auto-focus search
-    requestAnimationFrame(() => searchInput.focus());
+    if (searchInput) {
+      requestAnimationFrame(() => searchInput.focus());
+    }
   },
 
-  /** Pick an option and close */
+  /**
+   * Sélectionne un élément du Picker et ferme le panneau
+   */
   kivoSelectPick: function (type, item) {
     const w = this._wizard;
     if (!w) return;
 
-    if (type === 'industry') {
+    if (type === 'country') {
+      // Une seule source : code ISO
+      w.data.country = item.iso;
+      w.data.phonePrefix = item.dialCode;
+      w.data.currency = item.currency;
+
+      const dispEl = document.getElementById('wz-country-display');
+      if (dispEl) {
+        // Pays : drapeau + nom du pays, rien d'autre (ni "CG", ni indicatif)
+        dispEl.innerHTML = `
+          <img class="kivo-flag-img" src="https://flagcdn.com/w40/${item.iso.toLowerCase()}.png" alt="${item.name}" loading="lazy">
+          <span id="wz-country-name">${item.name}</span>
+        `;
+      }
+
+      // Mise à jour de l'indicatif et de l'exemple de téléphone
+      this.updatePhonePrefixPicker('wz-phone-prefix', item.dialCode, item.iso);
+      const phoneInput = document.getElementById('wz-phone');
+      if (phoneInput) {
+        phoneInput.placeholder = item.phonePlaceholder || 'Votre numéro';
+      }
+
+      // Devise par défaut mise à jour
+      const currDisp = document.getElementById('wz-currency-display');
+      if (currDisp) {
+        const foundCurr = this.CURRENCY_DATA.find(c => c.value === item.currency);
+        if (foundCurr) currDisp.textContent = foundCurr.label;
+      }
+
+      const err = document.getElementById('wz-err-5');
+      if (err) err.style.display = 'none';
+
+    } else if (type === 'industry') {
       w.data.industry = item.value;
       const dispEl = document.getElementById('wz-industry-display');
       if (dispEl) dispEl.textContent = item.label;
-      const hidSel = document.getElementById('wz-industry');
-      if (hidSel) hidSel.value = item.value;
 
-    } else if (type === 'country') {
-      w.data.country  = item.value;
-      w.data.phonePrefix = item.dialCode;
-      w.data.currency    = item.currency;
-      const dispEl = document.getElementById('wz-country-display');
-      if (dispEl) dispEl.textContent = `${item.flag} ${item.label}`;
-      // Cascade to currency display
-      const currDispEl = document.getElementById('wz-currency-display');
-      if (currDispEl) {
-        const curr = this.CURRENCY_DATA.find(c => c.value === item.currency);
-        if (curr) currDispEl.textContent = curr.label;
+      const customWrap = document.getElementById('wz-industry-custom-wrap');
+      const customInput = document.getElementById('wz-industry-custom-input');
+      if (customWrap) {
+        if (item.value === 'Autre') {
+          customWrap.style.display = 'block';
+          if (customInput) customInput.focus();
+        } else {
+          customWrap.style.display = 'none';
+        }
       }
-      // Cascade to phone prefix select
-      this.wizardOnCountryChange(item.value, item.dialCode, item.currency);
+
+      const err = document.getElementById('wz-err-4');
+      if (err) err.style.display = 'none';
 
     } else if (type === 'currency') {
       w.data.currency = item.value;
       const dispEl = document.getElementById('wz-currency-display');
       if (dispEl) dispEl.textContent = item.label;
-      const hidSel = document.getElementById('wz-currency');
-      if (hidSel) hidSel.value = item.value;
     }
 
     this.kivoSelectClose();
   },
 
-  /** Close the active KivoSelect panel */
+  /**
+   * Ferme le panneau du Picker actif
+   */
   kivoSelectClose: function () {
     if (!this._kivoSelect) return;
     const { panel, backdrop, trigger } = this._kivoSelect;
