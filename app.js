@@ -1635,8 +1635,10 @@ window.KivoApp = {
    */
   formatPhoneNumber: function (rawVal, prefix) {
     if (!rawVal) return '';
-    const digits = String(rawVal).replace(/\D/g, '');
-    if (!digits) return '';
+    const trimmed = String(rawVal).trim();
+    if (trimmed === '+') return '+';
+    const digits = trimmed.replace(/\D/g, '');
+    if (!digits) return trimmed.startsWith('+') ? '+' : '';
 
     const cleanPrefix = (prefix || '').replace(/\D/g, '');
 
@@ -1783,33 +1785,76 @@ window.KivoApp = {
     let raw = inputEl.value;
     if (!raw) return;
 
-    // Detect pasted international prefix
-    const prefixMatch = raw.match(/^\s*(\+\d{1,4})/);
-    if (prefixMatch) {
-      const detected = prefixMatch[1];
-      const group = inputEl.closest('.phone-input-group');
-      const select = group ? group.querySelector('.phone-prefix-select') : null;
-      if (select) {
+    // Si l'utilisateur vient de taper '+' seul, ne jamais l'effacer
+    if (raw.trim() === '+') return;
+
+    const group = inputEl.closest('.phone-input-group');
+    const select = group ? group.querySelector('.phone-prefix-select') : null;
+
+    if (select) {
+      // Champ avec sélecteur de préfixe dédié (ex: modal client, wizard, paramètres)
+      const prefixMatch = raw.match(/^\s*(\+\d{1,4})/);
+      if (prefixMatch) {
+        const detected = prefixMatch[1];
+        let matched = false;
         for (let i = 0; i < select.options.length; i++) {
           if (select.options[i].value === detected) {
             select.selectedIndex = i;
+            select.dispatchEvent(new Event('change'));
             prefix = detected;
+            matched = true;
             break;
           }
         }
-      } else {
-        prefix = detected;
+        if (matched) {
+          raw = raw.replace(prefixMatch[0], '');
+        }
       }
-      raw = raw.replace(prefixMatch[0], '');
-    }
+      raw = raw.replace(/^\+/, '');
 
-    const formatted = this.formatPhoneNumber(raw, prefix);
-    if (formatted !== inputEl.value) {
-      const oldLen = inputEl.value.length;
-      const oldPos = inputEl.selectionStart || 0;
-      inputEl.value = formatted;
-      const newPos = Math.max(0, oldPos + (formatted.length - oldLen));
-      inputEl.setSelectionRange(newPos, newPos);
+      const formatted = this.formatPhoneNumber(raw, prefix || select.value);
+      if (formatted !== inputEl.value) {
+        const oldLen = inputEl.value.length;
+        const oldPos = inputEl.selectionStart || 0;
+        inputEl.value = formatted;
+        const newPos = Math.max(0, oldPos + (formatted.length - oldLen));
+        inputEl.setSelectionRange(newPos, newPos);
+      }
+    } else {
+      // Champ SANS sélecteur d'indicatif (ex: builder-client-phone, builder-biz-phone)
+      if (raw.startsWith('+')) {
+        const prefixMatch = raw.match(/^(\+\d{1,4})(\s*.*)?$/);
+        if (prefixMatch) {
+          const detected = prefixMatch[1];
+          const remainder = (prefixMatch[2] || '').trim();
+          if (!remainder) {
+            const valWithSpace = detected + ' ';
+            if (inputEl.value !== valWithSpace && inputEl.value !== detected) {
+              inputEl.value = detected;
+            }
+            return;
+          }
+          const formatted = this.formatPhoneNumber(remainder, detected);
+          const full = `${detected} ${formatted}`.trim();
+          if (full !== inputEl.value) {
+            const oldLen = inputEl.value.length;
+            const oldPos = inputEl.selectionStart || 0;
+            inputEl.value = full;
+            const newPos = Math.max(0, oldPos + (full.length - oldLen));
+            inputEl.setSelectionRange(newPos, newPos);
+          }
+        }
+      } else {
+        const defaultPrefix = (this.state && this.state.business && (this.state.business.phonePrefix || this.state.business.phone)) || '+242';
+        const formatted = this.formatPhoneNumber(raw, defaultPrefix);
+        if (formatted !== inputEl.value) {
+          const oldLen = inputEl.value.length;
+          const oldPos = inputEl.selectionStart || 0;
+          inputEl.value = formatted;
+          const newPos = Math.max(0, oldPos + (formatted.length - oldLen));
+          inputEl.setSelectionRange(newPos, newPos);
+        }
+      }
     }
   },
 
@@ -1817,8 +1862,9 @@ window.KivoApp = {
    * Parses a phone string like "+33 6 12 34 56 78" into prefix and number
    */
   parsePhoneAndPrefix: function (phoneStr) {
-    if (!phoneStr) return { prefix: '+221', number: '' };
+    if (!phoneStr) return { prefix: '+242', number: '' };
     const trimmed = String(phoneStr).trim();
+    if (trimmed === '+') return { prefix: '+', number: '' };
     const prefixes = [
       '+243', '+242', '+241', '+237', '+229', '+228', '+227', '+226', '+225',
       '+224', '+223', '+222', '+221', '+216', '+213', '+212', '+254', '+250',
@@ -1832,7 +1878,11 @@ window.KivoApp = {
         };
       }
     }
-    return { prefix: '+221', number: trimmed };
+    const match = trimmed.match(/^(\+\d{1,4})\s*(.*)$/);
+    if (match) {
+      return { prefix: match[1], number: match[2].trim() };
+    }
+    return { prefix: '+242', number: trimmed };
   },
 
   /**
@@ -4290,7 +4340,7 @@ window.KivoApp = {
       let subtotal = 0;
       let totalTax = 0;
 
-      document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
+      document.querySelectorAll('#builder-items-tbody .builder-item-card, #builder-items-tbody tr').forEach(tr => {
         const nameInput = tr.querySelector('.item-name');
         const qtyInput = tr.querySelector('.item-qty');
         const priceInput = tr.querySelector('.item-price');
@@ -4400,7 +4450,7 @@ window.KivoApp = {
 
     // 2. Check current builder form items & total
     let hasValidItems = false;
-    document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
+    document.querySelectorAll('#builder-items-tbody .builder-item-card, #builder-items-tbody tr').forEach(tr => {
       const name = (tr.querySelector('.item-name')?.value || '').trim();
       const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 0;
       const price = parseFloat(tr.querySelector('.item-price')?.value) || 0;
@@ -4458,7 +4508,7 @@ window.KivoApp = {
     const customClientName = (document.getElementById('builder-client-name')?.value || '').trim();
 
     let hasNamedItem = false;
-    document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
+    document.querySelectorAll('#builder-items-tbody .builder-item-card, #builder-items-tbody tr').forEach(tr => {
       const name = (tr.querySelector('.item-name')?.value || '').trim();
       if (name) hasNamedItem = true;
     });
@@ -4504,7 +4554,7 @@ window.KivoApp = {
     const items = [];
     let subtotal = 0;
     let totalTaxAmount = 0;
-    document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
+    document.querySelectorAll('#builder-items-tbody .builder-item-card, #builder-items-tbody tr').forEach(tr => {
       const name = (tr.querySelector('.item-name')?.value || '').trim();
       const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 1;
       const price = parseFloat(tr.querySelector('.item-price')?.value) || 0;
@@ -5151,7 +5201,7 @@ window.KivoApp = {
     const items = [];
     let subtotal = 0;
     let totalTaxAmount = 0;
-    document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
+    document.querySelectorAll('#builder-items-tbody .builder-item-card, #builder-items-tbody tr').forEach(tr => {
       const name = (tr.querySelector('.item-name')?.value || '').trim();
       const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 1;
       const unit = (tr.querySelector('.item-unit')?.value || '').trim();
@@ -11153,7 +11203,7 @@ window.KivoApp = {
       const rateNew = this.currencyRates[newCurrency] || 1;
       const factor = rateOld / rateNew;
 
-      document.querySelectorAll('#builder-items-tbody tr').forEach(tr => {
+      document.querySelectorAll('#builder-items-tbody .builder-item-card, #builder-items-tbody tr').forEach(tr => {
         const priceInput = tr.querySelector('.item-price');
         if (priceInput) {
           const currentPrice = parseFloat(priceInput.value) || 0;

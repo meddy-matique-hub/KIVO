@@ -159,8 +159,8 @@ window.KivoTemplates = {
     let totalTaxAmount = 0;
     const showVat = getChecked('builder-toggle-vat');
 
-    // Read ALL rows in the table
-    const itemRows = document.querySelectorAll('#builder-items-tbody tr');
+    // Read ALL rows/cards in the items container
+    const itemRows = document.querySelectorAll('#builder-items-tbody .builder-item-card, #builder-items-tbody tr');
     itemRows.forEach(tr => {
       const nameInput = tr.querySelector('.item-name');
       const qtyInput  = tr.querySelector('.item-qty');
