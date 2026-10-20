@@ -8311,6 +8311,18 @@ window.KivoApp = {
     // Hide all view sections
     document.querySelectorAll('.view-section').forEach(sec => sec.style.display = 'none');
 
+    // Also hide main app layout so the reset form appears standalone
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('main-content');
+    const mobileHeader = document.getElementById('mobile-header');
+    if (sidebar) sidebar.style.display = 'none';
+    if (mainContent) mainContent.style.display = 'none';
+    if (mobileHeader) mobileHeader.style.display = 'none';
+
+    // Ensure auth wrapper is visible and reset form is shown
+    const authWrapper = document.getElementById('view-auth') || document.querySelector('.auth-wrapper');
+    if (authWrapper) authWrapper.style.display = 'block';
+
     const resetSec = document.getElementById('view-reset-password');
     if (resetSec) {
       resetSec.style.display = 'block';
@@ -8326,6 +8338,7 @@ window.KivoApp = {
       this.checkResetPasswordStrength('');
     }
   },
+
 
   /**
    * Validation et soumission du nouveau mot de passe

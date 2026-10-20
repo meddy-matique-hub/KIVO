@@ -95,14 +95,9 @@ window.KivoAuth = {
       }, 0);
     });
 
-    // Check if user landed from a password recovery link
-    if (window.location.hash && window.location.hash.includes('type=recovery')) {
-      setTimeout(() => {
-        if (window.KivoApp && typeof window.KivoApp.showResetPasswordView === 'function') {
-          window.KivoApp.showResetPasswordView();
-        }
-      }, 500);
-    }
+    // Note: password recovery is handled exclusively via the PASSWORD_RECOVERY
+    // event in onAuthStateChange above. Manual hash checks are intentionally
+    // removed to prevent false positives on normal navigation hashes.
   },
 
   /**
