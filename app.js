@@ -1270,21 +1270,59 @@ window.KivoApp = {
   },
 
   /**
-   * Toggles the sidebar visibility with smooth animation
+   * Toggles the sidebar between expanded and collapsed (icon-only) states
    */
   toggleSidebar: function () {
     const sidebar = document.getElementById('sidebar');
-    const reopenBtn = document.getElementById('sidebar-reopen-btn');
-    if (sidebar) {
-      if (sidebar.classList.contains('mobile-open')) {
-        sidebar.classList.remove('mobile-open');
-        return;
-      }
-      sidebar.classList.toggle('collapsed');
-      const isCollapsed = sidebar.classList.contains('collapsed');
-      if (reopenBtn) {
-        reopenBtn.style.display = isCollapsed ? 'flex' : 'none';
-      }
+    if (!sidebar) return;
+
+    if (sidebar.classList.contains('mobile-open')) {
+      sidebar.classList.remove('mobile-open');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      if (backdrop) backdrop.classList.remove('active');
+      document.body.style.overflow = '';
+      return;
+    }
+
+    sidebar.classList.toggle('collapsed');
+    const isCollapsed = sidebar.classList.contains('collapsed');
+
+    // Mémorisation de la préférence utilisateur
+    try {
+      localStorage.setItem('kivo_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+    } catch (e) {}
+
+    // Mise à jour de l'infobulle et accessibilité du bouton de contrôle
+    const toggleBtn = document.getElementById('sidebar-toggle-btn');
+    if (toggleBtn) {
+      const tooltip = isCollapsed ? 'Agrandir la barre latérale' : 'Réduire la barre latérale';
+      toggleBtn.title = tooltip;
+      toggleBtn.setAttribute('aria-label', tooltip);
+      toggleBtn.setAttribute('data-tooltip', tooltip);
+    }
+  },
+
+  /**
+   * Restaure l'état de la sidebar sur Desktop au démarrage
+   */
+  restoreSidebarState: function () {
+    if (window.innerWidth > 1024) {
+      try {
+        const saved = localStorage.getItem('kivo_sidebar_collapsed');
+        if (saved === 'true') {
+          const sidebar = document.getElementById('sidebar');
+          if (sidebar) {
+            sidebar.classList.add('collapsed');
+            const toggleBtn = document.getElementById('sidebar-toggle-btn');
+            if (toggleBtn) {
+              const tooltip = 'Agrandir la barre latérale';
+              toggleBtn.title = tooltip;
+              toggleBtn.setAttribute('aria-label', tooltip);
+              toggleBtn.setAttribute('data-tooltip', tooltip);
+            }
+          }
+        }
+      } catch (e) {}
     }
   },
 
@@ -1616,6 +1654,20 @@ window.KivoApp = {
 
     // 6. Phone formatting & prefix selectors
     this.setupPhoneInputs();
+
+    // 7. Restauration de l'état réduit/agrandi de la sidebar sur Desktop
+    this.restoreSidebarState();
+
+    // 8. Raccourci clavier universel Ctrl+B / Cmd+B pour basculer la sidebar
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+        const tag = document.activeElement ? document.activeElement.tagName : '';
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+          e.preventDefault();
+          this.toggleSidebar();
+        }
+      }
+    });
   },
 
   /**

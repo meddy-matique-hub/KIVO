@@ -63,6 +63,7 @@
   --font-heading: 'Outfit', 'Inter', sans-serif;
 
   --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
 }
 
 /* Reset & Base Styles */
@@ -129,11 +130,12 @@ button {
   left: 0;
   z-index: 40;
   padding: 1.25rem 0.85rem 1rem 0.85rem;
-  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease;
+  transition: width 0.3s ease, padding 0.3s ease;
   border-right: 1px solid rgba(255, 255, 255, 0.07);
   box-shadow: 4px 0 24px rgba(5, 11, 24, 0.35);
   overflow-y: auto;
   overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .sidebar::-webkit-scrollbar {
@@ -144,15 +146,204 @@ button {
   border-radius: 4px;
 }
 
-.sidebar.collapsed {
-  transform: translateX(-100%);
-  pointer-events: none;
-}
+/* ── ÉTAT RÉDUIT (DESKTOP) : Transition fluide 0.3s ease & affichage vertical des icônes ── */
+@media (min-width: 1025px) {
+  .sidebar.collapsed {
+    width: var(--sidebar-collapsed-width) !important;
+    padding: 1.25rem 0.4rem 1rem 0.4rem !important;
+    transform: none !important;
+    pointer-events: auto !important;
+  }
 
-.sidebar.collapsed ~ .main-content {
-  margin-left: 0 !important;
-  max-width: 100vw !important;
-  padding-left: 4.5rem !important;
+  .sidebar.collapsed ~ .main-content {
+    margin-left: var(--sidebar-collapsed-width) !important;
+    max-width: calc(100vw - var(--sidebar-collapsed-width)) !important;
+    width: calc(100% - var(--sidebar-collapsed-width)) !important;
+    padding-left: 2rem !important;
+    transition: margin-left 0.3s ease, max-width 0.3s ease, width 0.3s ease !important;
+  }
+
+  .sidebar.collapsed ~ .main-content .builder-view-container {
+    padding-left: 2rem !important;
+  }
+
+  /* En-tête réduit : centrage logo + bouton de contrôle tourné à 180° (chevron droit) */
+  .sidebar.collapsed .sidebar-brand {
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem !important;
+    padding: 0.25rem 0 0.85rem 0 !important;
+  }
+
+  .sidebar.collapsed .sidebar-brand-name {
+    display: none !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .sidebar.collapsed .sidebar-collapse-btn {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    color: #F8FAFC !important;
+  }
+
+  .sidebar.collapsed .sidebar-collapse-btn svg {
+    transform: rotate(180deg) !important;
+  }
+
+  /* Navigation réduite : icônes centrées, textes masqués proprement sans saccade */
+  .sidebar.collapsed .nav-item {
+    justify-content: center !important;
+    padding: 0.65rem 0 !important;
+    width: 44px !important;
+    height: 44px !important;
+    margin: 0 auto !important;
+    gap: 0 !important;
+    border-radius: 10px !important;
+  }
+
+  .sidebar.collapsed .nav-item:hover {
+    transform: scale(1.06) !important;
+    background-color: rgba(255, 255, 255, 0.09) !important;
+  }
+
+  .sidebar.collapsed .nav-item .nav-label,
+  .sidebar.collapsed .nav-item .nav-badge-soon {
+    display: none !important;
+  }
+
+  .sidebar.collapsed .nav-item .nav-icon {
+    width: 20px !important;
+    height: 20px !important;
+    margin: 0 auto !important;
+  }
+
+  /* Groupe Paramètres réduit */
+  .sidebar.collapsed .nav-group-trigger {
+    justify-content: center !important;
+    padding: 0.65rem 0 !important;
+    width: 44px !important;
+    height: 44px !important;
+    margin: 0 auto !important;
+  }
+
+  .sidebar.collapsed .nav-group-trigger-left {
+    gap: 0 !important;
+    justify-content: center !important;
+  }
+
+  .sidebar.collapsed .nav-group-trigger .nav-label,
+  .sidebar.collapsed .nav-group-chevron,
+  .sidebar.collapsed .nav-section-label {
+    display: none !important;
+  }
+
+  .sidebar.collapsed .nav-group-trigger .nav-icon {
+    width: 20px !important;
+    height: 20px !important;
+    margin: 0 auto !important;
+  }
+
+  .sidebar.collapsed .nav-sub-item {
+    justify-content: center !important;
+    padding: 0.55rem 0 !important;
+    width: 40px !important;
+    height: 40px !important;
+    margin: 0.15rem auto !important;
+    gap: 0 !important;
+  }
+
+  .sidebar.collapsed .nav-sub-item .nav-label {
+    display: none !important;
+  }
+
+  .sidebar.collapsed .nav-sub-item .nav-icon {
+    width: 17px !important;
+    height: 17px !important;
+    margin: 0 auto !important;
+  }
+
+  /* Pied de page réduit : masquer le badge forfait et afficher l'avatar centré */
+  .sidebar.collapsed .sidebar-plan-pill {
+    display: none !important;
+  }
+
+  .sidebar.collapsed .sidebar-user-card {
+    justify-content: center !important;
+    padding: 0.5rem 0 !important;
+    border-color: transparent !important;
+    background: transparent !important;
+  }
+
+  .sidebar.collapsed .sidebar-user-card:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .sidebar.collapsed .sidebar-user-info {
+    display: none !important;
+  }
+
+  .sidebar.collapsed .sidebar-user-avatar {
+    margin: 0 auto !important;
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  /* Bouton Déconnexion réduit : icône seule centrée */
+  .sidebar.collapsed .sidebar-logout-clean-btn {
+    justify-content: center !important;
+    padding: 0.6rem 0 !important;
+    width: 44px !important;
+    height: 44px !important;
+    margin: 0 auto !important;
+  }
+
+  .sidebar.collapsed .sidebar-logout-clean-btn span {
+    display: none !important;
+  }
+
+  .sidebar.collapsed .sidebar-logout-clean-btn svg {
+    margin: 0 auto !important;
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  /* Infobulles élégantes en mode réduit (Desktop) */
+  @keyframes kivoTooltipIn {
+    from { opacity: 0; transform: translateY(-50%) translateX(-4px); }
+    to { opacity: 1; transform: translateY(-50%) translateX(0); }
+  }
+
+  .sidebar.collapsed .nav-item[data-tooltip]:hover::after,
+  .sidebar.collapsed .nav-sub-item[data-tooltip]:hover::after,
+  .sidebar.collapsed .nav-group-trigger[data-tooltip]:hover::after,
+  .sidebar.collapsed .sidebar-logout-clean-btn[data-tooltip]:hover::after,
+  .sidebar.collapsed .sidebar-user-card[data-tooltip]:hover::after,
+  .sidebar.collapsed .sidebar-collapse-btn[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: #091326;
+    color: #F8FAFC;
+    font-size: 0.76rem;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    padding: 6px 12px;
+    border-radius: 8px;
+    white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    pointer-events: none;
+    z-index: 999;
+    animation: kivoTooltipIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
 }
 
 /* Brand Header */
@@ -436,9 +627,9 @@ button {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Minimalist floating reopen button */
+/* Minimalist floating reopen button (obsolète avec la sidebar rétractable dans le header) */
 .sidebar-reopen-btn {
-  position: fixed;
+  display: none !important;
   top: 18px;
   left: 18px;
   z-index: 200;
