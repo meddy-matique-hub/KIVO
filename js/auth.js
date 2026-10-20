@@ -18,7 +18,7 @@ window.KivoAuth = {
       const getSessionPromise = KivoDb.supabase.auth.getSession();
       const { data: { session }, error } = await Promise.race([
         getSessionPromise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth getSession timeout (10s)')), 10000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth getSession timeout (25s)')), 25000))
       ]);
       if (error) {
         console.error('[KivoAuth] getSession error:', error);
@@ -28,7 +28,7 @@ window.KivoAuth = {
         const getUserPromise = KivoDb.supabase.auth.getUser();
         const { data: userData, error: userError } = await Promise.race([
           getUserPromise,
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Auth getUser timeout (10s)')), 10000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Auth getUser timeout (25s)')), 25000))
         ]);
         if (userError || !userData?.user) {
           console.warn('[KivoAuth] Stale or invalid session found — purging.');

@@ -426,11 +426,11 @@ window.KivoApp = {
     console.log("[KivoApp] Initializing KIVO MATIQUE application...");
     this.isSessionLoading = true;
 
-    // Safety timeout: force-hide the overlay after 10 s in case of unexpected silence
+    // Safety timeout: force-hide the overlay after 30 s in case of unexpected silence
     const _overlayTimeout = setTimeout(() => {
-      console.warn('[KivoApp] Safety timeout: force-hiding loading overlay after 10 s.');
+      console.warn('[KivoApp] Safety timeout: force-hiding loading overlay after 30 s.');
       this._hideLoadingOverlay();
-    }, 10000);
+    }, 30000);
 
     const _withTimeout = (promise, ms = 10000, errorMsg = 'Timeout') => {
       return Promise.race([
@@ -449,9 +449,13 @@ window.KivoApp = {
       // 1. Check if returning from Google OAuth (URL hash contains access_token or query contains code)
       const hasOAuthCallback = window.location.hash.includes('access_token=') || window.location.search.includes('code=');
 
-      // 2. Initialize Auth client with 10s timeout
+      // 2. Initialize Auth client with 25s timeout (graceful fallback if network is slow/offline)
       if (window.KivoAuth && typeof window.KivoAuth.init === 'function') {
-        await _withTimeout(window.KivoAuth.init(), 10000, 'Auth init timeout (10s)');
+        try {
+          await _withTimeout(window.KivoAuth.init(), 25000, 'Auth init timeout (25s)');
+        } catch (authErr) {
+          console.warn('[KivoApp] Auth init timed out or network error, proceeding with guest mode:', authErr?.message || authErr);
+        }
       }
 
       const session = window.KivoAuth?.session || null;
@@ -470,11 +474,13 @@ window.KivoApp = {
         this.state.userEmail = user.email || '';
         this.supabaseConnected = true;
 
-        // Sync user data from Supabase with 10s timeout
+        // Sync user data from Supabase with 25s timeout (mobile networks can be slow)
         try {
-          await _withTimeout(this.syncFromSupabase(), 10000, 'Supabase sync timeout (10s)');
+          await _withTimeout(this.syncFromSupabase(), 25000, 'Supabase sync timeout (25s)');
         } catch (e) {
-          console.error('[KivoApp] Supabase sync error on boot:', e);
+          // Timeout or network error: continue with local state, don't block the user
+          console.warn('[KivoApp] Supabase sync skipped (timeout/offline), using local state:', e.message);
+          this.supabaseConnected = false;
         }
 
         // If user is not onboarded yet, pre-fill form with OAuth/signup metadata
@@ -2752,13 +2758,16 @@ window.KivoApp = {
 
     const tbody = document.getElementById('dashboard-recent-docs-tbody');
     if (tbody) {
+      const tableEl = tbody.closest('table');
+      const thead = tableEl ? tableEl.querySelector('thead') : null;
       const recentInvoices = docs.filter(d => d.type === 'invoice').slice(0, 5);
       const _t = window.KivoI18n ? (k) => KivoI18n.t(k, this.state.language || 'fr') : (k) => k;
       if (recentInvoices.length === 0) {
+        if (thead) thead.style.display = 'none';
         tbody.innerHTML = `
           <tr>
-            <td colspan="5" style="padding: 2.75rem 1rem; text-align: center;">
-              <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.65rem;">
+            <td colspan="5" style="padding: 2.75rem 1rem; text-align: center; border: none;">
+              <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.65rem; width:100%; max-width:100%;">
                 <div style="width:52px; height:52px; border-radius:14px; background:#EFF6FF; display:flex; align-items:center; justify-content:center; color:#2563EB;">
                   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -2778,6 +2787,7 @@ window.KivoApp = {
           </tr>
         `;
       } else {
+        if (thead) thead.style.display = '';
         tbody.innerHTML = recentInvoices.map(doc => {
           let badgeClass = 'pending';
           const rawSt = (doc.status || '').toLowerCase().trim();
