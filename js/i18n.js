@@ -102,7 +102,7 @@ window.KivoI18n = {
       doc_payment_title: 'Paiement & Règlement',
       doc_mode: 'Mode :',
       doc_terms: 'Conditions :',
-      doc_notes: 'Notes / Mentions légales',
+      doc_notes: 'Notes & Remarques',
       doc_empty_items: 'Aucun article saisi',
       doc_untitled_item: 'Article sans désignation',
       doc_paid_badge: 'Facture Payée',

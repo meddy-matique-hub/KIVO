@@ -4651,6 +4651,12 @@ window.KivoApp = {
       notes: getVal('builder-notes') || '',
       terms: getVal('builder-terms') || 'À réception',
       paymentMethod: getVal('builder-payment-method') || 'Virement bancaire',
+      paymentDetails: getVal('builder-payment-details') || '',
+      thankYouText: getVal('builder-thankyou') || 'Merci pour votre confiance !',
+      legalNoticesText: getVal('builder-legal-notices') || '',
+      toggleNotes: document.getElementById('builder-toggle-notes') ? document.getElementById('builder-toggle-notes').checked : true,
+      toggleThankyou: document.getElementById('builder-toggle-thankyou') ? document.getElementById('builder-toggle-thankyou').checked : true,
+      toggleLegal: document.getElementById('builder-toggle-legal') ? document.getElementById('builder-toggle-legal').checked : true,
       savedAt: new Date().toISOString()
     };
 
@@ -4772,6 +4778,15 @@ window.KivoApp = {
       setVal('builder-notes', draft.notes || '');
       setVal('builder-terms', draft.terms || 'À réception');
       setVal('builder-payment-method', draft.paymentMethod || 'Virement bancaire');
+      setVal('builder-payment-details', draft.paymentDetails || '');
+      setVal('builder-thankyou', draft.thankYouText || 'Merci pour votre confiance !');
+      setVal('builder-legal-notices', draft.legalNoticesText || '');
+
+      // Restaurer les toggles
+      const setCheck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = (val !== false); };
+      setCheck('builder-toggle-notes', draft.toggleNotes);
+      setCheck('builder-toggle-thankyou', draft.toggleThankyou);
+      setCheck('builder-toggle-legal', draft.toggleLegal);
 
       // Client
       const clientSelect = document.getElementById('builder-doc-client-select');
