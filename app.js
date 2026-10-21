@@ -4639,6 +4639,16 @@ window.KivoApp = {
     const grandDraftTotal = Math.max(0, subtotal + totalTaxAmount);
     const resolvedAmountPaid = (resolvedStatus === 'paid') ? grandDraftTotal : ((existingDoc && existingDoc.amountPaid) || 0);
 
+    // Capture logo URL from the builder preview (in-session custom upload or business profile)
+    const _draftLogoEl = document.getElementById('builder-logo-preview-img');
+    const _draftLogoBox = document.getElementById('builder-logo-preview-box');
+    const _draftLogoUrl = (
+      this.builderCustomLogoUrl ||
+      (_draftLogoEl && _draftLogoEl.src && _draftLogoBox && _draftLogoBox.style.display !== 'none' && !_draftLogoEl.src.endsWith('/') ? _draftLogoEl.src : '') ||
+      (this.state.business && this.state.business.logoUrl) ||
+      ''
+    );
+
     const draftData = {
       id: docId,
       number: getVal('builder-doc-number') || 'BROUILLON',
@@ -4646,6 +4656,9 @@ window.KivoApp = {
       status: resolvedStatus,
       currency: getVal('builder-doc-currency') || 'FCFA',
       visualTemplate: getVal('builder-visual-template') || 'minimalist',
+      primaryColor: (document.getElementById('builder-color-primary') || {}).value || (this.state.business && this.state.business.primaryColor) || '#4F46E5',
+      secondaryColor: (document.getElementById('builder-color-secondary') || {}).value || (this.state.business && this.state.business.secondaryColor) || '#64748B',
+      logoUrl: _draftLogoUrl,
       clientId: clientId,
       clientName: clientObj.name,
       clientEmail: clientObj.email,
@@ -4825,6 +4838,31 @@ window.KivoApp = {
       const banner = document.getElementById('builder-draft-resume-banner');
       if (banner) banner.style.display = 'none';
 
+      // Restaurer couleurs
+      if (draft.primaryColor) {
+        const pPicker = document.getElementById('builder-color-primary');
+        const pText   = document.getElementById('builder-color-primary-text');
+        if (pPicker) pPicker.value = draft.primaryColor;
+        if (pText)   pText.value   = draft.primaryColor;
+      }
+      if (draft.secondaryColor) {
+        const sPicker = document.getElementById('builder-color-secondary');
+        const sText   = document.getElementById('builder-color-secondary-text');
+        if (sPicker) sPicker.value = draft.secondaryColor;
+        if (sText)   sText.value   = draft.secondaryColor;
+      }
+
+      // Restaurer logo
+      if (draft.logoUrl && !this._invoiceLogoRemoved) {
+        this.builderCustomLogoUrl = draft.logoUrl;
+        const preview    = document.getElementById('builder-logo-preview-img');
+        const previewBox = document.getElementById('builder-logo-preview-box');
+        const uploadPrompt = document.getElementById('builder-logo-upload-prompt');
+        if (preview) { preview.src = draft.logoUrl; preview.style.display = 'block'; }
+        if (previewBox) previewBox.style.display = 'flex';
+        if (uploadPrompt) uploadPrompt.style.display = 'none';
+      }
+
       this.recalculateBuilderTotals();
       this.updateLiveInvoicePreview();
       this.showToast(this._t('toast_draft_restored'), 'success');
@@ -4898,9 +4936,15 @@ window.KivoApp = {
     const docType = document.getElementById('gallery-doc-type').value; // 'invoice' or 'quote'
     
     // Inject all templates in select options (for builder)
+    // Always sync the select so new templates (e.g. Emerald) are visible after upgrades
     const selectEl = document.getElementById('builder-visual-template');
-    if (selectEl && selectEl.options.length <= 6) {
+    if (selectEl) {
+      const currentVal = selectEl.value;
       selectEl.innerHTML = window.KivoTemplates.builtIn.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+      // Restore previously selected value if it still exists
+      if (currentVal && selectEl.querySelector(`option[value="${currentVal}"]`)) {
+        selectEl.value = currentVal;
+      }
     }
 
     if (!gallery) return;
