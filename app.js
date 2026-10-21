@@ -1,10 +1,48 @@
 /**
- * KIVO MATIQUE - Main Application Controller & Router
- * Single Page Application (SPA) Engine with Real-Time Split Preview, VAT, Stripe, and i18n
+ * Global HTML Sanitizer Helper — Prevents XSS and render crashes
+ * @param {any} str
+ * @returns {string}
  */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, function (c) {
+    return {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[c] || c;
+  });
+}
+window.escapeHtml = escapeHtml;
+
+// Global Error Boundary to prevent non-critical errors from crashing the whole app
+window.addEventListener('error', function (event) {
+  console.error('[KivoApp/ErrorBoundary] Uncaught error intercepted:', event.error || event.message);
+  if (window.KivoApp && window.KivoApp._isInitialized) {
+    event.preventDefault();
+  }
+});
+window.addEventListener('unhandledrejection', function (event) {
+  console.warn('[KivoApp/ErrorBoundary] Unhandled promise rejection intercepted:', event.reason);
+  event.preventDefault();
+});
 
 window.KivoApp = {
   state: null,
+  _isInitialized: false,
+
+  /**
+   * Safe HTML Escaping method
+   */
+  escapeHtml: function (str) {
+    return escapeHtml(str);
+  },
+  _escapeHtml: function (str) {
+    return escapeHtml(str);
+  },
+
   PLAN_FEATURES: {
     gratuit:  { docsPerMonth: 3,        users: 1, autosave: false, ai: 'soon', allTemplates: false, advancedStyle: false, fullStats: false, team: false, integrations: false, notificationsEmail: false, exportCsv: true,  exportExcel: false },
     pro:      { docsPerMonth: Infinity, users: 1, autosave: true,  ai: 'soon', allTemplates: true,  advancedStyle: true,  fullStats: true,  team: false, integrations: false, notificationsEmail: false, exportCsv: true,  exportExcel: true },
@@ -490,6 +528,7 @@ window.KivoApp = {
 
         this.isSessionLoading = false;
         this.handleRoute();
+        this._isInitialized = true;
       } else {
         // Unauthenticated visitor: start with clean blank state, no fake data
         console.log('[KivoApp] Visitor session — rendering public landing view.');
@@ -498,6 +537,7 @@ window.KivoApp = {
         this.state.isOnboarded = false;
         this.isSessionLoading = false;
         this.handleRoute();
+        this._isInitialized = true;
       }
     } catch (err) {
       console.error("[KivoApp] Erreur critique au démarrage :", err);
@@ -9774,7 +9814,11 @@ window.KivoApp = {
     if (document.getElementById('setting-biz-secondary-color-text')) document.getElementById('setting-biz-secondary-color-text').value = secCol;
 
     // 4. Fiscalité & Facturation & Légal (rendu dynamique selon pays & statut juridique)
-    this.renderProfileLegalCard(biz);
+    try {
+      this.renderProfileLegalCard(biz);
+    } catch (legalCardErr) {
+      console.error('[KivoApp] Erreur renderProfileLegalCard non bloquante :', legalCardErr);
+    }
 
     if (document.getElementById('setting-biz-vat')) document.getElementById('setting-biz-vat').value = biz.defaultVatRate !== undefined ? biz.defaultVatRate : (biz.currency === 'FCFA' ? 18 : 20);
     if (document.getElementById('setting-biz-website')) document.getElementById('setting-biz-website').value = biz.website || '';
@@ -9789,7 +9833,11 @@ window.KivoApp = {
     if (document.getElementById('setting-bank-bic')) document.getElementById('setting-bank-bic').value = bDetails.bic || '';
     
     // Moyens de paiement dynamiques (payment_methods)
-    this.renderPaymentMethods();
+    try {
+      this.renderPaymentMethods();
+    } catch (pmErr) {
+      console.error('[KivoApp] Erreur renderPaymentMethods non bloquante :', pmErr);
+    }
 
     // 6. Notifications (Désactivées avec badge Business & Bientôt — ne s'activent plus)
     if (document.getElementById('setting-notify-doc-sent')) document.getElementById('setting-notify-doc-sent').checked = false;
@@ -9862,6 +9910,14 @@ window.KivoApp = {
    */
   renderProfileLegalCard: function (biz) {
     biz = biz || (this.state && this.state.business) || {};
+    const safeEscape = (typeof this.escapeHtml === 'function')
+      ? this.escapeHtml.bind(this)
+      : (typeof window.escapeHtml === 'function')
+        ? window.escapeHtml
+        : (str) => (str === null || str === undefined) ? '' : String(str).replace(/[&<>"']/g, (c) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+          }[c] || c));
+
     const container = document.getElementById('profile-legal-fields-container');
     const descEl = document.getElementById('profile-legal-desc');
     const nameLabel = document.getElementById('setting-biz-name-label');
@@ -9883,7 +9939,7 @@ window.KivoApp = {
       container.innerHTML = `
         <div class="profile-form-group" style="grid-column: 1 / -1;">
           <label class="profile-label" for="setting-biz-taxid">Numéro d'identification (facultatif)</label>
-          <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: NIF, NINA ou identifiant personnel" value="${this.escapeHtml(biz.taxId || '')}">
+          <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: NIF, NINA ou identifiant personnel" value="${safeEscape(biz.taxId || '')}">
         </div>
       `;
       return;
@@ -9898,11 +9954,11 @@ window.KivoApp = {
       container.innerHTML = `
         <div class="profile-form-group">
           <label class="profile-label" for="setting-biz-rccm">Numéro RCCM *</label>
-          <input type="text" id="setting-biz-rccm" class="profile-input" placeholder="Ex: CG-BZV-01-2024-B12-00000" value="${this.escapeHtml(biz.rccm || '')}">
+          <input type="text" id="setting-biz-rccm" class="profile-input" placeholder="Ex: CG-BZV-01-2024-B12-00000" value="${safeEscape(biz.rccm || '')}">
         </div>
         <div class="profile-form-group">
           <label class="profile-label" for="setting-biz-niu">Numéro NIU (Numéro d'Identification Unique) *</label>
-          <input type="text" id="setting-biz-niu" class="profile-input" placeholder="Ex: M000000000000" value="${this.escapeHtml(biz.niu || '')}">
+          <input type="text" id="setting-biz-niu" class="profile-input" placeholder="Ex: M000000000000" value="${safeEscape(biz.niu || '')}">
         </div>
       `;
     } else if (country.includes('rdc') || country.includes('kinshasa') || country.includes('démocratique')) {
@@ -9911,15 +9967,15 @@ window.KivoApp = {
       container.innerHTML = `
         <div class="profile-form-group">
           <label class="profile-label" for="setting-biz-rccm">Numéro RCCM *</label>
-          <input type="text" id="setting-biz-rccm" class="profile-input" placeholder="Ex: CD/KNG/RCCM/..." value="${this.escapeHtml(biz.rccm || '')}">
+          <input type="text" id="setting-biz-rccm" class="profile-input" placeholder="Ex: CD/KNG/RCCM/..." value="${safeEscape(biz.rccm || '')}">
         </div>
         <div class="profile-form-group">
           <label class="profile-label" for="setting-biz-taxid">Identification Nationale (Id. Nat.) *</label>
-          <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: 01-83-N00000" value="${this.escapeHtml(biz.taxId || '')}">
+          <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: 01-83-N00000" value="${safeEscape(biz.taxId || '')}">
         </div>
         <div class="profile-form-group">
           <label class="profile-label" for="setting-biz-niu">Numéro Impôt (NIF) *</label>
-          <input type="text" id="setting-biz-niu" class="profile-input" placeholder="Ex: A0000000X" value="${this.escapeHtml(biz.niu || '')}">
+          <input type="text" id="setting-biz-niu" class="profile-input" placeholder="Ex: A0000000X" value="${safeEscape(biz.niu || '')}">
         </div>
       `;
     } else if (country.includes('sénégal') || country.includes('senegal')) {
@@ -9928,11 +9984,11 @@ window.KivoApp = {
       container.innerHTML = `
         <div class="profile-form-group">
           <label class="profile-label" for="setting-biz-niu">NINEA *</label>
-          <input type="text" id="setting-biz-niu" class="profile-input" placeholder="Ex: 000000000 2V2" value="${this.escapeHtml(biz.niu || '')}">
+          <input type="text" id="setting-biz-niu" class="profile-input" placeholder="Ex: 000000000 2V2" value="${safeEscape(biz.niu || '')}">
         </div>
         <div class="profile-form-group">
           <label class="profile-label" for="setting-biz-rccm">Numéro RCCM *</label>
-          <input type="text" id="setting-biz-rccm" class="profile-input" placeholder="Ex: SN-DKR-2024-B-0000" value="${this.escapeHtml(biz.rccm || '')}">
+          <input type="text" id="setting-biz-rccm" class="profile-input" placeholder="Ex: SN-DKR-2024-B-0000" value="${safeEscape(biz.rccm || '')}">
         </div>
       `;
     } else if (country.includes('côte') || country.includes('cote') || country.includes("d'ivoire") || country.includes('ivoire')) {
@@ -9941,11 +9997,11 @@ window.KivoApp = {
       container.innerHTML = `
         <div class="profile-form-group">
           <label class="profile-label" for="setting-biz-rccm">Numéro RCCM *</label>
-          <input type="text" id="setting-biz-rccm" class="profile-input" placeholder="Ex: CI-ABJ-03-2024-B12-00000" value="${this.escapeHtml(biz.rccm || '')}">
+          <input type="text" id="setting-biz-rccm" class="profile-input" placeholder="Ex: CI-ABJ-03-2024-B12-00000" value="${safeEscape(biz.rccm || '')}">
         </div>
         <div class="profile-form-group">
           <label class="profile-label" for="setting-biz-niu">Compte Contribuable (CC) *</label>
-          <input type="text" id="setting-biz-niu" class="profile-input" placeholder="Ex: 0000000 X" value="${this.escapeHtml(biz.niu || '')}">
+          <input type="text" id="setting-biz-niu" class="profile-input" placeholder="Ex: 0000000 X" value="${safeEscape(biz.niu || '')}">
         </div>
       `;
     } else if (country.includes('france')) {
@@ -9954,11 +10010,11 @@ window.KivoApp = {
       container.innerHTML = `
         <div class="profile-form-group">
           <label class="profile-label" for="setting-biz-taxid">Numéro SIRET (14 chiffres) *</label>
-          <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: 123 456 789 00012" value="${this.escapeHtml(biz.taxId || '')}">
+          <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: 123 456 789 00012" value="${safeEscape(biz.taxId || '')}">
         </div>
         <div class="profile-form-group">
           <label class="profile-label" for="setting-biz-vat-num">N° TVA Intracommunautaire</label>
-          <input type="text" id="setting-biz-vat-num" class="profile-input" placeholder="Ex: FR 00 123456789" value="${this.escapeHtml(biz.vatNumber || '')}">
+          <input type="text" id="setting-biz-vat-num" class="profile-input" placeholder="Ex: FR 00 123456789" value="${safeEscape(biz.vatNumber || '')}">
         </div>
       `;
     } else {
@@ -9967,11 +10023,11 @@ window.KivoApp = {
       container.innerHTML = `
         <div class="profile-form-group">
           <label class="profile-label" for="setting-biz-taxid">Numéro fiscal / Tax ID</label>
-          <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: Tax ID / N° d'immatriculation" value="${this.escapeHtml(biz.taxId || '')}">
+          <input type="text" id="setting-biz-taxid" class="profile-input" placeholder="Ex: Tax ID / N° d'immatriculation" value="${safeEscape(biz.taxId || '')}">
         </div>
         <div class="profile-form-group">
           <label class="profile-label" for="setting-biz-vat-num">Numéro de TVA / Taxe locale</label>
-          <input type="text" id="setting-biz-vat-num" class="profile-input" placeholder="Ex: N° TVA locale (facultatif)" value="${this.escapeHtml(biz.vatNumber || '')}">
+          <input type="text" id="setting-biz-vat-num" class="profile-input" placeholder="Ex: N° TVA locale (facultatif)" value="${safeEscape(biz.vatNumber || '')}">
         </div>
       `;
     }
@@ -10069,6 +10125,14 @@ window.KivoApp = {
   renderPaymentMethods: function () {
     const container = document.getElementById('profile-payment-methods-list');
     if (!container) return;
+    const safeEscape = (typeof this.escapeHtml === 'function')
+      ? this.escapeHtml.bind(this)
+      : (typeof window.escapeHtml === 'function')
+        ? window.escapeHtml
+        : (str) => (str === null || str === undefined) ? '' : String(str).replace(/[&<>"']/g, (c) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+          }[c] || c));
+
     const biz = this.state.business || {};
     let methods = biz.paymentMethods;
     if (!Array.isArray(methods)) {
@@ -10100,8 +10164,8 @@ window.KivoApp = {
           <option value="Espèces" ${m.type === 'Espèces' ? 'selected' : ''}>Espèces</option>
           <option value="Autre" ${m.type === 'Autre' ? 'selected' : ''}>Autre</option>
         </select>
-        <input type="text" class="profile-input pm-name" placeholder="Libellé (ex: Caisse principale)" value="${this.escapeHtml(m.name || '')}" style="height:44px; min-height:44px; font-size:0.85rem;">
-        <input type="text" class="profile-input pm-val" placeholder="Numéro ou détails" value="${this.escapeHtml(m.value || '')}" style="height:44px; min-height:44px; font-size:0.85rem;">
+        <input type="text" class="profile-input pm-name" placeholder="Libellé (ex: Caisse principale)" value="${safeEscape(m.name || '')}" style="height:44px; min-height:44px; font-size:0.85rem;">
+        <input type="text" class="profile-input pm-val" placeholder="Numéro ou détails" value="${safeEscape(m.value || '')}" style="height:44px; min-height:44px; font-size:0.85rem;">
         <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.removePaymentMethodRow(${idx})" title="Supprimer" style="height:44px; width:44px; padding:0; display:flex; align-items:center; justify-content:center; color:var(--danger-text); border-color:rgba(239,68,68,0.25);">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
