@@ -2314,7 +2314,6 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
     padding: 1.25rem 1rem !important;
     box-sizing: border-box !important;
     width: 100% !important;
-    display: flex !important;
     justify-content: center !important;
   }
   .auth-page-card {
