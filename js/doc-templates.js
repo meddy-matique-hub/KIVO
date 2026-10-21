@@ -14,7 +14,8 @@ window.KivoTemplates = {
     { id: 'modern',     name: 'Modern',       desc: 'Vibrant, dégradé coloré et badges arrondis.' },
     { id: 'clean',      name: 'Modern Clean', desc: 'Clair, précis, liseré cyan et lisibilité optimale.' },
     { id: 'editorial',  name: 'Editorial',    desc: 'Typographie forte, contraste noir et rouge.' },
-    { id: 'premium',    name: 'Premium',      desc: 'Édition exclusive sombre avec bande cuivre brossé.' }
+    { id: 'premium',    name: 'Premium',      desc: 'Édition exclusive sombre avec bande cuivre brossé.' },
+    { id: 'emerald',    name: 'Emerald',      desc: 'Moderne géométrique avec bandeau biseauté et total mis en valeur.' }
   ],
 
   isFullHtml: function () {
@@ -645,6 +646,41 @@ window.KivoTemplates = {
             <span style="font-size:6.5px;font-weight:900;color:#F5D0B5;">389 400 FCFA</span>
           </div>
         </div>`, '#181A20'),
+
+      emerald: () => wrap(`
+        <div style="background:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box;font-family:Inter,sans-serif;">
+          <div style="height:3px;display:flex;width:100%;">
+            <div style="flex:1;background:#0F766E;"></div>
+            <div style="width:30px;background:#00A884;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;">
+            <span style="font-size:7px;font-weight:900;color:#0F172A;">KIVO</span>
+            <div style="background:#00A884;color:#fff;font-size:6px;font-weight:800;padding:2px 6px;border-radius:2px 0 0 2px;">FACTURE</div>
+          </div>
+          <div style="padding:0 6px 4px;flex:1;display:flex;flex-direction:column;">
+            <div style="font-size:4.8px;color:#475569;margin-bottom:3px;text-align:right;">
+              <strong>Client :</strong> Studio Pulse SARL
+            </div>
+            <div style="border-radius:2px;overflow:hidden;margin-bottom:3px;">
+              <div style="display:flex;background:#00A884;color:#fff;padding:2px 3px;font-size:4.5px;font-weight:700;">
+                <div style="width:10px;">#</div><div style="flex:2;">Article</div><div style="width:16px;text-align:right;">Total</div>
+              </div>
+              <div style="padding:2px 3px;font-size:4.5px;color:#334155;background:#fff;display:flex;">
+                <div style="width:10px;color:#00A884;">01</div><div style="flex:2;">Prestation UI</div><div style="width:16px;text-align:right;">250k</div>
+              </div>
+              <div style="padding:2px 3px;font-size:4.5px;color:#334155;background:#F0FAF8;display:flex;">
+                <div style="width:10px;color:#00A884;">02</div><div style="flex:2;">Audit Design</div><div style="width:16px;text-align:right;">139k</div>
+              </div>
+            </div>
+            <div style="margin-top:auto;display:flex;justify-content:flex-end;">
+              <div style="background:#00A884;color:#fff;padding:2px 6px;border-radius:2px;display:flex;gap:6px;align-items:center;">
+                <span style="font-size:4.5px;opacity:0.9;">Total TTC</span>
+                <span style="font-size:6px;font-weight:900;">389 400</span>
+              </div>
+            </div>
+          </div>
+          <div style="background:#00A884;height:6px;width:100%;"></div>
+        </div>`, '#fff'),
     };
 
     const fn = templates[id] || templates['minimalist'];
@@ -874,6 +910,336 @@ window.KivoTemplates = {
     `;
   },
 
+  // 8. EMERALD (Modern geometric teal with angled header & highlighted total)
+  renderEmerald: function (d) {
+    const _t = (key) => (typeof KivoI18n !== 'undefined' ? KivoI18n.t(key, d.lang || 'fr') : (window.KivoI18n ? window.KivoI18n.t(key, d.lang || 'fr') : key));
+
+    // Colors: Respect user choice, fallback to reference default #00A884 and #0F766E
+    const ac = (d.primaryColor && d.primaryColor !== '#000000' && d.primaryColor !== '#000') ? d.primaryColor : '#00A884';
+    const sec = (d.secondaryColor && d.secondaryColor !== '#000000' && d.secondaryColor !== '#000') ? d.secondaryColor : '#0F766E';
+
+    // Contrast helpers
+    const getContrast = (hex) => {
+      if (!hex || typeof hex !== 'string') return '#FFFFFF';
+      let c = hex.replace('#', '');
+      if (c.length === 3) c = c.split('').map(x => x + x).join('');
+      const r = parseInt(c.substring(0, 2), 16) || 0;
+      const g = parseInt(c.substring(2, 4), 16) || 0;
+      const b = parseInt(c.substring(4, 6), 16) || 0;
+      const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+      return yiq >= 165 ? '#0F172A' : '#FFFFFF';
+    };
+
+    const getSoftTint = (hex, factor = 0.94) => {
+      if (!hex || typeof hex !== 'string') return '#F0FAF8';
+      let c = hex.replace('#', '');
+      if (c.length === 3) c = c.split('').map(x => x + x).join('');
+      const r = parseInt(c.substring(0, 2), 16) || 0;
+      const g = parseInt(c.substring(2, 4), 16) || 0;
+      const b = parseInt(c.substring(4, 6), 16) || 0;
+      const nr = Math.round(r + (255 - r) * factor);
+      const ng = Math.round(g + (255 - g) * factor);
+      const nb = Math.round(b + (255 - b) * factor);
+      return `rgb(${nr}, ${ng}, ${nb})`;
+    };
+
+    const contrastAc = getContrast(ac);
+    const softRowBg = getSoftTint(ac, 0.94);
+    const softBoxBg = getSoftTint(ac, 0.96);
+
+    // Document title
+    const defaultTitle = d.docType === 'quote' ? _t('doc_quote') : _t('doc_invoice');
+    const docTitle = (d.docTitleText && d.docTitleText.trim()) ? d.docTitleText.trim() : defaultTitle;
+
+    // Logo & Business
+    const showLogo = d.showLogo !== false;
+    const logo = showLogo ? this.logoHtml(d.biz, 70, 'square', false) : '';
+    const bizName = (d.biz && d.biz.name) ? d.biz.name : ((d.biz && d.biz.owner) || 'Mon Entreprise');
+    const bizLegal = (d.biz && d.biz.legal) ? `<div style="font-size:12px;color:#64748B;margin-top:2px;">${d.biz.legal}</div>` : '';
+
+    // Badges
+    const paidBadge = (d.status === 'paid' && d.docType !== 'quote') ? `
+      <div style="display:inline-flex;align-items:center;gap:6px;padding:3px 12px;background:#ECFDF5;border:1.5px solid #10B981;border-radius:20px;font-size:11px;font-weight:800;color:#047857;letter-spacing:0.04em;text-transform:uppercase;margin-top:4px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        ${_t('doc_paid_badge')}
+      </div>` : (d.status === 'refunded' ? `
+      <div style="display:inline-flex;align-items:center;gap:6px;padding:3px 12px;background:#FEF2F2;border:1.5px solid #EF4444;border-radius:20px;font-size:11px;font-weight:800;color:#B91C1C;letter-spacing:0.04em;text-transform:uppercase;margin-top:4px;">
+        ${_t('doc_refunded_badge')}
+      </div>` : '');
+
+    // Items list
+    let list = d.items;
+    if (list && typeof list === 'object' && !Array.isArray(list) && Array.isArray(list.lines)) list = list.lines;
+    else if (typeof list === 'string') {
+      try { const p = JSON.parse(list); list = Array.isArray(p) ? p : (p && Array.isArray(p.lines) ? p.lines : []); } catch (_) { list = []; }
+    }
+    const filteredItems = (list && Array.isArray(list)) ? list.filter(it => (it.name && String(it.name).trim().length > 0) || Number(it.totalHT || it.total || it.price || 0) > 0) : [];
+
+    const showVat = d.showVat !== false;
+
+    // Table rows rendering
+    let rowsHtml = '';
+    if (filteredItems.length === 0) {
+      rowsHtml = `<tr><td colspan="${showVat ? 6 : 5}" style="text-align:center;color:#94A3B8;padding:18px;font-size:13px;">Aucun article saisi</td></tr>`;
+    } else {
+      rowsHtml = filteredItems.map((it, i) => {
+        const rowBg = i % 2 === 1 ? softRowBg : '#FFFFFF';
+        const itemNum = (i + 1 < 10 ? '0' : '') + (i + 1);
+        const unitStr = it.unit ? ` <span style="font-size:11px;color:#64748B;">${it.unit}</span>` : '';
+        const discStr = (it.discount && Number(it.discount) > 0) ? `<div style="font-size:11px;color:#EF4444;font-weight:700;white-space:nowrap;">-${it.discount}%</div>` : '';
+        const descHtml = this.cleanDesc(it.name || 'Article sans désignation');
+        const priceVal = this.fmt(it.price || 0, d.currency);
+        const totalVal = this.fmt(it.totalHT || 0, d.currency);
+        const taxVal = showVat ? ((it.taxRate !== undefined && it.taxRate !== '') ? it.taxRate + ' %' : '-') : '';
+
+        return `
+          <tr style="background:${rowBg};break-inside:avoid;page-break-inside:avoid;">
+            <td style="padding:10px 8px;vertical-align:top;border-bottom:1px solid #E2E8F0;text-align:center;font-weight:700;color:${ac};font-size:13px;">${itemNum}</td>
+            <td style="padding:10px 12px;vertical-align:top;border-bottom:1px solid #E2E8F0;font-size:13px;line-height:1.45;color:#1E293B;overflow-wrap:anywhere;">${descHtml}</td>
+            <td style="padding:10px 12px;vertical-align:top;border-bottom:1px solid #E2E8F0;font-size:13px;color:#334155;text-align:right;white-space:nowrap;">${priceVal}</td>
+            <td style="padding:10px 8px;vertical-align:top;border-bottom:1px solid #E2E8F0;font-size:13px;color:#334155;text-align:center;white-space:nowrap;">${it.quantity}${unitStr}</td>
+            ${showVat ? `<td style="padding:10px 8px;vertical-align:top;border-bottom:1px solid #E2E8F0;font-size:13px;color:#64748B;text-align:center;white-space:nowrap;">${taxVal}</td>` : ''}
+            <td style="padding:10px 12px;vertical-align:top;border-bottom:1px solid #E2E8F0;font-size:13px;font-weight:700;color:#0F172A;text-align:right;white-space:nowrap;">
+              ${totalVal}
+              ${discStr}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Payment Info block
+    const showPay = d.showPaymentMethods !== false && (d.paymentMethod || d.paymentDetails);
+    const payBlockHtml = showPay ? `
+      <div style="margin-top:16px;background:${softBoxBg};border:1px solid rgba(0,0,0,0.06);border-left:3px solid ${ac};border-radius:4px;padding:8px 12px;font-size:12px;line-height:1.5;">
+        <div style="font-size:11px;font-weight:800;color:${ac};letter-spacing:0.04em;text-transform:uppercase;margin-bottom:3px;">
+          ${_t('doc_payment_info') || 'INFOS DE RÈGLEMENT'}
+        </div>
+        ${d.paymentMethod ? `<div style="color:#334155;"><strong>Mode :</strong> ${d.paymentMethod}</div>` : ''}
+        ${d.paymentDetails ? `<div style="color:#475569;margin-top:2px;">${d.paymentDetails.replace(/\n/g, '<br>')}</div>` : ''}
+      </div>` : '';
+
+    // Client box
+    const clientName = (d.client && (d.client.company || d.client.name)) || '';
+    const clientAddress = (d.client && d.client.address) ? d.client.address.replace(/\n/g, '<br>') : '';
+    const clientContact = [d.client && d.client.phone, d.client && d.client.email].filter(Boolean).join(' · ');
+    const clientTaxId = (d.client && d.client.taxId) ? `<div style="font-size:11px;color:#64748B;margin-top:2px;">${d.client.legalFieldName || 'N° Fiscal'} : ${d.client.taxId}</div>` : '';
+
+    const clientBlockHtml = clientName ? `
+      <div style="margin-top:16px;text-align:right;">
+        <div style="font-size:11px;font-weight:800;color:${ac};letter-spacing:0.06em;text-transform:uppercase;margin-bottom:3px;">
+          ${_t('doc_bill_to') || 'FACTURÉ À'}
+        </div>
+        <div style="font-size:14px;font-weight:800;color:#0F172A;">${clientName}</div>
+        ${clientAddress ? `<div style="font-size:12px;color:#475569;margin-top:2px;line-height:1.4;">${clientAddress}</div>` : ''}
+        ${clientContact ? `<div style="font-size:12px;color:#64748B;margin-top:2px;">${clientContact}</div>` : ''}
+        ${clientTaxId}
+      </div>` : '';
+
+    // Subject / Reference
+    const subjectHtml = (d.showSubject !== false && d.subject && d.subject.trim())
+      ? `<div style="font-size:12px;color:#334155;margin-top:3px;"><span style="color:#64748B;font-weight:600;">Objet :</span> <strong>${d.subject.trim()}</strong></div>`
+      : '';
+
+    // Totals calculations & Grand Total box
+    const subtotalFormatted = this.fmt(d.subtotal || 0, d.currency);
+    const taxFormatted = this.fmt(d.taxAmount || 0, d.currency);
+    const grandTotalFormatted = this.fmt(d.grandTotal || 0, d.currency);
+
+    const discountRow = (d.showDiscount && d.discount > 0) ? `
+      <div style="display:flex;justify-content:space-between;padding:3px 0;color:#EF4444;font-size:12px;">
+        <span>Remise globale :</span>
+        <span style="font-weight:700;">- ${this.fmt(d.discount, d.currency)}</span>
+      </div>` : '';
+
+    const depositRow = (d.showDeposit && d.deposit > 0) ? `
+      <div style="display:flex;justify-content:space-between;padding:3px 0;color:#334155;font-size:12px;border-top:1px dashed #CBD5E1;margin-top:6px;padding-top:6px;">
+        <span>${d.lblDeposit || 'Acompte déjà versé'} :</span>
+        <span style="font-weight:700;">- ${this.fmt(d.deposit, d.currency)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;color:#0F172A;font-size:13px;font-weight:800;">
+        <span>${d.lblBalance || 'Solde net à payer'} :</span>
+        <span style="color:${ac};">${this.fmt(d.balanceDue, d.currency)}</span>
+      </div>` : '';
+
+    return `
+      <div class="kivo-invoice-sheet" style="background:#FFFFFF;font-family:Inter,sans-serif;height:100%;min-height:1123px;width:794px;max-width:794px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;position:relative;color:#0F172A;margin:0 auto;">
+        
+        <!-- Haut du document -->
+        <div>
+          <!-- Liseré bi-couleur tout en haut -->
+          <div style="height:8px;display:flex;width:100%;">
+            <div style="flex:1;background:#1E293B;"></div>
+            <div style="width:360px;background:${sec};"></div>
+            <div style="width:200px;background:${ac};"></div>
+          </div>
+
+          <!-- Section En-tête : Logo / Émetteur à gauche, Titre angulaire biseauté & Métadonnées à droite -->
+          <div style="padding:24px 36px 14px 36px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;">
+              
+              <!-- Gauche : Logo + Émetteur + Infos de règlement -->
+              <div style="flex:1;max-width:48%;">
+                ${logo ? `<div style="margin-bottom:10px;">${logo}</div>` : ''}
+                <div style="font-family:'Outfit',Inter,sans-serif;font-size:20px;font-weight:900;color:#0F172A;letter-spacing:-0.02em;">
+                  ${bizName}
+                </div>
+                <div style="font-size:12px;color:#475569;line-height:1.45;margin-top:4px;">
+                  ${d.biz.address ? d.biz.address + '<br>' : ''}
+                  ${d.biz.phone ? 'Tél. : ' + d.biz.phone + '<br>' : ''}
+                  ${d.biz.email || ''}
+                  ${bizLegal}
+                </div>
+                ${payBlockHtml}
+              </div>
+
+              <!-- Droite : Titre angulaire & Métadonnées & Client -->
+              <div style="flex:1;max-width:48%;display:flex;flex-direction:column;align-items:flex-end;">
+                
+                <!-- Bandeau biseauté INVOICE / FACTURE -->
+                <div style="display:flex;align-items:stretch;height:54px;margin-bottom:14px;">
+                  <svg width="40" height="54" viewBox="0 0 40 54" style="display:block;flex-shrink:0;">
+                    <polygon points="40,0 40,54 0,54" fill="${ac}" />
+                  </svg>
+                  <div style="background:${ac};color:${contrastAc};padding:0 28px 0 16px;display:flex;align-items:center;justify-content:center;font-family:'Outfit',Inter,sans-serif;font-size:24px;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;">
+                    ${docTitle}
+                  </div>
+                </div>
+
+                <!-- Métadonnées N°, Dates -->
+                <div style="text-align:right;font-size:12px;line-height:1.6;color:#475569;">
+                  <div><span style="color:#64748B;">N° :</span> <strong style="color:#0F172A;font-size:13px;">${d.docNum}</strong></div>
+                  <div><span style="color:#64748B;">${_t('doc_issue_date_label')} :</span> <strong style="color:#0F172A;">${d.issueDate}</strong></div>
+                  ${d.dueDate ? `<div><span style="color:#64748B;">${_t('doc_due_date_label')} :</span> <strong style="color:#0F172A;">${d.dueDate}</strong></div>` : ''}
+                  ${subjectHtml}
+                  ${paidBadge ? `<div style="margin-top:4px;">${paidBadge}</div>` : ''}
+                </div>
+
+                <!-- Facturé à (Client) -->
+                ${clientBlockHtml}
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Tableau des Articles -->
+          <div style="padding:10px 36px 14px 36px;">
+            <table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:12px;">
+              <colgroup>
+                <col style="width:40px;">
+                <col style="width:auto;min-width:140px;">
+                <col style="width:115px;">
+                <col style="width:65px;">
+                ${showVat ? '<col style="width:60px;">' : ''}
+                <col style="width:125px;">
+              </colgroup>
+              <thead>
+                <tr style="background:${ac};color:${contrastAc};">
+                  <th style="padding:10px 8px;text-align:center;font-size:12px;font-weight:800;letter-spacing:0.04em;">NO</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;">${d.colDesc || 'Description'}</th>
+                  <th style="padding:10px 12px;text-align:right;font-size:12px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;">${d.colPrice || 'Prix unitaire'}</th>
+                  <th style="padding:10px 8px;text-align:center;font-size:12px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;">${d.colQty || 'Qté'}</th>
+                  ${showVat ? `<th style="padding:10px 8px;text-align:center;font-size:12px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;">${d.colTax || 'TVA'}</th>` : ''}
+                  <th style="padding:10px 12px;text-align:right;font-size:12px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;">${d.colTotal || 'Total'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Section Inférieure : Conditions / Remerciements à gauche, Totaux & Signature à droite -->
+          <div style="padding:4px 36px 16px 36px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:30px;">
+              
+              <!-- Gauche : Remerciements & Conditions & Remarques -->
+              <div style="flex:1;max-width:55%;">
+                ${(d.showThankYou !== false && d.thankYouText) ? `
+                  <div style="margin-bottom:12px;">
+                    <div style="font-size:11px;font-weight:800;color:${ac};letter-spacing:0.06em;text-transform:uppercase;margin-bottom:3px;">
+                      ${_t('doc_thank_you_title') || 'MERCI POUR VOTRE CONFIANCE'}
+                    </div>
+                    <div style="font-size:12px;color:#475569;line-height:1.45;">${d.thankYouText}</div>
+                  </div>` : ''}
+
+                ${(d.showNotes !== false && d.notes) ? `
+                  <div style="margin-bottom:12px;">
+                    <div style="font-size:11px;font-weight:800;color:${ac};letter-spacing:0.06em;text-transform:uppercase;margin-bottom:3px;">
+                      ${_t('doc_notes') || 'Notes & Remarques'}
+                    </div>
+                    <div style="font-size:12px;color:#475569;line-height:1.45;">${d.notes.replace(/\n/g, '<br>')}</div>
+                  </div>` : ''}
+
+                ${d.terms ? `
+                  <div style="font-size:12px;color:#64748B;line-height:1.4;">
+                    <strong style="color:#334155;">Conditions :</strong> ${d.terms}
+                  </div>` : ''}
+              </div>
+
+              <!-- Droite : Récapitulatif Sous-total, TVA, Grand Total mis en valeur, Signature -->
+              <div style="width:260px;flex-shrink:0;">
+                <div style="border-bottom:1px solid #E2E8F0;padding-bottom:6px;margin-bottom:6px;">
+                  <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;color:#475569;">
+                    <span>${d.lblSubtotal || 'Sous-total HT'} :</span>
+                    <span style="font-weight:600;color:#0F172A;">${subtotalFormatted}</span>
+                  </div>
+                  ${discountRow}
+                  ${showVat ? `
+                    <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;color:#475569;">
+                      <span>${d.lblTax || 'TVA'} :</span>
+                      <span style="font-weight:600;color:#0F172A;">${taxFormatted}</span>
+                    </div>` : ''}
+                </div>
+
+                <!-- Grand Total Box pleine couleur -->
+                <div style="background:${ac};color:${contrastAc};padding:9px 14px;border-radius:4px;display:flex;justify-content:space-between;align-items:center;font-family:'Outfit',Inter,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+                  <span style="font-size:13px;font-weight:800;letter-spacing:0.03em;text-transform:uppercase;">${d.lblTotal || 'Total TTC'}</span>
+                  <span style="font-size:16px;font-weight:900;">${grandTotalFormatted}</span>
+                </div>
+
+                ${depositRow}
+
+                <!-- Signature -->
+                <div style="margin-top:28px;text-align:center;">
+                  <div style="width:140px;margin-left:auto;border-top:1px solid #CBD5E1;padding-top:4px;font-size:11px;color:#64748B;font-weight:600;">
+                    Signature
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Bas du document : Mentions légales puis Bandeau Pied de page -->
+        <div>
+          ${(d.showLegalNotices !== false && d.legalNotices) ? `
+            <div style="padding:0 36px 12px 36px;font-size:11px;color:#64748B;line-height:1.45;text-align:center;border-top:1px solid #F1F5F9;padding-top:8px;">
+              ${d.legalNotices.replace(/\n/g, ' · ')}
+            </div>` : ''}
+
+          <!-- Footer bandeau plein couleur d'accent -->
+          <div style="background:${ac};color:${contrastAc};padding:10px 36px;display:flex;justify-content:space-between;align-items:center;font-size:11.5px;box-sizing:border-box;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <span>${d.biz.email || 'contact@kivo.app'}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <span>${d.biz.phone || '+221 33 000 00 00'}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span>${d.biz.address ? d.biz.address.split('\n')[0] : 'Dakar, Sénégal'}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    `;
+  },
+
   // ── Main render dispatcher ────────────────────────────────────────────
   render: function (templateId, data) {
     const d = data || this.collectData();
@@ -886,6 +1252,7 @@ window.KivoTemplates = {
       case 'clean':       html = this.renderClean(d); break;
       case 'editorial':   html = this.renderEditorial(d); break;
       case 'premium':     html = this.renderPremium(d); break;
+      case 'emerald':     html = this.renderEmerald(d); break;
       default:            html = this.renderMinimalist(d); break;
     }
 
