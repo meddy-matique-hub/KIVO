@@ -589,12 +589,21 @@ button {
   font-family: var(--font-body);
   transition: all 0.18s ease;
   text-align: left;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .sidebar-logout-clean-btn:hover {
   color: #F87171;
   background: rgba(239, 68, 68, 0.1);
   border-color: rgba(239, 68, 68, 0.18);
+}
+
+.sidebar-logout-clean-btn svg,
+.sidebar-logout-clean-btn span,
+#confirm-logout-action-btn svg,
+#confirm-logout-action-btn span {
+  pointer-events: none;
 }
 
 /* Auth Modal Tabs */

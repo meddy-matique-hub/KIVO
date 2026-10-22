@@ -172,7 +172,7 @@ window.KivoAuth = {
 
   signOut: async function() {
     if (window.KivoApp && typeof window.KivoApp.logout === 'function') {
-      return await window.KivoApp.logout();
+      return await window.KivoApp.logout(true);
     }
     try {
       if (window.KivoDb && window.KivoDb.supabase) {

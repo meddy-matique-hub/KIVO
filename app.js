@@ -995,12 +995,24 @@ window.KivoApp = {
   logout: async function (confirmed = false) {
     if (!confirmed) {
       const sidebar = document.getElementById('sidebar');
-      if (sidebar && sidebar.classList.contains('mobile-open') && typeof this.toggleMobileSidebar === 'function') {
+      const wasMobileOpen = sidebar && sidebar.classList.contains('mobile-open');
+      if (wasMobileOpen && typeof this.toggleMobileSidebar === 'function') {
         this.toggleMobileSidebar(false);
       }
-      this.openModal('modal-confirm-logout');
+      if (wasMobileOpen) {
+        setTimeout(() => this.openModal('modal-confirm-logout'), 250);
+      } else {
+        this.openModal('modal-confirm-logout');
+      }
       return;
     }
+
+    const confirmBtn = document.getElementById('confirm-logout-action-btn');
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.style.opacity = '0.7';
+    }
+
     this.closeModal('modal-confirm-logout');
 
     console.log('[KivoApp] Logging out...');
@@ -1045,13 +1057,19 @@ window.KivoApp = {
           console.warn('[KivoApp] Supabase signOut non-blocking error:', authErr);
         }
       }
+
+      // 5. Clean URL and navigate to landing cleanly
+      this.navigate('landing');
+      this.showToast(this._t('toast_logout_success') || 'Déconnexion réussie.', 'info');
     } catch (e) {
       console.error('[KivoApp] Error during logout:', e);
+      this.showToast('Impossible de se déconnecter, veuillez réessayer.', 'error');
+    } finally {
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.style.opacity = '';
+      }
     }
-
-    // 5. Clean URL and navigate to landing cleanly
-    this.navigate('landing');
-    this.showToast(this._t('toast_logout_success'), 'info');
   },
 
   /**
@@ -1671,6 +1689,49 @@ window.KivoApp = {
       userCard.addEventListener('click', () => {
         if (window.innerWidth <= 1024) {
           this.toggleMobileSidebar(false);
+        }
+      });
+    }
+
+    // 5. Robust mobile touch and tap handling for sidebar logout button
+    const logoutBtn = document.querySelector('.sidebar-logout-clean-btn');
+    if (logoutBtn && !logoutBtn.dataset.bound) {
+      logoutBtn.dataset.bound = 'true';
+      logoutBtn.style.touchAction = 'manipulation';
+      let _lbTouchFired = false;
+      let _lbStartX = 0, _lbStartY = 0, _lbIsScroll = false;
+
+      logoutBtn.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches.length > 0) {
+          _lbStartX = e.touches[0].clientX;
+          _lbStartY = e.touches[0].clientY;
+        }
+        _lbIsScroll = false;
+        _lbTouchFired = false;
+      }, { passive: true });
+
+      logoutBtn.addEventListener('touchmove', (e) => {
+        if (e.touches && e.touches.length > 0) {
+          const dx = Math.abs(e.touches[0].clientX - _lbStartX);
+          const dy = Math.abs(e.touches[0].clientY - _lbStartY);
+          if (dx > 8 || dy > 8) {
+            _lbIsScroll = true;
+          }
+        }
+      }, { passive: true });
+
+      logoutBtn.addEventListener('touchend', (e) => {
+        if (_lbIsScroll) return;
+        e.preventDefault();
+        e.stopPropagation();
+        _lbTouchFired = true;
+        this.logout();
+        setTimeout(() => { _lbTouchFired = false; }, 500);
+      }, { passive: false });
+
+      logoutBtn.addEventListener('click', (e) => {
+        if (_lbTouchFired) {
+          e.preventDefault();
         }
       });
     }
