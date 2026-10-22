@@ -1,19 +1,34 @@
 /**
  * KIVO MATIQUE — Authentication Management
+ *
+ * FIX (A.1): Added _initialized guard + _authSubscription storage to prevent
+ * duplicate onAuthStateChange listeners when init() is called more than once.
+ * Root cause of: doubled SIGNED_IN logs, silent logout, doubled screens on mobile.
  */
 
 window.KivoAuth = {
   session: null,
   user: null,
+  _initialized: false,
+  _authSubscription: null,
 
   init: async function() {
+    // ── GUARD: Prevent double-initialization ─────────────────────────────
+    if (this._initialized) {
+      console.warn('[KivoAuth] init() already called — skipping duplicate initialization.');
+      return;
+    }
+    this._initialized = true;
+    // ─────────────────────────────────────────────────────────────────────
+
     console.log('[KivoAuth] Initializing Auth...');
     if (!window.KivoDb || !window.KivoDb.supabase) {
       console.error('[KivoAuth] Supabase client is not available.');
+      this._initialized = false; // allow retry if supabase loads late
       return;
     }
-    
-    // Check current session and validate with getUser() to prevent stale tokens (10s timeout)
+
+    // Check current session and validate with getUser() to prevent stale tokens (25s timeout)
     try {
       const getSessionPromise = KivoDb.supabase.auth.getSession();
       const { data: { session }, error } = await Promise.race([
@@ -24,7 +39,7 @@ window.KivoAuth = {
         console.error('[KivoAuth] getSession error:', error);
       }
       if (session) {
-        // Validate with server that token is still authentic and user exists (10s timeout)
+        // Validate with server that token is still authentic and user exists
         const getUserPromise = KivoDb.supabase.auth.getUser();
         const { data: userData, error: userError } = await Promise.race([
           getUserPromise,
@@ -55,9 +70,17 @@ window.KivoAuth = {
     // re-triggering handlePostLogin on boot — which would re-show the loading overlay.
     const _bootUserId = this.user?.id || null;
 
+    // ── Unsubscribe any previous listener before creating a new one ───────
+    if (this._authSubscription) {
+      try { this._authSubscription.unsubscribe(); } catch (_) {}
+      this._authSubscription = null;
+      console.log('[KivoAuth] Previous auth subscription cleaned up.');
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     // Listen for auth state changes — callback MUST be synchronous without await
     // to avoid supabase-js v2 deadlocks on getSession()
-    KivoDb.supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = KivoDb.supabase.auth.onAuthStateChange((event, session) => {
       console.log(`[KivoAuth] Auth event: ${event}`);
 
       setTimeout(async () => {
@@ -95,9 +118,26 @@ window.KivoAuth = {
       }, 0);
     });
 
+    // Store the subscription so we can unsubscribe if init() is ever called again
+    this._authSubscription = subscription;
+
     // Note: password recovery is handled exclusively via the PASSWORD_RECOVERY
     // event in onAuthStateChange above. Manual hash checks are intentionally
     // removed to prevent false positives on normal navigation hashes.
+  },
+
+  /**
+   * Resets the initialized flag — use only for testing or full app teardown.
+   */
+  reset: function() {
+    if (this._authSubscription) {
+      try { this._authSubscription.unsubscribe(); } catch (_) {}
+      this._authSubscription = null;
+    }
+    this._initialized = false;
+    this.session = null;
+    this.user = null;
+    this._isLoggingIn = false;
   },
 
   /**

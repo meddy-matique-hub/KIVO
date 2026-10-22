@@ -714,6 +714,12 @@ window.KivoApp = {
         logoSize: s.logo_size !== undefined ? s.logo_size : (this.state.business.logoSize || 100),
         logoPosition: s.logo_position || this.state.business.logoPosition || 'right',
         invoicePageSize: s.invoice_page_size || this.state.business.invoicePageSize || 'a4',
+        id: s.id || this.state.business.id,
+        customTemplates: Array.isArray(s.custom_templates)
+          ? s.custom_templates
+          : (typeof s.custom_templates === 'string'
+            ? (() => { try { return JSON.parse(s.custom_templates); } catch (_) { return []; } })()
+            : (this.state.business.customTemplates || []))
       };
     } else {
       const authUser = window.KivoAuth?.user;
@@ -1029,7 +1035,16 @@ window.KivoApp = {
       localStorage.removeItem('kivo_app_state');
       localStorage.removeItem('kivo_app_state_guest');
 
-      // 2. Explicitly purge all Supabase auth tokens from localStorage
+      // 2. Perform Supabase SDK signOut first so SDK can revoke session cleanly
+      if (window.KivoDb && window.KivoDb.supabase) {
+        try {
+          await KivoDb.supabase.auth.signOut();
+        } catch (authErr) {
+          console.warn('[KivoApp] Supabase signOut non-blocking error:', authErr);
+        }
+      }
+
+      // 3. Explicitly purge any remaining Supabase auth tokens from localStorage
       // to ensure no stale token can re-authenticate the user on page refresh
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i++) {
@@ -1040,7 +1055,7 @@ window.KivoApp = {
       }
       keysToRemove.forEach(k => localStorage.removeItem(k));
 
-      // 3. Clear session and user references in memory
+      // 4. Clear session and user references in memory
       if (window.KivoAuth) {
         window.KivoAuth.user = null;
         window.KivoAuth.session = null;
@@ -1048,15 +1063,6 @@ window.KivoApp = {
       this.supabaseConnected = false;
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.state.isOnboarded = false;
-
-      // 4. Perform Supabase SDK signOut with catch guard
-      if (window.KivoDb && window.KivoDb.supabase) {
-        try {
-          await KivoDb.supabase.auth.signOut();
-        } catch (authErr) {
-          console.warn('[KivoApp] Supabase signOut non-blocking error:', authErr);
-        }
-      }
 
       // 5. Clean URL and navigate to landing cleanly
       this.navigate('landing');
@@ -5037,7 +5043,7 @@ window.KivoApp = {
         cGallery.innerHTML = customs.map((t, idx) => `
           <div class="kivo-template-card" style="cursor:pointer; position:relative;" onclick="KivoApp.startTemplateDocument('${docType}', '${t.id}', true)">
             <div class="kivo-template-card-preview" style="height: 140px; padding: 0.75rem 1rem 0 1rem;">
-              ${window.KivoTemplates.miniPreview(t.id, t.primaryColor)}
+              ${window.KivoTemplates.miniPreview(t.baseTemplateId || t.id, t.primaryColor)}
             </div>
             <div class="kivo-template-card-body" style="padding: 1rem;">
               <h3 class="kivo-template-card-title" style="font-size:0.9rem; margin-bottom:0.25rem;">${t.name}</h3>
@@ -5155,52 +5161,69 @@ window.KivoApp = {
     }
     const templateId = document.getElementById('builder-visual-template').value;
     const name = prompt("Nom du modèle personnalisé :");
-    if (!name) return;
+    if (!name || !name.trim()) return;
 
     const custom = {
       id: 'custom-' + Date.now(),
-      name: name,
+      name: name.trim(),
       baseTemplateId: templateId,
       primaryColor: document.getElementById('builder-color-primary').value,
       secondaryColor: document.getElementById('builder-color-secondary').value
     };
 
+    if (!this.state.business) this.state.business = {};
     const biz = this.state.business;
     if (!biz.customTemplates) biz.customTemplates = [];
     biz.customTemplates.push(custom);
+    this.saveState();
 
     try {
-      if (window._kivoClient) {
-        const { error } = await window._kivoClient.from('business_settings').update({
+      if (window.KivoDb && typeof window.KivoDb.saveSettings === 'function') {
+        await window.KivoDb.saveSettings({
           custom_templates: biz.customTemplates
-        }).eq('id', biz.id);
-        
-        if (error) throw error;
+        });
+      } else if (window.KivoDb && window.KivoDb.supabase) {
+        const userId = window.KivoAuth?.user?.id;
+        if (userId) {
+          const { error } = await window.KivoDb.supabase.from('business_settings').update({
+            custom_templates: biz.customTemplates
+          }).eq('user_id', userId);
+          if (error) throw error;
+        }
       }
-      this.showToast(this._t('toast_template_saved'), "success");
+      this.renderTemplateGallery();
+      this.showToast(this._t('toast_template_saved') || 'Modèle enregistré avec succès !', "success");
     } catch (e) {
-      console.error(e);
-      this.showToast(this._t('toast_template_save_error'), "error");
+      console.error('[KivoApp] Error saving custom template:', e);
+      this.showToast(this._t('toast_template_save_error') || 'Erreur lors de la sauvegarde du modèle.', "error");
     }
   },
 
   deleteCustomTemplate: async function (idx) {
     if (!confirm("Supprimer ce modèle personnalisé ?")) return;
     const biz = this.state.business;
-    if (!biz.customTemplates) return;
+    if (!biz || !biz.customTemplates) return;
     
     biz.customTemplates.splice(idx, 1);
+    this.saveState();
     
     try {
-      if (window._kivoClient) {
-        await window._kivoClient.from('business_settings').update({
+      if (window.KivoDb && typeof window.KivoDb.saveSettings === 'function') {
+        await window.KivoDb.saveSettings({
           custom_templates: biz.customTemplates
-        }).eq('id', biz.id);
+        });
+      } else if (window.KivoDb && window.KivoDb.supabase) {
+        const userId = window.KivoAuth?.user?.id;
+        if (userId) {
+          await window.KivoDb.supabase.from('business_settings').update({
+            custom_templates: biz.customTemplates
+          }).eq('user_id', userId);
+        }
       }
       this.renderTemplateGallery();
-      this.showToast(this._t('toast_template_deleted'), "success");
+      this.showToast(this._t('toast_template_deleted') || 'Modèle supprimé avec succès.', "success");
     } catch (e) {
-      console.error(e);
+      console.error('[KivoApp] Error deleting custom template:', e);
     }
   },
 
