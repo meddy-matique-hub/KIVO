@@ -2107,24 +2107,32 @@
                     </div>
                   </div>
 
-                  <!-- Moyens de paiement avec toggle -->
+                  <!-- Moyens de paiement avec toggle et sélection multiple conditionnelle -->
                   <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.85rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                      <label style="font-size: 0.75rem; font-weight: 600; color: #475569;">Moyens de paiement acceptés</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem;">
+                      <div>
+                        <label style="font-size: 0.8rem; font-weight: 700; color: #1E293B; display: block;">Moyens de règlement acceptés</label>
+                        <span style="font-size: 0.72rem; color: #64748B;">Cochez les options de paiement proposées sur ce document</span>
+                      </div>
                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #64748B; cursor: pointer;">
-                        <input type="checkbox" id="builder-toggle-payment-methods" checked onchange="KivoApp.updateLiveInvoicePreview()" style="accent-color: #4F46E5;">
+                        <input type="checkbox" id="builder-toggle-payment-methods" checked onchange="KivoApp.onBuilderPaymentToggleChange()" style="accent-color: #4F46E5;">
                         <span>Afficher</span>
                       </label>
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                      <select id="builder-payment-method" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; background: #FFF; font-family: 'Inter', sans-serif;" onchange="KivoApp.updateLiveInvoicePreview()">
-                        <option value="Virement bancaire">Virement bancaire</option>
-                        <option value="Mobile Money (Wave / Orange / MTN)">Mobile Money (Wave / Orange / MTN)</option>
-                        <option value="Carte bancaire">Carte bancaire</option>
-                        <option value="Espèces">Espèces</option>
-                        <option value="Chèque">Chèque</option>
-                      </select>
-                      <textarea id="builder-payment-details" rows="2" style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.82rem; outline: none; resize: vertical; font-family: inherit;" placeholder="Détails du paiement (RIB / IBAN, Wave: +221..., Orange Money: ...)" oninput="KivoApp.updateLiveInvoicePreview()"></textarea>
+
+                    <div id="builder-payment-methods-box">
+                      <div id="builder-payment-methods-list" style="display: flex; flex-direction: column; gap: 0.45rem; margin-bottom: 0.65rem;">
+                        <!-- Dynamic checkboxes rendered by KivoApp.renderBuilderPaymentCheckboxes() -->
+                      </div>
+
+                      <div id="builder-payment-methods-empty-hint" style="display:none; font-size: 0.78rem; color: #D97706; background: #FEF3C7; padding: 8px 10px; border-radius: 6px; margin-bottom: 0.5rem;">
+                        Aucun moyen de paiement actif dans vos paramètres. <a href="#settings" onclick="KivoApp.navigate('settings')" style="color: #B45309; font-weight: 600; text-decoration: underline;">Configurer dans les Paramètres</a>
+                      </div>
+
+                      <div style="border-top: 1px dashed #E2E8F0; padding-top: 0.5rem;">
+                        <label style="font-size: 0.72rem; color: #64748B; display: block; margin-bottom: 0.25rem;">Consignes de paiement complémentaires <span style="font-weight:400;">(optionnel)</span></label>
+                        <textarea id="builder-payment-details" rows="2" style="width: 100%; padding: 0.55rem 0.7rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.8rem; outline: none; resize: vertical; font-family: inherit;" placeholder="Ex: Mentionner le numéro de facture en référence du virement..." oninput="KivoApp.updateLiveInvoicePreview()"></textarea>
+                      </div>
                     </div>
                   </div>
 
@@ -3270,49 +3278,168 @@
                 <!-- 5. COORDONNÉES BANCAIRES & MOYENS DE PAIEMENT DYNAMIQUES -->
                 <section class="profile-card" id="card-profile-payments" style="display: none; opacity: 0;">
                   <div class="profile-card-header-band">
-                    <h3 class="profile-card-title">5. Coordonnées Bancaires & Moyens de Paiement</h3>
-                    <p class="profile-card-desc">Coordonnées affichées sur vos factures pour faciliter les règlements de vos clients.</p>
+                    <h3 class="profile-card-title">5. Moyens de Paiement de l'Entreprise</h3>
+                    <p class="profile-card-desc">Activez et configurez vos moyens de règlement. Ils seront ensuite proposés lors de l'émission de vos factures et devis.</p>
                   </div>
                   <div class="profile-card-body">
-                    <h4 style="margin: 0 0 0.85rem 0; font-size: 0.95rem; font-weight: 700; color: #1E3A8A;">Compte Bancaire Principal</h4>
-                    <div class="profile-fields-grid" style="margin-bottom: 1.5rem;">
-                      <div class="profile-form-group">
-                        <label class="profile-label" for="setting-bank-name">Nom de la banque</label>
-                        <input type="text" id="setting-bank-name" class="profile-input" placeholder="Ex: Société Générale, Ecobank, BGFI...">
-                      </div>
+                    <div class="kivo-payment-methods-stack">
 
-                      <div class="profile-form-group">
-                        <label class="profile-label" for="setting-bank-account-name">Titulaire du compte</label>
-                        <input type="text" id="setting-bank-account-name" class="profile-input" placeholder="Ex: Entreprise SARL">
-                      </div>
-
-                      <div class="profile-form-group">
-                        <label class="profile-label" for="setting-bank-iban">IBAN / RIB / N° de Compte</label>
-                        <input type="text" id="setting-bank-iban" class="profile-input" placeholder="Ex: CG00 1234 5678 9012 3456 7890 123">
-                      </div>
-
-                      <div class="profile-form-group">
-                        <label class="profile-label" for="setting-bank-bic">Code BIC / SWIFT</label>
-                        <input type="text" id="setting-bank-bic" class="profile-input" placeholder="Ex: BGFICGBF">
-                      </div>
-                    </div>
-
-                    <div style="border-top: 1px dashed var(--border-color); padding-top: 1.25rem;">
-                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
-                        <div>
-                          <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #1E3A8A;">Moyens de Paiement Additionnels (Mobile Money, Wave, etc.)</h4>
-                          <p style="margin: 0.2rem 0 0 0; font-size: 0.78rem; color: var(--text-muted);">Gérez librement vos numéros Wave, Airtel Money, MTN MoMo, chèques ou espèces.</p>
+                      <!-- 1. Virement bancaire -->
+                      <div class="kivo-pm-card" id="card-pm-bank">
+                        <div class="kivo-pm-header" onclick="KivoApp.togglePaymentMethodCard('bank')">
+                          <div class="kivo-pm-header-left">
+                            <div class="kivo-pm-icon">💳</div>
+                            <div class="kivo-pm-title-wrap">
+                              <h4>Virement bancaire</h4>
+                              <p>Coordonnées bancaires pour virement classique ou international</p>
+                            </div>
+                          </div>
+                          <label class="kivo-switch" onclick="event.stopPropagation()">
+                            <input type="checkbox" id="setting-pm-bank-active" onchange="KivoApp.onPaymentToggleChange('bank')">
+                            <span class="kivo-slider"></span>
+                          </label>
                         </div>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.addPaymentMethodRow()" style="gap: 4px; display: inline-flex; align-items: center;">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                          <span>+ Ajouter</span>
-                        </button>
+                        <div class="kivo-pm-body" id="body-pm-bank">
+                          <div class="profile-fields-grid">
+                            <div class="profile-form-group">
+                              <label class="profile-label" for="setting-bank-name">Nom de la banque <span style="color:#EF4444;">*</span></label>
+                              <input type="text" id="setting-bank-name" class="profile-input" placeholder="Ex: Banque Postale du Congo, Ecobank...">
+                              <div class="kivo-pm-error" id="err-pm-bank-name">Le nom de la banque est requis lorsque le virement est activé.</div>
+                            </div>
+                            <div class="profile-form-group">
+                              <label class="profile-label" for="setting-bank-account-name">Titulaire du compte <span style="color:#EF4444;">*</span></label>
+                              <input type="text" id="setting-bank-account-name" class="profile-input" placeholder="Ex: Entreprise SARL">
+                              <div class="kivo-pm-error" id="err-pm-bank-holder">Le nom du titulaire du compte est requis.</div>
+                            </div>
+                            <div class="profile-form-group">
+                              <label class="profile-label" for="setting-bank-number">Numéro de compte <span style="color:#EF4444;">*</span></label>
+                              <input type="text" id="setting-bank-number" class="profile-input" placeholder="Ex: 10788450002">
+                              <div class="kivo-pm-error" id="err-pm-bank-number">Le numéro de compte bancaire est requis.</div>
+                            </div>
+                            <div class="profile-form-group">
+                              <label class="profile-label" for="setting-bank-iban">IBAN / RIB <span style="color:var(--text-muted); font-weight:400;">(optionnel)</span></label>
+                              <input type="text" id="setting-bank-iban" class="profile-input" placeholder="Ex: CG00 1234 5678 9012 3456 7890 123">
+                            </div>
+                            <div class="profile-form-group profile-field-full">
+                              <label class="profile-label" for="setting-bank-bic">Code SWIFT / BIC <span style="color:var(--text-muted); font-weight:400;">(optionnel - clients internationaux)</span></label>
+                              <input type="text" id="setting-bank-bic" class="profile-input" placeholder="Ex: BGFICGBF">
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      <!-- Dynamic payment methods rows container -->
-                      <div id="profile-payment-methods-list" style="display: flex; flex-direction: column; gap: 0.65rem;">
-                        <!-- Populated dynamically by KivoApp.renderPaymentMethods() -->
+                      <!-- 2. Mobile Money -->
+                      <div class="kivo-pm-card" id="card-pm-momo">
+                        <div class="kivo-pm-header" onclick="KivoApp.togglePaymentMethodCard('momo')">
+                          <div class="kivo-pm-header-left">
+                            <div class="kivo-pm-icon" style="background:#F0FDF4; color:#16A34A;">📱</div>
+                            <div class="kivo-pm-title-wrap">
+                              <h4>Mobile Money</h4>
+                              <p>Comptes Airtel Money, MTN MoMo, Moov Money, Orange Money, Wave...</p>
+                            </div>
+                          </div>
+                          <label class="kivo-switch" onclick="event.stopPropagation()">
+                            <input type="checkbox" id="setting-pm-momo-active" onchange="KivoApp.onPaymentToggleChange('momo')">
+                            <span class="kivo-slider"></span>
+                          </label>
+                        </div>
+                        <div class="kivo-pm-body" id="body-pm-momo">
+                          <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0 0 0.85rem 0;">
+                            Configurez un ou plusieurs comptes Mobile Money utilisés pour encaisser les paiements.
+                          </p>
+                          <div id="setting-pm-momo-list">
+                            <!-- Populated by KivoApp.renderMomoAccounts() -->
+                          </div>
+                          <div class="kivo-pm-error" id="err-pm-momo">Veuillez renseigner un opérateur, un numéro et un titulaire valides pour chaque compte actif.</div>
+                          <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.addMomoAccountRow()" style="margin-top: 0.5rem; display: inline-flex; align-items: center; gap: 6px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <span>+ Ajouter un autre compte Mobile Money</span>
+                          </button>
+                        </div>
                       </div>
+
+                      <!-- 3. Espèces -->
+                      <div class="kivo-pm-card" id="card-pm-cash">
+                        <div class="kivo-pm-header" onclick="KivoApp.togglePaymentMethodCard('cash')">
+                          <div class="kivo-pm-header-left">
+                            <div class="kivo-pm-icon" style="background:#FEF3C7; color:#D97706;">💵</div>
+                            <div class="kivo-pm-title-wrap">
+                              <h4>Espèces (Cash)</h4>
+                              <p>Règlement en mains propres, à la livraison ou au comptoir</p>
+                            </div>
+                          </div>
+                          <label class="kivo-switch" onclick="event.stopPropagation()">
+                            <input type="checkbox" id="setting-pm-cash-active" onchange="KivoApp.onPaymentToggleChange('cash')">
+                            <span class="kivo-slider"></span>
+                          </label>
+                        </div>
+                        <div class="kivo-pm-body" id="body-pm-cash">
+                          <div class="profile-form-group">
+                            <label class="profile-label" for="setting-pm-cash-notice">Mention ou consigne affichée sur la facture</label>
+                            <input type="text" id="setting-pm-cash-notice" class="profile-input" placeholder="Ex: Paiement en espèces accepté à la livraison ou directement en agence">
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- 4. Chèque -->
+                      <div class="kivo-pm-card" id="card-pm-check">
+                        <div class="kivo-pm-header" onclick="KivoApp.togglePaymentMethodCard('check')">
+                          <div class="kivo-pm-header-left">
+                            <div class="kivo-pm-icon" style="background:#F1F5F9; color:#475569;">📑</div>
+                            <div class="kivo-pm-title-wrap">
+                              <h4>Chèque</h4>
+                              <p>Paiement par chèque bancaire à l'ordre de votre entité</p>
+                            </div>
+                          </div>
+                          <label class="kivo-switch" onclick="event.stopPropagation()">
+                            <input type="checkbox" id="setting-pm-check-active" onchange="KivoApp.onPaymentToggleChange('check')">
+                            <span class="kivo-slider"></span>
+                          </label>
+                        </div>
+                        <div class="kivo-pm-body" id="body-pm-check">
+                          <div class="profile-fields-grid">
+                            <div class="profile-form-group">
+                              <label class="profile-label" for="setting-pm-check-payable">À l'ordre de (bénéficiaire) <span style="color:#EF4444;">*</span></label>
+                              <input type="text" id="setting-pm-check-payable" class="profile-input" placeholder="Ex: Entreprise SARL">
+                              <div class="kivo-pm-error" id="err-pm-check-payable">Le nom du bénéficiaire du chèque est requis.</div>
+                            </div>
+                            <div class="profile-form-group">
+                              <label class="profile-label" for="setting-pm-check-address">Adresse d'envoi du chèque <span style="color:var(--text-muted); font-weight:400;">(optionnel)</span></label>
+                              <input type="text" id="setting-pm-check-address" class="profile-input" placeholder="Ex: B.P. 1234, Brazzaville, Congo">
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- 5. Carte Bancaire / Paiement en ligne -->
+                      <div class="kivo-pm-card" id="card-pm-card">
+                        <div class="kivo-pm-header" onclick="KivoApp.togglePaymentMethodCard('card')">
+                          <div class="kivo-pm-header-left">
+                            <div class="kivo-pm-icon" style="background:#EDE9FE; color:#7C3AED;">🌐</div>
+                            <div class="kivo-pm-title-wrap">
+                              <h4>Carte bancaire / Paiement en ligne</h4>
+                              <p>Lien de paiement sécurisé (Stripe, CinetPay, Wave) ou consigne</p>
+                            </div>
+                          </div>
+                          <label class="kivo-switch" onclick="event.stopPropagation()">
+                            <input type="checkbox" id="setting-pm-card-active" onchange="KivoApp.onPaymentToggleChange('card')">
+                            <span class="kivo-slider"></span>
+                          </label>
+                        </div>
+                        <div class="kivo-pm-body" id="body-pm-card">
+                          <div class="profile-fields-grid">
+                            <div class="profile-form-group profile-field-full">
+                              <label class="profile-label" for="setting-pm-card-link">Lien de paiement en ligne sécurisé <span style="color:var(--text-muted); font-weight:400;">(optionnel)</span></label>
+                              <input type="url" id="setting-pm-card-link" class="profile-input" placeholder="Ex: https://buy.stripe.com/... ou https://pay.cinetpay.com/...">
+                            </div>
+                            <div class="profile-form-group profile-field-full">
+                              <label class="profile-label" for="setting-pm-card-notice">Mention ou consigne par défaut</label>
+                              <input type="text" id="setting-pm-card-notice" class="profile-input" placeholder="Ex: Paiement sécurisé par carte bancaire disponible sur demande">
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                     </div>
                   </div>
                 </section>
@@ -4426,8 +4553,9 @@
   <script defer src="js/payment-provider.js?v=3.3"></script>
   <script defer src="js/whatsapp-helper.js?v=3.3"></script>
   <script defer src="js/i18n.js?v=1.1"></script>
-  <script defer src="js/doc-templates.js?v=3.6"></script>
-  <script defer src="app.js?v=3.37"></script>
+  <script defer src="js/invoice-typography.js?v=1.0"></script>
+  <script defer src="js/doc-templates.js?v=3.7"></script>
+  <script defer src="app.js?v=3.38"></script>
 </body>
 </html>
 

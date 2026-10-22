@@ -261,6 +261,12 @@ window.KivoTemplates = {
       paymentMethod:       get('builder-payment-method')         || 'Virement bancaire',
       paymentDetails:      get('builder-payment-details')        || '',
       showPaymentMethods:  getChecked('builder-toggle-payment-methods'),
+      selectedPaymentMethods: (window.KivoApp && typeof window.KivoApp.getSelectedPaymentMethodsFromBuilder === 'function')
+        ? window.KivoApp.getSelectedPaymentMethodsFromBuilder()
+        : [],
+      paymentConfig: (window.KivoApp && typeof window.KivoApp.getPaymentConfig === 'function')
+        ? window.KivoApp.getPaymentConfig()
+        : (biz.paymentConfig || null),
       notes:               get('builder-notes')                  || '',
       showNotes:           getChecked('builder-toggle-notes'),
       thankYouText:        get('builder-thankyou')               || '',
@@ -288,9 +294,11 @@ window.KivoTemplates = {
     const showLogo = d.showLogo !== false;
     const logo = showLogo ? this.logoHtml(d.biz, 70, 'square', isDark) : '';
     const bizDisplayName = (d.biz && d.biz.name) ? d.biz.name : ((d.biz && d.biz.owner) || 'Mon Entreprise');
-    const bizLegal = (d.biz && d.biz.legal) ? `<div style="font-size:11px;color:${subtitleColor};margin-top:2px;">${d.biz.legal}</div>` : '';
+    const textMuted = isDark ? '#94A3B8' : '#6B7280';
+    const docAccent = d.primaryColor || (isDark ? '#F5D0B5' : '#4F46E5');
+    const bizLegal = (d.biz && d.biz.legal) ? `<div style="font-size:11px;color:${textMuted};margin-top:2px;">${d.biz.legal}</div>` : '';
     const subjectHtml = (d.showSubject !== false && d.subject && d.subject.trim())
-      ? `<div style="margin-top:10px;font-size:13px;font-weight:700;color:${titleColor};background:${isDark ? '#232733' : '#F1F5F9'};padding:4px 10px;border-radius:4px;display:inline-block;"><span style="color:${subtitleColor};font-weight:500;">Objet :</span> ${d.subject.trim()}</div>`
+      ? `<div style="margin-top:10px;font-size:13px;font-weight:700;color:${titleColor};background:${isDark ? '#232733' : '#F1F5F9'};padding:4px 10px;border-radius:4px;display:inline-block;"><span style="color:${textMuted};font-weight:500;">Objet :</span> ${d.subject.trim()}</div>`
       : '';
 
     const paidBadge = (d.status === 'paid' && d.docType !== 'quote') ? `
@@ -309,8 +317,8 @@ window.KivoTemplates = {
             <div style="display:flex;align-items:flex-start;gap:16px;">
               ${logo}
               <div>
-                <div style="font-size:19px;font-weight:900;color:${titleColor};">${bizDisplayName}</div>
-                <div style="font-size:13px;color:${subtitleColor};line-height:1.5;margin-top:3px;">
+                <div style="font-size:15px;font-weight:700;color:${titleColor};">${bizDisplayName}</div>
+                <div style="font-size:12px;font-weight:400;color:${textMuted};line-height:1.5;margin-top:3px;">
                   ${d.biz.address ? d.biz.address + '<br>' : ''}
                   ${d.biz.phone ? 'Tél.: ' + d.biz.phone + '<br>' : ''}
                   ${d.biz.email || ''}
@@ -319,11 +327,11 @@ window.KivoTemplates = {
               </div>
             </div>
             <div style="text-align:right;">
-              <div style="font-size:26px;font-weight:900;color:${titleColor};letter-spacing:-0.02em;">${lbl}</div>
-              <div style="font-size:14px;font-weight:800;color:${titleColor};margin-top:3px;">${d.docNum}</div>
+              <div style="font-size:28px;font-weight:700;color:${titleColor};letter-spacing:0.5px;">${lbl}</div>
+              <div style="font-size:16px;font-weight:700;color:${docAccent};margin-top:3px;">${d.docNum}</div>
               ${paidBadge ? `<div style="margin-top:3px;">${paidBadge}</div>` : ''}
-              <div style="font-size:12px;color:${subtitleColor};margin-top:5px;">${_t('doc_issue_date_label')} <strong>${d.issueDate}</strong></div>
-              ${d.dueDate ? `<div style="font-size:12px;color:${subtitleColor};">${_t('doc_due_date_label')} <strong>${d.dueDate}</strong></div>` : ''}
+              <div style="font-size:12px;font-weight:400;color:${textMuted};margin-top:5px;">${_t('doc_issue_date_label')} <strong style="color:${titleColor};font-weight:700;">${d.issueDate}</strong></div>
+              ${d.dueDate ? `<div style="font-size:12px;font-weight:400;color:${textMuted};">${_t('doc_due_date_label')} <strong style="color:${titleColor};font-weight:700;">${d.dueDate}</strong></div>` : ''}
             </div>
           </div>
           ${subjectHtml}
@@ -335,15 +343,16 @@ window.KivoTemplates = {
       return `
         <div style="text-align:center;margin-bottom:24px;border-bottom:1px solid ${isDark ? '#2D323F' : '#E2E8F0'};padding-bottom:18px;">
           ${logo ? `<div style="margin-bottom:10px;">${logo}</div>` : ''}
-          <div style="font-size:22px;font-weight:900;color:${titleColor};">${lbl} · ${d.docNum}</div>
+          <div style="font-size:28px;font-weight:700;color:${titleColor};letter-spacing:0.5px;">${lbl}</div>
+          <div style="font-size:16px;font-weight:700;color:${docAccent};margin-top:2px;">${d.docNum}</div>
           ${paidBadge ? `<div style="margin:4px 0;">${paidBadge}</div>` : ''}
-          <div style="font-size:13px;font-weight:700;color:${titleColor};margin-top:3px;">${bizDisplayName}</div>
-          <div style="font-size:12px;color:${subtitleColor};margin-top:3px;">
+          <div style="font-size:15px;font-weight:700;color:${titleColor};margin-top:4px;">${bizDisplayName}</div>
+          <div style="font-size:12px;font-weight:400;color:${textMuted};margin-top:3px;">
             ${[d.biz.address, d.biz.phone, d.biz.email].filter(Boolean).join(' · ')}
             ${bizLegal}
           </div>
-          <div style="font-size:12px;color:${subtitleColor};margin-top:5px;">
-            ${_t('doc_issue_date_label')} <strong>${d.issueDate}</strong> ${d.dueDate ? `· ${_t('doc_due_date_label')} <strong>${d.dueDate}</strong>` : ''}
+          <div style="font-size:12px;font-weight:400;color:${textMuted};margin-top:5px;">
+            ${_t('doc_issue_date_label')} <strong style="color:${titleColor};font-weight:700;">${d.issueDate}</strong> ${d.dueDate ? `· ${_t('doc_due_date_label')} <strong style="color:${titleColor};font-weight:700;">${d.dueDate}</strong>` : ''}
           </div>
           ${subjectHtml}
         </div>
@@ -355,9 +364,9 @@ window.KivoTemplates = {
       <div style="margin-bottom:24px;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <div>
-            <div style="font-size:26px;font-weight:900;color:${titleColor};letter-spacing:-0.02em;margin-bottom:4px;">${lbl}</div>
-            <div style="font-size:15px;font-weight:800;color:${titleColor};">${bizDisplayName}</div>
-            <div style="font-size:13px;color:${subtitleColor};line-height:1.5;margin-top:3px;">
+            <div style="font-size:28px;font-weight:700;color:${titleColor};letter-spacing:0.5px;margin-bottom:4px;">${lbl}</div>
+            <div style="font-size:15px;font-weight:700;color:${titleColor};">${bizDisplayName}</div>
+            <div style="font-size:12px;font-weight:400;color:${textMuted};line-height:1.5;margin-top:3px;">
               ${d.biz.address ? d.biz.address + '<br>' : ''}
               ${d.biz.phone ? 'Tél.: ' + d.biz.phone + '<br>' : ''}
               ${d.biz.email || ''}
@@ -366,10 +375,10 @@ window.KivoTemplates = {
           </div>
           <div style="text-align:right;">
             ${logo ? `<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">${logo}</div>` : ''}
-            <div style="font-size:15px;font-weight:800;color:${titleColor};">${d.docNum}</div>
+            <div style="font-size:16px;font-weight:700;color:${docAccent};">${d.docNum}</div>
             ${paidBadge ? `<div style="margin-top:3px;">${paidBadge}</div>` : ''}
-            <div style="font-size:12px;color:${subtitleColor};margin-top:5px;">${_t('doc_issue_date_label')} <span style="color:${titleColor};font-weight:600;">${d.issueDate}</span></div>
-            ${d.dueDate ? `<div style="font-size:12px;color:${subtitleColor};">${_t('doc_due_date_label')} <span style="color:${titleColor};font-weight:600;">${d.dueDate}</span></div>` : ''}
+            <div style="font-size:12px;font-weight:400;color:${textMuted};margin-top:5px;">${_t('doc_issue_date_label')} <strong style="color:${titleColor};font-weight:700;">${d.issueDate}</strong></div>
+            ${d.dueDate ? `<div style="font-size:12px;font-weight:400;color:${textMuted};">${_t('doc_due_date_label')} <strong style="color:${titleColor};font-weight:700;">${d.dueDate}</strong></div>` : ''}
           </div>
         </div>
         ${subjectHtml}
@@ -383,22 +392,23 @@ window.KivoTemplates = {
     const hasClient = d.client && d.client.name;
     const secColor = d.secondaryColor || (isDark ? '#94A3B8' : '#64748B');
     const borderStyle = isDark ? '#2D323F' : (d.secondaryColor || '#E2E8F0');
+    const textMuted = isDark ? '#94A3B8' : '#6B7280';
     const taxIdVal = (d.client && (d.client.taxId || d.clientTaxId));
     return `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;background:${isDark ? '#222631' : '#F8FAFC'};padding:14px 18px;border-radius:8px;border:1px solid ${borderStyle};border-left:3px solid ${secColor};">
         <div>
-          <div style="font-size:11px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">${_t('doc_billed_to')}</div>
-          <div style="font-size:15px;font-weight:800;color:${titleColor};margin-top:3px;">${hasClient ? d.client.name : '<span style="font-size:12px;font-weight:400;color:' + subtitleColor + ';font-style:italic;">' + _t('doc_select_client') + '</span>'}</div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${textMuted};">${_t('doc_billed_to')}</div>
+          <div style="font-size:14px;font-weight:700;color:${titleColor};margin-top:3px;">${hasClient ? d.client.name : '<span style="font-size:12px;font-weight:400;color:' + textMuted + ';font-style:italic;">' + _t('doc_select_client') + '</span>'}</div>
           ${(d.client.address || d.client.phone || taxIdVal) ? `
-          <div style="font-size:13px;color:${subtitleColor};line-height:1.4;margin-top:3px;">
+          <div style="font-size:12px;font-weight:400;color:${textMuted};line-height:1.4;margin-top:3px;">
             ${d.client.address ? d.client.address + '<br>' : ''}
             ${d.client.phone ? 'Tél.: ' + d.client.phone + '<br>' : ''}
             ${taxIdVal ? '<span style="font-weight:600;">N° Fiscal / Registre :</span> ' + taxIdVal : ''}
           </div>` : ''}
         </div>
         <div style="text-align:right;">
-          <div style="font-size:11px;text-transform:uppercase;color:${subtitleColor};font-weight:700;letter-spacing:0.5px;">${_t('doc_contact')}</div>
-          <div style="font-size:13px;font-weight:600;color:${titleColor};margin-top:3px;">${d.client.email || '--'}</div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${textMuted};">${_t('doc_contact')}</div>
+          <div style="font-size:12px;font-weight:400;color:${textMuted};margin-top:3px;">${d.client.email || '--'}</div>
         </div>
       </div>
     `;
@@ -415,6 +425,166 @@ window.KivoTemplates = {
     return (biz.legalFieldName && biz.legalFieldName !== 'N° Fiscal') ? biz.legalFieldName : 'N° d\'enregistrement / Identifiant fiscal';
   },
 
+  // ── Conditional Payment Section Renderer ──────────────────────────────
+  renderPaymentSection: function (d, ac, isDark = false) {
+    if (d.showPaymentMethods === false) return '';
+
+    const _t = (key) => (window.KivoI18n ? KivoI18n.t(key, d.lang || 'fr') : key);
+    const titleColor = isDark ? '#E2E8F0' : '#0F172A';
+    const valColor = isDark ? '#E2E8F0' : '#1E293B';
+    const borderColor = isDark ? '#2D323F' : '#E2E8F0';
+
+    const cfg = d.paymentConfig || (d.biz && d.biz.paymentConfig) || (window.KivoApp && typeof window.KivoApp.getPaymentConfig === 'function' ? window.KivoApp.getPaymentConfig() : null);
+
+    let selectedKeys = [];
+    if (Array.isArray(d.selectedPaymentMethods) && d.selectedPaymentMethods.length > 0) {
+      selectedKeys = d.selectedPaymentMethods.map(m => typeof m === 'string' ? m : (m.id || m.type || ''));
+    } else if (d.selectedPaymentMethodIds && Array.isArray(d.selectedPaymentMethodIds)) {
+      selectedKeys = d.selectedPaymentMethodIds;
+    }
+    selectedKeys = selectedKeys.filter(Boolean);
+
+    const blocksHtml = [];
+
+    if (selectedKeys.length > 0 && cfg) {
+      selectedKeys.forEach(key => {
+        if (key === 'bank' && cfg.bank) {
+          const b = cfg.bank;
+          if (b.bankName || b.accountNumber) {
+            blocksHtml.push(`
+              <div style="margin-top:8px;padding-top:8px;border-top:1px dashed ${borderColor};">
+                <div style="font-weight:700;font-size:12.5px;color:${titleColor};margin-bottom:3px;display:flex;align-items:center;gap:6px;">
+                  <span>💳</span> <span>Virement bancaire</span>
+                </div>
+                <div style="font-size:12.5px;line-height:1.55;color:${valColor};">
+                  ${b.bankName ? `<div><strong>Banque :</strong> ${b.bankName}</div>` : ''}
+                  ${b.accountHolder ? `<div><strong>Titulaire du compte :</strong> ${b.accountHolder}</div>` : ''}
+                  ${b.accountNumber ? `<div><strong>Numéro de compte :</strong> ${b.accountNumber}</div>` : ''}
+                  ${b.iban ? `<div><strong>RIB / IBAN :</strong> ${b.iban}</div>` : ''}
+                  ${b.swift ? `<div><strong>Code SWIFT / BIC :</strong> ${b.swift}</div>` : ''}
+                </div>
+              </div>
+            `);
+          }
+        } else if (key.startsWith('momo') && cfg.momo && Array.isArray(cfg.momo.accounts)) {
+          let momoList = [];
+          if (key === 'momo') {
+            momoList = cfg.momo.accounts;
+          } else {
+            const idx = parseInt(key.replace('momo_', ''), 10);
+            if (!isNaN(idx) && cfg.momo.accounts[idx]) {
+              momoList = [cfg.momo.accounts[idx]];
+            }
+          }
+          momoList.forEach(m => {
+            if (m && (m.phone || m.operator)) {
+              blocksHtml.push(`
+                <div style="margin-top:8px;padding-top:8px;border-top:1px dashed ${borderColor};">
+                  <div style="font-weight:700;font-size:12.5px;color:${titleColor};margin-bottom:3px;display:flex;align-items:center;gap:6px;">
+                    <span>📱</span> <span>Mobile Money${m.operator ? ` (${m.operator})` : ''}</span>
+                  </div>
+                  <div style="font-size:12.5px;line-height:1.55;color:${valColor};">
+                    ${m.phone ? `<div><strong>Numéro :</strong> ${m.phone}</div>` : ''}
+                    ${m.holder ? `<div><strong>Titulaire :</strong> ${m.holder}</div>` : ''}
+                  </div>
+                </div>
+              `);
+            }
+          });
+        } else if (key === 'cash' && cfg.cash) {
+          const notice = cfg.cash.notice || 'Paiement en espèces accepté.';
+          blocksHtml.push(`
+            <div style="margin-top:8px;padding-top:8px;border-top:1px dashed ${borderColor};">
+              <div style="font-weight:700;font-size:12.5px;color:${titleColor};margin-bottom:3px;display:flex;align-items:center;gap:6px;">
+                <span>💵</span> <span>Espèces</span>
+              </div>
+              <div style="font-size:12.5px;line-height:1.55;color:${valColor};font-style:italic;">
+                ${notice}
+              </div>
+            </div>
+          `);
+        } else if (key === 'check' && cfg.check) {
+          const chk = cfg.check;
+          if (chk.payableTo) {
+            blocksHtml.push(`
+              <div style="margin-top:8px;padding-top:8px;border-top:1px dashed ${borderColor};">
+                <div style="font-weight:700;font-size:12.5px;color:${titleColor};margin-bottom:3px;display:flex;align-items:center;gap:6px;">
+                  <span>📝</span> <span>Chèque</span>
+                </div>
+                <div style="font-size:12.5px;line-height:1.55;color:${valColor};">
+                  <div><strong>À l'ordre de :</strong> ${chk.payableTo}</div>
+                  ${chk.address ? `<div><strong>Adresse d'envoi :</strong> ${chk.address}</div>` : ''}
+                </div>
+              </div>
+            `);
+          }
+        } else if (key === 'card' && cfg.card) {
+          const crd = cfg.card;
+          blocksHtml.push(`
+            <div style="margin-top:8px;padding-top:8px;border-top:1px dashed ${borderColor};">
+              <div style="font-weight:700;font-size:12.5px;color:${titleColor};margin-bottom:3px;display:flex;align-items:center;gap:6px;">
+                <span>💳</span> <span>Carte bancaire / Paiement en ligne</span>
+              </div>
+              <div style="font-size:12.5px;line-height:1.55;color:${valColor};">
+                ${crd.paymentUrl ? `<div><strong>Lien sécurisé :</strong> <a href="${crd.paymentUrl}" target="_blank" rel="noopener noreferrer" style="color:${ac};text-decoration:underline;">Payer en ligne</a></div>` : ''}
+                ${crd.notice ? `<div style="font-style:italic;margin-top:2px;">${crd.notice}</div>` : ''}
+              </div>
+            </div>
+          `);
+        }
+      });
+    }
+
+    // Legacy fallback: check if paymentMethod / paymentDetails / bankDetails exist
+    if (blocksHtml.length === 0) {
+      const hasLegacyMethod = d.paymentMethod && d.paymentMethod.trim() && d.paymentMethod !== 'none';
+      const hasLegacyDetails = d.paymentDetails && d.paymentDetails.trim();
+      const hasBizBank = d.biz && d.biz.bankDetails && (d.biz.bankDetails.bankName || d.biz.bankDetails.iban);
+
+      if (hasLegacyDetails || hasBizBank || (hasLegacyMethod && d.paymentMethod !== 'Espèces' && d.paymentMethod !== 'Chèque')) {
+        let detailsHtml = '';
+        if (hasLegacyDetails) {
+          detailsHtml = `<div style="margin-top:4px;white-space:pre-wrap;font-size:12.5px;color:${valColor};">${d.paymentDetails}</div>`;
+        } else if (hasBizBank) {
+          const bk = d.biz.bankDetails;
+          detailsHtml = `
+            <div style="font-size:12.5px;line-height:1.55;color:${valColor};margin-top:4px;">
+              ${bk.bankName ? `<div><strong>Banque :</strong> ${bk.bankName}</div>` : ''}
+              ${bk.accountHolder ? `<div><strong>Titulaire :</strong> ${bk.accountHolder}</div>` : ''}
+              ${bk.accountNumber ? `<div><strong>N° Compte :</strong> ${bk.accountNumber}</div>` : ''}
+              ${bk.iban ? `<div><strong>IBAN :</strong> ${bk.iban}</div>` : ''}
+              ${bk.swift ? `<div><strong>SWIFT/BIC :</strong> ${bk.swift}</div>` : ''}
+            </div>
+          `;
+        }
+        blocksHtml.push(`
+          <div style="margin-top:6px;font-size:12.5px;color:${valColor};">
+            <div><strong>${_t('doc_mode')}</strong> ${d.paymentMethod || 'Virement bancaire'}</div>
+            ${detailsHtml}
+          </div>
+        `);
+      }
+    }
+
+    // If completely empty, return nothing
+    if (blocksHtml.length === 0) {
+      return '';
+    }
+
+    const termsHtml = d.terms ? `
+      <div style="font-size:12.5px;color:${valColor};margin-bottom:6px;">
+        <strong>${_t('doc_terms')}</strong> ${d.terms}
+      </div>` : '';
+
+    return `
+      <div>
+        <strong style="color:${titleColor};display:block;margin-bottom:4px;font-size:13px;font-weight:700;">${_t('doc_payment_title')}</strong>
+        ${termsHtml}
+        ${blocksHtml.join('')}
+      </div>
+    `;
+  },
+
   // ── Totals, Payments & Footer Helper ──────────────────────────────────
   renderBottom: function (d, ac, isDark = false) {
     const _t = (key) => (window.KivoI18n ? KivoI18n.t(key, d.lang || 'fr') : key);
@@ -427,23 +597,52 @@ window.KivoTemplates = {
     const depositAmount = showDeposit ? (d.deposit || 0) : 0;
     const balanceDue = Math.max(0, (d.grandTotal || 0) - depositAmount);
 
+    const paymentHtml = this.renderPaymentSection(d, ac, isDark);
+    const hasNotes = (d.showNotes !== false && d.notes && d.notes.trim());
+
+    let paymentNotesGrid = '';
+    if (paymentHtml && hasNotes) {
+      paymentNotesGrid = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;background:${isDark ? '#222631' : '#F8FAFC'};padding:12px 16px;border-radius:8px;font-size:12.5px;color:${isDark ? '#94A3B8' : '#475569'};margin-bottom:14px;border:1px solid ${isDark ? '#2D323F' : '#E2E8F0'};">
+          <div>${paymentHtml}</div>
+          <div>
+            <strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:4px;font-size:13px;font-weight:700;">${_t('doc_notes')}</strong>
+            <div style="white-space:pre-wrap;font-size:12.5px;line-height:1.5;">${d.notes}</div>
+          </div>
+        </div>
+      `;
+    } else if (paymentHtml) {
+      paymentNotesGrid = `
+        <div style="background:${isDark ? '#222631' : '#F8FAFC'};padding:12px 16px;border-radius:8px;font-size:12.5px;color:${isDark ? '#94A3B8' : '#475569'};margin-bottom:14px;border:1px solid ${isDark ? '#2D323F' : '#E2E8F0'};">
+          ${paymentHtml}
+        </div>
+      `;
+    } else if (hasNotes) {
+      paymentNotesGrid = `
+        <div style="background:${isDark ? '#222631' : '#F8FAFC'};padding:12px 16px;border-radius:8px;font-size:12.5px;color:${isDark ? '#94A3B8' : '#475569'};margin-bottom:14px;border:1px solid ${isDark ? '#2D323F' : '#E2E8F0'};">
+          <strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:4px;font-size:13px;font-weight:700;">${_t('doc_notes')}</strong>
+          <div style="white-space:pre-wrap;font-size:12.5px;line-height:1.5;">${d.notes}</div>
+        </div>
+      `;
+    }
+
     return `
       <div style="margin-top:auto;padding-top:16px;border-top:1.5px solid ${isDark ? '#2D323F' : '#E2E8F0'};">
         <!-- Totals Block -->
         <div style="display:flex;justify-content:flex-end;margin-bottom:18px;">
-          <div style="width:300px;font-size:13px;">
-            <div style="display:flex;justify-content:space-between;padding:4px 0;color:${isDark ? '#94A3B8' : '#64748B'};">
-              <span>${lblSubtotal}</span><strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};">${this.fmt(d.subtotal, d.currency)}</strong>
+          <div style="width:300px;">
+            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:400;color:${isDark ? '#94A3B8' : '#64748B'};">
+              <span>${lblSubtotal}</span><strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};font-weight:600;">${this.fmt(d.subtotal, d.currency)}</strong>
             </div>
             ${showDiscount ? `
-              <div style="display:flex;justify-content:space-between;padding:4px 0;color:#EF4444;">
+              <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#EF4444;">
                 <span>Remise</span><strong>-${this.fmt(d.discount, d.currency)}</strong>
               </div>` : ''}
             ${showVat ? `
-              <div style="display:flex;justify-content:space-between;padding:4px 0;color:${isDark ? '#94A3B8' : '#64748B'};">
-                <span>${lblTax}</span><strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};">${this.fmt(d.taxAmount, d.currency)}</strong>
+              <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:400;color:${isDark ? '#94A3B8' : '#64748B'};">
+                <span>${lblTax}</span><strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};font-weight:600;">${this.fmt(d.taxAmount, d.currency)}</strong>
               </div>` : ''}
-            <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:17px;font-weight:900;color:${isDark ? '#F5D0B5' : ac};border-top:2.5px solid ${ac};padding-top:10px;margin-top:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:18px;font-weight:700;color:${isDark ? '#F5D0B5' : ac};border-top:2.5px solid ${ac};padding-top:10px;margin-top:8px;">
               <span>${lblTotal}</span><span>${this.fmt(d.grandTotal, d.currency)}</span>
             </div>
             ${showDeposit ? `
@@ -457,23 +656,7 @@ window.KivoTemplates = {
         </div>
 
         <!-- Payment Info & Notes -->
-        ${(d.showPaymentMethods !== false || (d.showNotes !== false && d.notes)) ? `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;background:${isDark ? '#222631' : '#F8FAFC'};padding:12px 16px;border-radius:8px;font-size:12px;color:${isDark ? '#94A3B8' : '#475569'};margin-bottom:14px;">
-          <div>
-            ${d.showPaymentMethods !== false ? `
-              <strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:4px;">${_t('doc_payment_title')}</strong>
-              <div>${_t('doc_mode')} <span style="font-weight:600;color:${isDark ? '#E2E8F0' : '#0F172A'};">${d.paymentMethod}</span></div>
-              <div>${_t('doc_terms')} <span style="font-weight:600;color:${isDark ? '#E2E8F0' : '#0F172A'};">${d.terms}</span></div>
-              ${d.paymentDetails ? `<div style="margin-top:4px;white-space:pre-wrap;font-size:12px;color:${isDark ? '#CBD5E1' : '#334155'};">${d.paymentDetails}</div>` : ''}
-            ` : ''}
-          </div>
-          <div>
-            ${(d.showNotes !== false && d.notes) ? `
-              <strong style="color:${isDark ? '#E2E8F0' : '#0F172A'};display:block;margin-bottom:4px;">${_t('doc_notes')}</strong>
-              <div style="white-space:pre-wrap;">${d.notes}</div>
-            ` : ''}
-          </div>
-        </div>` : ''}
+        ${paymentNotesGrid}
 
         <!-- Thank-you note -->
         ${(d.showThankYou !== false && d.thankYouText) ? `
@@ -481,13 +664,13 @@ window.KivoTemplates = {
             ${d.thankYouText}
           </div>` : ''}
 
-        <!-- Footer / Mentions légales (TOUJOURS LE DERNIER BLOC) -->
+        <!-- Footer / Mentions légales -->
         ${d.showLegalNotices !== false ? `
-        <div style="text-align:center;font-size:12px;color:${isDark ? '#94A3B8' : '#4B5563'};padding-top:10px;border-top:1px solid ${isDark ? '#2D323F' : '#E2E8F0'};line-height:1.6;">
+        <div style="text-align:center;font-size:11px;font-weight:400;color:${isDark ? '#94A3B8' : '#6B7280'};padding-top:10px;border-top:1px solid ${isDark ? '#2D323F' : '#E2E8F0'};line-height:1.6;">
           <div>${[(d.biz && d.biz.name) || (d.biz && d.biz.owner) || 'Mon Entreprise', d.biz && d.biz.address, d.biz && d.biz.phone, d.biz && d.biz.email].filter(Boolean).join(' · ')}</div>
-          ${d.legalNotices ? `<div style="margin-top:4px;font-size:12px;color:${isDark ? '#94A3B8' : '#4B5563'};">${d.legalNotices}</div>` : ''}
-          ${(d.biz && d.biz.taxId) ? `<div style="font-size:12px;color:${isDark ? '#94A3B8' : '#4B5563'};margin-top:2px;">${this.getLegalLabel(d.biz)} : <strong>${d.biz.taxId}</strong></div>` : ''}
-          ${(d.client && d.client.taxId) ? `<div style="font-size:12px;color:${isDark ? '#94A3B8' : '#4B5563'};margin-top:2px;">Client : ${d.client.name || ''} · ${d.client.legalFieldName || 'N° Fiscal'} : <strong>${d.client.taxId}</strong></div>` : ''}
+          ${d.legalNotices ? `<div style="margin-top:4px;font-size:11px;color:${isDark ? '#94A3B8' : '#6B7280'};">${d.legalNotices}</div>` : ''}
+          ${(d.biz && d.biz.taxId) ? `<div style="font-size:11px;color:${isDark ? '#94A3B8' : '#6B7280'};margin-top:2px;">${this.getLegalLabel(d.biz)} : <strong>${d.biz.taxId}</strong></div>` : ''}
+          ${(d.client && d.client.taxId) ? `<div style="font-size:11px;color:${isDark ? '#94A3B8' : '#6B7280'};margin-top:2px;">Client : ${d.client.name || ''} · ${d.client.legalFieldName || 'N° Fiscal'} : <strong>${d.client.taxId}</strong></div>` : ''}
         </div>` : ''}
       </div>
     `;
