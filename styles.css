@@ -5646,14 +5646,36 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   gap: 1rem;
 }
 
-.profile-main-title {
-  font-family: var(--font-heading, 'Outfit', 'Inter', -apple-system, sans-serif);
-  font-size: 2rem;
-  font-weight: 800;
+.profile-header-wrap .page-subtitle,
+.profile-header-subtitle {
+  color: rgba(255, 255, 255, 0.94) !important;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-top: 0.35rem;
+  font-weight: 400;
+}
+
+.profile-header-action-btn {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.45);
   color: #FFFFFF;
-  letter-spacing: -0.02em;
-  margin: 0;
-  line-height: 1.2;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-header-action-btn:hover {
+  background: rgba(255, 255, 255, 0.32) !important;
+  border-color: rgba(255, 255, 255, 0.65) !important;
+  transform: translateY(-1px);
 }
 
 .profile-save-btn {
@@ -6287,14 +6309,18 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
     position: static;
   }
   .profile-nav-links {
+    display: flex;
     flex-direction: row;
-    overflow-x: auto;
-    white-space: nowrap;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    overflow: visible;
+    white-space: normal;
     padding-bottom: 0.35rem;
-    -webkit-overflow-scrolling: touch;
   }
   .profile-nav-link {
     flex-shrink: 0;
+    font-size: 0.84rem;
+    padding: 0.5rem 0.85rem;
   }
   .profile-cards-stack {
     max-width: 100%;

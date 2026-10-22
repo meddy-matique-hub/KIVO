@@ -999,11 +999,18 @@ window.KivoApp = {
    * Without this, getSession() finds the old token and auto-logs in the user.
    */
   logout: async function (confirmed = false) {
+    console.log('[DEBUG-LOGOUT] 1. Clic détecté à', new Date().toISOString(), 'confirmed:', confirmed);
+
     if (!confirmed) {
+      console.log('[DEBUG-LOGOUT] 1a. Déconnexion non confirmée -> ouverture du modal-confirm-logout...');
       const sidebar = document.getElementById('sidebar');
       const wasMobileOpen = sidebar && sidebar.classList.contains('mobile-open');
       if (wasMobileOpen && typeof this.toggleMobileSidebar === 'function') {
         this.toggleMobileSidebar(false);
+      }
+      const modal = document.getElementById('modal-confirm-logout');
+      if (!modal) {
+        console.warn('[DEBUG-LOGOUT] 1a-WARN: modal-confirm-logout introuvable dans le DOM!');
       }
       if (wasMobileOpen) {
         setTimeout(() => this.openModal('modal-confirm-logout'), 250);
@@ -1021,7 +1028,6 @@ window.KivoApp = {
 
     this.closeModal('modal-confirm-logout');
 
-    console.log('[KivoApp] Logging out...');
     this.isSessionLoading = false;
     this._isAuthenticating = false;
     if (window.KivoAuth) {
@@ -1029,33 +1035,40 @@ window.KivoApp = {
     }
 
     try {
-      // 1. Capture user-scoped storage key BEFORE clearing user object
+      console.log('[DEBUG-LOGOUT] 2. Appel supabase.auth.signOut()...');
+      let signOutError = null;
+      if (window.KivoDb && window.KivoDb.supabase) {
+        try {
+          const res = await window.KivoDb.supabase.auth.signOut();
+          signOutError = res?.error || null;
+        } catch (authErr) {
+          signOutError = authErr;
+        }
+      } else {
+        console.warn('[DEBUG-LOGOUT] 2-WARN: window.KivoDb.supabase non disponible');
+      }
+
+      console.log('[DEBUG-LOGOUT] 3. Réponse signOut reçue. Erreur ?', signOutError);
+      if (signOutError) {
+        console.error('[DEBUG-LOGOUT] ERREUR signOut:', signOutError.message || signOutError, signOutError);
+        alert('Erreur de déconnexion : ' + (signOutError.message || JSON.stringify(signOutError)));
+      }
+
+      console.log('[DEBUG-LOGOUT] 4. Nettoyage du state local...');
       const userKey = this.getUserStorageKey();
       if (userKey) localStorage.removeItem(userKey);
       localStorage.removeItem('kivo_app_state');
       localStorage.removeItem('kivo_app_state_guest');
 
-      // 2. Perform Supabase SDK signOut first so SDK can revoke session cleanly
-      if (window.KivoDb && window.KivoDb.supabase) {
-        try {
-          await KivoDb.supabase.auth.signOut();
-        } catch (authErr) {
-          console.warn('[KivoApp] Supabase signOut non-blocking error:', authErr);
-        }
-      }
-
-      // 3. Explicitly purge any remaining Supabase auth tokens from localStorage
-      // to ensure no stale token can re-authenticate the user on page refresh
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && (k.startsWith('sb-') || k.startsWith('supabase.') || k.includes('auth-token'))) {
+        if (k && (k.startsWith('sb-') || k.startsWith('supabase.') || k.includes('auth-token') || k.includes('kivo-auth'))) {
           keysToRemove.push(k);
         }
       }
       keysToRemove.forEach(k => localStorage.removeItem(k));
 
-      // 4. Clear session and user references in memory
       if (window.KivoAuth) {
         window.KivoAuth.user = null;
         window.KivoAuth.session = null;
@@ -1064,12 +1077,14 @@ window.KivoApp = {
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.state.isOnboarded = false;
 
-      // 5. Clean URL and navigate to landing cleanly
-      this.navigate('landing');
-      this.showToast(this._t('toast_logout_success') || 'Déconnexion réussie.', 'info');
+      console.log('[DEBUG-LOGOUT] 5. Redirection vers #landing...');
+      window.location.hash = '#landing';
+
+      console.log('[DEBUG-LOGOUT] 6. Rechargement forcé...');
+      window.location.reload();
     } catch (e) {
-      console.error('[KivoApp] Error during logout:', e);
-      this.showToast('Impossible de se déconnecter, veuillez réessayer.', 'error');
+      console.error('[DEBUG-LOGOUT] EXCEPTION NON CATCHÉE:', e);
+      alert('Exception lors de la déconnexion : ' + (e.message || JSON.stringify(e)));
     } finally {
       if (confirmBtn) {
         confirmBtn.disabled = false;
@@ -5155,21 +5170,28 @@ window.KivoApp = {
   },
 
   saveAsTemplate: async function () {
+    console.log('[DEBUG-TEMPLATE] 1. Clic sur Sauvegarder modèle...');
     if (!this.canUse('customizer')) {
+      console.warn('[DEBUG-TEMPLATE] Bloqué par restriction forfait (canUse customizer = false)');
       this.showUpgradePrompt('customizer');
       return;
     }
-    const templateId = document.getElementById('builder-visual-template').value;
+    const templateId = document.getElementById('builder-visual-template')?.value || 'classic';
     const name = prompt("Nom du modèle personnalisé :");
-    if (!name || !name.trim()) return;
+    if (!name || !name.trim()) {
+      console.log('[DEBUG-TEMPLATE] Saisie annulée par l\'utilisateur');
+      return;
+    }
 
     const custom = {
       id: 'custom-' + Date.now(),
       name: name.trim(),
       baseTemplateId: templateId,
-      primaryColor: document.getElementById('builder-color-primary').value,
-      secondaryColor: document.getElementById('builder-color-secondary').value
+      primaryColor: document.getElementById('builder-color-primary')?.value || '#4F46E5',
+      secondaryColor: document.getElementById('builder-color-secondary')?.value || '#7C3AED'
     };
+
+    console.log('[DEBUG-TEMPLATE] 1b. Data du modèle à sauvegarder:', custom);
 
     if (!this.state.business) this.state.business = {};
     const biz = this.state.business;
@@ -5178,24 +5200,61 @@ window.KivoApp = {
     this.saveState();
 
     try {
+      console.log('[DEBUG-TEMPLATE] 2. Envoi Supabase business_settings & custom_templates...');
+      let updateError = null;
+      let saveRes = null;
+
+      // 1. Sauvegarde dans business_settings.custom_templates
       if (window.KivoDb && typeof window.KivoDb.saveSettings === 'function') {
-        await window.KivoDb.saveSettings({
+        saveRes = await window.KivoDb.saveSettings({
           custom_templates: biz.customTemplates
         });
       } else if (window.KivoDb && window.KivoDb.supabase) {
         const userId = window.KivoAuth?.user?.id;
         if (userId) {
-          const { error } = await window.KivoDb.supabase.from('business_settings').update({
-            custom_templates: biz.customTemplates
-          }).eq('user_id', userId);
-          if (error) throw error;
+          const { data, error } = await window.KivoDb.supabase
+            .from('business_settings')
+            .update({ custom_templates: biz.customTemplates })
+            .eq('user_id', userId);
+          if (error) updateError = error;
+          saveRes = data;
         }
       }
+
+      // 2. Sauvegarde miroir dans la table dédiée public.custom_templates
+      const authUser = window.KivoAuth?.user;
+      if (authUser && window.KivoDb?.supabase) {
+        try {
+          await window.KivoDb.supabase.from('custom_templates').upsert({
+            id: custom.id,
+            user_id: authUser.id,
+            name: custom.name,
+            base_template_id: custom.baseTemplateId,
+            primary_color: custom.primaryColor,
+            secondary_color: custom.secondaryColor,
+            updated_at: new Date().toISOString()
+          });
+        } catch (tableErr) {
+          console.warn('[DEBUG-TEMPLATE] Mirror custom_templates table warning:', tableErr);
+        }
+      }
+
+      console.log('[DEBUG-TEMPLATE] 2b. Résultat Supabase:', { saveRes, updateError });
+      if (updateError) {
+        console.error('[DEBUG-TEMPLATE] ERREUR:', updateError.message, updateError.details, updateError.hint);
+        alert('Erreur sauvegarde modèle : ' + updateError.message);
+        return false;
+      }
+
+      console.log('[DEBUG-TEMPLATE] 3. Sauvegarde réussie avec succès !');
       this.renderTemplateGallery();
       this.showToast(this._t('toast_template_saved') || 'Modèle enregistré avec succès !', "success");
+      return true;
     } catch (e) {
-      console.error('[KivoApp] Error saving custom template:', e);
+      console.error('[DEBUG-TEMPLATE] EXCEPTION:', e);
+      alert('Exception lors de la sauvegarde du modèle : ' + (e.message || JSON.stringify(e)));
       this.showToast(this._t('toast_template_save_error') || 'Erreur lors de la sauvegarde du modèle.', "error");
+      return false;
     }
   },
 
