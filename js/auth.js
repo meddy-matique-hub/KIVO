@@ -78,6 +78,15 @@ window.KivoAuth = {
     }
     // ─────────────────────────────────────────────────────────────────────
 
+    // [AUDIT A.1] — Count real registrations of onAuthStateChange (not event fires)
+    window.__KIVO_AUTH_LISTENER_COUNT = (window.__KIVO_AUTH_LISTENER_COUNT || 0) + 1;
+    const _auditStack = new Error().stack;
+    console.log(
+      '[AUDIT] onAuthStateChange enregistré pour la ' + window.__KIVO_AUTH_LISTENER_COUNT + 'ème fois.\nStack trace:\n' + _auditStack
+    );
+    if (window._kivoDebugLog) {
+      window._kivoDebugLog('[AUDIT] onAuthStateChange #' + window.__KIVO_AUTH_LISTENER_COUNT + ' Stack:' + (_auditStack.split('\n')[2] || ''));
+    }
     // Listen for auth state changes — callback MUST be synchronous without await
     // to avoid supabase-js v2 deadlocks on getSession()
     const { data: { subscription } } = KivoDb.supabase.auth.onAuthStateChange((event, session) => {

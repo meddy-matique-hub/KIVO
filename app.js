@@ -19,15 +19,72 @@ window.escapeHtml = escapeHtml;
 
 // Global Error Boundary to prevent non-critical errors from crashing the whole app
 window.addEventListener('error', function (event) {
-  console.error('[KivoApp/ErrorBoundary] Uncaught error intercepted:', event.error || event.message);
+  const msg = event.error?.message || event.message || '(unknown error)';
+  const src = event.filename ? `${event.filename}:${event.lineno}:${event.colno}` : '';
+  console.error('[KivoApp/ErrorBoundary] Uncaught error:', msg, src, event.error);
+  if (window._kivoDebugLog) window._kivoDebugLog('[ERROR] ' + msg + (src ? ' @ ' + src : ''));
+  // Only suppress default browser error dialog when app is initialized; never suppress logic errors
   if (window.KivoApp && window.KivoApp._isInitialized) {
     event.preventDefault();
   }
 });
 window.addEventListener('unhandledrejection', function (event) {
-  console.warn('[KivoApp/ErrorBoundary] Unhandled promise rejection intercepted:', event.reason);
-  event.preventDefault();
+  // CRITICAL FIX: Do NOT call event.preventDefault() here — doing so silently swallows ALL
+  // unhandled promise rejections including those from logout/template save, hiding [DEBUG-*] logs.
+  // We only log + forward to debug panel. Let the rejection propagate normally.
+  const reason = event.reason;
+  const msg = reason?.message || String(reason) || '(unknown rejection)';
+  console.warn('[KivoApp/ErrorBoundary] Unhandled promise rejection:', msg, reason);
+  if (window._kivoDebugLog) window._kivoDebugLog('[REJECTION] ' + msg);
+  // DO NOT call event.preventDefault() — removed intentionally
 });
+
+// ── Debug Panel (A.4) — activated via ?debug=1 in URL ────────────────────────
+(function initKivoDebugPanel() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('debug') && !window.location.href.includes('debug=1')) return;
+  const panel = document.createElement('div');
+  panel.id = 'kivo-debug-panel';
+  panel.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#0a0a0a;color:#00ff88;' +
+    'font-family:monospace;font-size:11px;padding:10px 12px;max-width:370px;max-height:220px;' +
+    'overflow-y:auto;z-index:2147483647;border-radius:8px;border:1px solid #00ff8844;' +
+    'box-shadow:0 4px 24px #000a;pointer-events:none;line-height:1.5;';
+  panel.innerHTML = '<div style="color:#888;margin-bottom:4px;font-size:10px;">🛠 KIVO Debug Panel (debug=1)</div>';
+  document.addEventListener('DOMContentLoaded', function() {
+    document.body.appendChild(panel);
+  });
+  // Fallback: insert immediately if DOM already ready
+  if (document.body) document.body.appendChild(panel);
+
+  window._kivoDebugLog = function(msg) {
+    const p = document.getElementById('kivo-debug-panel');
+    if (!p) return;
+    const time = new Date().toISOString().slice(11, 23);
+    const line = document.createElement('div');
+    line.style.cssText = 'border-top:1px solid #ffffff11;padding-top:2px;margin-top:2px;word-break:break-all;';
+    const col = msg.startsWith('[ERROR') || msg.startsWith('[REJECTION') ? '#ff6b6b' :
+                msg.startsWith('[WARN') ? '#ffd93d' : '#00ff88';
+    line.innerHTML = '<span style="color:#666;">' + time + '</span> ' +
+      '<span style="color:' + col + ';">' + msg.replace(/</g,'&lt;') + '</span>';
+    p.appendChild(line);
+    p.scrollTop = p.scrollHeight;
+  };
+
+  // Intercept console.log/warn/error for logout+template keywords
+  const _origLog   = console.log.bind(console);
+  const _origWarn  = console.warn.bind(console);
+  const _origError = console.error.bind(console);
+  const _shouldCapture = (args) => {
+    const s = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+    return s.includes('DEBUG-LOGOUT') || s.includes('DEBUG-TEMPLATE') ||
+           s.includes('AUDIT') || s.includes('KivoAuth') || s.includes('SIGNED_') ||
+           s.includes('ErrorBoundary') || s.includes('signOut') || s.includes('REJECTION');
+  };
+  console.log = function(...args) { _origLog(...args); if(_shouldCapture(args)) window._kivoDebugLog('[LOG] ' + args.join(' ')); };
+  console.warn = function(...args) { _origWarn(...args); if(_shouldCapture(args)) window._kivoDebugLog('[WARN] ' + args.join(' ')); };
+  console.error = function(...args) { _origError(...args); if(_shouldCapture(args)) window._kivoDebugLog('[ERR] ' + args.join(' ')); };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 
 window.KivoApp = {
   state: null,
