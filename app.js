@@ -89,6 +89,7 @@ window.addEventListener('unhandledrejection', function (event) {
 window.KivoApp = {
   state: null,
   _isInitialized: false,
+  _logoutInFlight: false,
 
   /**
    * Safe HTML Escaping method
@@ -1056,6 +1057,11 @@ window.KivoApp = {
    * Without this, getSession() finds the old token and auto-logs in the user.
    */
   logout: async function (confirmed = false) {
+    // ── VERROU ANTI DOUBLE-APPEL ──────────────────────────────────────────
+    if (this._logoutInFlight) {
+      console.warn('[DEBUG-LOGOUT] Appel ignoré : une déconnexion est déjà en cours.');
+      return;
+    }
     console.log('[DEBUG-LOGOUT] 1. Clic détecté à', new Date().toISOString(), 'confirmed:', confirmed);
 
     if (!confirmed) {
@@ -1076,6 +1082,8 @@ window.KivoApp = {
       }
       return;
     }
+
+    this._logoutInFlight = true;
 
     const confirmBtn = document.getElementById('confirm-logout-action-btn');
     if (confirmBtn) {
@@ -1143,6 +1151,7 @@ window.KivoApp = {
       console.error('[DEBUG-LOGOUT] EXCEPTION NON CATCHÉE:', e);
       alert('Exception lors de la déconnexion : ' + (e.message || JSON.stringify(e)));
     } finally {
+      this._logoutInFlight = false;
       if (confirmBtn) {
         confirmBtn.disabled = false;
         confirmBtn.style.opacity = '';
@@ -1771,48 +1780,8 @@ window.KivoApp = {
       });
     }
 
-    // 5. Robust mobile touch and tap handling for sidebar logout button
-    const logoutBtn = document.querySelector('.sidebar-logout-clean-btn');
-    if (logoutBtn && !logoutBtn.dataset.bound) {
-      logoutBtn.dataset.bound = 'true';
-      logoutBtn.style.touchAction = 'manipulation';
-      let _lbTouchFired = false;
-      let _lbStartX = 0, _lbStartY = 0, _lbIsScroll = false;
-
-      logoutBtn.addEventListener('touchstart', (e) => {
-        if (e.touches && e.touches.length > 0) {
-          _lbStartX = e.touches[0].clientX;
-          _lbStartY = e.touches[0].clientY;
-        }
-        _lbIsScroll = false;
-        _lbTouchFired = false;
-      }, { passive: true });
-
-      logoutBtn.addEventListener('touchmove', (e) => {
-        if (e.touches && e.touches.length > 0) {
-          const dx = Math.abs(e.touches[0].clientX - _lbStartX);
-          const dy = Math.abs(e.touches[0].clientY - _lbStartY);
-          if (dx > 8 || dy > 8) {
-            _lbIsScroll = true;
-          }
-        }
-      }, { passive: true });
-
-      logoutBtn.addEventListener('touchend', (e) => {
-        if (_lbIsScroll) return;
-        e.preventDefault();
-        e.stopPropagation();
-        _lbTouchFired = true;
-        this.logout();
-        setTimeout(() => { _lbTouchFired = false; }, 500);
-      }, { passive: false });
-
-      logoutBtn.addEventListener('click', (e) => {
-        if (_lbTouchFired) {
-          e.preventDefault();
-        }
-      });
-    }
+    // 5. Sidebar logout button: Handled solely by native onclick="KivoApp.logout()"
+    // with touch-action: manipulation in CSS, avoiding any double event firing.
 
     const filterPills = document.querySelectorAll('#doc-filter-pills button');
     filterPills.forEach(btn => {
