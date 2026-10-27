@@ -1070,13 +1070,11 @@ window.KivoApp = {
       if (wasMobileOpen && typeof this.toggleMobileSidebar === 'function') {
         this.toggleMobileSidebar(false);
       }
-      // Délai de 350ms pour laisser l'animation de fermeture sidebar se terminer
-      // AVANT d'ouvrir la modale, évitant tout chevauchement d'événements tactiles
-      if (wasMobileOpen) {
-        setTimeout(() => this.openModal('modal-confirm-logout'), 350);
-      } else {
+      // Découplage temporel systématique pour éviter que l'événement de clic du bouton
+      // ne soit capturé par la modale lors de son affichage
+      setTimeout(() => {
         this.openModal('modal-confirm-logout');
-      }
+      }, wasMobileOpen ? 300 : 60);
       return;
     }
 
@@ -10606,6 +10604,8 @@ window.KivoApp = {
     el.classList.add('active');
     el.style.display = 'flex';
     el.style.visibility = 'visible';
+    el.style.opacity = '1';
+    el.style.pointerEvents = 'auto';
     // Garde anti-fermeture accidentelle pendant les 350ms suivant l'ouverture
     el.dataset.openedAt = Date.now().toString();
     try {
@@ -10615,7 +10615,7 @@ window.KivoApp = {
   },
 
   closeModal: function (modalId, force = false) {
-    console.log('[DEBUG-MODAL] Fermeture demandée pour:', modalId);
+    console.log('[DEBUG-MODAL] Fermeture demandée pour:', modalId, 'trace:', new Error().stack);
     const el = document.getElementById(modalId);
     if (!el) {
       console.warn('[DEBUG-MODAL] WARN: élément introuvable pour closeModal id=', modalId);
@@ -10623,14 +10623,17 @@ window.KivoApp = {
     }
     if (!force) {
       const openedAt = parseInt(el.dataset.openedAt || '0', 10);
-      if (Date.now() - openedAt < 350) {
-        console.warn('[DEBUG-MODAL] Fermeture ignorée (trop proche de l\'ouverture, probable clic résiduel).');
+      const delta = Date.now() - openedAt;
+      if (delta < 350) {
+        console.warn('[DEBUG-MODAL] Fermeture ignorée (trop proche de l\'ouverture, delta: ' + delta + 'ms).');
         return;
       }
     }
     el.classList.remove('active');
     el.style.display = '';
     el.style.visibility = '';
+    el.style.opacity = '';
+    el.style.pointerEvents = '';
     try {
       const cs = window.getComputedStyle(el);
       console.log('[DEBUG-MODAL] Modale fermée. display computed:', cs.display, 'opacity:', cs.opacity);
