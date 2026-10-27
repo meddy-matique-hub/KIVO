@@ -76,7 +76,7 @@ window.addEventListener('unhandledrejection', function (event) {
   const _origError = console.error.bind(console);
   const _shouldCapture = (args) => {
     const s = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
-    return s.includes('DEBUG-LOGOUT') || s.includes('DEBUG-TEMPLATE') ||
+    return s.includes('DEBUG-LOGOUT') || s.includes('DEBUG-TEMPLATE') || s.includes('DEBUG-MODAL') ||
            s.includes('AUDIT') || s.includes('KivoAuth') || s.includes('SIGNED_') ||
            s.includes('ErrorBoundary') || s.includes('signOut') || s.includes('REJECTION');
   };
@@ -1065,22 +1065,13 @@ window.KivoApp = {
     console.log('[DEBUG-LOGOUT] 1. Clic détecté à', new Date().toISOString(), 'confirmed:', confirmed);
 
     if (!confirmed) {
-      console.log('[DEBUG-LOGOUT] 1a. Déconnexion non confirmée -> ouverture du modal-confirm-logout...');
-      const sidebar = document.getElementById('sidebar');
-      const wasMobileOpen = sidebar && sidebar.classList.contains('mobile-open');
-      if (wasMobileOpen && typeof this.toggleMobileSidebar === 'function') {
-        this.toggleMobileSidebar(false);
+      console.log('[DEBUG-LOGOUT] 1a. Déconnexion non confirmée -> demande via window.confirm()...');
+      const userConfirmed = window.confirm('Voulez-vous vraiment vous déconnecter ?');
+      if (!userConfirmed) {
+        console.log('[DEBUG-LOGOUT] 1b. Déconnexion annulée par l\'utilisateur.');
+        return;
       }
-      const modal = document.getElementById('modal-confirm-logout');
-      if (!modal) {
-        console.warn('[DEBUG-LOGOUT] 1a-WARN: modal-confirm-logout introuvable dans le DOM!');
-      }
-      if (wasMobileOpen) {
-        setTimeout(() => this.openModal('modal-confirm-logout'), 250);
-      } else {
-        this.openModal('modal-confirm-logout');
-      }
-      return;
+      confirmed = true;
     }
 
     this._logoutInFlight = true;
@@ -10596,21 +10587,35 @@ window.KivoApp = {
   // handleLogoUpload is defined below (FileReader + extractColors version)
 
   openModal: function (modalId) {
+    console.log('[DEBUG-MODAL] Ouverture demandée pour:', modalId);
     const el = document.getElementById(modalId);
-    if (el) {
-      el.classList.add('active');
-      el.style.display = 'flex';
-      el.style.visibility = 'visible';
+    if (!el) {
+      console.error('[DEBUG-MODAL] ERREUR: élément introuvable pour id=', modalId);
+      return;
     }
+    el.classList.add('active');
+    el.style.display = 'flex';
+    el.style.visibility = 'visible';
+    try {
+      const cs = window.getComputedStyle(el);
+      console.log('[DEBUG-MODAL] Modale affichée. display computed:', cs.display, 'opacity:', cs.opacity, 'z-index:', cs.zIndex, 'pointerEvents:', cs.pointerEvents);
+    } catch (_) {}
   },
 
   closeModal: function (modalId) {
+    console.log('[DEBUG-MODAL] Fermeture demandée pour:', modalId);
     const el = document.getElementById(modalId);
-    if (el) {
-      el.classList.remove('active');
-      el.style.display = '';
-      el.style.visibility = '';
+    if (!el) {
+      console.warn('[DEBUG-MODAL] WARN: élément introuvable pour closeModal id=', modalId);
+      return;
     }
+    el.classList.remove('active');
+    el.style.display = '';
+    el.style.visibility = '';
+    try {
+      const cs = window.getComputedStyle(el);
+      console.log('[DEBUG-MODAL] Modale fermée. display computed:', cs.display, 'opacity:', cs.opacity);
+    } catch (_) {}
   },
 
 
