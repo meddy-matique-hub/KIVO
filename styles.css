@@ -6636,7 +6636,7 @@ html, body {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 155px;
+  min-height: 180px;
   box-sizing: border-box;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
   animation: kivo-cascade-in 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -6765,7 +6765,8 @@ html, body {
   font-size: 14px;
   color: #6B7280;
   font-weight: 500;
-  margin-top: 0.75rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
   display: flex;
   align-items: center;
   flex-wrap: wrap;

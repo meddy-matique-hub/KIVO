@@ -1065,13 +1065,19 @@ window.KivoApp = {
     console.log('[DEBUG-LOGOUT] 1. Clic détecté à', new Date().toISOString(), 'confirmed:', confirmed);
 
     if (!confirmed) {
-      console.log('[DEBUG-LOGOUT] 1a. Déconnexion non confirmée -> demande via window.confirm()...');
-      const userConfirmed = window.confirm('Voulez-vous vraiment vous déconnecter ?');
-      if (!userConfirmed) {
-        console.log('[DEBUG-LOGOUT] 1b. Déconnexion annulée par l\'utilisateur.');
-        return;
+      const sidebar = document.getElementById('sidebar');
+      const wasMobileOpen = sidebar && sidebar.classList.contains('mobile-open');
+      if (wasMobileOpen && typeof this.toggleMobileSidebar === 'function') {
+        this.toggleMobileSidebar(false);
       }
-      confirmed = true;
+      // Délai de 350ms pour laisser l'animation de fermeture sidebar se terminer
+      // AVANT d'ouvrir la modale, évitant tout chevauchement d'événements tactiles
+      if (wasMobileOpen) {
+        setTimeout(() => this.openModal('modal-confirm-logout'), 350);
+      } else {
+        this.openModal('modal-confirm-logout');
+      }
+      return;
     }
 
     this._logoutInFlight = true;
@@ -1082,7 +1088,7 @@ window.KivoApp = {
       confirmBtn.style.opacity = '0.7';
     }
 
-    this.closeModal('modal-confirm-logout');
+    this.closeModal('modal-confirm-logout', true);
 
     this.isSessionLoading = false;
     this._isAuthenticating = false;
@@ -2830,17 +2836,25 @@ window.KivoApp = {
     });
 
     let trendHtml = '';
-    if (hasPrevMonthDocs && prevMonthPaid > 0) {
-      const diffPct = Math.round(((currMonthPaid - prevMonthPaid) / prevMonthPaid) * 100);
-      if (diffPct > 0) {
-        trendHtml = ` · <span style="color:#10B981; font-weight:700;">▲ +${diffPct} % vs. dernier mois</span>`;
-      } else if (diffPct < 0) {
-        trendHtml = ` · <span style="color:#EF4444; font-weight:700;">▼ ${diffPct} % vs. dernier mois</span>`;
+    if (!hasPrevMonthDocs || prevMonthPaid === 0) {
+      if (currMonthPaid > 0) {
+        trendHtml = ` · <span style="color:#6B7280; font-weight:600;">Premier mois d'activité</span>`;
       } else {
-        trendHtml = ` · <span style="color:#6B7280; font-weight:600;">= 0 % vs. dernier mois</span>`;
+        trendHtml = '';
       }
-    } else if (hasPrevMonthDocs && prevMonthPaid === 0 && currMonthPaid > 0) {
-      trendHtml = ` · <span style="color:#10B981; font-weight:700;">▲ +100 % vs. dernier mois</span>`;
+    } else if (prevMonthPaid > 0) {
+      if (currMonthPaid === 0) {
+        trendHtml = ` · <span style="color:#6B7280; font-weight:500;">En cours ce mois</span>`;
+      } else {
+        const diffPct = Math.round(((currMonthPaid - prevMonthPaid) / prevMonthPaid) * 100);
+        if (diffPct > 0) {
+          trendHtml = ` · <span style="color:#10B981; font-weight:700;">▲ +${diffPct} % vs. dernier mois</span>`;
+        } else if (diffPct < 0) {
+          trendHtml = ` · <span style="color:#EF4444; font-weight:700;">▼ ${diffPct} % vs. dernier mois</span>`;
+        } else {
+          trendHtml = ` · <span style="color:#6B7280; font-weight:600;">= 0 % vs. dernier mois</span>`;
+        }
+      }
     }
 
     const paidEl = document.getElementById('kpi-paid');
@@ -2863,35 +2877,30 @@ window.KivoApp = {
       }
     }
     
-    const pendCountEl = document.getElementById('kpi-pending-count');
-    if (pendCountEl) {
-      this.animateCountUp(pendCountEl, pendingInvoicesCount, 700, (v) => {
-        const n = Math.round(v);
-        return `${n} facture${n > 1 ? 's' : ''}`;
-      });
-    }
+    // Inverser la hiérarchie : Montant en grand, nombre de factures en détail
     const pendAmountEl = document.getElementById('kpi-pending-amount');
     if (pendAmountEl) {
+      this.animateCountUp(pendAmountEl, pendingTotal, 700, (v) => formatCurrency(v));
+    }
+    const pendCountEl = document.getElementById('kpi-pending-count');
+    if (pendCountEl) {
       if (pendingInvoicesCount > 0) {
-        this.animateCountUp(pendAmountEl, pendingTotal, 700, (v) => formatCurrency(v));
+        pendCountEl.textContent = `${pendingInvoicesCount} facture${pendingInvoicesCount > 1 ? 's' : ''} à encaisser`;
       } else {
-        pendAmountEl.innerHTML = `<span style="color:#9CA3AF; font-size:14px; font-style:italic;">Aucune facture en attente</span>`;
+        pendCountEl.innerHTML = `<span style="color:#9CA3AF; font-size:13px; font-style:italic;">Aucune facture en attente</span>`;
       }
     }
     
-    const overCountEl = document.getElementById('kpi-overdue-count');
-    if (overCountEl) {
-      this.animateCountUp(overCountEl, overdueInvoicesCount, 700, (v) => {
-        const n = Math.round(v);
-        return `${n} facture${n > 1 ? 's' : ''}`;
-      });
-    }
     const overAmountEl = document.getElementById('kpi-overdue-amount');
     if (overAmountEl) {
+      this.animateCountUp(overAmountEl, overdueTotal, 700, (v) => formatCurrency(v));
+    }
+    const overCountEl = document.getElementById('kpi-overdue-count');
+    if (overCountEl) {
       if (overdueInvoicesCount > 0) {
-        this.animateCountUp(overAmountEl, overdueTotal, 700, (v) => formatCurrency(v));
+        overCountEl.textContent = `${overdueInvoicesCount} facture${overdueInvoicesCount > 1 ? 's' : ''} en retard`;
       } else {
-        overAmountEl.innerHTML = `<span style="color:#9CA3AF; font-size:14px; font-style:italic;">Aucune facture en retard</span>`;
+        overCountEl.innerHTML = `<span style="color:#9CA3AF; font-size:13px; font-style:italic;">Aucune facture en retard</span>`;
       }
     }
 
@@ -3095,9 +3104,10 @@ window.KivoApp = {
 
     const badgeLabel = document.getElementById('dash-chart-total-label');
     if (badgeLabel) {
+      const avgMonthly = Math.round(totalRevenue6M / 6);
       badgeLabel.textContent = totalRevenue6M > 0 
-        ? self.formatCurrency(totalRevenue6M) + ' encaissés (6 mois)'
-        : 'Données en direct';
+        ? 'Moy. ' + self.formatCurrency(avgMonthly) + ' / mois'
+        : 'Synchronisé en direct';
     }
 
     // Empty state if zero documents
@@ -10596,18 +10606,27 @@ window.KivoApp = {
     el.classList.add('active');
     el.style.display = 'flex';
     el.style.visibility = 'visible';
+    // Garde anti-fermeture accidentelle pendant les 350ms suivant l'ouverture
+    el.dataset.openedAt = Date.now().toString();
     try {
       const cs = window.getComputedStyle(el);
       console.log('[DEBUG-MODAL] Modale affichée. display computed:', cs.display, 'opacity:', cs.opacity, 'z-index:', cs.zIndex, 'pointerEvents:', cs.pointerEvents);
     } catch (_) {}
   },
 
-  closeModal: function (modalId) {
+  closeModal: function (modalId, force = false) {
     console.log('[DEBUG-MODAL] Fermeture demandée pour:', modalId);
     const el = document.getElementById(modalId);
     if (!el) {
       console.warn('[DEBUG-MODAL] WARN: élément introuvable pour closeModal id=', modalId);
       return;
+    }
+    if (!force) {
+      const openedAt = parseInt(el.dataset.openedAt || '0', 10);
+      if (Date.now() - openedAt < 350) {
+        console.warn('[DEBUG-MODAL] Fermeture ignorée (trop proche de l\'ouverture, probable clic résiduel).');
+        return;
+      }
     }
     el.classList.remove('active');
     el.style.display = '';
