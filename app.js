@@ -10601,10 +10601,11 @@ window.KivoApp = {
       console.error('[DEBUG-MODAL] ERREUR: élément introuvable pour id=', modalId);
       return;
     }
+    // Supprimer tout style inline d'opacité résiduel pour que la classe .active contrôle l'opacité
+    el.style.opacity = '';
     el.classList.add('active');
     el.style.display = 'flex';
     el.style.visibility = 'visible';
-    el.style.opacity = '1';
     el.style.pointerEvents = 'auto';
     // Garde anti-fermeture accidentelle pendant les 350ms suivant l'ouverture
     el.dataset.openedAt = Date.now().toString();
