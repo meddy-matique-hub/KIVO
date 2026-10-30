@@ -520,6 +520,38 @@ window.KivoApp = {
    */
   init: async function () {
     console.log("[KivoApp] Initializing KIVO MATIQUE application...");
+
+    // ── FIX CRITIQUE : PORTAL PATTERN — Déplacer toutes les modales en enfant direct de <body> ──
+    // Cela échappe à tout contexte d'empilement (stacking context) parent qui pourrait piéger
+    // leur z-index (ex: .app-wrapper avec position:relative, ou sidebar avec position:fixed/z-index:40).
+    // Sans ce fix, z-index:99999 sur une modale imbriquée dans un sous-contexte ne garantit
+    // pas qu'elle passe AU-DESSUS d'éléments dans un autre contexte d'empilement (la sidebar).
+    (function escapeModalsToBody() {
+      const modalIds = [
+        'modal-confirm-logout',
+        'modal-confirm-delete',
+        'modal-invite-member',
+        'modal-new-doc-choice',
+        'modal-upgrade-prompt',
+        'modal-ai-prompt',
+        'modal-whatsapp-share',
+        'modal-payment-checkout',
+        'modal-new-client',
+        'modal-builder-catalog',
+        'modal-catalog-item',
+        'modal-client-details',
+        'modal-change-password',
+        'modal-connected-accounts'
+      ];
+      modalIds.forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el && el.parentElement !== document.body) {
+          document.body.appendChild(el);
+          console.log('[DEBUG-MODAL] Portal fix: modale', id, 'déplacée en enfant direct de <body>.');
+        }
+      });
+    })();
+
     // ── SÉCURITÉ AU DÉMARRAGE : nettoyer tout verrouillage de scroll résiduel ──
     document.body.style.overflow = '';
     document.body.classList.remove('modal-open', 'no-scroll');
