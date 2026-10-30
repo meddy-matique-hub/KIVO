@@ -10381,10 +10381,62 @@ window.KivoApp = {
 
     // 5. Coordonnées bancaires & Moyens de Paiement
     const bDetails = biz.bankDetails || {};
+    const pmBankActive = document.getElementById('setting-pm-bank-active');
+    const pmMomoActive = document.getElementById('setting-pm-momo-active');
+    const pmCheckActive = document.getElementById('setting-pm-check-active');
+    const pmCardActive = document.getElementById('setting-pm-card-active');
+
+    const bankIsActive = !!(bDetails.bankName || bDetails.accountName || bDetails.iban || bDetails.active);
+    if (pmBankActive) pmBankActive.checked = bankIsActive;
+    const cardPmBank = document.getElementById('card-pm-bank');
+    if (cardPmBank) cardPmBank.classList.toggle('active', bankIsActive);
+
     if (document.getElementById('setting-bank-name')) document.getElementById('setting-bank-name').value = bDetails.bankName || '';
     if (document.getElementById('setting-bank-account-name')) document.getElementById('setting-bank-account-name').value = bDetails.accountName || biz.name || '';
+    if (document.getElementById('setting-bank-number')) document.getElementById('setting-bank-number').value = bDetails.accountNumber || '';
     if (document.getElementById('setting-bank-iban')) document.getElementById('setting-bank-iban').value = bDetails.iban || '';
     if (document.getElementById('setting-bank-bic')) document.getElementById('setting-bank-bic').value = bDetails.bic || '';
+
+    // Mobile Money
+    const momoDetails = (bDetails && bDetails.mobileMoney) || {};
+    const momoIsActive = !!(momoDetails.phone || momoDetails.wave || momoDetails.orangeMoney || momoDetails.mtn || momoDetails.active);
+    if (pmMomoActive) pmMomoActive.checked = momoIsActive;
+    const cardPmMomo = document.getElementById('card-pm-momo');
+    if (cardPmMomo) cardPmMomo.classList.toggle('active', momoIsActive);
+    if (document.getElementById('setting-pm-momo-operator')) document.getElementById('setting-pm-momo-operator').value = momoDetails.operator || 'Wave';
+    if (document.getElementById('setting-pm-momo-phone')) document.getElementById('setting-pm-momo-phone').value = momoDetails.phone || momoDetails.wave || momoDetails.orangeMoney || momoDetails.mtn || '';
+    if (document.getElementById('setting-pm-momo-holder')) document.getElementById('setting-pm-momo-holder').value = momoDetails.holder || biz.owner || '';
+
+    // Chèque
+    const checkDetails = (bDetails && bDetails.check) || {};
+    const checkIsActive = !!(checkDetails.payable || checkDetails.active);
+    if (pmCheckActive) pmCheckActive.checked = checkIsActive;
+    const cardPmCheck = document.getElementById('card-pm-check');
+    if (cardPmCheck) cardPmCheck.classList.toggle('active', checkIsActive);
+    if (document.getElementById('setting-pm-check-payable')) document.getElementById('setting-pm-check-payable').value = checkDetails.payable || biz.name || '';
+    if (document.getElementById('setting-pm-check-address')) document.getElementById('setting-pm-check-address').value = checkDetails.address || biz.address || '';
+
+    // Carte bancaire / Paiement en ligne
+    const cardDetails = (bDetails && bDetails.card) || {};
+    const cardIsActive = !!(cardDetails.paymentLink || cardDetails.apiKey || cardDetails.active);
+    if (pmCardActive) pmCardActive.checked = cardIsActive;
+    const cardPmCard = document.getElementById('card-pm-card');
+    if (cardPmCard) cardPmCard.classList.toggle('active', cardIsActive);
+    if (document.getElementById('setting-pm-card-link')) document.getElementById('setting-pm-card-link').value = cardDetails.paymentLink || '';
+    if (document.getElementById('setting-pm-card-api-key')) document.getElementById('setting-pm-card-api-key').value = cardDetails.apiKey || '';
+    if (document.getElementById('setting-pm-card-notice')) document.getElementById('setting-pm-card-notice').value = cardDetails.notice || '';
+
+    // 2FA state
+    const tfaInput = document.getElementById('setting-security-2fa');
+    const tfaBadge = document.getElementById('setting-2fa-status-badge');
+    if (tfaInput) {
+      tfaInput.checked = !!biz.twoFactorEnabled;
+      if (tfaBadge) {
+        tfaBadge.textContent = biz.twoFactorEnabled ? 'Activée' : 'Désactivée';
+        tfaBadge.style.background = biz.twoFactorEnabled ? '#DCFCE7' : '#F1F5F9';
+        tfaBadge.style.color = biz.twoFactorEnabled ? '#15803D' : '#64748B';
+      }
+    }
     
     // Moyens de paiement dynamiques (payment_methods)
     try {
@@ -10406,16 +10458,19 @@ window.KivoApp = {
     if (nameDisplay) nameDisplay.textContent = displayName;
     if (emailDisplay) emailDisplay.textContent = displayEmail;
 
-    // Logo Avatar
-    const avatarSvg = document.getElementById('profile-avatar-svg');
+    // Logo Avatar / Initiales unifiées avec la sidebar basse
+    const avatarInitials = document.getElementById('profile-avatar-initials');
     const avatarImg = document.getElementById('profile-avatar-img');
-    if (avatarSvg && avatarImg) {
+    const ownerName = biz.owner || biz.name || '';
+    const initials = ownerName.split(' ').filter(w => w.length > 0).slice(0, 2).map(w => w[0].toUpperCase()).join('') || 'KM';
+    if (avatarInitials) avatarInitials.textContent = initials;
+    if (avatarImg) {
       if (biz.logoUrl) {
-        avatarSvg.style.display = 'none';
+        if (avatarInitials) avatarInitials.style.display = 'none';
         avatarImg.src = biz.logoUrl;
         avatarImg.style.display = 'block';
       } else {
-        avatarSvg.style.display = '';
+        if (avatarInitials) avatarInitials.style.display = '';
         avatarImg.style.display = 'none';
       }
     }
@@ -10438,7 +10493,19 @@ window.KivoApp = {
     if (statusBadge) statusBadge.textContent = 'Compte Actif';
 
     const planBadge = document.getElementById('settings-current-plan-badge');
-    if (planBadge) planBadge.textContent = `FORFAIT ${plan.name.toUpperCase()}`;
+    if (planBadge) {
+      planBadge.textContent = `FORFAIT ${plan.name.toUpperCase()}`;
+      planBadge.classList.remove('plan-business', 'plan-pro');
+      if (plan.isBusiness) {
+        planBadge.classList.add('plan-business');
+      } else if (plan.isPro) {
+        planBadge.classList.add('plan-pro');
+      }
+    }
+
+    // Initialiser les aperçus des préfixes et l'aperçu apparence
+    this.updatePrefixPreviews();
+    this.updateAppearancePreview();
 
     const planStatusName = document.getElementById('profile-plan-status-name');
     if (planStatusName) planStatusName.textContent = `Forfait ${plan.name.toUpperCase()}`;
@@ -10446,17 +10513,185 @@ window.KivoApp = {
     const headerPlanText = document.getElementById('profile-header-plan-text');
     if (headerPlanText) headerPlanText.textContent = `Forfait ${plan.name.toUpperCase()}`;
 
-    // Sticky save bar status & dirty watcher
-    const statusText = document.getElementById('profile-save-status-text');
-    const statusDot = document.getElementById('profile-status-dot');
-    const stickyBar = document.getElementById('profile-sticky-bar');
-    if (statusText) statusText.textContent = 'Tous les changements sont synchronisés';
-    if (statusDot) statusDot.classList.remove('dirty');
-    if (stickyBar) stickyBar.classList.remove('visible');
+    // Sauvegarder l'état initial des champs pour le dirty state et l'annulation
+    this._snapshotSettingsState();
+
+    // Attacher le dirty watcher aux cartes de paramètres
     this.initProfileDirtyWatcher();
 
     // Activer l'onglet demandé ou "identity" par défaut
     this.switchProfileTab(subTab || 'identity', false);
+  },
+
+  /**
+   * Capture les valeurs actuelles des formulaires pour comparer et annuler
+   */
+  _snapshotSettingsState: function () {
+    this._settingsSnapshot = {};
+    const inputs = document.querySelectorAll('.profile-cards-stack input, .profile-cards-stack select, .profile-cards-stack textarea');
+    inputs.forEach(el => {
+      if (!el.id) return;
+      if (el.type === 'checkbox') {
+        this._settingsSnapshot[el.id] = el.checked;
+      } else {
+        this._settingsSnapshot[el.id] = el.value;
+      }
+    });
+  },
+
+  /**
+   * Met à jour l'aperçu dynamique des préfixes de numérotation
+   */
+  updatePrefixPreviews: function () {
+    const invInput = document.getElementById('setting-biz-prefix');
+    const quoteInput = document.getElementById('setting-biz-quote-prefix');
+    const invPrev = document.getElementById('preview-invoice-prefix');
+    const quotePrev = document.getElementById('preview-quote-prefix');
+
+    const invPrefix = (invInput && invInput.value.trim()) || 'FAC-2026-';
+    const quotePrefix = (quoteInput && quoteInput.value.trim()) || 'DEV-2026-';
+
+    if (invPrev) invPrev.textContent = `Prochaine facture : ${invPrefix}0001`;
+    if (quotePrev) quotePrev.textContent = `Prochain devis : ${quotePrefix}0001`;
+  },
+
+  /**
+   * Met à jour en direct le mini-aperçu PDF dans l'onglet Apparence
+   */
+  updateAppearancePreview: function () {
+    const primInput = document.getElementById('setting-biz-primary-color');
+    const secInput = document.getElementById('setting-biz-secondary-color');
+    const primColor = (primInput && primInput.value) || '#4F46E5';
+    const secColor = (secInput && secInput.value) || '#64748B';
+
+    const headerEl = document.getElementById('appearance-preview-header');
+    const titleEl = document.getElementById('appearance-preview-title');
+    const logoEl = document.getElementById('appearance-preview-logo');
+    const thEl = document.getElementById('appearance-preview-table-th');
+
+    if (headerEl) headerEl.style.borderColor = secColor;
+    if (titleEl) titleEl.style.color = primColor;
+    if (logoEl) {
+      logoEl.style.color = primColor;
+      logoEl.style.background = `${primColor}15`;
+    }
+    if (thEl) thEl.style.background = primColor;
+  },
+
+  /**
+   * Ouvre ou ferme le tiroir accordéon d'un moyen de paiement
+   */
+  togglePaymentMethodCard: function (type) {
+    const card = document.getElementById(`card-pm-${type}`);
+    if (card) {
+      card.classList.toggle('active');
+    }
+  },
+
+  /**
+   * Déclenche l'accordéon automatique quand le toggle change
+   */
+  onPaymentToggleChange: function (type) {
+    const toggle = document.getElementById(`setting-pm-${type}-active`);
+    const card = document.getElementById(`card-pm-${type}`);
+    if (toggle && card) {
+      if (toggle.checked) {
+        card.classList.add('active');
+      } else {
+        card.classList.remove('active');
+      }
+    }
+    this.markSettingsDirty();
+  },
+
+  /**
+   * Bascule l'activation du 2FA
+   */
+  toggle2FA: function (enabled) {
+    const badge = document.getElementById('setting-2fa-status-badge');
+    if (badge) {
+      badge.textContent = enabled ? 'Activée' : 'Désactivée';
+      badge.style.background = enabled ? '#DCFCE7' : '#F1F5F9';
+      badge.style.color = enabled ? '#15803D' : '#64748B';
+    }
+    this.markSettingsDirty();
+  },
+
+  /**
+   * Réinitialise les champs d'un onglet à leur valeur d'origine
+   */
+  resetSettingsFields: function (tabKey) {
+    if (!this._settingsSnapshot) return;
+    const tabMap = {
+      'identity': 'card-profile-identity',
+      'contact': 'card-profile-contact',
+      'legal': 'card-profile-legal',
+      'billing': 'card-profile-billing',
+      'payments': 'card-profile-payments',
+      'appearance': 'card-profile-appearance',
+      'notifications': 'card-profile-notifications'
+    };
+    const cardId = tabMap[tabKey];
+    const card = cardId ? document.getElementById(cardId) : null;
+    if (!card) return;
+
+    // Retirer les erreurs
+    card.querySelectorAll('.has-error').forEach(el => el.classList.remove('has-error'));
+    card.querySelectorAll('.profile-field-error-msg').forEach(el => el.classList.remove('visible'));
+
+    const inputs = card.querySelectorAll('input, select, textarea');
+    inputs.forEach(el => {
+      if (!el.id || this._settingsSnapshot[el.id] === undefined) return;
+      if (el.type === 'checkbox') {
+        el.checked = this._settingsSnapshot[el.id];
+      } else {
+        el.value = this._settingsSnapshot[el.id];
+      }
+    });
+
+    // Mettre à jour les aperçus associés
+    this.updatePrefixPreviews();
+    this.updateAppearancePreview();
+
+    // Vérifier l'état dirty
+    this.checkSettingsDirtyState();
+    this.showToast('Modifications annulées.', 'info');
+  },
+
+  /**
+   * Active ou désactive les boutons Enregistrer / Annuler selon les modifications
+   */
+  checkSettingsDirtyState: function () {
+    if (!this._settingsSnapshot) return;
+    let isDirty = false;
+    const inputs = document.querySelectorAll('.profile-cards-stack input, .profile-cards-stack select, .profile-cards-stack textarea');
+    for (let el of inputs) {
+      if (!el.id || this._settingsSnapshot[el.id] === undefined) continue;
+      const currentVal = (el.type === 'checkbox') ? el.checked : el.value;
+      if (currentVal !== this._settingsSnapshot[el.id]) {
+        isDirty = true;
+        break;
+      }
+    }
+
+    // Activer / désactiver les boutons
+    document.querySelectorAll('.profile-btn-save, .profile-btn-cancel').forEach(btn => {
+      btn.disabled = !isDirty;
+    });
+
+    // Sticky save bar
+    const stickyBar = document.getElementById('profile-sticky-bar');
+    const statusText = document.getElementById('profile-save-status-text');
+    const statusDot = document.getElementById('profile-status-dot');
+    if (stickyBar) stickyBar.classList.toggle('visible', isDirty);
+    if (statusDot) statusDot.classList.toggle('dirty', isDirty);
+    if (statusText) {
+      statusText.textContent = isDirty ? 'Modifications non enregistrées' : 'Tous les changements sont synchronisés';
+    }
+  },
+
+  markSettingsDirty: function () {
+    this.checkSettingsDirtyState();
   },
 
   /**
@@ -10648,17 +10883,12 @@ window.KivoApp = {
   },
 
   initProfileDirtyWatcher: function () {
-    const profileView = document.getElementById('view-profile');
+    const profileView = document.getElementById('view-settings');
     if (!profileView || profileView._dirtyWatcherAttached) return;
     profileView._dirtyWatcherAttached = true;
 
     const onInputChange = () => {
-      const stickyBar = document.getElementById('profile-sticky-bar');
-      const statusText = document.getElementById('profile-save-status-text');
-      const statusDot = document.getElementById('profile-status-dot');
-      if (stickyBar) stickyBar.classList.add('visible');
-      if (statusDot) statusDot.classList.add('dirty');
-      if (statusText) statusText.textContent = 'Modifications non enregistrées';
+      this.checkSettingsDirtyState();
     };
 
     profileView.addEventListener('input', onInputChange);
@@ -10800,8 +11030,36 @@ window.KivoApp = {
     this.openModal('modal-connected-accounts');
   },
 
-  saveSettings: function () {
+  saveSettings: function (sourceTab) {
     const biz = this.state.business = this.state.business || {};
+
+    // Validation des champs obligatoires
+    let hasError = false;
+    const validateRequired = (id, errId) => {
+      const el = document.getElementById(id);
+      const errEl = document.getElementById(errId);
+      if (el) {
+        if (!el.value || !el.value.trim()) {
+          el.classList.add('has-error');
+          if (errEl) errEl.classList.add('visible');
+          hasError = true;
+        } else {
+          el.classList.remove('has-error');
+          if (errEl) errEl.classList.remove('visible');
+        }
+      }
+    };
+
+    validateRequired('setting-biz-name', 'err-setting-biz-name');
+    validateRequired('setting-biz-owner', 'err-setting-biz-owner');
+    validateRequired('setting-biz-email', 'err-setting-biz-email');
+
+    if (hasError) {
+      this.showToast('Veuillez renseigner tous les champs obligatoires (*)', 'error');
+      // Rediriger vers l'onglet identité si nécessaire
+      this.switchProfileTab('identity', false);
+      return;
+    }
 
     // 1. Informations personnelles
     if (document.getElementById('setting-biz-owner')) biz.owner = document.getElementById('setting-biz-owner').value.trim();
@@ -10852,31 +11110,62 @@ window.KivoApp = {
     if (document.getElementById('setting-biz-prefix')) biz.invoicePrefix = document.getElementById('setting-biz-prefix').value.trim();
     if (document.getElementById('setting-biz-quote-prefix')) biz.quotePrefix = document.getElementById('setting-biz-quote-prefix').value.trim();
 
-    // 5. Coordonnées bancaires & Moyens de paiement dynamiques
+    // 5. Coordonnées bancaires & Moyens de paiement
     biz.bankDetails = biz.bankDetails || {};
+    const bankActive = document.getElementById('setting-pm-bank-active')?.checked;
+    biz.bankDetails.active = !!bankActive;
     if (document.getElementById('setting-bank-name')) biz.bankDetails.bankName = document.getElementById('setting-bank-name').value.trim();
     if (document.getElementById('setting-bank-account-name')) biz.bankDetails.accountName = document.getElementById('setting-bank-account-name').value.trim();
+    if (document.getElementById('setting-bank-number')) biz.bankDetails.accountNumber = document.getElementById('setting-bank-number').value.trim();
     if (document.getElementById('setting-bank-iban')) biz.bankDetails.iban = document.getElementById('setting-bank-iban').value.trim();
     if (document.getElementById('setting-bank-bic')) biz.bankDetails.bic = document.getElementById('setting-bank-bic').value.trim();
 
-    // Extraction des moyens de paiement dynamiques
-    const pmRows = document.querySelectorAll('#profile-payment-methods-list .payment-method-row');
-    const savedMethods = [];
-    pmRows.forEach(row => {
-      const type = row.querySelector('.pm-type')?.value || 'Autre';
-      const name = row.querySelector('.pm-name')?.value.trim() || '';
-      const val = row.querySelector('.pm-val')?.value.trim() || '';
-      if (name || val) {
-        savedMethods.push({ type, name, value: val });
-      }
-    });
-    biz.paymentMethods = savedMethods;
+    // Mobile Money
+    const momoActive = document.getElementById('setting-pm-momo-active')?.checked;
+    biz.bankDetails.mobileMoney = biz.bankDetails.mobileMoney || {};
+    biz.bankDetails.mobileMoney.active = !!momoActive;
+    if (document.getElementById('setting-pm-momo-operator')) biz.bankDetails.mobileMoney.operator = document.getElementById('setting-pm-momo-operator').value;
+    if (document.getElementById('setting-pm-momo-phone')) {
+      const mPhone = document.getElementById('setting-pm-momo-phone').value.trim();
+      biz.bankDetails.mobileMoney.phone = mPhone;
+      const op = biz.bankDetails.mobileMoney.operator;
+      if (op === 'Wave') biz.bankDetails.mobileMoney.wave = mPhone;
+      else if (op === 'Orange Money') biz.bankDetails.mobileMoney.orangeMoney = mPhone;
+      else if (op === 'MTN MoMo') biz.bankDetails.mobileMoney.mtn = mPhone;
+    }
+    if (document.getElementById('setting-pm-momo-holder')) biz.bankDetails.mobileMoney.holder = document.getElementById('setting-pm-momo-holder').value.trim();
 
-    // 6. Notifications (Désactivées avec badge Business & Bientôt — ne s'enregistrent plus comme actives)
+    // Chèque
+    const checkActive = document.getElementById('setting-pm-check-active')?.checked;
+    biz.bankDetails.check = biz.bankDetails.check || {};
+    biz.bankDetails.check.active = !!checkActive;
+    if (document.getElementById('setting-pm-check-payable')) biz.bankDetails.check.payable = document.getElementById('setting-pm-check-payable').value.trim();
+    if (document.getElementById('setting-pm-check-address')) biz.bankDetails.check.address = document.getElementById('setting-pm-check-address').value.trim();
+
+    // Carte bancaire / En ligne
+    const cardActive = document.getElementById('setting-pm-card-active')?.checked;
+    biz.bankDetails.card = biz.bankDetails.card || {};
+    biz.bankDetails.card.active = !!cardActive;
+    if (document.getElementById('setting-pm-card-link')) biz.bankDetails.card.paymentLink = document.getElementById('setting-pm-card-link').value.trim();
+    if (document.getElementById('setting-pm-card-api-key')) biz.bankDetails.card.apiKey = document.getElementById('setting-pm-card-api-key').value.trim();
+    if (document.getElementById('setting-pm-card-notice')) biz.bankDetails.card.notice = document.getElementById('setting-pm-card-notice').value.trim();
+
+    // 2FA
+    biz.twoFactorEnabled = !!document.getElementById('setting-security-2fa')?.checked;
+
+    // 6. Notifications (Désactivées avec badge Business & Bientôt)
     biz.notifications = biz.notifications || {};
     biz.notifications.notifyDocSent = false;
     biz.notifications.notifyReminder = false;
     biz.notifications.notifyPayment = false;
+
+    this.saveState();
+    this.updatePlanUsageBadge();
+    this.updateUserBrandingUI();
+
+    // Actualiser le snapshot initial pour refléter l'état sauvegardé (désactiver les boutons)
+    this._snapshotSettingsState();
+    this.checkSettingsDirtyState();
 
     this.saveState();
     this.updatePlanUsageBadge();
@@ -10923,10 +11212,11 @@ window.KivoApp = {
         console.log('[KivoApp] Settings saved to Supabase');
       }).catch(err => {
         console.warn('[KivoApp] Supabase settings sync error:', err);
+        this.showToast('Une erreur est survenue, veuillez réessayer', 'error');
       });
     }
 
-    this.showToast('Paramètres et profil enregistrés avec succès !', 'success');
+    this.showToast('Modifications enregistrées avec succès', 'success');
   },
 
   handleProfileLogoUpload: function (files) {

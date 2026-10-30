@@ -3068,11 +3068,8 @@
               <aside class="profile-sidebar-nav">
                 <div class="profile-nav-sticky-card">
                   <div class="profile-mini-identity">
-                    <div class="profile-mini-avatar" id="profile-avatar-display" onclick="document.getElementById('profile-logo-input').click()" title="Changer le logo / photo de profil">
-                      <svg class="profile-avatar-k-logo" id="profile-avatar-svg" width="28" height="28" viewBox="0 0 32 32" fill="none">
-                        <path d="M7 6L14 16L7 26" stroke="#38BDF8" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M16 6L23 16L16 26" stroke="#818CF8" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
+                    <div class="profile-mini-avatar" id="profile-avatar-display" onclick="document.getElementById('profile-logo-input').click()" title="Changer le logo / photo de profil" style="background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%); color: #FFFFFF; font-weight: 700; font-size: 1rem; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4); cursor: pointer; overflow: hidden; flex-shrink: 0;">
+                      <span id="profile-avatar-initials">KM</span>
                       <img id="profile-avatar-img" src="" alt="Avatar" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
                     </div>
                     <div class="profile-mini-meta">
@@ -3137,16 +3134,19 @@
                       <div class="profile-form-group">
                         <label class="profile-label" for="setting-biz-name" id="setting-biz-name-label">Raison sociale / Nom commercial *</label>
                         <input type="text" id="setting-biz-name" class="profile-input" placeholder="Ex: Cabinet Alpha Conseil, SARL Kivo">
+                        <div class="profile-field-error-msg" id="err-setting-biz-name">La raison sociale ou nom commercial est obligatoire.</div>
                       </div>
 
                       <div class="profile-form-group">
                         <label class="profile-label" for="setting-biz-owner">Nom & Prénom du responsable *</label>
                         <input type="text" id="setting-biz-owner" class="profile-input" placeholder="Ex: Martin Kouka" oninput="document.getElementById('profile-id-name-display').textContent = this.value || 'Martin Kouka'">
+                        <div class="profile-field-error-msg" id="err-setting-biz-owner">Le nom du responsable est obligatoire.</div>
                       </div>
 
                       <div class="profile-form-group">
                         <label class="profile-label" for="setting-biz-email">Email personnel / Connexion *</label>
                         <input type="email" id="setting-biz-email" class="profile-input" placeholder="Ex: contact@entreprise.com" oninput="document.getElementById('profile-id-email-display').textContent = this.value || 'contact@entreprise.com'">
+                        <div class="profile-field-error-msg" id="err-setting-biz-email">L'adresse email est obligatoire.</div>
                       </div>
 
                       <div class="profile-form-group">
@@ -3184,6 +3184,10 @@
                         </div>
                       </div>
                     </div>
+                  </div>
+                  <div class="profile-card-footer">
+                    <button type="button" class="profile-btn-cancel" onclick="KivoApp.resetSettingsFields('identity')" disabled>Annuler</button>
+                    <button type="button" class="profile-btn-save" onclick="KivoApp.saveSettings('identity')" disabled>Enregistrer les modifications</button>
                   </div>
                 </section>
 
@@ -3234,6 +3238,10 @@
                       </div>
                     </div>
                   </div>
+                  <div class="profile-card-footer">
+                    <button type="button" class="profile-btn-cancel" onclick="KivoApp.resetSettingsFields('contact')" disabled>Annuler</button>
+                    <button type="button" class="profile-btn-save" onclick="KivoApp.saveSettings('contact')" disabled>Enregistrer les modifications</button>
+                  </div>
                 </section>
 
                 <!-- 3. INFORMATIONS LÉGALES -->
@@ -3247,6 +3255,10 @@
                       <!-- Rendu dynamiquement par KivoApp.renderProfileLegalCard(biz) selon pays et type de compte -->
                     </div>
                   </div>
+                  <div class="profile-card-footer">
+                    <button type="button" class="profile-btn-cancel" onclick="KivoApp.resetSettingsFields('legal')" disabled>Annuler</button>
+                    <button type="button" class="profile-btn-save" onclick="KivoApp.saveSettings('legal')" disabled>Enregistrer les modifications</button>
+                  </div>
                 </section>
 
                 <!-- 4. FACTURATION & NUMÉROTATION -->
@@ -3258,14 +3270,17 @@
                   <div class="profile-card-body">
                     <div class="profile-fields-grid">
                       <div class="profile-form-group">
-                        <label class="profile-label" for="setting-biz-vat">Taux de TVA par défaut (%)</label>
-                        <input type="number" id="setting-biz-vat" class="profile-input" placeholder="18" min="0" max="100" step="0.5">
+                        <label class="profile-label" for="setting-biz-vat">Taux de TVA par défaut</label>
+                        <div class="profile-input-suffix-group">
+                          <input type="number" id="setting-biz-vat" class="profile-input" placeholder="18" min="0" max="100" step="0.5">
+                          <span class="profile-input-suffix">%</span>
+                        </div>
                       </div>
 
                       <div class="profile-form-group">
                         <label class="profile-label" for="profile-doc-preference">Modèle de facture par défaut</label>
                         <select id="profile-doc-preference" class="profile-select">
-                          <option value="minimalist">Minimalist (Moderne & Épuré)</option>
+                          <option value="minimalist" selected>Modèle Standard (Minimalist)</option>
                           <option value="corporate">Corporate (En-tête Coloré)</option>
                           <option value="classic">Classic (Standard Officiel)</option>
                           <option value="modern">Modern (Style Studio)</option>
@@ -3275,14 +3290,20 @@
 
                       <div class="profile-form-group">
                         <label class="profile-label" for="setting-biz-prefix">Préfixe de numérotation Factures</label>
-                        <input type="text" id="setting-biz-prefix" class="profile-input" placeholder="FAC-2026-">
+                        <input type="text" id="setting-biz-prefix" class="profile-input" placeholder="FAC-2026-" oninput="KivoApp.updatePrefixPreviews()">
+                        <span class="profile-prefix-preview" id="preview-invoice-prefix">Prochaine facture : FAC-2026-0001</span>
                       </div>
 
                       <div class="profile-form-group">
                         <label class="profile-label" for="setting-biz-quote-prefix">Préfixe de numérotation Devis</label>
-                        <input type="text" id="setting-biz-quote-prefix" class="profile-input" placeholder="DEV-2026-">
+                        <input type="text" id="setting-biz-quote-prefix" class="profile-input" placeholder="DEV-2026-" oninput="KivoApp.updatePrefixPreviews()">
+                        <span class="profile-prefix-preview" id="preview-quote-prefix">Prochain devis : DEV-2026-0001</span>
                       </div>
                     </div>
+                  </div>
+                  <div class="profile-card-footer">
+                    <button type="button" class="profile-btn-cancel" onclick="KivoApp.resetSettingsFields('billing')" disabled>Annuler</button>
+                    <button type="button" class="profile-btn-save" onclick="KivoApp.saveSettings('billing')" disabled>Enregistrer les modifications</button>
                   </div>
                 </section>
 
@@ -3356,16 +3377,29 @@
                         </div>
                         <div class="kivo-pm-body" id="body-pm-momo">
                           <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0 0 0.85rem 0;">
-                            Configurez un ou plusieurs comptes Mobile Money utilisés pour encaisser les paiements.
+                            Configurez votre compte Mobile Money principal utilisé pour encaisser les règlements.
                           </p>
-                          <div id="setting-pm-momo-list">
-                            <!-- Populated by KivoApp.renderMomoAccounts() -->
+                          <div class="profile-fields-grid">
+                            <div class="profile-form-group">
+                              <label class="profile-label" for="setting-pm-momo-operator">Opérateur Mobile Money <span style="color:#EF4444;">*</span></label>
+                              <select id="setting-pm-momo-operator" class="profile-select">
+                                <option value="Wave">🌊 Wave</option>
+                                <option value="Orange Money">🟠 Orange Money</option>
+                                <option value="MTN MoMo">💛 MTN MoMo</option>
+                                <option value="Airtel Money">🔴 Airtel Money</option>
+                                <option value="Moov Money">🔵 Moov Money</option>
+                              </select>
+                            </div>
+                            <div class="profile-form-group">
+                              <label class="profile-label" for="setting-pm-momo-phone">Numéro de téléphone associé <span style="color:#EF4444;">*</span></label>
+                              <input type="tel" id="setting-pm-momo-phone" class="profile-input" placeholder="Ex: +242 06 123 45 67">
+                              <div class="kivo-pm-error" id="err-pm-momo">Le numéro Mobile Money est requis lorsque l'option est active.</div>
+                            </div>
+                            <div class="profile-form-group profile-field-full">
+                              <label class="profile-label" for="setting-pm-momo-holder">Nom du titulaire du compte Mobile Money</label>
+                              <input type="text" id="setting-pm-momo-holder" class="profile-input" placeholder="Ex: Martin Kouka">
+                            </div>
                           </div>
-                          <div class="kivo-pm-error" id="err-pm-momo">Veuillez renseigner un opérateur, un numéro et un titulaire valides pour chaque compte actif.</div>
-                          <button type="button" class="btn btn-secondary btn-sm" onclick="KivoApp.addMomoAccountRow()" style="margin-top: 0.5rem; display: inline-flex; align-items: center; gap: 6px;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                            <span>+ Ajouter un autre compte Mobile Money</span>
-                          </button>
                         </div>
                       </div>
 
@@ -3440,8 +3474,13 @@
                         <div class="kivo-pm-body" id="body-pm-card">
                           <div class="profile-fields-grid">
                             <div class="profile-form-group profile-field-full">
-                              <label class="profile-label" for="setting-pm-card-link">Lien de paiement en ligne sécurisé <span style="color:var(--text-muted); font-weight:400;">(optionnel)</span></label>
+                              <label class="profile-label" for="setting-pm-card-link">URL / Lien de paiement en ligne sécurisé <span style="color:var(--text-muted); font-weight:400;">(Stripe, CinetPay, Wave)</span></label>
                               <input type="url" id="setting-pm-card-link" class="profile-input" placeholder="Ex: https://buy.stripe.com/... ou https://pay.cinetpay.com/...">
+                              <span style="font-size: 0.75rem; color: #64748B; margin-top: 0.35rem; display: block;">Renseignez l'URL de votre page de paiement Stripe Checkout, lien Wave ou CinetPay. Vos clients pourront régler directement en ligne.</span>
+                            </div>
+                            <div class="profile-form-group profile-field-full">
+                              <label class="profile-label" for="setting-pm-card-api-key">Clé API / Identifiant marchand <span style="color:var(--text-muted); font-weight:400;">(optionnel)</span></label>
+                              <input type="text" id="setting-pm-card-api-key" class="profile-input" placeholder="Ex: pk_live_... ou ID marchand">
                             </div>
                             <div class="profile-form-group profile-field-full">
                               <label class="profile-label" for="setting-pm-card-notice">Mention ou consigne par défaut</label>
@@ -3453,6 +3492,10 @@
 
                     </div>
                   </div>
+                  <div class="profile-card-footer">
+                    <button type="button" class="profile-btn-cancel" onclick="KivoApp.resetSettingsFields('payments')" disabled>Annuler</button>
+                    <button type="button" class="profile-btn-save" onclick="KivoApp.saveSettings('payments')" disabled>Enregistrer les modifications</button>
+                  </div>
                 </section>
 
                 <!-- 6. APPARENCE & COULEURS DE MARQUE -->
@@ -3462,34 +3505,69 @@
                     <p class="profile-card-desc">Personnalisez les teintes appliquées à vos documents PDF.</p>
                   </div>
                   <div class="profile-card-body">
-                    <div class="profile-fields-grid">
-                      <div class="profile-form-group">
-                        <label class="profile-label" for="setting-biz-primary-color">Couleur principale (Titres, En-têtes)</label>
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                          <input type="color" id="setting-biz-primary-color" value="#4F46E5" style="width: 48px; height: 48px; padding: 2px; border-radius: 8px; border: 1px solid var(--border-color); cursor: pointer;" onchange="document.getElementById('setting-biz-primary-color-text').value = this.value">
-                          <input type="text" id="setting-biz-primary-color-text" class="profile-input" value="#4F46E5" style="font-family: monospace; font-weight: 600;" oninput="if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) document.getElementById('setting-biz-primary-color').value = this.value">
-                        </div>
-                      </div>
-
-                      <div class="profile-form-group">
-                        <label class="profile-label" for="setting-biz-secondary-color">Couleur secondaire (Bordures, Accents)</label>
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                          <input type="color" id="setting-biz-secondary-color" value="#64748B" style="width: 48px; height: 48px; padding: 2px; border-radius: 8px; border: 1px solid var(--border-color); cursor: pointer;" onchange="document.getElementById('setting-biz-secondary-color-text').value = this.value">
-                          <input type="text" id="setting-biz-secondary-color-text" class="profile-input" value="#64748B" style="font-family: monospace; font-weight: 600;" oninput="if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) document.getElementById('setting-biz-secondary-color').value = this.value">
-                        </div>
-                      </div>
-
-                      <div class="profile-field-full">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start;">
+                      <div class="profile-fields-grid" style="grid-template-columns: 1fr;">
                         <div class="profile-form-group">
-                          <label class="profile-label" for="setting-biz-language">Langue de l'interface</label>
-                          <select id="setting-biz-language" class="profile-select">
-                            <option value="fr" selected>Français</option>
-                            <option value="en" disabled>English (Bientôt disponible)</option>
-                            <option value="es" disabled>Español (Bientôt disponible)</option>
-                          </select>
+                          <label class="profile-label" for="setting-biz-primary-color">Couleur principale (Titres, En-têtes)</label>
+                          <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <input type="color" id="setting-biz-primary-color" value="#4F46E5" style="width: 48px; height: 48px; padding: 2px; border-radius: 8px; border: 1px solid var(--border-color); cursor: pointer;" oninput="document.getElementById('setting-biz-primary-color-text').value = this.value; KivoApp.updateAppearancePreview();">
+                            <input type="text" id="setting-biz-primary-color-text" class="profile-input" value="#4F46E5" style="font-family: monospace; font-weight: 600;" oninput="if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) { document.getElementById('setting-biz-primary-color').value = this.value; KivoApp.updateAppearancePreview(); }">
+                          </div>
+                        </div>
+
+                        <div class="profile-form-group">
+                          <label class="profile-label" for="setting-biz-secondary-color">Couleur secondaire (Bordures, Accents)</label>
+                          <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <input type="color" id="setting-biz-secondary-color" value="#64748B" style="width: 48px; height: 48px; padding: 2px; border-radius: 8px; border: 1px solid var(--border-color); cursor: pointer;" oninput="document.getElementById('setting-biz-secondary-color-text').value = this.value; KivoApp.updateAppearancePreview();">
+                            <input type="text" id="setting-biz-secondary-color-text" class="profile-input" value="#64748B" style="font-family: monospace; font-weight: 600;" oninput="if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) { document.getElementById('setting-biz-secondary-color').value = this.value; KivoApp.updateAppearancePreview(); }">
+                          </div>
+                        </div>
+
+                        <div class="profile-form-group">
+                          <label class="profile-label">Langue de l'interface</label>
+                          <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.35rem;">
+                            <span class="badge" style="background: #EFF6FF; color: #2563EB; font-weight: 600; font-size: 0.85rem; padding: 4px 12px; border-radius: 6px;">Français</span>
+                            <span style="font-size: 0.78rem; color: #64748B; font-style: italic;">D'autres langues seront bientôt disponibles</span>
+                          </div>
+                          <input type="hidden" id="setting-biz-language" value="fr">
+                        </div>
+                      </div>
+
+                      <!-- Aperçu en direct de la facture PDF -->
+                      <div>
+                        <label class="profile-label" style="margin-bottom: 0.5rem; display: block;">Aperçu en direct</label>
+                        <div class="appearance-preview-card" id="appearance-preview-box">
+                          <div class="appearance-preview-header" id="appearance-preview-header" style="border-color: #64748B;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                              <div style="width: 28px; height: 28px; border-radius: 6px; background: #EEF2FF; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #4F46E5;" id="appearance-preview-logo">KM</div>
+                              <span style="font-size: 0.82rem; font-weight: 700; color: #1E293B;">ENTREPRISE</span>
+                            </div>
+                            <div class="appearance-preview-title" id="appearance-preview-title" style="color: #4F46E5;">FACTURE</div>
+                          </div>
+                          <div style="font-size: 0.75rem; color: #64748B; margin-bottom: 0.75rem;">
+                            <div>N° FAC-2026-0001</div>
+                            <div>Date : 30/10/2026</div>
+                          </div>
+                          <div style="border-radius: 6px; overflow: hidden; border: 1px solid #E2E8F0; font-size: 0.72rem; margin-bottom: 0.75rem;">
+                            <div style="display: flex; justify-content: space-between; padding: 4px 8px; font-weight: 600; color: #FFFFFF;" id="appearance-preview-table-th">
+                              <span>Description</span>
+                              <span>Total</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 6px 8px; background: #FFFFFF; border-bottom: 1px solid #F1F5F9;">
+                              <span>Prestation conseil</span>
+                              <span>150 000 FCFA</span>
+                            </div>
+                          </div>
+                          <div style="display: flex; justify-content: flex-end; font-size: 0.8rem; font-weight: 700; color: #1E293B;">
+                            <span>Total TTC : 150 000 FCFA</span>
+                          </div>
                         </div>
                       </div>
                     </div>
+                  </div>
+                  <div class="profile-card-footer">
+                    <button type="button" class="profile-btn-cancel" onclick="KivoApp.resetSettingsFields('appearance')" disabled>Annuler</button>
+                    <button type="button" class="profile-btn-save" onclick="KivoApp.saveSettings('appearance')" disabled>Enregistrer les modifications</button>
                   </div>
                 </section>
 
@@ -3498,48 +3576,54 @@
                   <div class="profile-card-header-band">
                     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
                       <h3 class="profile-card-title">7. Notifications & Alertes</h3>
-                      <div style="display: flex; align-items: center; gap: 0.4rem;">
-                        <span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #6366F1; font-weight: 700; font-size: 0.7rem; padding: 2px 8px; border-radius: 9999px;">Business</span>
-                        <span class="badge" style="background: var(--bg-subtle, #F1F5F9); color: var(--text-muted, #64748B); font-weight: 600; font-size: 0.7rem; padding: 2px 8px; border-radius: 9999px; border: 1px solid var(--border-color);">Bientôt</span>
-                      </div>
+                      <span class="badge" style="background: #EDE9FE; color: #6D28D9; font-weight: 700; font-size: 0.72rem; padding: 4px 10px; border-radius: 9999px;">Business — Bientôt disponible</span>
                     </div>
                     <p class="profile-card-desc">Gérez vos alertes d'envoi et de relance automatique (réservé au forfait Business — bientôt disponible).</p>
                   </div>
                   <div class="profile-card-body">
                     <div style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
-                      <label style="display: flex; align-items: flex-start; gap: 0.85rem; cursor: not-allowed; opacity: 0.6; padding: 0.75rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
-                        <input type="checkbox" id="setting-notify-doc-sent" disabled style="width: 18px; height: 18px; margin-top: 0.15rem; accent-color: #2563EB; cursor: not-allowed;">
+                      <label style="display: flex; align-items: center; gap: 0.85rem; cursor: not-allowed; opacity: 0.6; padding: 0.85rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" style="flex-shrink: 0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <input type="checkbox" id="setting-notify-doc-sent" disabled style="width: 18px; height: 18px; accent-color: #2563EB; cursor: not-allowed; flex-shrink: 0;">
                         <div style="flex: 1;">
-                          <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
-                            <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Copie email à l'émission</strong>
-                            <span style="font-size: 0.68rem; font-weight: 600; color: #6366F1; background: rgba(99, 102, 241, 0.1); padding: 1px 6px; border-radius: 4px;">Business • Bientôt</span>
-                          </div>
+                          <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Copie email à l'émission</strong>
                           <span style="font-size: 0.8rem; color: var(--text-secondary);">Recevoir automatiquement une copie par email de chaque devis et facture émis.</span>
                         </div>
                       </label>
 
-                      <label style="display: flex; align-items: flex-start; gap: 0.85rem; cursor: not-allowed; opacity: 0.6; padding: 0.75rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
-                        <input type="checkbox" id="setting-notify-reminder" disabled style="width: 18px; height: 18px; margin-top: 0.15rem; accent-color: #2563EB; cursor: not-allowed;">
+                      <label style="display: flex; align-items: center; gap: 0.85rem; cursor: not-allowed; opacity: 0.6; padding: 0.85rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" style="flex-shrink: 0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <input type="checkbox" id="setting-notify-reminder" disabled style="width: 18px; height: 18px; accent-color: #2563EB; cursor: not-allowed; flex-shrink: 0;">
                         <div style="flex: 1;">
-                          <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
-                            <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Alerte de facture impayée</strong>
-                            <span style="font-size: 0.68rem; font-weight: 600; color: #6366F1; background: rgba(99, 102, 241, 0.1); padding: 1px 6px; border-radius: 4px;">Business • Bientôt</span>
-                          </div>
+                          <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Alerte de facture impayée</strong>
                           <span style="font-size: 0.8rem; color: var(--text-secondary);">Être averti avant et après l'échéance d'une facture client impayée.</span>
                         </div>
                       </label>
 
-                      <label style="display: flex; align-items: flex-start; gap: 0.85rem; cursor: not-allowed; opacity: 0.6; padding: 0.75rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
-                        <input type="checkbox" id="setting-notify-payment" disabled style="width: 18px; height: 18px; margin-top: 0.15rem; accent-color: #2563EB; cursor: not-allowed;">
+                      <label style="display: flex; align-items: center; gap: 0.85rem; cursor: not-allowed; opacity: 0.6; padding: 0.85rem 1rem; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" style="flex-shrink: 0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <input type="checkbox" id="setting-notify-payment" disabled style="width: 18px; height: 18px; accent-color: #2563EB; cursor: not-allowed; flex-shrink: 0;">
                         <div style="flex: 1;">
-                          <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
-                            <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Confirmation de règlement</strong>
-                            <span style="font-size: 0.68rem; font-weight: 600; color: #6366F1; background: rgba(99, 102, 241, 0.1); padding: 1px 6px; border-radius: 4px;">Business • Bientôt</span>
-                          </div>
+                          <strong style="display: block; font-size: 0.92rem; color: var(--text-primary);">Confirmation de règlement</strong>
                           <span style="font-size: 0.8rem; color: var(--text-secondary);">Notification instantanée dès qu'un paiement en ligne ou virement est enregistré.</span>
                         </div>
                       </label>
+
+                      <!-- Bandeau incitatif forfait Business -->
+                      <div style="margin-top: 0.5rem; padding: 1rem 1.25rem; background: #FAF5FF; border: 1px solid #E9D5FF; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                        <div>
+                          <div style="font-size: 0.88rem; font-weight: 700; color: #6D28D9;">Passez au niveau supérieur avec le forfait Business</div>
+                          <div style="font-size: 0.8rem; color: #7E22CE; margin-top: 2px;">Notifications par email & WhatsApp, multi-utilisateurs et accès API inclus.</div>
+                        </div>
+                        <button type="button" class="btn" onclick="KivoApp.navigate('pricing')" style="background: transparent; color: #6D28D9; border: 1.5px solid #7C3AED; font-weight: 600; padding: 0.45rem 1rem; border-radius: 8px; font-size: 0.82rem; cursor: pointer;">
+                          Découvrir le forfait Business →
+                        </button>
+                      </div>
                     </div>
+                  </div>
+                  <div class="profile-card-footer">
+                    <button type="button" class="profile-btn-cancel" onclick="KivoApp.resetSettingsFields('notifications')" disabled>Annuler</button>
+                    <button type="button" class="profile-btn-save" onclick="KivoApp.saveSettings('notifications')" disabled>Enregistrer les modifications</button>
                   </div>
                 </section>
 
@@ -3547,27 +3631,73 @@
                 <section class="profile-card" id="card-profile-security" style="display: none; opacity: 0;">
                   <div class="profile-card-header-band">
                     <h3 class="profile-card-title">8. Sécurité & Accès</h3>
-                    <p class="profile-card-desc">Changement de mot de passe sécurisé et déconnexion de l'espace.</p>
+                    <p class="profile-card-desc">Changement de mot de passe sécurisé, authentification renforcée et historique des connexions.</p>
                   </div>
                   <div class="profile-card-body">
-                    <div class="profile-fields-grid" style="margin-bottom: 1.25rem;">
-                      <button type="button" class="btn btn-secondary" onclick="KivoApp.openChangePasswordModal()" style="height: 48px; font-weight: 600; justify-content: center; width: 100%;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                        Changer le mot de passe
+                    <!-- Actions principales en grille -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                      <button type="button" class="btn" onclick="KivoApp.openChangePasswordModal()" style="height: 52px; background: #2563EB; color: #FFFFFF; border: none; border-radius: 10px; font-weight: 600; display: flex; align-items: center; justify-content: flex-start; padding: 0 1.25rem; gap: 0.85rem; cursor: pointer; box-shadow: 0 2px 6px rgba(37,99,235,0.25);">
+                        <div style="width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        </div>
+                        <span>Changer le mot de passe</span>
                       </button>
 
-                      <button type="button" class="btn btn-secondary" onclick="KivoApp.openConnectedAccountsModal()" style="height: 48px; font-weight: 600; justify-content: center; width: 100%;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                        Sessions & Comptes connectés
+                      <button type="button" class="btn" onclick="KivoApp.openConnectedAccountsModal()" style="height: 52px; background: transparent; color: #1E293B; border: 1.5px solid #CBD5E1; border-radius: 10px; font-weight: 600; display: flex; align-items: center; justify-content: flex-start; padding: 0 1.25rem; gap: 0.85rem; cursor: pointer;">
+                        <div style="width: 34px; height: 34px; border-radius: 50%; background: #EEF2FF; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        </div>
+                        <span>Sessions & Comptes connectés</span>
                       </button>
                     </div>
 
-                    <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; justify-content: flex-end;">
-                      <button type="button" class="btn btn-secondary" onclick="console.log('[DEBUG-LOGOUT] Clic bouton Settings Déconnexion'); KivoApp.logout()" style="color: var(--danger-text); border-color: rgba(239, 68, 68, 0.3); font-weight: 600; height: 44px;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                        Se déconnecter
-                      </button>
+                    <!-- 2FA & Dernière connexion (2 colonnes) -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+                      <!-- Section 2FA -->
+                      <div style="background: var(--bg-subtle, #F8FAFC); border: 1px solid var(--border-color, #E2E8F0); border-radius: 12px; padding: 1.25rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.5rem;">
+                          <div>
+                            <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary);">Authentification à deux facteurs (2FA)</div>
+                            <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0.35rem 0 0; line-height: 1.45;">Renforcez la sécurité de votre compte avec un code de vérification supplémentaire à la connexion.</p>
+                          </div>
+                          <label class="kivo-switch" style="margin-top: 2px;">
+                            <input type="checkbox" id="setting-security-2fa" onchange="KivoApp.toggle2FA(this.checked)">
+                            <span class="kivo-slider"></span>
+                          </label>
+                        </div>
+                        <span id="setting-2fa-status-badge" class="badge" style="background: #F1F5F9; color: #64748B; font-size: 0.72rem; padding: 2px 8px; border-radius: 6px;">Désactivée</span>
+                      </div>
+
+                      <!-- Section Dernière connexion -->
+                      <div style="background: var(--bg-subtle, #F8FAFC); border: 1px solid var(--border-color, #E2E8F0); border-radius: 12px; padding: 1.25rem;">
+                        <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.65rem; display: flex; align-items: center; gap: 0.45rem;">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                          <span>Dernière connexion</span>
+                        </div>
+                        <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.8rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.35rem;">
+                          <li><strong>Date & Heure :</strong> <span id="security-last-login-date">Aujourd'hui à 21:15</span></li>
+                          <li><strong>Appareil :</strong> <span id="security-last-login-device">Navigateur Web (Windows PC)</span></li>
+                          <li><strong>Localisation :</strong> <span>Brazzaville, Congo (IP vérifiée)</span></li>
+                        </ul>
+                      </div>
                     </div>
+                  </div>
+                </section>
+
+                <!-- Zone de déconnexion séparée -->
+                <section class="profile-card" id="card-profile-logout" style="border-color: #FEE2E2;">
+                  <div class="profile-card-header-band" style="background: #FEF2F2; border-color: #FEE2E2;">
+                    <h3 class="profile-card-title" style="color: #991B1B;">Zone de déconnexion</h3>
+                    <p class="profile-card-desc" style="color: #B91C1C;">Vous serez déconnecté de cet appareil uniquement.</p>
+                  </div>
+                  <div class="profile-card-body" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding: 1.25rem 1.75rem;">
+                    <div style="font-size: 0.84rem; color: #64748B;">
+                      Terminer la session en cours et verrouiller l'accès sur ce navigateur.
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="console.log('[DEBUG-LOGOUT] Clic bouton Settings Déconnexion'); KivoApp.logout()" style="color: #DC2626; border-color: #FCA5A5; background: #FEF2F2; font-weight: 600; height: 42px; display: inline-flex; align-items: center; gap: 6px; padding: 0 1.25rem;">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                      <span>Se déconnecter</span>
+                    </button>
                   </div>
                 </section>
 

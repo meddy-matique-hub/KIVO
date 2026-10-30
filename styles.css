@@ -5799,18 +5799,174 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
 
 .profile-plan-pill {
   display: inline-block;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 12px;
-  background: #DBEAFE;
-  color: #1D4ED8;
+  background: #F3F4F6;
+  color: #4B5563;
+  border: 1px solid #D1D5DB;
   font-size: 0.68rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .profile-plan-pill:hover {
-  background: #BFDBFE;
+  background: #E5E7EB;
+  border-color: #9CA3AF;
+}
+
+.profile-plan-pill.plan-business {
+  background: #EDE9FE;
+  color: #6D28D9;
+  border-color: #C4B5FD;
+}
+
+.profile-plan-pill.plan-pro {
+  background: #FEF3C7;
+  color: #B45309;
+  border-color: #FCD34D;
+}
+
+/* Footer sticky sur chaque carte de paramètres */
+.profile-card-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: #FFFFFF;
+  border-top: 1px solid #E2E8F0;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.03);
+  z-index: 10;
+}
+
+.profile-btn-save {
+  background-color: #2563EB;
+  color: #FFFFFF;
+  padding: 0.625rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.15s ease;
+}
+
+.profile-btn-save:hover:not(:disabled) {
+  background-color: #1D4ED8;
+}
+
+.profile-btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.profile-btn-cancel {
+  background-color: transparent;
+  color: #475569;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  border: 1px solid #CBD5E1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.profile-btn-cancel:hover:not(:disabled) {
+  background-color: #F8FAFC;
+  color: #1E293B;
+  border-color: #94A3B8;
+}
+
+.profile-btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Erreurs de validation de champs obligatoires */
+.profile-input.has-error {
+  border-color: #EF4444 !important;
+  box-shadow: 0 0 0 1px #EF4444 !important;
+}
+
+.profile-field-error-msg {
+  color: #EF4444;
+  font-size: 0.75rem;
+  margin-top: 0.35rem;
+  display: none;
+  font-weight: 500;
+}
+
+.profile-field-error-msg.visible {
+  display: block;
+}
+
+/* Input group avec suffixe fixe (ex: %) */
+.profile-input-suffix-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.profile-input-suffix-group input {
+  padding-right: 2.25rem !important;
+  width: 100%;
+}
+
+.profile-input-suffix {
+  position: absolute;
+  right: 0.85rem;
+  color: #64748B;
+  font-weight: 600;
+  font-size: 0.9rem;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Aperçu préfixe dynamique */
+.profile-prefix-preview {
+  display: block;
+  font-size: 0.78rem;
+  color: #64748B;
+  font-style: italic;
+  margin-top: 0.35rem;
+}
+
+/* Mini aperçu facture dans l'onglet Apparence */
+.appearance-preview-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.appearance-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid;
+  margin-bottom: 0.75rem;
+  transition: border-color 0.15s ease;
+}
+
+.appearance-preview-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  transition: color 0.15s ease;
 }
 
 .profile-nav-links {
@@ -6109,10 +6265,16 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   border-top: 1px solid var(--border-color, #E2E8F0);
   background: var(--bg-card, #FFFFFF);
   display: none;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 200ms ease-in-out, opacity 200ms ease-in-out, padding 200ms ease-in-out;
 }
 
 .kivo-pm-card.active .kivo-pm-body {
   display: block;
+  max-height: 600px;
+  opacity: 1;
 }
 
 .kivo-pm-error {
