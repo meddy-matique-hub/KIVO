@@ -6566,7 +6566,29 @@ window.KivoApp = {
     const currency = biz.currency || 'FCFA';
 
     if (this.state.clients.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Aucun client enregistré. Cliquez sur "+ Nouveau client".</td></tr>`;
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" style="padding: 3.5rem 1.5rem; text-align: center; background: var(--bg-card, #FFFFFF); border-radius: 12px;">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem; max-width:400px; margin:0 auto;">
+              <div style="width:60px; height:60px; border-radius:16px; background:var(--primary-lightest, #EFF6FF); border:1px solid var(--primary-border, #BFDBFE); display:flex; align-items:center; justify-content:center; color:var(--primary, #2563EB);">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </div>
+              <div style="font-weight:700; font-size:1.05rem; color:var(--text-primary, #0F172A); font-family:var(--font-heading, 'Outfit', sans-serif);">Aucun client enregistré</div>
+              <p style="color:var(--text-secondary, #64748B); font-size:0.875rem; margin:0; line-height:1.55; text-align:center;">
+                Ajoutez vos clients pour suivre leur historique de facturation, leurs encaissements et leur solde en temps réel.
+              </p>
+              <button type="button" class="btn btn-primary" onclick="KivoApp.openNewClientModal()" style="margin-top:0.25rem; display:inline-flex; align-items:center; gap:0.45rem; padding:0.55rem 1.25rem; font-size:0.88rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>+ Ajouter votre premier client</span>
+              </button>
+            </div>
+          </td>
+        </tr>`;
       return;
     }
 
@@ -6765,10 +6787,17 @@ window.KivoApp = {
     if (catalog.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 3rem 1.5rem;">
-            <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">Votre liste de services &amp; prestations est vide</div>
-            <p style="font-size: 0.85rem; margin-bottom: 1rem;">Ajoutez vos prestations ou produits pour les insérer directement dans vos factures et devis.</p>
-            <button class="btn btn-primary btn-sm" onclick="KivoApp.openNewCatalogItemModal()">+ Ajouter votre premier service / prestation</button>
+          <td colspan="6" style="padding: 3.5rem 1.5rem; text-align: center; border: none; background: transparent;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem; max-width: 320px; margin: 0 auto;">
+              <div style="width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.12)); display: flex; align-items: center; justify-content: center; margin-bottom: 0.25rem;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="url(#svc-grad)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <defs><linearGradient id="svc-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs>
+                  <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>
+                </svg>
+              </div>
+              <div style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary);">Aucun service ou prestation</div>
+              <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin: 0;">Ajoutez vos prestations ou produits pour les insérer directement dans vos factures et devis.</p>
+            </div>
           </td>
         </tr>`;
       return;
@@ -10796,12 +10825,13 @@ window.KivoApp = {
       console.error('[DEBUG-MODAL] ERREUR: élément introuvable pour id=', modalId);
       return;
     }
-    // Supprimer tout style inline d'opacité résiduel pour que la classe .active contrôle l'opacité
-    el.style.opacity = '';
+    // ── FORÇAGE DIRECT EN JS avec !important (contourne TOUT conflit CSS/style inline résiduel) ──
     el.classList.add('active');
-    el.style.display = 'flex';
-    el.style.visibility = 'visible';
-    el.style.pointerEvents = 'auto';
+    el.style.setProperty('display', 'flex', 'important');
+    el.style.setProperty('visibility', 'visible', 'important');
+    el.style.setProperty('opacity', '1', 'important');
+    el.style.setProperty('pointer-events', 'auto', 'important');
+    el.style.setProperty('z-index', '99999', 'important');
     // Garde anti-fermeture accidentelle pendant les 350ms suivant l'ouverture
     el.dataset.openedAt = Date.now().toString();
     try {
@@ -10829,10 +10859,12 @@ window.KivoApp = {
       }
     }
     el.classList.remove('active');
-    el.style.display = '';
-    el.style.visibility = '';
-    el.style.opacity = '';
-    el.style.pointerEvents = '';
+    // Nettoyer les styles inline forcés par openModal
+    el.style.removeProperty('display');
+    el.style.removeProperty('visibility');
+    el.style.removeProperty('opacity');
+    el.style.removeProperty('pointer-events');
+    el.style.removeProperty('z-index');
     // ── SÉCURITÉ : toujours déverrouiller le scroll du body à la fermeture ──
     document.body.style.overflow = '';
     document.body.classList.remove('modal-open', 'no-scroll');
