@@ -520,6 +520,9 @@ window.KivoApp = {
    */
   init: async function () {
     console.log("[KivoApp] Initializing KIVO MATIQUE application...");
+    // ── SÉCURITÉ AU DÉMARRAGE : nettoyer tout verrouillage de scroll résiduel ──
+    document.body.style.overflow = '';
+    document.body.classList.remove('modal-open', 'no-scroll');
     this.isSessionLoading = true;
 
     // Safety timeout: force-hide the overlay after 30 s in case of unexpected silence
@@ -3206,7 +3209,7 @@ window.KivoApp = {
     const isQuote = doc.type === 'quote';
     const rawStatus = (doc.status || 'draft').toLowerCase().trim();
 
-    // Determine semantic status & visual row tint matching reference design
+    // Determine semantic status
     const isDraft = rawStatus === 'draft' || rawStatus === 'brouillon';
     const isPaid = rawStatus === 'paid' || rawStatus === 'payée' || rawStatus === 'payee';
     const isRefunded = rawStatus === 'refunded';
@@ -3225,11 +3228,9 @@ window.KivoApp = {
     }
     const isOverdue = rawStatus === 'overdue' || isPastDue;
 
-    let rowStatusClass = 'doc-row-status-draft';
     let statusBadgeHtml = '';
 
     if (isDraft) {
-      rowStatusClass = 'doc-row-status-draft';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-draft">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 9.5-9.5z"/></svg>
@@ -3237,7 +3238,6 @@ window.KivoApp = {
         </span>
       `;
     } else if (isPaid) {
-      rowStatusClass = 'doc-row-status-paid';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-paid">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
@@ -3245,28 +3245,24 @@ window.KivoApp = {
         </span>
       `;
     } else if (isQuote && isArchived) {
-      rowStatusClass = 'doc-row-status-archived';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-archived">
           Devis (Archivé)
         </span>
       `;
     } else if (isQuote && isProspect) {
-      rowStatusClass = 'doc-row-status-prospect';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-prospect">
           Devis (Prospect)
         </span>
       `;
     } else if (isQuote) {
-      rowStatusClass = 'doc-row-status-quote-blue';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-quote-blue">
           Devis
         </span>
       `;
     } else if (isOverdue) {
-      rowStatusClass = 'doc-row-status-overdue';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-overdue">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -3274,7 +3270,6 @@ window.KivoApp = {
         </span>
       `;
     } else if (isRefunded) {
-      rowStatusClass = 'doc-row-status-refunded';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-refunded">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -3282,7 +3277,6 @@ window.KivoApp = {
         </span>
       `;
     } else {
-      rowStatusClass = 'doc-row-status-sent';
       const label = rawStatus === 'viewed' ? 'Consultée' : 'Envoyée';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-sent">
@@ -3296,23 +3290,30 @@ window.KivoApp = {
       ? `<span class="badge badge-type-quote">Devis</span>`
       : `<span class="badge badge-type-invoice">Facture</span>`;
 
+    const rawClientName = doc.clientName || (doc.client && doc.client.name) || 'Client anonyme';
+    const safeClientName = (typeof escapeHtml === 'function') ? escapeHtml(rawClientName) : rawClientName;
+    const safeClientType = doc.clientType ? ((typeof escapeHtml === 'function') ? escapeHtml(doc.clientType) : doc.clientType) : '';
+
+    const isRecentlyUpdated = this._recentlyUpdatedDocId && (this._recentlyUpdatedDocId === doc.id);
+    const recentClass = isRecentlyUpdated ? ' doc-row-just-updated' : '';
+
     return `
-      <tr class="doc-table-row ${rowStatusClass}" onclick="KivoApp.viewPublicDoc('${doc.id}')">
+      <tr class="doc-table-row${recentClass}" onclick="KivoApp.viewPublicDoc('${doc.id}')">
         <td class="col-doc-num">
-          <strong style="color: var(--text-primary); font-size: 0.88rem; font-weight: 600;">${doc.number}</strong>
+          <strong style="color: var(--text-primary); font-size: 0.88rem; font-weight: 600;">${doc.number || '-'}</strong>
           <div class="mobile-only-doc-status" style="margin-top: 4px; display: none;">${statusBadgeHtml}</div>
         </td>
-        <td class="col-doc-client">
-          <div class="client-name-cell" style="font-weight: 600; color: var(--text-primary); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${doc.clientName || 'Client anonyme'}">${doc.clientName || 'Client anonyme'}</div>
-          ${doc.clientType ? `<span style="font-size: 0.72rem; color: var(--text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${doc.clientType}</span>` : ''}
+        <td class="col-doc-client" title="${safeClientName}">
+          <div class="client-name-cell" title="${safeClientName}">${safeClientName}</div>
+          ${safeClientType ? `<span style="font-size: 0.72rem; color: var(--text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${safeClientName}">${safeClientType}</span>` : ''}
         </td>
         <td class="col-doc-type">${typeBadgeHtml}</td>
         <td class="col-doc-issue-date" style="color: var(--text-secondary); font-size: 0.88rem;">${doc.issueDate || '-'}</td>
         <td class="col-doc-due-date" style="color: var(--text-secondary); font-size: 0.88rem;">${doc.dueDate || '-'}</td>
         <td class="col-doc-total"><strong style="color: var(--text-primary); font-size: 0.95rem; white-space: nowrap;">${(doc.total || 0).toLocaleString('fr-FR')} ${currencyStr}</strong></td>
         <td class="col-doc-status">${statusBadgeHtml}</td>
-        <td class="col-doc-action" style="text-align: right;" onclick="event.stopPropagation();">
-          <button class="btn-row-action btn-row-kebab" onclick="KivoApp.toggleDocRowMenu(event, '${doc.id}')" title="Actions" aria-label="Actions">
+        <td class="col-doc-action" onclick="event.stopPropagation();">
+          <button class="btn-row-action btn-row-kebab" onclick="KivoApp.toggleDocRowMenu(event, '${doc.id}')" title="Actions pour le document ${doc.number || ''}" aria-label="Actions">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="12" cy="19" r="2.2"/></svg>
           </button>
         </td>
@@ -3429,6 +3430,7 @@ window.KivoApp = {
     if (!tbody) return;
 
     let docs = (this.state && this.state.documents) || [];
+    const totalCount = docs.length;
 
     if (filter !== 'all') {
       if (filter === 'invoice' || filter === 'quote') {
@@ -3476,38 +3478,8 @@ window.KivoApp = {
       );
     }
 
-    const emptyStateHtml = `
-      <tr>
-        <td colspan="8" style="padding: 3rem 1.5rem; text-align: center; background: #FFFFFF; border-radius: 12px; border: 1px dashed #E2E8F0;">
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
-            <div style="width:56px; height:56px; border-radius:16px; background:#F8FAFC; border:1px solid #E2E8F0; display:flex; align-items:center; justify-content:center; color:#64748B;">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <line x1="10" y1="9" x2="8" y2="9"></line>
-              </svg>
-            </div>
-            <div style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucun document trouvé</div>
-            <p style="color:#64748B; font-size:0.85rem; margin:0; max-width:340px; line-height:1.5;">Vous n'avez pas encore créé de document pour ce filtre. Émettez une facture ou un devis en quelques clics.</p>
-            <div style="display:flex; gap:0.65rem; margin-top:0.4rem; flex-wrap:wrap; justify-content:center;">
-              <button onclick="KivoApp.openNewDocModal('invoice')" class="btn btn-primary" style="padding:0.5rem 1.15rem; font-size:0.85rem;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                <span>Créer une facture</span>
-              </button>
-              <button onclick="KivoApp.openNewDocModal('quote')" class="btn btn-secondary" style="padding:0.5rem 1.15rem; font-size:0.85rem;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                <span>Créer un devis</span>
-              </button>
-            </div>
-          </div>
-        </td>
-      </tr>
-    `;
-
     if (docs.length === 0) {
-      tbody.innerHTML = emptyStateHtml;
+      tbody.innerHTML = this.getDocEmptyStateHtml(filter, searchQuery, totalCount);
       return;
     }
 
@@ -3523,7 +3495,7 @@ window.KivoApp = {
     }
 
     if (rowsHtml.length === 0) {
-      tbody.innerHTML = emptyStateHtml;
+      tbody.innerHTML = this.getDocEmptyStateHtml(filter, searchQuery, totalCount);
       return;
     }
 
@@ -3538,6 +3510,209 @@ window.KivoApp = {
         }
       });
     }, 150);
+  },
+
+  /**
+   * Generates custom, polished empty state HTML tailored to active filter & search
+   */
+  getDocEmptyStateHtml: function (filter = 'all', searchQuery = '', totalCount = 0) {
+    const safeEscape = (typeof this.escapeHtml === 'function')
+      ? this.escapeHtml.bind(this)
+      : (typeof window.escapeHtml === 'function' ? window.escapeHtml : (s => s));
+    const safeQuery = searchQuery ? safeEscape(searchQuery.trim()) : '';
+
+    // 1. Recherche infructueuse
+    if (safeQuery) {
+      return `
+        <tr>
+          <td colspan="8" class="doc-empty-state-cell">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+              <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#F8FAFC; border:1px solid #E2E8F0; display:flex; align-items:center; justify-content:center; color:#64748B;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </div>
+              <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucun résultat pour « ${safeQuery} »</div>
+              <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:380px; line-height:1.5;">Aucun document ne correspond à ce critère. Vérifiez l'orthographe du numéro ou du nom du client.</p>
+              <div style="margin-top:0.4rem;">
+                <button type="button" onclick="KivoApp.clearDocSearch()" class="btn btn-secondary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  <span>Effacer la recherche</span>
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // 2. Filtre Devis
+    if (filter === 'quote') {
+      return `
+        <tr>
+          <td colspan="8" class="doc-empty-state-cell">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+              <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#EFF6FF; border:1px solid #BFDBFE; display:flex; align-items:center; justify-content:center; color:#2563EB;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              </div>
+              <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucun devis pour le moment</div>
+              <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:380px; line-height:1.5;">Créez et envoyez des devis et propositions commerciales professionnelles à vos prospects en quelques clics.</p>
+              <div style="margin-top:0.4rem;">
+                <button type="button" onclick="KivoApp.openNewDocModal('quote')" class="btn btn-primary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>Créer un devis</span>
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // 3. Filtre Factures
+    if (filter === 'invoice') {
+      return `
+        <tr>
+          <td colspan="8" class="doc-empty-state-cell">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+              <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#ECFDF5; border:1px solid #A7F3D0; display:flex; align-items:center; justify-content:center; color:#059669;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+              </div>
+              <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucune facture pour le moment</div>
+              <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:380px; line-height:1.5;">Facturez vos prestations, suivez vos règlements et encaissez vos paiements plus rapidement.</p>
+              <div style="margin-top:0.4rem;">
+                <button type="button" onclick="KivoApp.openNewDocModal('invoice')" class="btn btn-primary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>Créer une facture</span>
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // 4. Filtre En retard
+    if (filter === 'overdue') {
+      return `
+        <tr>
+          <td colspan="8" class="doc-empty-state-cell">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+              <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#ECFDF5; border:1px solid #A7F3D0; display:flex; align-items:center; justify-content:center; color:#059669;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              </div>
+              <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucune facture en retard</div>
+              <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:380px; line-height:1.5;">Excellente nouvelle ! Tous vos paiements sont à jour. Aucun impayé n'est à déplorer.</p>
+              <div style="margin-top:0.4rem;">
+                <button type="button" onclick="KivoApp.setDocFilter('all')" class="btn btn-secondary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                  <span>Voir tous les documents</span>
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // 5. Filtre Payées
+    if (filter === 'paid') {
+      return `
+        <tr>
+          <td colspan="8" class="doc-empty-state-cell">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+              <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#F8FAFC; border:1px solid #E2E8F0; display:flex; align-items:center; justify-content:center; color:#64748B;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+              </div>
+              <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucune facture payée pour le moment</div>
+              <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:380px; line-height:1.5;">Dès qu'une facture sera réglée par votre client ou marquée comme payée, elle apparaîtra ici.</p>
+              <div style="margin-top:0.4rem; display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
+                <button type="button" onclick="KivoApp.setDocFilter('invoice')" class="btn btn-secondary" style="padding:0.5rem 1.15rem; font-size:0.85rem;">
+                  <span>Voir les factures en attente</span>
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // 6. Filtre Brouillons
+    if (filter === 'draft') {
+      return `
+        <tr>
+          <td colspan="8" class="doc-empty-state-cell">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+              <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#F8FAFC; border:1px solid #E2E8F0; display:flex; align-items:center; justify-content:center; color:#64748B;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 9.5-9.5z"></path></svg>
+              </div>
+              <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucun brouillon en cours</div>
+              <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:380px; line-height:1.5;">Tous vos documents sont finalisés. Aucun document n'est en attente de validation.</p>
+              <div style="margin-top:0.4rem;">
+                <button type="button" onclick="KivoApp.openNewDocModal('invoice')" class="btn btn-primary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>Créer un document</span>
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // 7. Défaut (Tous - Aucun document dans l'app)
+    return `
+      <tr>
+        <td colspan="8" class="doc-empty-state-cell">
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+            <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#F8FAFC; border:1px solid #E2E8F0; display:flex; align-items:center; justify-content:center; color:#64748B;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <line x1="10" y1="9" x2="8" y2="9"></line>
+              </svg>
+            </div>
+            <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucun document pour le moment</div>
+            <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:360px; line-height:1.5;">Vous n'avez pas encore créé de document. Émettez une facture ou un devis en quelques clics.</p>
+            <div style="display:flex; gap:0.65rem; margin-top:0.4rem; flex-wrap:wrap; justify-content:center;">
+              <button type="button" onclick="KivoApp.openNewDocModal('invoice')" class="btn btn-primary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Créer une facture</span>
+              </button>
+              <button type="button" onclick="KivoApp.openNewDocModal('quote')" class="btn btn-secondary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Créer un devis</span>
+              </button>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
+  },
+
+  /**
+   * Activates a document filter pill programmatically
+   */
+  setDocFilter: function (filterName = 'all') {
+    const filterPills = document.querySelectorAll('#doc-filter-pills button');
+    filterPills.forEach(b => {
+      if (b.getAttribute('data-filter') === filterName) {
+        b.classList.add('active-pill');
+      } else {
+        b.classList.remove('active-pill');
+      }
+    });
+    const searchVal = document.getElementById('doc-search-input')?.value || '';
+    this.renderDocumentsTable(filterName, searchVal);
+  },
+
+  /**
+   * Clears document search query input and re-renders table
+   */
+  clearDocSearch: function () {
+    const searchInput = document.getElementById('doc-search-input');
+    if (searchInput) searchInput.value = '';
+    const activeFilter = document.querySelector('#doc-filter-pills button.active-pill')?.getAttribute('data-filter') || 'all';
+    this.renderDocumentsTable(activeFilter, '');
   },
 
   /**
@@ -5661,6 +5836,16 @@ window.KivoApp = {
     // Release save lock now that document is committed
     this._savingDoc = false;
 
+    // Temporary highlight: automatically removed after max 3s (never permanent)
+    this._recentlyUpdatedDocId = docId;
+    setTimeout(() => {
+      if (this._recentlyUpdatedDocId === docId) {
+        this._recentlyUpdatedDocId = null;
+        const row = document.querySelector(`tr[onclick*="${docId}"]`);
+        if (row) row.classList.remove('doc-row-just-updated');
+      }
+    }, 3000);
+
     this.showToast(this._t('toast_doc_saved').replace('{num}', num), "success");
     this.viewPublicDoc(docId);
   },
@@ -5691,6 +5876,16 @@ window.KivoApp = {
     });
 
     this.saveState();
+
+    // Temporary highlight: automatically removed after max 3s
+    this._recentlyUpdatedDocId = docId;
+    setTimeout(() => {
+      if (this._recentlyUpdatedDocId === docId) {
+        this._recentlyUpdatedDocId = null;
+        const row = document.querySelector(`tr[onclick*="${docId}"]`);
+        if (row) row.classList.remove('doc-row-just-updated');
+      }
+    }, 3000);
 
     this.showToast(`Facture ${doc.number} marquée comme payée !`, "success");
 
@@ -10620,6 +10815,9 @@ window.KivoApp = {
     const el = document.getElementById(modalId);
     if (!el) {
       console.warn('[DEBUG-MODAL] WARN: élément introuvable pour closeModal id=', modalId);
+      // Toujours déverrouiller le scroll même si la modale est introuvable
+      document.body.style.overflow = '';
+      document.body.classList.remove('modal-open', 'no-scroll');
       return;
     }
     if (!force) {
@@ -10635,6 +10833,9 @@ window.KivoApp = {
     el.style.visibility = '';
     el.style.opacity = '';
     el.style.pointerEvents = '';
+    // ── SÉCURITÉ : toujours déverrouiller le scroll du body à la fermeture ──
+    document.body.style.overflow = '';
+    document.body.classList.remove('modal-open', 'no-scroll');
     try {
       const cs = window.getComputedStyle(el);
       console.log('[DEBUG-MODAL] Modale fermée. display computed:', cs.display, 'opacity:', cs.opacity);
