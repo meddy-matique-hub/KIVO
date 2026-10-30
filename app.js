@@ -640,7 +640,8 @@ window.KivoApp = {
         'modal-catalog-item',
         'modal-client-details',
         'modal-change-password',
-        'modal-connected-accounts'
+        'modal-connected-accounts',
+        'modal-add-seat'
       ];
       modalIds.forEach(function(id) {
         const el = document.getElementById(id);
