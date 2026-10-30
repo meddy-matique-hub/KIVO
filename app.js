@@ -241,13 +241,112 @@ window.KivoApp = {
     this.openModal('modal-upgrade-prompt');
   },
 
-  /** Ouvre WhatsApp pour demander un siège Business supplémentaire */
+  /** Ouvre WhatsApp pour demander un siège Business supplémentaire (fallback) */
   requestAdditionalSeatWhatsApp: function () {
     const biz   = (this.state && this.state.business) || {};
     const owner = biz.owner || biz.name || 'Client Business';
     const email = (window.KivoAuth && window.KivoAuth.user ? window.KivoAuth.user.email : '') || biz.email || '';
     const msg   = encodeURIComponent(`Bonjour KIVO MATIQUE ! Je suis ${owner} (${email}), abonné au forfait Business (5 sièges). Tous mes sièges sont occupés et je souhaite commander un siège supplémentaire (+1 500 FCFA/mois). Pouvez-vous m'aider ?`);
     window.open(`https://wa.me/242068286376?text=${msg}`, '_blank');
+  },
+
+  /** Ouvre la modale de paiement pour ajouter un siège supplémentaire */
+  openAddSeatModal: function () {
+    // Réinitialiser la modale à l'étape 1
+    const stepMethod  = document.getElementById('add-seat-step-method');
+    const stepConfirm = document.getElementById('add-seat-step-confirm');
+    const stepSuccess = document.getElementById('add-seat-step-success');
+    if (stepMethod)  stepMethod.style.display  = '';
+    if (stepConfirm) stepConfirm.style.display = 'none';
+    if (stepSuccess) stepSuccess.style.display = 'none';
+    // Réinitialiser sélection bouton
+    document.querySelectorAll('.add-seat-method-btn').forEach(function(b) {
+      b.style.borderColor = 'var(--border-color,#E5E7EB)';
+      b.style.background  = 'var(--bg-card,#fff)';
+    });
+    const phoneInput = document.getElementById('add-seat-phone-input');
+    if (phoneInput) phoneInput.value = '';
+    this.openModal('modal-add-seat');
+  },
+
+  /** Sélectionne le moyen de paiement pour le siège */
+  selectSeatPayMethod: function (method) {
+    this._seatPayMethod = method;
+    // Highlight sélectionné
+    document.querySelectorAll('.add-seat-method-btn').forEach(function(b) {
+      const isSelected = b.dataset.method === method;
+      b.style.borderColor = isSelected ? 'var(--primary,#4F46E5)' : 'var(--border-color,#E5E7EB)';
+      b.style.background  = isSelected ? 'var(--primary-lightest,#EEF2FF)' : 'var(--bg-card,#fff)';
+    });
+    // Passer à l'étape 2
+    const stepMethod  = document.getElementById('add-seat-step-method');
+    const stepConfirm = document.getElementById('add-seat-step-confirm');
+    if (stepMethod)  stepMethod.style.display  = 'none';
+    if (stepConfirm) stepConfirm.style.display = '';
+    // Label adaptatif
+    const labelEl = document.getElementById('add-seat-input-label');
+    const phoneInput = document.getElementById('add-seat-phone-input');
+    if (method === 'stripe') {
+      if (labelEl)     labelEl.textContent  = 'Numéro de carte bancaire';
+      if (phoneInput)  phoneInput.placeholder = '4242 4242 4242 4242';
+      if (phoneInput)  phoneInput.type = 'text';
+    } else {
+      const labels = { wave: 'Numéro Wave', orange: 'Numéro Orange Money', mtn: 'Numéro MTN MoMo' };
+      if (labelEl)     labelEl.textContent  = labels[method] || 'Numéro Mobile Money';
+      if (phoneInput)  phoneInput.placeholder = '+221 77 000 00 00';
+      if (phoneInput)  phoneInput.type = 'tel';
+    }
+  },
+
+  /** Retour à l'étape 1 (choix méthode) */
+  backToSeatMethod: function () {
+    const stepMethod  = document.getElementById('add-seat-step-method');
+    const stepConfirm = document.getElementById('add-seat-step-confirm');
+    if (stepMethod)  stepMethod.style.display  = '';
+    if (stepConfirm) stepConfirm.style.display = 'none';
+  },
+
+  /** Confirme le paiement du siège et active le siège automatiquement */
+  confirmSeatPayment: function () {
+    const phoneInput = document.getElementById('add-seat-phone-input');
+    const value = phoneInput ? phoneInput.value.trim() : '';
+    if (!value) {
+      this.showToast('Veuillez saisir votre numéro de paiement.', 'error');
+      if (phoneInput) phoneInput.focus();
+      return;
+    }
+    const btn = document.querySelector('#add-seat-step-confirm .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = 'Traitement en cours…'; }
+
+    const self = this;
+    // Simulation du délai de confirmation paiement (2s) → activation automatique du siège
+    setTimeout(function() {
+      // Activer le siège : incrémenter le compteur de sièges dans l'état
+      if (!self.state.business) self.state.business = {};
+      const currentExtra = parseInt(self.state.business.extraSeats || 0, 10);
+      self.state.business.extraSeats = currentExtra + 1;
+      self.saveState();
+
+      // Mettre à jour le compteur affiché
+      const members = (self.state.business && self.state.business.teamMembers) || [];
+      const totalOccupied = 1 + members.length;
+      const totalSeats = 5 + self.state.business.extraSeats;
+      const badgeEl = document.getElementById('invite-seats-badge');
+      if (badgeEl) badgeEl.textContent = totalOccupied + ' / ' + totalSeats + ' sièges';
+      const seatsEl = document.getElementById('team-kpi-seats');
+      if (seatsEl) seatsEl.innerHTML = totalOccupied + ' <span style="font-size:1rem;color:var(--text-muted);font-weight:normal;">/ ' + totalSeats + ' (Plan Business)</span>';
+
+      // Masquer la bannière limite si le plafond n'est plus atteint
+      const limitBanner = document.getElementById('invite-seats-limit-banner');
+      if (limitBanner && totalOccupied < totalSeats) limitBanner.style.display = 'none';
+
+      // Afficher l'étape succès
+      const stepConfirm = document.getElementById('add-seat-step-confirm');
+      const stepSuccess = document.getElementById('add-seat-step-success');
+      if (stepConfirm) stepConfirm.style.display = 'none';
+      if (stepSuccess) stepSuccess.style.display = '';
+      if (btn) { btn.disabled = false; btn.textContent = 'Payer 1 500 FCFA et activer le siège'; }
+    }, 2000);
   },
 
   updatePlanUsageBadge: function () {
@@ -7251,13 +7350,15 @@ window.KivoApp = {
     await this.loadTeamMembers();
     
     // 1 Directeur (propriétaire) + membres enregistrés
+    const extraSeats = parseInt((this.state.business && this.state.business.extraSeats) || 0, 10);
+    const totalSeats = 5 + extraSeats;
     const totalOccupied = 1 + (this._teamMembers ? this._teamMembers.length : 0);
-    const isLimitReached = totalOccupied >= 5;
+    const isLimitReached = totalOccupied >= totalSeats;
 
-    // Mise à jour du compteur X / 5 sièges
+    // Mise à jour du compteur X / N sièges
     const badgeEl = document.getElementById('invite-seats-badge');
     if (badgeEl) {
-      badgeEl.textContent = `${totalOccupied} / 5 sièges`;
+      badgeEl.textContent = `${totalOccupied} / ${totalSeats} siège${totalSeats > 1 ? 's' : ''}`;
       badgeEl.style.background = isLimitReached ? '#FEE2E2' : '#F1F5F9';
       badgeEl.style.color = isLimitReached ? '#B91C1C' : '#334155';
     }
@@ -7474,12 +7575,14 @@ window.KivoApp = {
     }
     const members = this._teamMembers;
     const activeCount = members.filter(m => m.status === 'active').length;
+    const extraSeatsKpi = parseInt((this.state.business && this.state.business.extraSeats) || 0, 10);
+    const maxSeats    = 5 + extraSeatsKpi;
     const totalSeats  = 1 + members.length; // 1 directeur + membres
 
     // ── KPIs ────────────────────────────────────────────────────────────────
     const seatsEl = document.getElementById('team-kpi-seats');
     if (seatsEl) seatsEl.innerHTML =
-      `${totalSeats} <span style="font-size:1rem;color:var(--text-muted);font-weight:normal;">/ 5 (Plan Business)</span>`;
+      `${totalSeats} <span style="font-size:1rem;color:var(--text-muted);font-weight:normal;">/ ${maxSeats} (Plan Business)</span>`;
     const countEl = document.getElementById('team-active-count');
     if (countEl) countEl.textContent = `${1 + activeCount} actif${(1 + activeCount) > 1 ? 's' : ''}`;
 
