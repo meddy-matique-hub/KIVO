@@ -4084,6 +4084,7 @@ window.KivoApp = {
     if (tbody) tbody.innerHTML = '';
     this.addBuilderLineItem('', 1, 0, defaultVat, '', 0);
     this.populateBuilderCatalogDropdown();
+    this.renderBuilderPaymentMethodsSelection();
 
     this.recalculateBuilderTotals();
     this.updateLiveInvoicePreview();
@@ -4272,6 +4273,7 @@ window.KivoApp = {
     }
 
     this.populateBuilderCatalogDropdown();
+    this.renderBuilderPaymentMethodsSelection(doc.selectedPaymentMethods || (meta && meta.selectedPaymentMethods));
     this.recalculateBuilderTotals();
     this.updateLiveInvoicePreview();
     this.navigate('document-builder');
@@ -4955,6 +4957,193 @@ window.KivoApp = {
   },
 
   /**
+   * Retourne la configuration complète des moyens de paiement actifs de l'entreprise
+   */
+  getPaymentConfig: function () {
+    const biz = (this.state && this.state.business) || {};
+    const bDetails = biz.bankDetails || {};
+    return {
+      bank: (bDetails.active || bDetails.bankName || bDetails.iban || bDetails.accountNumber) ? {
+        bankName: bDetails.bankName || '',
+        accountHolder: bDetails.accountName || biz.name || '',
+        accountNumber: bDetails.accountNumber || '',
+        iban: bDetails.iban || '',
+        swift: bDetails.bic || ''
+      } : null,
+      momo: (bDetails.mobileMoney && (bDetails.mobileMoney.active || bDetails.mobileMoney.phone)) ? {
+        accounts: [{
+          operator: bDetails.mobileMoney.operator || 'Wave',
+          phone: bDetails.mobileMoney.phone || bDetails.mobileMoney.wave || bDetails.mobileMoney.orangeMoney || bDetails.mobileMoney.mtn || '',
+          holder: bDetails.mobileMoney.holder || biz.owner || ''
+        }]
+      } : null,
+      cash: (bDetails.cash && bDetails.cash.active) ? {
+        notice: bDetails.cash.notice || 'Paiement en espèces à la livraison ou au comptoir'
+      } : null,
+      check: (bDetails.check && (bDetails.check.active || bDetails.check.payable)) ? {
+        payableTo: bDetails.check.payable || biz.name || '',
+        address: bDetails.check.address || biz.address || ''
+      } : null,
+      card: (bDetails.card && (bDetails.card.active || bDetails.card.paymentLink)) ? {
+        provider: bDetails.card.provider || 'Stripe',
+        paymentUrl: bDetails.card.paymentLink || '',
+        notice: bDetails.card.notice || ''
+      } : null
+    };
+  },
+
+  /**
+   * Retourne la liste des IDs des moyens de paiement cochés dans le builder
+   */
+  getSelectedPaymentMethodsFromBuilder: function () {
+    const checkboxes = document.querySelectorAll('#builder-pm-checkboxes-container input[type="checkbox"][name="builder_pm"]:checked');
+    if (!checkboxes || checkboxes.length === 0) return [];
+    return Array.from(checkboxes).map(cb => cb.value);
+  },
+
+  /**
+   * Rendu de la section "Moyens de paiement acceptés" dans le constructeur de facture
+   * @param {Array<string>} [initialSelected] - Liste des IDs sélectionnés ou null pour tous par défaut
+   */
+  renderBuilderPaymentMethodsSelection: function (initialSelected) {
+    const container = document.getElementById('builder-pm-checkboxes-container');
+    const alertBox = document.getElementById('builder-pm-no-methods-alert');
+    if (!container) return;
+
+    const biz = (this.state && this.state.business) || {};
+    const bDetails = biz.bankDetails || {};
+    const activeMethods = [];
+
+    // 1. Virement bancaire
+    if (bDetails.active) {
+      const summaryParts = [];
+      if (bDetails.bankName) summaryParts.push(bDetails.bankName);
+      if (bDetails.iban || bDetails.accountNumber) summaryParts.push(`IBAN / Compte : ${bDetails.iban || bDetails.accountNumber}`);
+      if (bDetails.accountName || biz.name) summaryParts.push(`Titulaire : ${bDetails.accountName || biz.name}`);
+      activeMethods.push({
+        id: 'bank',
+        icon: '💳',
+        title: 'Virement bancaire',
+        summary: summaryParts.join(' • ') || 'Coordonnées bancaires configurées'
+      });
+    }
+
+    // 2. Mobile Money
+    if (bDetails.mobileMoney && bDetails.mobileMoney.active) {
+      const momo = bDetails.mobileMoney;
+      const op = momo.operator || 'Mobile Money';
+      const ph = momo.phone || momo.wave || momo.orangeMoney || momo.mtn || '';
+      const holder = momo.holder || biz.owner || '';
+      activeMethods.push({
+        id: 'momo',
+        icon: '📱',
+        title: `Mobile Money (${op})`,
+        summary: `${op} : ${ph}${holder ? ' • Titulaire : ' + holder : ''}`
+      });
+    }
+
+    // 3. Espèces
+    if (bDetails.cash && bDetails.cash.active) {
+      activeMethods.push({
+        id: 'cash',
+        icon: '💵',
+        title: 'Espèces (Cash)',
+        summary: bDetails.cash.notice || 'Paiement en espèces à la livraison ou au comptoir'
+      });
+    }
+
+    // 4. Chèque
+    if (bDetails.check && bDetails.check.active) {
+      const chk = bDetails.check;
+      const payable = chk.payable || biz.name || '';
+      activeMethods.push({
+        id: 'check',
+        icon: '📝',
+        title: 'Chèque',
+        summary: `À l'ordre de : ${payable}${chk.address ? ' • Adresse : ' + chk.address : ''}`
+      });
+    }
+
+    // 5. Carte bancaire / En ligne
+    if (bDetails.card && bDetails.card.active) {
+      const crd = bDetails.card;
+      activeMethods.push({
+        id: 'card',
+        icon: '💳',
+        title: `Paiement en ligne (${crd.provider || 'Stripe'})`,
+        summary: crd.paymentLink ? `Lien sécurisé : ${crd.paymentLink}` : 'Paiement en ligne par carte activé'
+      });
+    }
+
+    if (activeMethods.length === 0) {
+      if (alertBox) alertBox.style.display = 'block';
+      container.innerHTML = '';
+      return;
+    }
+
+    if (alertBox) alertBox.style.display = 'none';
+
+    // Déterminer la sélection : si initialSelected est fourni (tableau), l'utiliser ; sinon tout sélectionner par défaut
+    const isSelected = (id) => {
+      if (Array.isArray(initialSelected)) {
+        return initialSelected.includes(id);
+      }
+      return true; // Coché par défaut pour une nouvelle facture
+    };
+
+    container.innerHTML = activeMethods.map(m => {
+      const checked = isSelected(m.id);
+      return `
+        <div class="builder-pm-card-item" style="border:1px solid #E2E8F0; border-radius:10px; padding:0.65rem 0.85rem; background:#F8FAFC; transition:all 0.15s ease;">
+          <label style="display:flex; align-items:center; gap:0.6rem; font-weight:600; font-size:0.88rem; cursor:pointer; color:#1E293B; margin:0;">
+            <input type="checkbox" name="builder_pm" value="${m.id}" ${checked ? 'checked' : ''} onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:16px; height:16px; accent-color:var(--primary,#4F46E5); cursor:pointer;">
+            <span>${m.icon} ${m.title}</span>
+          </label>
+          <div class="builder-pm-summary" id="builder-pm-sum-${m.id}" style="margin-top:0.35rem; margin-left:1.6rem; font-size:0.78rem; color:#64748B; line-height:1.45; display:${checked ? 'block' : 'none'};">
+            ${m.summary}
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  /**
+   * Déclenché quand une checkbox de moyen de paiement est cochée / décochée
+   */
+  onBuilderPaymentMethodChange: function () {
+    const checkboxes = document.querySelectorAll('#builder-pm-checkboxes-container input[type="checkbox"][name="builder_pm"]');
+    checkboxes.forEach(cb => {
+      const sum = document.getElementById(`builder-pm-sum-${cb.value}`);
+      if (sum) sum.style.display = cb.checked ? 'block' : 'none';
+    });
+    this.updateLiveInvoicePreview();
+  },
+
+  /**
+   * Ouvre le Bottom Sheet d'actions secondaires Facture sur mobile (< 768px)
+   */
+  openBuilderMoreActionsSheet: function () {
+    const sheet = document.getElementById('builder-more-actions-sheet');
+    if (!sheet) return;
+    sheet.style.display = 'flex';
+    requestAnimationFrame(() => {
+      sheet.classList.add('open');
+    });
+  },
+
+  /**
+   * Ferme le Bottom Sheet d'actions secondaires Facture sur mobile
+   */
+  closeBuilderMoreActionsSheet: function () {
+    const sheet = document.getElementById('builder-more-actions-sheet');
+    if (!sheet) return;
+    sheet.classList.remove('open');
+    setTimeout(() => {
+      sheet.style.display = 'none';
+    }, 250);
+  },
+
+  /**
    * Share live document from builder on WhatsApp
    */
   shareCurrentBuilderWhatsApp: function () {
@@ -5123,6 +5312,8 @@ window.KivoApp = {
       terms: getVal('builder-terms') || 'À réception',
       paymentMethod: getVal('builder-payment-method') || 'Virement bancaire',
       paymentDetails: getVal('builder-payment-details') || '',
+      selectedPaymentMethods: (typeof this.getSelectedPaymentMethodsFromBuilder === 'function') ? this.getSelectedPaymentMethodsFromBuilder() : [],
+      paymentConfig: (typeof this.getPaymentConfig === 'function') ? this.getPaymentConfig() : null,
       thankYouText: getVal('builder-thankyou') || 'Merci pour votre confiance !',
       legalNoticesText: getVal('builder-legal-notices') || '',
       toggleNotes: document.getElementById('builder-toggle-notes') ? document.getElementById('builder-toggle-notes').checked : true,
@@ -5280,6 +5471,10 @@ window.KivoApp = {
         } else {
           this.addBuilderLineItem('', 1, 0);
         }
+      }
+
+      if (typeof this.renderBuilderPaymentMethodsSelection === 'function') {
+        this.renderBuilderPaymentMethodsSelection(draft.selectedPaymentMethods);
       }
 
       this._currentDraftDocId = draft.id;
@@ -5902,6 +6097,8 @@ window.KivoApp = {
       paymentMethod: paymentMethod,
       paymentDetails: paymentDetails,
       showPaymentMethods: showPaymentMethods,
+      selectedPaymentMethods: this.getSelectedPaymentMethodsFromBuilder(),
+      paymentConfig: this.getPaymentConfig(),
       thankYouText: thankYouText,
       showThankYou: showThankYou,
       legalNoticesText: legalNoticesText,
@@ -6751,13 +6948,13 @@ window.KivoApp = {
 
       return `
       <tr>
-        <td><strong style="cursor: pointer; color: var(--primary);" onclick="KivoApp.openClientDetails('${c.id}')" title="Voir les détails et factures de ce client">${c.name}</strong> ${c.clientType ? `<span class="badge badge-accepted" style="font-size: 0.65rem;">${c.clientType}</span>` : ''}</td>
-        <td>${c.company || c.taxId || '-'}</td>
-        <td>${c.phone || '-'}</td>
-        <td><strong>${totalInvoiced.toLocaleString('fr-FR')} ${currency}</strong></td>
-        <td style="color: var(--success-text);"><strong>${totalPaid.toLocaleString('fr-FR')} ${currency}</strong></td>
-        <td style="color: ${balanceDue > 0 ? 'var(--danger-text)' : 'var(--success-text)'}"><strong>${balanceDue.toLocaleString('fr-FR')} ${currency}</strong></td>
-        <td style="text-align: right; display: flex; gap: 0.35rem; justify-content: flex-end;">
+        <td data-label="Nom du client"><strong style="cursor: pointer; color: var(--primary);" onclick="KivoApp.openClientDetails('${c.id}')" title="Voir les détails et factures de ce client">${c.name}</strong> ${c.clientType ? `<span class="badge badge-accepted" style="font-size: 0.65rem;">${c.clientType}</span>` : ''}</td>
+        <td data-label="Entreprise">${c.company || c.taxId || '-'}</td>
+        <td data-label="Téléphone">${c.phone || '-'}</td>
+        <td data-label="Total Facturé"><strong>${totalInvoiced.toLocaleString('fr-FR')} ${currency}</strong></td>
+        <td data-label="Encaissement" style="color: var(--success-text);"><strong>${totalPaid.toLocaleString('fr-FR')} ${currency}</strong></td>
+        <td data-label="Reste dû" style="color: ${balanceDue > 0 ? 'var(--danger-text)' : 'var(--success-text)'}"><strong>${balanceDue.toLocaleString('fr-FR')} ${currency}</strong></td>
+        <td data-label="Actions" style="text-align: right; display: flex; gap: 0.35rem; justify-content: flex-end;">
           <button class="btn btn-secondary btn-sm" onclick="KivoApp.openClientDetails('${c.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="10" r="3"/></svg> Détails</button>
           <button class="btn btn-secondary btn-sm" onclick="KivoApp.openEditClientModal('${c.id}')" title="Modifier ce client"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifier</button>
           <button class="btn btn-secondary btn-sm" onclick="KivoApp.startNewDocumentForClient('${c.id}')">+ Facturer</button>
@@ -6960,24 +7157,24 @@ window.KivoApp = {
 
       return `
         <tr>
-          <td>
+          <td data-label="Désignation">
             <strong style="color: var(--text-primary); font-size: 0.95rem;">${item.name || 'Article sans nom'}</strong>
           </td>
-          <td style="color: var(--text-muted); font-size: 0.85rem; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          <td data-label="Description" style="color: var(--text-muted); font-size: 0.85rem; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
             ${item.description || '<span style="opacity: 0.5;">—</span>'}
           </td>
-          <td style="text-align: right; font-weight: 700; color: var(--text-primary);">
+          <td data-label="Prix unitaire" style="text-align: right; font-weight: 700; color: var(--text-primary);">
             ${priceFmt}
           </td>
-          <td style="text-align: center;">
+          <td data-label="Unité" style="text-align: center;">
             <span class="badge" style="background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-color); font-size: 0.75rem; text-transform: uppercase;">
               ${unitLabel}
             </span>
           </td>
-          <td style="text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
+          <td data-label="TVA" style="text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
             ${taxLabel}
           </td>
-          <td style="text-align: right;">
+          <td data-label="Actions" style="text-align: right;">
             <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
               <button class="btn btn-secondary btn-sm" onclick="KivoApp.openEditCatalogItemModal('${item.id}')" title="Modifier cet article" style="padding: 4px 8px; font-size: 0.8rem;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -10407,6 +10604,17 @@ window.KivoApp = {
     if (document.getElementById('setting-pm-momo-phone')) document.getElementById('setting-pm-momo-phone').value = momoDetails.phone || momoDetails.wave || momoDetails.orangeMoney || momoDetails.mtn || '';
     if (document.getElementById('setting-pm-momo-holder')) document.getElementById('setting-pm-momo-holder').value = momoDetails.holder || biz.owner || '';
 
+    // Espèces (Cash)
+    const cashDetails = (bDetails && bDetails.cash) || {};
+    const cashIsActive = !!(cashDetails.active);
+    const pmCashActive = document.getElementById('setting-pm-cash-active');
+    if (pmCashActive) pmCashActive.checked = cashIsActive;
+    const cardPmCash = document.getElementById('card-pm-cash');
+    if (cardPmCash) cardPmCash.classList.toggle('active', cashIsActive);
+    if (document.getElementById('setting-pm-cash-notice')) {
+      document.getElementById('setting-pm-cash-notice').value = cashDetails.notice || 'Paiement en espèces à la livraison ou au comptoir';
+    }
+
     // Chèque
     const checkDetails = (bDetails && bDetails.check) || {};
     const checkIsActive = !!(checkDetails.payable || checkDetails.active);
@@ -10422,6 +10630,7 @@ window.KivoApp = {
     if (pmCardActive) pmCardActive.checked = cardIsActive;
     const cardPmCard = document.getElementById('card-pm-card');
     if (cardPmCard) cardPmCard.classList.toggle('active', cardIsActive);
+    if (document.getElementById('setting-pm-card-provider')) document.getElementById('setting-pm-card-provider').value = cardDetails.provider || 'Stripe';
     if (document.getElementById('setting-pm-card-link')) document.getElementById('setting-pm-card-link').value = cardDetails.paymentLink || '';
     if (document.getElementById('setting-pm-card-api-key')) document.getElementById('setting-pm-card-api-key').value = cardDetails.apiKey || '';
     if (document.getElementById('setting-pm-card-notice')) document.getElementById('setting-pm-card-notice').value = cardDetails.notice || '';
@@ -11135,6 +11344,12 @@ window.KivoApp = {
     }
     if (document.getElementById('setting-pm-momo-holder')) biz.bankDetails.mobileMoney.holder = document.getElementById('setting-pm-momo-holder').value.trim();
 
+    // Espèces (Cash)
+    const cashActive = document.getElementById('setting-pm-cash-active')?.checked;
+    biz.bankDetails.cash = biz.bankDetails.cash || {};
+    biz.bankDetails.cash.active = !!cashActive;
+    biz.bankDetails.cash.notice = document.getElementById('setting-pm-cash-notice')?.value || 'Paiement en espèces à la livraison ou au comptoir';
+
     // Chèque
     const checkActive = document.getElementById('setting-pm-check-active')?.checked;
     biz.bankDetails.check = biz.bankDetails.check || {};
@@ -11146,6 +11361,7 @@ window.KivoApp = {
     const cardActive = document.getElementById('setting-pm-card-active')?.checked;
     biz.bankDetails.card = biz.bankDetails.card || {};
     biz.bankDetails.card.active = !!cardActive;
+    if (document.getElementById('setting-pm-card-provider')) biz.bankDetails.card.provider = document.getElementById('setting-pm-card-provider').value;
     if (document.getElementById('setting-pm-card-link')) biz.bankDetails.card.paymentLink = document.getElementById('setting-pm-card-link').value.trim();
     if (document.getElementById('setting-pm-card-api-key')) biz.bankDetails.card.apiKey = document.getElementById('setting-pm-card-api-key').value.trim();
     if (document.getElementById('setting-pm-card-notice')) biz.bankDetails.card.notice = document.getElementById('setting-pm-card-notice').value.trim();

@@ -5505,7 +5505,8 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
   border-radius: 16px;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
 }
 
@@ -8547,3 +8548,275 @@ body.full-width-view .main-content {
     flex-wrap: wrap;
   }
 }
+
+/* =========================================================
+   BARRE D'ACTIONS FACTURE RESPONSIVE (DESKTOP / MOBILE)
+   ========================================================= */
+.builder-actions-desktop {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.builder-actions-mobile {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .builder-actions-desktop {
+    display: none !important;
+  }
+  .builder-actions-mobile {
+    display: flex !important;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .btn-builder-mobile-save {
+    padding: 0.5rem 0.85rem !important;
+    font-size: 0.85rem !important;
+  }
+  .btn-builder-mobile-preview {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.85rem !important;
+  }
+  .btn-builder-mobile-more {
+    padding: 0.5rem 0.65rem !important;
+    font-size: 0.85rem !important;
+  }
+}
+
+/* =========================================================
+   BOTTOM SHEET DRAWER (MOBILE)
+   ========================================================= */
+.kivo-bottom-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 99999;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.kivo-bottom-sheet-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.kivo-bottom-sheet {
+  background: #FFFFFF;
+  width: 100%;
+  max-width: 520px;
+  border-radius: 20px 20px 0 0;
+  padding: 1rem 1.25rem 2rem 1.25rem;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2);
+  transform: translateY(100%);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+.kivo-bottom-sheet-backdrop.open .kivo-bottom-sheet {
+  transform: translateY(0);
+}
+
+.kivo-bottom-sheet-handle {
+  width: 44px;
+  height: 5px;
+  background: #CBD5E1;
+  border-radius: 3px;
+  margin: 0 auto 1.25rem auto;
+}
+
+.kivo-bottom-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.kivo-bottom-sheet-close {
+  background: #F1F5F9;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748B;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.15s ease;
+}
+
+.kivo-bottom-sheet-close:hover {
+  background: #E2E8F0;
+  color: #0F172A;
+}
+
+.kivo-bottom-sheet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kivo-bottom-sheet-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  color: #1E293B;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.kivo-bottom-sheet-item:hover,
+.kivo-bottom-sheet-item:active {
+  background: #EFF6FF;
+  border-color: #BFDBFE;
+  color: #2563EB;
+}
+
+/* =========================================================
+   COMPARATIF FORFAITS (SCROLL HORIZONTAL & FADE MOBILE)
+   ========================================================= */
+.pricing-table-scroll-container {
+  position: relative;
+  width: 100%;
+}
+
+.pricing-scroll-hint {
+  display: none;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #64748B;
+  margin-bottom: 0.75rem;
+  font-style: italic;
+  font-weight: 500;
+}
+
+@media (max-width: 767px) {
+  .pricing-scroll-hint {
+    display: block;
+  }
+  .pricing-table-scroll-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 28px;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.95));
+    border-radius: 0 16px 16px 0;
+  }
+  .pricing-compare-table {
+    min-width: 580px;
+  }
+}
+
+/* =========================================================
+   TABLEAUX CLIENTS & SERVICES EN CARTES SUR MOBILE (< 768px)
+   ========================================================= */
+@media (max-width: 767px) {
+  #view-clients .table-container,
+  #view-services .table-container {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  #view-clients .table-container table,
+  #view-services .table-container table,
+  #view-clients table.table,
+  #view-services table.table {
+    display: block !important;
+    width: 100% !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  #view-clients thead,
+  #view-services thead {
+    display: none !important;
+  }
+
+  #view-clients tbody,
+  #view-services tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.85rem !important;
+    width: 100% !important;
+  }
+
+  #view-clients tbody tr,
+  #view-services tbody tr {
+    display: flex !important;
+    flex-direction: column !important;
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 14px !important;
+    padding: 1rem 1.15rem !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  #view-clients tbody td,
+  #view-services tbody td {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 0.45rem 0 !important;
+    border: none !important;
+    border-bottom: 1px solid #F1F5F9 !important;
+    font-size: 0.86rem !important;
+    text-align: right !important;
+    white-space: normal !important;
+    max-width: 100% !important;
+    word-break: break-word !important;
+  }
+
+  #view-clients tbody td:last-child,
+  #view-services tbody td:last-child {
+    border-bottom: none !important;
+    padding-top: 0.75rem !important;
+    padding-bottom: 0 !important;
+    justify-content: flex-end !important;
+    gap: 0.4rem !important;
+    flex-wrap: wrap !important;
+  }
+
+  #view-clients tbody td::before,
+  #view-services tbody td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: #475569;
+    text-align: left;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+    font-size: 0.82rem;
+  }
+
+  #view-clients tbody td[data-label="Actions"]::before,
+  #view-services tbody td[data-label="Actions"]::before {
+    content: "" !important;
+    display: none !important;
+  }
+}
+

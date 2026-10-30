@@ -1590,35 +1590,54 @@
               </div>
             </div>
             <div class="builder-actions-group">
-              <!-- Sauvegarder modèle -->
-              <button type="button" class="btn-builder-action btn-builder-secondary" onclick="KivoApp.saveAsTemplate()" title="Enregistrer ce design comme modèle réutilisable">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-                <span>Sauvegarder modèle</span>
-              </button>
+              <!-- Actions group for Desktop (>=768px) -->
+              <div class="builder-actions-desktop">
+                <!-- Sauvegarder modèle -->
+                <button type="button" class="btn-builder-action btn-builder-secondary" onclick="KivoApp.saveAsTemplate()" title="Enregistrer ce design comme modèle réutilisable">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                  <span>Sauvegarder modèle</span>
+                </button>
 
-              <!-- Partager WhatsApp -->
-              <button type="button" class="btn-builder-action btn-builder-share" onclick="KivoApp.shareCurrentBuilderWhatsApp()" title="Partager le document par WhatsApp">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                <span>Partager</span>
-              </button>
+                <!-- Partager WhatsApp -->
+                <button type="button" class="btn-builder-action btn-builder-share" onclick="KivoApp.shareCurrentBuilderWhatsApp()" title="Partager le document par WhatsApp">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  <span>Partager</span>
+                </button>
 
-              <!-- Télécharger PDF -->
-              <button type="button" class="btn-builder-action btn-builder-secondary" onclick="KivoApp.downloadPdf()" title="Télécharger le document en PDF">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                <span>Télécharger PDF</span>
-              </button>
+                <!-- Télécharger PDF -->
+                <button type="button" class="btn-builder-action btn-builder-secondary" onclick="KivoApp.downloadPdf()" title="Télécharger le document en PDF">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span>Télécharger PDF</span>
+                </button>
 
-              <!-- Imprimer -->
-              <button type="button" class="btn-builder-action btn-builder-secondary" onclick="KivoApp.printPdf()" title="Imprimer le document">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                <span>Imprimer</span>
-              </button>
+                <!-- Imprimer -->
+                <button type="button" class="btn-builder-action btn-builder-secondary" onclick="KivoApp.printPdf()" title="Imprimer le document">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                  <span>Imprimer</span>
+                </button>
 
-              <!-- Enregistrer (CTA Principal) -->
-              <button type="button" class="btn-builder-action btn-builder-primary" onclick="KivoApp.saveDocumentFromBuilder()" title="Enregistrer le document">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                <span>Enregistrer</span>
-              </button>
+                <!-- Enregistrer (CTA Principal) -->
+                <button type="button" class="btn-builder-action btn-builder-primary" onclick="KivoApp.saveDocumentFromBuilder()" title="Enregistrer le document">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  <span>Enregistrer</span>
+                </button>
+              </div>
+
+              <!-- Actions group for Mobile (<768px) : 2 boutons + bouton 'Plus d'actions' -->
+              <div class="builder-actions-mobile">
+                <button type="button" class="btn-builder-action btn-builder-primary btn-builder-mobile-save" onclick="KivoApp.saveDocumentFromBuilder()" title="Enregistrer le document">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  <span>Enregistrer</span>
+                </button>
+                <button type="button" class="btn-builder-action btn-builder-secondary btn-builder-mobile-preview" onclick="KivoApp.switchBuilderMobileTab('preview')" title="Aperçu en direct">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>Aperçu</span>
+                </button>
+                <button type="button" class="btn-builder-action btn-builder-secondary btn-builder-mobile-more" onclick="KivoApp.openBuilderMoreActionsSheet()" title="Plus d'actions">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="12" r="2"/></svg>
+                  <span>Plus</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1974,6 +1993,30 @@
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                       <span>Ajouter depuis le catalogue</span>
                     </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4b. Moyens de paiement acceptés -->
+              <div style="margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem;">
+                  <h3 style="font-size: 1rem; font-weight: 700; color: #0F172A; margin: 0;">Moyens de paiement acceptés</h3>
+                  <a href="#settings/paiements" onclick="KivoApp.navigate('settings'); KivoApp.switchProfileTab('payments'); return false;" style="font-size: 0.78rem; color: #4F46E5; font-weight: 600; text-decoration: none;">Gérer les moyens de paiement →</a>
+                </div>
+                <div style="background: #FFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1.25rem;">
+                  <!-- Bandeau si aucun moyen configuré -->
+                  <div id="builder-pm-no-methods-alert" style="display: none; background: #FFF7ED; border: 1px solid #FDBA74; border-radius: 8px; padding: 0.85rem 1rem; color: #9A3412; font-size: 0.82rem; line-height: 1.45;">
+                    ⚠️ Aucun moyen de paiement configuré. Configurez-les dans vos Paramètres pour les proposer sur vos factures.
+                    <div style="margin-top: 0.5rem;">
+                      <a href="#settings/paiements" onclick="KivoApp.navigate('settings'); KivoApp.switchProfileTab('payments'); return false;" class="btn btn-sm" style="background: #EA580C; color: #FFF; border: none; font-weight: 600; padding: 4px 10px; border-radius: 6px; font-size: 0.78rem; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                        <span>Configurer maintenant →</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  <!-- Liste dynamique de checkboxes -->
+                  <div id="builder-pm-checkboxes-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <!-- Rendu dynamiquement par KivoApp.renderBuilderPaymentMethodsSelection() -->
                   </div>
                 </div>
               </div>
@@ -2932,8 +2975,10 @@
               <!-- Left: Compare Table -->
               <div class="pricing-compare-box">
                 <h3 class="pricing-compare-title">Comparez les fonctionnalités</h3>
-                <div class="pricing-compare-table-wrapper">
-                  <table class="pricing-compare-table">
+                <div class="pricing-scroll-hint">← Glissez pour comparer les offres →</div>
+                <div class="pricing-table-scroll-container">
+                  <div class="pricing-compare-table-wrapper">
+                    <table class="pricing-compare-table">
                     <thead>
                       <tr>
                         <th style="text-align: left; width: 40%;">Fonctionnalité</th>
@@ -3023,6 +3068,7 @@
                       </tr>
                     </tbody>
                   </table>
+                </div>
                 </div>
               </div>
 
@@ -3419,10 +3465,10 @@
                           </label>
                         </div>
                         <div class="kivo-pm-body" id="body-pm-cash">
-                          <div class="profile-form-group">
-                            <label class="profile-label" for="setting-pm-cash-notice">Mention ou consigne affichée sur la facture</label>
-                            <input type="text" id="setting-pm-cash-notice" class="profile-input" placeholder="Ex: Paiement en espèces accepté à la livraison ou directement en agence">
-                          </div>
+                          <p style="font-size: 0.85rem; color: #64748B; font-style: italic; margin: 0; line-height: 1.5;">
+                            Ce mode sera mentionné comme "Paiement en espèces à la livraison ou au comptoir" sur vos documents.
+                          </p>
+                          <input type="hidden" id="setting-pm-cash-notice" value="Paiement en espèces à la livraison ou au comptoir">
                         </div>
                       </div>
 
@@ -3444,13 +3490,13 @@
                         <div class="kivo-pm-body" id="body-pm-check">
                           <div class="profile-fields-grid">
                             <div class="profile-form-group">
-                              <label class="profile-label" for="setting-pm-check-payable">À l'ordre de (bénéficiaire) <span style="color:#EF4444;">*</span></label>
+                              <label class="profile-label" for="setting-pm-check-payable">Nom du bénéficiaire (à l'ordre de qui libeller le chèque) <span style="color:#EF4444;">*</span></label>
                               <input type="text" id="setting-pm-check-payable" class="profile-input" placeholder="Ex: Entreprise SARL">
                               <div class="kivo-pm-error" id="err-pm-check-payable">Le nom du bénéficiaire du chèque est requis.</div>
                             </div>
-                            <div class="profile-form-group">
+                            <div class="profile-form-group profile-field-full">
                               <label class="profile-label" for="setting-pm-check-address">Adresse d'envoi du chèque <span style="color:var(--text-muted); font-weight:400;">(optionnel)</span></label>
-                              <input type="text" id="setting-pm-check-address" class="profile-input" placeholder="Ex: B.P. 1234, Brazzaville, Congo">
+                              <textarea id="setting-pm-check-address" class="profile-textarea" rows="2" placeholder="Ex: B.P. 1234, Brazzaville, Congo"></textarea>
                             </div>
                           </div>
                         </div>
@@ -3473,14 +3519,18 @@
                         </div>
                         <div class="kivo-pm-body" id="body-pm-card">
                           <div class="profile-fields-grid">
-                            <div class="profile-form-group profile-field-full">
-                              <label class="profile-label" for="setting-pm-card-link">URL / Lien de paiement en ligne sécurisé <span style="color:var(--text-muted); font-weight:400;">(Stripe, CinetPay, Wave)</span></label>
-                              <input type="url" id="setting-pm-card-link" class="profile-input" placeholder="Ex: https://buy.stripe.com/... ou https://pay.cinetpay.com/...">
-                              <span style="font-size: 0.75rem; color: #64748B; margin-top: 0.35rem; display: block;">Renseignez l'URL de votre page de paiement Stripe Checkout, lien Wave ou CinetPay. Vos clients pourront régler directement en ligne.</span>
+                            <div class="profile-form-group">
+                              <label class="profile-label" for="setting-pm-card-provider">Fournisseur</label>
+                              <select id="setting-pm-card-provider" class="profile-select">
+                                <option value="Stripe">Stripe</option>
+                                <option value="CinetPay">CinetPay</option>
+                                <option value="Wave">Wave</option>
+                                <option value="Autre">Autre</option>
+                              </select>
                             </div>
-                            <div class="profile-form-group profile-field-full">
-                              <label class="profile-label" for="setting-pm-card-api-key">Clé API / Identifiant marchand <span style="color:var(--text-muted); font-weight:400;">(optionnel)</span></label>
-                              <input type="text" id="setting-pm-card-api-key" class="profile-input" placeholder="Ex: pk_live_... ou ID marchand">
+                            <div class="profile-form-group">
+                              <label class="profile-label" for="setting-pm-card-link">Lien de paiement ou Clé API publique</label>
+                              <input type="text" id="setting-pm-card-link" class="profile-input" placeholder="Ex: https://buy.stripe.com/... ou pk_live_...">
                             </div>
                             <div class="profile-form-group profile-field-full">
                               <label class="profile-label" for="setting-pm-card-notice">Mention ou consigne par défaut</label>
@@ -4762,6 +4812,43 @@
         <p style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 1.25rem;">Le nouveau siège a bien été ajouté à votre équipe. Vous pouvez maintenant inviter un nouveau membre.</p>
         <button class="btn btn-primary" onclick="KivoApp.closeModal('modal-add-seat');KivoApp.openInviteMemberModal();">
           Inviter un membre maintenant →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM SHEET : Menu "Plus d'actions" Facture sur Mobile (< 768px) -->
+  <div id="builder-more-actions-sheet" class="kivo-bottom-sheet-backdrop" style="display:none;" onclick="if(event.target===this) KivoApp.closeBuilderMoreActionsSheet()">
+    <div class="kivo-bottom-sheet">
+      <div class="kivo-bottom-sheet-handle"></div>
+      <div class="kivo-bottom-sheet-header">
+        <h4 style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary); font-family:var(--font-heading,'Outfit',sans-serif);">Actions du document</h4>
+        <button type="button" class="kivo-bottom-sheet-close" onclick="KivoApp.closeBuilderMoreActionsSheet()" aria-label="Fermer">✕</button>
+      </div>
+      <div class="kivo-bottom-sheet-list">
+        <button type="button" class="kivo-bottom-sheet-item" onclick="KivoApp.closeBuilderMoreActionsSheet(); KivoApp.downloadPdf();">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Télécharger le PDF</span>
+        </button>
+        <button type="button" class="kivo-bottom-sheet-item" onclick="KivoApp.closeBuilderMoreActionsSheet(); KivoApp.printInvoice();">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          <span>Imprimer le document</span>
+        </button>
+        <button type="button" class="kivo-bottom-sheet-item" onclick="KivoApp.closeBuilderMoreActionsSheet(); KivoApp.shareCurrentBuilderWhatsApp();">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          <span>Partager par WhatsApp</span>
+        </button>
+        <button type="button" class="kivo-bottom-sheet-item" onclick="KivoApp.closeBuilderMoreActionsSheet(); KivoApp.saveAsTemplate();">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          <span>Sauvegarder comme modèle</span>
+        </button>
+        <button type="button" class="kivo-bottom-sheet-item" onclick="KivoApp.closeBuilderMoreActionsSheet(); KivoApp.openTemplateModal();">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+          <span>Changer de modèle visuel</span>
+        </button>
+        <button type="button" class="kivo-bottom-sheet-item" onclick="KivoApp.closeBuilderMoreActionsSheet(); KivoApp.resetCustomLabels();">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          <span>Réinitialiser les libellés</span>
         </button>
       </div>
     </div>
