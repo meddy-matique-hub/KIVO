@@ -1568,6 +1568,21 @@ h3 { font-size: 1.15rem; line-height: 1.4; }
   color: #94A3B8 !important;
 }
 
+/* Séparation nette et alignement des colonnes Date d'émission et Échéance */
+.doc-master-table thead th.col-th-issue-date,
+.doc-master-table tbody td.col-doc-issue-date {
+  text-align: left !important;
+  padding-right: 0.85rem !important;
+  white-space: nowrap !important;
+}
+
+.doc-master-table thead th.col-th-due-date,
+.doc-master-table tbody td.col-doc-due-date {
+  text-align: left !important;
+  padding-left: 0.85rem !important;
+  white-space: nowrap !important;
+}
+
 /* Sticky Action Column Header */
 .doc-master-table thead th.col-th-action {
   position: sticky;

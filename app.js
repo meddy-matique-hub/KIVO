@@ -2705,10 +2705,17 @@ window.KivoApp = {
     const iso = currencyMap[rawCurrency];
     if (iso && iso !== 'XOF' && iso !== 'XAF') {
       try {
-        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: iso }).format(num);
+        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: iso })
+          .format(num)
+          .replace(/[\u202F\u00A0]/g, ' ');
       } catch (e) {}
     }
-    return new Intl.NumberFormat('fr-FR').format(Math.round(num)) + ' ' + rawCurrency;
+    // Remplacement explicite de l'espace insécable fin (\u202F) par un espace standard
+    // pour garantir la visibilité du séparateur de milliers dans tous les navigateurs et SVG
+    const formattedNum = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
+      .format(Math.round(num))
+      .replace(/[\u202F\u00A0]/g, ' ');
+    return formattedNum + ' ' + rawCurrency;
   },
 
   /**
@@ -2790,11 +2797,8 @@ window.KivoApp = {
       }
     });
 
-    // Format currency with Intl.NumberFormat('fr-FR')
-    const formatCurrency = (val) => {
-      const rawCurrency = (biz && biz.currency) || 'FCFA';
-      return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(val || 0)) + ' ' + rawCurrency;
-    };
+    // Utiliser le formateur centralisé de devise
+    const formatCurrency = (val) => this.formatCurrency(val);
 
     // Update total documents counter with count-up animation
     const totalDocs = totalInvoices + totalQuotes;
@@ -2983,10 +2987,11 @@ window.KivoApp = {
             docDate = doc.createdAt ? new Date(doc.createdAt).toLocaleDateString('fr-FR') : 'N/A';
           }
 
+          const clientDisplayName = doc.clientName || 'Client';
           return `
             <tr onclick="KivoApp.viewPublicDoc('${doc.id}')" style="cursor: pointer;" title="${_t('btn_edit')} ${doc.number}">
               <td><strong style="color: var(--primary); font-weight: 600;">${doc.number}</strong></td>
-              <td>${doc.clientName || 'Client'}</td>
+              <td title="${clientDisplayName}" style="max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${clientDisplayName}</td>
               <td style="color: var(--text-secondary);">${docDate}</td>
               <td><strong>${formatCurrency(doc.total || 0)}</strong></td>
               <td style="text-align: right;"><span class="kivo-dash-badge ${badgeClass}">${badgeText}</span></td>
@@ -3163,13 +3168,13 @@ window.KivoApp = {
       return;
     }
 
-    // SVG parameters
-    const svgW = 600;
+    // Paramètres SVG équilibrés pour éviter toute troncature à gauche (labels FCFA) et à droite (dernier mois / montant)
+    const svgW = 660;
     const svgH = 180;
     const padTop = 24;
     const padBottom = 32;
-    const padLeft = 45;
-    const padRight = 20;
+    const padLeft = 75;
+    const padRight = 50;
     const chartW = svgW - padLeft - padRight;
     const chartH = svgH - padTop - padBottom;
 
@@ -3201,7 +3206,7 @@ window.KivoApp = {
       const gy = (padTop + chartH * (1 - pct)).toFixed(1);
       const val = self.formatCurrency(ceiling * pct);
       return '<line x1="' + padLeft + '" y1="' + gy + '" x2="' + (svgW - padRight) + '" y2="' + gy + '" stroke="#F1F5F9" stroke-width="1" stroke-dasharray="3,4" />' +
-        '<text x="' + (padLeft - 8) + '" y="' + (parseFloat(gy) + 3.5).toFixed(1) + '" text-anchor="end" font-size="9" fill="#94A3B8" font-family="Inter,sans-serif">' + val + '</text>';
+        '<text x="' + (padLeft - 10) + '" y="' + (parseFloat(gy) + 3.5).toFixed(1) + '" text-anchor="end" font-size="9" fill="#94A3B8" font-family="Inter,sans-serif">' + val + '</text>';
     }).join('');
 
     // Markers and labels
@@ -3218,7 +3223,7 @@ window.KivoApp = {
     }).join('');
 
     container.innerHTML = `
-      <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;height:auto;overflow:visible;display:block;" aria-label="Évolution du chiffre d'affaires">
+      <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;min-width:480px;height:auto;display:block;" aria-label="Évolution du chiffre d'affaires">
         <defs>
           <linearGradient id="dashRevenueGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#4F46E5" stop-opacity="0.25"/>
@@ -7635,11 +7640,11 @@ window.KivoApp = {
               <line x1="6" y1="20" x2="6" y2="14"></line>
             </svg>
           </div>
-          <h3 style="font-size:1.3rem;font-weight:700;margin-bottom:0.6rem;color:var(--text-primary);font-family:var(--font-heading);">Aucune donnee statistique pour l instant</h3>
-          <p style="color:var(--text-muted);font-size:0.95rem;line-height:1.6;max-width:480px;margin:0 auto 2rem;">Creez et emettez vos premiers devis et factures. Vos statistiques apparaitront ici automatiquement.</p>
+          <h3 style="font-size:1.3rem;font-weight:700;margin-bottom:0.6rem;color:var(--text-primary);font-family:var(--font-heading);">Aucune donnée statistique pour l'instant</h3>
+          <p style="color:var(--text-muted);font-size:0.95rem;line-height:1.6;max-width:480px;margin:0 auto 2rem;">Créez et émettez vos premiers devis et factures. Vos statistiques apparaîtront ici automatiquement.</p>
           <button class="btn btn-primary" onclick="KivoApp.openNewDocModal('invoice')" style="padding:0.75rem 1.75rem;font-size:0.95rem;display:inline-flex;align-items:center;gap:0.5rem;margin:0 auto;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            <span>Creer mon premier document</span>
+            <span>Créer mon premier document</span>
           </button>
         </div>
       `;
@@ -7656,7 +7661,7 @@ window.KivoApp = {
     invoices.forEach(function(doc) {
       var tot = doc.total || 0;
       var s = (doc.status || '').toLowerCase().trim();
-      var isPaid = s === 'paid' || s === 'payee' || s === 'payee';
+      var isPaid = s === 'paid' || s === 'payée' || s === 'payee';
       if (isPaid)                           { paidTotal    += tot; paidCount++;    }
       else if (s === 'overdue')             { overdueTotal += tot; overdueCount++; }
       else if (s === 'sent' || s === 'viewed') { pendingTotal += tot; pendingCount++; }
@@ -7683,7 +7688,7 @@ window.KivoApp = {
     var maxCT = topClients.length > 0 ? topClients[0].total : 1;
 
     // ---- Monthly stats (last 6 months) ----
-    var mNames = ['Jan','Fev','Mar','Avr','Mai','Juin','Juil','Aout','Sep','Oct','Nov','Dec'];
+    var mNames = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
     var now = new Date();
     var monthlyStats = [];
     for (var i = 5; i >= 0; i--) {
@@ -7699,29 +7704,30 @@ window.KivoApp = {
         if (dt.getFullYear() === y && dt.getMonth() === mIdx) {
           mInvoiced += (inv.total || 0);
           var s = (inv.status || '').toLowerCase().trim();
-          if (s === 'paid' || s === 'payee') mPaid += (inv.total || 0);
+          if (s === 'paid' || s === 'payée' || s === 'payee') mPaid += (inv.total || 0);
         }
       });
       monthlyStats.push({ label: mNames[mIdx], paid: mPaid, invoiced: mInvoiced });
     }
     var maxMV = Math.max.apply(null, monthlyStats.map(function(m) { return Math.max(m.invoiced, m.paid); }).concat([1]));
 
-    // ---- SVG Grouped Bar Chart ----
-    var cW = 520, cH = 160, aH = 130;
+    // ---- SVG Grouped Bar Chart (Largeur sécurisée, zéro troncature) ----
+    var cW = 560, cH = 160, aH = 130, padLeft = 70;
     var nM = monthlyStats.length;
-    var gW = cW / nM;
-    var bW = Math.min(20, gW * 0.32);
+    var chartAreaW = cW - padLeft - 25;
+    var gW = chartAreaW / nM;
+    var bW = Math.min(22, gW * 0.32);
     var bg = bW * 0.45;
 
     var gridSvg = [0.25, 0.5, 0.75, 1].map(function(p) {
       var gy = (aH * (1 - p)).toFixed(1);
       var lbl = self.formatCurrency(maxMV * p);
-      return '<line x1="42" y1="' + gy + '" x2="' + cW + '" y2="' + gy + '" stroke="var(--border-color,#E5E7EB)" stroke-width="1" stroke-dasharray="3,5"/>' +
-             '<text x="38" y="' + (parseFloat(gy) + 4).toFixed(1) + '" text-anchor="end" font-size="9" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">' + lbl + '</text>';
+      return '<line x1="' + padLeft + '" y1="' + gy + '" x2="' + (cW - 20) + '" y2="' + gy + '" stroke="var(--border-color,#E5E7EB)" stroke-width="1" stroke-dasharray="3,5"/>' +
+             '<text x="' + (padLeft - 10) + '" y="' + (parseFloat(gy) + 4).toFixed(1) + '" text-anchor="end" font-size="9" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">' + lbl + '</text>';
     }).join('');
 
     var barsSvg = monthlyStats.map(function(m, idx) {
-      var cx    = gW * idx + gW / 2;
+      var cx    = padLeft + gW * idx + gW / 2;
       var invH  = maxMV > 0 ? Math.max(3, (m.invoiced / maxMV) * aH) : 3;
       var paidH = maxMV > 0 ? Math.max(3, (m.paid    / maxMV) * aH) : 3;
       var invY  = aH - invH;
@@ -7732,11 +7738,11 @@ window.KivoApp = {
       return '<g>' +
         '<rect x="' + (cx - bg - bW).toFixed(1) + '" y="' + invY.toFixed(1) + '" width="' + bW + '" height="' + invH.toFixed(1) + '" rx="3" fill="#C7D2FE"' +
           ' style="transform-origin:' + (cx - bg - bW/2).toFixed(1) + 'px ' + aH + 'px;animation:kivo-bar-grow 0.55s cubic-bezier(.22,1,.36,1) ' + delay + 's both;">' +
-          (fInv ? '<title>' + m.label + ': Emis ' + fInv + '</title>' : '') + '</rect>' +
+          (fInv ? '<title>' + m.label + ' : Émis ' + fInv + '</title>' : '') + '</rect>' +
         '<rect x="' + (cx + bg).toFixed(1) + '" y="' + paidY.toFixed(1) + '" width="' + bW + '" height="' + paidH.toFixed(1) + '" rx="3" fill="#10B981"' +
           ' style="transform-origin:' + (cx + bg + bW/2).toFixed(1) + 'px ' + aH + 'px;animation:kivo-bar-grow 0.55s cubic-bezier(.22,1,.36,1) ' + delay + 's both;">' +
-          (fPaid ? '<title>' + m.label + ': Encaisse ' + fPaid + '</title>' : '') + '</rect>' +
-        '<text x="' + cx.toFixed(1) + '" y="' + (aH + 15).toFixed(1) + '" text-anchor="middle" font-size="11" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">' + m.label + '</text>' +
+          (fPaid ? '<title>' + m.label + ' : Encaissé ' + fPaid + '</title>' : '') + '</rect>' +
+        '<text x="' + cx.toFixed(1) + '" y="' + (aH + 16).toFixed(1) + '" text-anchor="middle" font-size="11" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">' + m.label + '</text>' +
       '</g>';
     }).join('');
 
@@ -7744,31 +7750,32 @@ window.KivoApp = {
       <style>
         @keyframes kivo-bar-grow { from { transform:scaleY(0);opacity:0; } to { transform:scaleY(1);opacity:1; } }
       </style>
-      <svg viewBox="0 0 ${cW} ${aH + 24}" style="width:100%;overflow:visible;" aria-label="CA mensuel">${gridSvg}${barsSvg}</svg>`;
+      <svg viewBox="0 0 ${cW} ${aH + 28}" style="width:100%;min-width:480px;display:block;" aria-label="Évolution mensuelle du CA">${gridSvg}${barsSvg}</svg>`;
 
-    // ---- SVG Donut Chart ----
+    // ---- SVG Donut Chart (Garantie 100% visible par stroke circulaire SVG) ----
     var donutData = [
-      { label: 'Payees',      val: paidCount,    color: '#10B981' },
-      { label: 'En attente',  val: pendingCount,  color: '#F59E0B' },
-      { label: 'En retard',   val: overdueCount,  color: '#EF4444' },
-      { label: 'Brouillons',  val: draftCount,    color: '#6B7280' }
+      { label: 'Payées',      val: paidCount,    color: '#10B981' },
+      { label: 'En attente',  val: pendingCount, color: '#F59E0B' },
+      { label: 'En retard',   val: overdueCount, color: '#EF4444' },
+      { label: 'Brouillons',  val: draftCount,   color: '#6B7280' }
     ].filter(function(x) { return x.val > 0; });
 
     var totalDV = donutData.reduce(function(s, d) { return s + d.val; }, 0) || 1;
-    var R = 56, DCX = 75, DCY = 75;
-    var cumAngle = -0.5 * Math.PI;
+    var R = 48, DCX = 75, DCY = 75, strokeW = 16;
+    var C = 2 * Math.PI * R; // ~301.59
+    var cumOffset = 0;
 
     var donutSegs = donutData.map(function(d) {
       var frac = d.val / totalDV;
-      var sA = cumAngle;
-      var eA = sA + frac * 2 * Math.PI;
-      cumAngle = eA;
-      var x1 = DCX + R * Math.cos(sA), y1 = DCY + R * Math.sin(sA);
-      var x2 = DCX + R * Math.cos(eA), y2 = DCY + R * Math.sin(eA);
-      var la = frac > 0.5 ? 1 : 0;
-      return '<path d="M ' + DCX + ' ' + DCY + ' L ' + x1.toFixed(2) + ' ' + y1.toFixed(2) +
-             ' A ' + R + ' ' + R + ' 0 ' + la + ' 1 ' + x2.toFixed(2) + ' ' + y2.toFixed(2) + ' Z"' +
-             ' fill="' + d.color + '" opacity="0.9"><title>' + d.label + ': ' + d.val + '</title></path>';
+      var dash = (frac * C).toFixed(2);
+      var curOffset = cumOffset;
+      cumOffset += frac * C;
+      return '<circle cx="' + DCX + '" cy="' + DCY + '" r="' + R + '" fill="none"' +
+             ' stroke="' + d.color + '" stroke-width="' + strokeW + '"' +
+             ' stroke-dasharray="' + dash + ' ' + C.toFixed(2) + '"' +
+             ' stroke-dashoffset="' + (-curOffset).toFixed(2) + '"' +
+             ' transform="rotate(-90 ' + DCX + ' ' + DCY + ')">' +
+             '<title>' + d.label + ' : ' + d.val + '</title></circle>';
     }).join('');
 
     var donutLegend = donutData.map(function(d) {
@@ -7778,18 +7785,17 @@ window.KivoApp = {
         '<span style="margin-left:auto;font-weight:600;color:var(--text-primary);">' + d.val + '</span></div>';
     }).join('');
 
-    var donutSvg = '<svg viewBox="0 0 150 150" style="width:100%;max-width:150px;display:block;margin:0 auto;" aria-label="Repartition">' +
-      '<circle cx="' + DCX + '" cy="' + DCY + '" r="' + (R + 6) + '" fill="none" stroke="var(--border-color,#F3F4F6)" stroke-width="1"/>' +
+    var donutSvg = '<svg viewBox="0 0 150 150" style="width:100%;max-width:150px;display:block;margin:0 auto;" aria-label="Répartition des statuts">' +
+      '<circle cx="' + DCX + '" cy="' + DCY + '" r="' + R + '" fill="none" stroke="var(--border-color,#E5E7EB)" stroke-width="' + strokeW + '" opacity="0.35"/>' +
       donutSegs +
-      '<circle cx="' + DCX + '" cy="' + DCY + '" r="' + (R - 16) + '" fill="var(--bg-card,#fff)"/>' +
-      '<text x="' + DCX + '" y="' + (DCY - 4) + '" text-anchor="middle" font-size="20" font-weight="700" fill="var(--text-primary,#111827)" font-family="Outfit,sans-serif">' + invoices.length + '</text>' +
+      '<text x="' + DCX + '" y="' + (DCY - 2) + '" text-anchor="middle" font-size="20" font-weight="700" fill="var(--text-primary,#111827)" font-family="Outfit,sans-serif">' + invoices.length + '</text>' +
       '<text x="' + DCX + '" y="' + (DCY + 14) + '" text-anchor="middle" font-size="9.5" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">factures</text>' +
       '</svg>';
 
     // ---- Top Clients bars ----
     var clientColors = ['#4F46E5','#7C3AED','#2563EB','#059669','#D97706'];
     var clientBarsHtml = topClients.length === 0
-      ? '<p style="color:var(--text-muted);font-size:0.9rem;text-align:center;padding:2rem 0;">Aucun client enregistre.</p>'
+      ? '<p style="color:var(--text-muted);font-size:0.9rem;text-align:center;padding:2rem 0;">Aucun client enregistré.</p>'
       : topClients.map(function(c, idx) {
           var pct   = maxCT > 0 ? Math.round((c.total / maxCT) * 100) : 0;
           var col   = clientColors[idx % clientColors.length];
@@ -7817,13 +7823,13 @@ window.KivoApp = {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1rem;margin-bottom:1.75rem;">
         <div class="card kpi-card" style="padding:1.2rem;border-left:3px solid #10B981;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.35rem;">
-            <span style="color:var(--text-muted);font-size:0.8rem;font-weight:500;">CA Encaisse</span>
+            <span style="color:var(--text-muted);font-size:0.8rem;font-weight:500;">CA Encaissé</span>
             <span style="display:inline-flex;padding:5px;border-radius:8px;background:rgba(16,185,129,0.1);color:#10B981;">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             </span>
           </div>
           <div style="font-size:1.5rem;font-weight:700;color:#10B981;font-family:var(--font-heading);margin-bottom:0.15rem;">${this.formatCurrency(paidTotal)}</div>
-          <span style="font-size:0.76rem;color:var(--text-muted);">${paidCount} facture${paidCount > 1 ? 's' : ''} reglee${paidCount > 1 ? 's' : ''}</span>
+          <span style="font-size:0.76rem;color:var(--text-muted);">${paidCount} facture${paidCount > 1 ? 's' : ''} réglée${paidCount > 1 ? 's' : ''}</span>
         </div>
         <div class="card kpi-card" style="padding:1.2rem;border-left:3px solid #F59E0B;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.35rem;">
@@ -7843,7 +7849,7 @@ window.KivoApp = {
             </span>
           </div>
           <div style="font-size:1.5rem;font-weight:700;color:var(--text-primary);font-family:var(--font-heading);margin-bottom:0.15rem;">${recoveryRate}%</div>
-          <span style="font-size:0.76rem;color:var(--text-muted);">Sur ${self.formatCurrency(totalInvoiced)} facture</span>
+          <span style="font-size:0.76rem;color:var(--text-muted);">Sur ${self.formatCurrency(totalInvoiced)} facturés</span>
         </div>
         <div class="card kpi-card" style="padding:1.2rem;border-left:3px solid #6366F1;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.35rem;">
@@ -7853,7 +7859,7 @@ window.KivoApp = {
             </span>
           </div>
           <div style="font-size:1.5rem;font-weight:700;color:var(--text-primary);font-family:var(--font-heading);margin-bottom:0.15rem;">${quotes.length > 0 ? quoteAccRate + '%' : '—'}</div>
-          <span style="font-size:0.76rem;color:var(--text-muted);">${acceptedQ} sur ${quotes.length} devis</span>
+          <span style="font-size:0.76rem;color:var(--text-muted);">${quotes.length > 0 ? (acceptedQ + ' sur ' + quotes.length + ' devis') : 'Aucun devis émis pour le moment'}</span>
         </div>
       </div>
 
@@ -7861,18 +7867,18 @@ window.KivoApp = {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.4rem;margin-bottom:1.75rem;">
 
         <!-- Grouped Bar Chart -->
-        <div class="card" style="padding:1.5rem;grid-column:1/-1;">
+        <div class="card" style="padding:1.5rem;grid-column:1/-1;overflow-x:auto;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:1.25rem;">
             <div>
-              <h3 style="margin:0;font-size:1rem;font-weight:600;">Evolution mensuelle du CA</h3>
-              <p style="margin:3px 0 0;font-size:0.78rem;color:var(--text-muted);">Facturation et encaissements - 6 derniers mois</p>
+              <h3 style="margin:0;font-size:1rem;font-weight:600;">Évolution mensuelle du CA</h3>
+              <p style="margin:3px 0 0;font-size:0.78rem;color:var(--text-muted);">Facturation et encaissements — 6 derniers mois</p>
             </div>
             <div style="display:flex;gap:1rem;font-size:0.76rem;flex-shrink:0;">
               <span style="display:flex;align-items:center;gap:0.35rem;color:var(--text-muted);">
-                <span style="width:10px;height:10px;border-radius:3px;background:#C7D2FE;display:inline-block;"></span>Emis
+                <span style="width:10px;height:10px;border-radius:3px;background:#C7D2FE;display:inline-block;"></span>Émis
               </span>
               <span style="display:flex;align-items:center;gap:0.35rem;color:var(--text-muted);">
-                <span style="width:10px;height:10px;border-radius:3px;background:#10B981;display:inline-block;"></span>Encaisse
+                <span style="width:10px;height:10px;border-radius:3px;background:#10B981;display:inline-block;"></span>Encaissé
               </span>
             </div>
           </div>
@@ -7882,7 +7888,7 @@ window.KivoApp = {
         <!-- Donut: Status distribution -->
         <div class="card" style="padding:1.5rem;">
           <div style="margin-bottom:1.25rem;">
-            <h3 style="margin:0;font-size:1rem;font-weight:600;">Repartition des statuts</h3>
+            <h3 style="margin:0;font-size:1rem;font-weight:600;">Répartition des statuts</h3>
             <p style="margin:3px 0 0;font-size:0.78rem;color:var(--text-muted);">${invoices.length} facture${invoices.length > 1 ? 's' : ''} au total</p>
           </div>
           <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
