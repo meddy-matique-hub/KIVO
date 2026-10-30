@@ -3877,7 +3877,8 @@ window.KivoApp = {
     if (termsCustomInput) termsCustomInput.style.display = 'none';
     setVal('builder-payment-method', 'Virement bancaire');
     setVal('builder-doc-currency', this.state.business.currency || 'FCFA');
-    setVal('builder-visual-template', this.state.business.visualTemplate || 'minimalist');
+    const safeTemplate3880 = (this.state.business.visualTemplate && this.canUse('template', this.state.business.visualTemplate)) ? this.state.business.visualTemplate : 'minimalist';
+    setVal('builder-visual-template', safeTemplate3880);
     const rawP = this.state.business.primaryColor;
     const initPrimaryColor = (!rawP || rawP === '#000000' || rawP === '#000') ? '#4F46E5' : rawP;
     const rawS = this.state.business.secondaryColor;
@@ -4140,7 +4141,8 @@ window.KivoApp = {
     }
 
     // Colors & Template
-    const templateVal = doc.templateId || doc.visualTemplate || meta.templateId || biz.visualTemplate || 'minimalist';
+    const rawTemplateVal = doc.templateId || doc.visualTemplate || meta.templateId || biz.visualTemplate || 'minimalist';
+    const templateVal = this.canUse('template', rawTemplateVal) ? rawTemplateVal : 'minimalist';
     setVal('builder-visual-template', templateVal);
     const rawPrim = doc.primaryColor || meta.primaryColor || biz.primaryColor;
     const primColor = (!rawPrim || rawPrim === '#000000' || rawPrim === '#000') ? '#4F46E5' : rawPrim;
@@ -5259,7 +5261,16 @@ window.KivoApp = {
     // Inject all templates in select options (for builder)
     const selectEl = document.getElementById('builder-visual-template');
     if (selectEl && selectEl.options.length <= 6) {
-      selectEl.innerHTML = window.KivoTemplates.builtIn.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+      const self = this;
+      selectEl.innerHTML = window.KivoTemplates.builtIn.map(function(t) {
+        const locked = !self.canUse('template', t.id);
+        return `<option value="${t.id}">${locked ? '🔒 ' : ''}${t.name}${locked ? ' (PRO)' : ''}</option>`;
+      }).join('');
+      // S'assurer que la valeur courante est un template autorisé
+      const curTmpl = selectEl.value || 'minimalist';
+      if (!this.canUse('template', curTmpl)) {
+        selectEl.value = 'minimalist';
+      }
     }
 
     if (!gallery) return;
@@ -7130,6 +7141,15 @@ window.KivoApp = {
   },
 
   onBuilderTemplateChange: function (templateId) {
+    // Guard PRO : revenir au template précédent et afficher l'invite d'upgrade si template verrouillé
+    if (!this.canUse('template', templateId)) {
+      const prevTemplate = this.state.business?.visualTemplate || 'minimalist';
+      const sel = document.getElementById('builder-visual-template');
+      if (sel) sel.value = prevTemplate;
+      const tmplObj = window.KivoTemplates?.builtIn?.find(t => t.id === templateId);
+      this.showUpgradePrompt('template', tmplObj ? tmplObj.name : templateId);
+      return;
+    }
     this.state.business = this.state.business || {};
     this.state.business.visualTemplate = templateId;
     this.saveState();
@@ -7712,7 +7732,7 @@ window.KivoApp = {
     var maxMV = Math.max.apply(null, monthlyStats.map(function(m) { return Math.max(m.invoiced, m.paid); }).concat([1]));
 
     // ---- SVG Grouped Bar Chart (Largeur sécurisée, zéro troncature) ----
-    var cW = 560, cH = 160, aH = 130, padLeft = 70;
+    var cW = 560, aH = 130, padTop = 20, padLeft = 70;
     var nM = monthlyStats.length;
     var chartAreaW = cW - padLeft - 25;
     var gW = chartAreaW / nM;
@@ -7720,7 +7740,7 @@ window.KivoApp = {
     var bg = bW * 0.45;
 
     var gridSvg = [0.25, 0.5, 0.75, 1].map(function(p) {
-      var gy = (aH * (1 - p)).toFixed(1);
+      var gy = (padTop + aH * (1 - p)).toFixed(1);
       var lbl = self.formatCurrency(maxMV * p);
       return '<line x1="' + padLeft + '" y1="' + gy + '" x2="' + (cW - 20) + '" y2="' + gy + '" stroke="var(--border-color,#E5E7EB)" stroke-width="1" stroke-dasharray="3,5"/>' +
              '<text x="' + (padLeft - 10) + '" y="' + (parseFloat(gy) + 4).toFixed(1) + '" text-anchor="end" font-size="9" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">' + lbl + '</text>';
@@ -7730,19 +7750,19 @@ window.KivoApp = {
       var cx    = padLeft + gW * idx + gW / 2;
       var invH  = maxMV > 0 ? Math.max(3, (m.invoiced / maxMV) * aH) : 3;
       var paidH = maxMV > 0 ? Math.max(3, (m.paid    / maxMV) * aH) : 3;
-      var invY  = aH - invH;
-      var paidY = aH - paidH;
+      var invY  = padTop + aH - invH;
+      var paidY = padTop + aH - paidH;
       var delay = (idx * 0.07).toFixed(2);
       var fInv  = m.invoiced > 0 ? self.formatCurrency(m.invoiced) : '';
       var fPaid = m.paid     > 0 ? self.formatCurrency(m.paid)     : '';
       return '<g>' +
         '<rect x="' + (cx - bg - bW).toFixed(1) + '" y="' + invY.toFixed(1) + '" width="' + bW + '" height="' + invH.toFixed(1) + '" rx="3" fill="#C7D2FE"' +
-          ' style="transform-origin:' + (cx - bg - bW/2).toFixed(1) + 'px ' + aH + 'px;animation:kivo-bar-grow 0.55s cubic-bezier(.22,1,.36,1) ' + delay + 's both;">' +
+          ' style="transform-origin:' + (cx - bg - bW/2).toFixed(1) + 'px ' + (padTop + aH) + 'px;animation:kivo-bar-grow 0.55s cubic-bezier(.22,1,.36,1) ' + delay + 's both;">' +
           (fInv ? '<title>' + m.label + ' : Émis ' + fInv + '</title>' : '') + '</rect>' +
         '<rect x="' + (cx + bg).toFixed(1) + '" y="' + paidY.toFixed(1) + '" width="' + bW + '" height="' + paidH.toFixed(1) + '" rx="3" fill="#10B981"' +
-          ' style="transform-origin:' + (cx + bg + bW/2).toFixed(1) + 'px ' + aH + 'px;animation:kivo-bar-grow 0.55s cubic-bezier(.22,1,.36,1) ' + delay + 's both;">' +
+          ' style="transform-origin:' + (cx + bg + bW/2).toFixed(1) + 'px ' + (padTop + aH) + 'px;animation:kivo-bar-grow 0.55s cubic-bezier(.22,1,.36,1) ' + delay + 's both;">' +
           (fPaid ? '<title>' + m.label + ' : Encaissé ' + fPaid + '</title>' : '') + '</rect>' +
-        '<text x="' + cx.toFixed(1) + '" y="' + (aH + 16).toFixed(1) + '" text-anchor="middle" font-size="11" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">' + m.label + '</text>' +
+        '<text x="' + cx.toFixed(1) + '" y="' + (padTop + aH + 16).toFixed(1) + '" text-anchor="middle" font-size="11" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">' + m.label + '</text>' +
       '</g>';
     }).join('');
 
@@ -7750,7 +7770,7 @@ window.KivoApp = {
       <style>
         @keyframes kivo-bar-grow { from { transform:scaleY(0);opacity:0; } to { transform:scaleY(1);opacity:1; } }
       </style>
-      <svg viewBox="0 0 ${cW} ${aH + 28}" style="width:100%;min-width:480px;display:block;" aria-label="Évolution mensuelle du CA">${gridSvg}${barsSvg}</svg>`;
+      <svg viewBox="0 0 ${cW} ${padTop + aH + 28}" style="width:100%;min-width:480px;display:block;" aria-label="Évolution mensuelle du CA">${gridSvg}${barsSvg}</svg>`;
 
     // ---- SVG Donut Chart (Garantie 100% visible par stroke circulaire SVG) ----
     var donutData = [
