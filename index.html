@@ -1435,12 +1435,12 @@
                   </div>
 
                   <!-- Card 4: En retard -->
-                  <div class="kivo-dash-card">
+                  <div class="kivo-dash-card" style="border-left: 3px solid #EF4444;">
                     <div>
-                      <div class="kivo-dash-card-label">En retard critique</div>
-                      <div id="kpi-overdue-amount" class="kivo-dash-card-value" style="color:#EF4444;">0 FCFA</div>
+                      <div class="kivo-dash-card-label" style="color: #DC2626; font-weight: 600;">Factures en retard</div>
+                      <div id="kpi-overdue-amount" class="kivo-dash-card-value" style="color:#EF4444; font-weight: 800;">0 FCFA</div>
                     </div>
-                    <div id="kpi-overdue-count" class="kivo-dash-card-detail">0 facture en retard</div>
+                    <div id="kpi-overdue-count" class="kivo-dash-card-detail" style="color: #DC2626; font-weight: 500;">0 facture en retard</div>
                   </div>
 
                 </div>
@@ -1501,23 +1501,25 @@
               <p class="page-subtitle">Gérez l'ensemble de vos devis et factures clients.</p>
             </div>
             <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-              <!-- Bouton Exporter avec menu déroulant -->
+              <!-- Bouton Exporter avec menu déroulant multi-formats -->
               <div class="export-dropdown-wrap" id="docs-export-dropdown-wrap" style="position: relative;">
                 <button class="btn btn-secondary" id="docs-export-btn" onclick="KivoApp.toggleExportDropdown('docs')" style="height: 44px; display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Exporter
+                  <span>Exporter</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                <div class="export-dropdown-menu" id="docs-export-menu" style="display: none; position: absolute; right: 0; top: calc(100% + 6px); background: var(--bg-card, #fff); border: 1px solid var(--border-color, #E2E8F0); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); min-width: 180px; z-index: 200; overflow: hidden;">
-                  <button class="export-dropdown-item" onclick="KivoApp.exportDocsCsv(); KivoApp.closeExportDropdown('docs');" style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: var(--text-primary); text-align: left; transition: background 0.15s;" onmouseover="this.style.background='var(--bg-subtle)'" onmouseout="this.style.background=''">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    Exporter CSV
-                    <span style="font-size: 0.72rem; color: var(--text-muted); margin-left: auto;">Tous forfaits</span>
+                <div class="export-dropdown-menu" id="docs-export-menu" style="display: none; position: absolute; right: 0; top: calc(100% + 6px); background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); min-width: 210px; z-index: 200; overflow: hidden; padding: 4px 0;">
+                  <button class="export-dropdown-item" onclick="KivoApp.exportDocsPdf(); KivoApp.closeExportDropdown('docs');" style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: #1E293B; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='none'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <span>Exporter en PDF</span>
                   </button>
-                  <button class="export-dropdown-item" onclick="KivoApp.exportDocsExcel(); KivoApp.closeExportDropdown('docs');" style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: var(--text-primary); text-align: left; transition: background 0.15s; border-top: 1px solid var(--border-color, #F1F5F9);" onmouseover="this.style.background='var(--bg-subtle)'" onmouseout="this.style.background=''">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                    Exporter Excel
-                    <span style="font-size: 0.72rem; color: var(--text-muted); margin-left: auto;">Pro / Business</span>
+                  <button class="export-dropdown-item" onclick="KivoApp.exportDocsExcel(); KivoApp.closeExportDropdown('docs');" style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: #1E293B; text-align: left; transition: background 0.15s; border-top: 1px solid #F1F5F9;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='none'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                    <span>Exporter en Excel (.xlsx)</span>
+                  </button>
+                  <button class="export-dropdown-item" onclick="KivoApp.exportDocsCsv(); KivoApp.closeExportDropdown('docs');" style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: #1E293B; text-align: left; transition: background 0.15s; border-top: 1px solid #F1F5F9;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='none'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    <span>Exporter en CSV</span>
                   </button>
                 </div>
               </div>
@@ -2099,7 +2101,7 @@
                         <option value="draft">Brouillon</option>
                         <option value="sent">Envoyée / En attente</option>
                         <option value="paid">Payée (Filigrane)</option>
-                        <option value="overdue">En retard</option>
+                        <option value="cancelled">Annulée</option>
                       </select>
                     </div>
                   </div>
@@ -2253,6 +2255,15 @@
                         <input type="color" id="builder-color-secondary" value="#475569" style="width: 38px; height: 38px; padding: 2px; border-radius: 6px; border: 1px solid #CBD5E1; cursor: pointer;" onchange="KivoApp.onBuilderColorChange()">
                         <input type="text" id="builder-color-secondary-text" value="#475569" style="flex: 1; padding: 0.55rem 0.65rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.8rem; font-family: monospace;" oninput="KivoApp.onBuilderColorTextInput('secondary', this.value)">
                       </div>
+                    </div>
+                  </div>
+
+                  <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.35rem;">Couleur d'arrière-plan du document</label>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <input type="color" id="builder-color-bg" value="#FFFFFF" style="width: 38px; height: 38px; padding: 2px; border-radius: 6px; border: 1px solid #CBD5E1; cursor: pointer;" onchange="KivoApp.onBuilderColorChange()">
+                      <input type="text" id="builder-color-bg-text" value="#FFFFFF" style="max-width: 140px; padding: 0.55rem 0.65rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.8rem; font-family: monospace;" oninput="KivoApp.onBuilderColorTextInput('bg', this.value)">
+                      <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('builder-color-bg').value='#FFFFFF'; document.getElementById('builder-color-bg-text').value='#FFFFFF'; KivoApp.onBuilderColorChange();" style="padding: 0.4rem 0.65rem; font-size: 0.75rem;">Blanc par défaut</button>
                     </div>
                   </div>
 
@@ -2472,23 +2483,25 @@
               <p class="page-subtitle">Base de données clients et historique financier.</p>
             </div>
             <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-              <!-- Bouton Exporter clients -->
+              <!-- Bouton Exporter clients multi-formats -->
               <div class="export-dropdown-wrap" id="clients-export-dropdown-wrap" style="position: relative;">
                 <button class="btn btn-secondary" id="clients-export-btn" onclick="KivoApp.toggleExportDropdown('clients')" style="height: 44px; display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Exporter
+                  <span>Exporter</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                <div class="export-dropdown-menu" id="clients-export-menu" style="display: none; position: absolute; right: 0; top: calc(100% + 6px); background: var(--bg-card, #fff); border: 1px solid var(--border-color, #E2E8F0); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); min-width: 180px; z-index: 200; overflow: hidden;">
-                  <button class="export-dropdown-item" onclick="KivoApp.exportClientsCsv(); KivoApp.closeExportDropdown('clients');" style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: var(--text-primary); text-align: left; transition: background 0.15s;" onmouseover="this.style.background='var(--bg-subtle)'" onmouseout="this.style.background=''">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    Exporter CSV
-                    <span style="font-size: 0.72rem; color: var(--text-muted); margin-left: auto;">Tous forfaits</span>
+                <div class="export-dropdown-menu" id="clients-export-menu" style="display: none; position: absolute; right: 0; top: calc(100% + 6px); background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); min-width: 210px; z-index: 200; overflow: hidden; padding: 4px 0;">
+                  <button class="export-dropdown-item" onclick="KivoApp.exportClientsPdf(); KivoApp.closeExportDropdown('clients');" style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: #1E293B; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='none'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <span>Exporter en PDF</span>
                   </button>
-                  <button class="export-dropdown-item" onclick="KivoApp.exportClientsExcel(); KivoApp.closeExportDropdown('clients');" style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: var(--text-primary); text-align: left; transition: background 0.15s; border-top: 1px solid var(--border-color, #F1F5F9);" onmouseover="this.style.background='var(--bg-subtle)'" onmouseout="this.style.background=''">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                    Exporter Excel
-                    <span style="font-size: 0.72rem; color: var(--text-muted); margin-left: auto;">Pro / Business</span>
+                  <button class="export-dropdown-item" onclick="KivoApp.exportClientsExcel(); KivoApp.closeExportDropdown('clients');" style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: #1E293B; text-align: left; transition: background 0.15s; border-top: 1px solid #F1F5F9;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='none'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                    <span>Exporter en Excel (.xlsx)</span>
+                  </button>
+                  <button class="export-dropdown-item" onclick="KivoApp.exportClientsCsv(); KivoApp.closeExportDropdown('clients');" style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: #1E293B; text-align: left; transition: background 0.15s; border-top: 1px solid #F1F5F9;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='none'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    <span>Exporter en CSV</span>
                   </button>
                 </div>
               </div>
@@ -2564,9 +2577,9 @@
                 <p>Choisissez un style pour vos documents</p>
               </div>
               <div class="kivo-templates-actions">
-                <button class="btn btn-outline" disabled style="opacity: 0.6; cursor: not-allowed;" title="Bientôt disponible">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  Bientôt disponible
+                <button class="btn btn-outline" style="display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 500;" onclick="KivoApp.openTemplateEditor()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <span>Créer un modèle</span>
                 </button>
                 <button class="btn btn-ai" disabled style="opacity: 0.55; cursor: not-allowed;" title="Bientôt disponible — nous finalisons cette fonctionnalité pour la rendre vraiment fiable." onclick="KivoApp.showToast('La création de modèles avec IA arrive bientôt, pour les forfaits Pro et Business.', 'info')">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
@@ -2599,7 +2612,10 @@
             <div style="text-align: center; padding: 4rem; color: #64748b; grid-column: 1 / -1;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="margin-bottom: 1rem; opacity: 0.5;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
               <p>Vous n'avez pas encore de modèles personnalisés.</p>
-              <button class="btn btn-outline" style="margin-top: 1rem;" onclick="KivoApp.openTemplateEditor()">Créer mon modèle</button>
+              <button type="button" class="btn btn-create-template" style="margin-top: 1.25rem; display: inline-flex; align-items: center; gap: 0.5rem; background-color: #2563EB; color: #FFFFFF; padding: 0.625rem 1.5rem; border-radius: 0.5rem; font-weight: 500; font-size: 0.95rem; border: none; cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#1D4ED8'" onmouseout="this.style.backgroundColor='#2563EB'" onclick="KivoApp.openTemplateEditor()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Créer mon modèle</span>
+              </button>
             </div>
           </div>
           
@@ -2675,8 +2691,30 @@
               <h1>Statistiques & Performance</h1>
               <p class="page-subtitle">Analysez l'évolution de vos ventes et de vos encaissements.</p>
             </div>
-            <div class="header-actions">
-              <button class="btn btn-secondary" onclick="KivoApp.sendAnalyticsSummaryWhatsApp()" title="Partager le résumé du mois sur WhatsApp" style="display: inline-flex; align-items: center; gap: 0.5rem; color: #25D366; border-color: rgba(37, 211, 102, 0.35);">
+            <div class="header-actions" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+              <!-- Bouton Exporter Rapports multi-formats -->
+              <div class="export-dropdown-wrap" id="analytics-export-dropdown-wrap" style="position: relative;">
+                <button class="btn btn-secondary" id="analytics-export-btn" onclick="KivoApp.toggleExportDropdown('analytics')" style="height: 44px; display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span>Exporter</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="export-dropdown-menu" id="analytics-export-menu" style="display: none; position: absolute; right: 0; top: calc(100% + 6px); background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); min-width: 210px; z-index: 200; overflow: hidden; padding: 4px 0;">
+                  <button class="export-dropdown-item" onclick="KivoApp.exportAnalyticsPdf(); KivoApp.closeExportDropdown('analytics');" style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: #1E293B; text-align: left; transition: background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='none'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <span>Exporter en PDF</span>
+                  </button>
+                  <button class="export-dropdown-item" onclick="KivoApp.exportAnalyticsExcel(); KivoApp.closeExportDropdown('analytics');" style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: #1E293B; text-align: left; transition: background 0.15s; border-top: 1px solid #F1F5F9;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='none'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                    <span>Exporter en Excel (.xlsx)</span>
+                  </button>
+                  <button class="export-dropdown-item" onclick="KivoApp.exportAnalyticsCsv(); KivoApp.closeExportDropdown('analytics');" style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: #1E293B; text-align: left; transition: background 0.15s; border-top: 1px solid #F1F5F9;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='none'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    <span>Exporter en CSV</span>
+                  </button>
+                </div>
+              </div>
+              <button class="btn btn-secondary" onclick="KivoApp.sendAnalyticsSummaryWhatsApp()" title="Partager le résumé du mois sur WhatsApp" style="display: inline-flex; align-items: center; gap: 0.5rem; color: #25D366; border-color: rgba(37, 211, 102, 0.35); height: 44px;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
                 <span>Résumé WhatsApp</span>
               </button>
@@ -4040,10 +4078,13 @@
               <div>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
                   <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div style="width: 42px; height: 42px; border-radius: 10px; background: #4F46E5; display: flex; align-items: center; justify-content: center; color: #FFF; font-weight: 800; font-size: 1.1rem;">CB</div>
+                    <div style="width: 48px; height: 42px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 2px 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+                      <svg width="22" height="11" viewBox="0 0 36 12" fill="none"><path d="M14.28 0.3L9.36 11.7H6.16L3.76 2.52C3.6 1.94 3.48 1.72 3.02 1.48C2.28 1.08 1.08 0.72 0.02 0.5L0.08 0.3H5.24C5.9 0.3 6.5 0.74 6.64 1.54L7.9 8.16L11.12 0.3H14.28ZM26.8 7.94C26.82 4.9 22.58 4.74 22.62 3.38C22.64 2.96 23.04 2.52 23.96 2.4C24.42 2.34 25.64 2.28 26.96 2.9L27.5 0.44C26.76 0.18 25.82 0 24.62 0C21.64 0 19.54 1.58 19.52 3.84C19.5 5.52 21.02 6.46 22.16 7.02C23.34 7.6 23.74 7.96 23.72 8.48C23.7 9.28 22.74 9.64 21.84 9.66C20.32 9.68 19.42 9.26 18.72 8.94L18.16 11.54C18.94 11.9 20.36 12.2 21.82 12.22C24.98 12.22 27.02 10.66 26.8 7.94ZM34.78 11.7H37.54L35.12 0.3H32.7C32.1 0.3 31.6 0.64 31.38 1.22L26.82 11.7H30.14L30.8 9.86H34.84L34.78 11.7ZM31.7 7.38L33.36 2.82L34.32 7.38H31.7ZM18.88 0.3L16.32 11.7H13.28L15.84 0.3H18.88Z" fill="#1434CB"/></svg>
+                      <svg width="18" height="13" viewBox="0 0 24 15" fill="none"><circle cx="7.5" cy="7.5" r="7.5" fill="#EB001B"/><circle cx="16.5" cy="7.5" r="7.5" fill="#F79E1B"/><path d="M12 2.25A7.47 7.47 0 0 0 9.27 7.5c0 2.15 1.05 4.06 2.73 5.25a7.47 7.47 0 0 0 2.73-5.25c0-2.15-1.05-4.06-2.73-5.25z" fill="#FF5F00"/></svg>
+                    </div>
                     <div>
                       <h3 style="margin: 0; font-size: 1.05rem;">Carte bancaire</h3>
-                      <span style="font-size: 0.8rem; color: var(--text-muted);">Paiements Visa / Mastercard</span>
+                      <span style="font-size: 0.8rem; color: var(--text-muted);">Paiements Visa &amp; Mastercard</span>
                     </div>
                   </div>
                   <span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #6366F1;">Bientôt disponible</span>
@@ -4061,10 +4102,13 @@
               <div>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
                   <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div style="width: 42px; height: 42px; border-radius: 10px; background: #00A6EB; display: flex; align-items: center; justify-content: center; color: #FFF; font-weight: 800; font-size: 1.1rem;">MM</div>
+                    <div style="width: 48px; height: 42px; border-radius: 10px; background: #FFF; border: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: center; gap: 3px; padding: 2px 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+                      <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#FFCC00;color:#000;font-weight:900;font-size:6.5px;font-family:sans-serif;">MoMo</span>
+                      <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#1DC0F2;color:#FFF;font-weight:900;font-size:8px;">~</span>
+                    </div>
                     <div>
                       <h3 style="margin: 0; font-size: 1.05rem;">Mobile Money</h3>
-                      <span style="font-size: 0.8rem; color: var(--text-muted);">Paiement mobile sécurisé</span>
+                      <span style="font-size: 0.8rem; color: var(--text-muted);">MTN MoMo, Wave, Orange, Airtel</span>
                     </div>
                   </div>
                   <span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #6366F1;">Bientôt disponible</span>
@@ -4108,16 +4152,16 @@
                     <div style="width: 42px; height: 42px; border-radius: 10px; background: #3B82F6; display: flex; align-items: center; justify-content: center; color: #FFF;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
                     <div>
                       <h3 style="margin: 0; font-size: 1.05rem;">Export Comptable</h3>
-                      <span style="font-size: 0.8rem; color: var(--text-muted);">FEC, CSV, Sage & QuickBooks</span>
+                      <span style="font-size: 0.8rem; color: var(--text-muted);">FEC, CSV, Sage &amp; QuickBooks</span>
                     </div>
                   </div>
-                  <span class="badge" style="background: #FEF3C7; color: #92400E;">Bientôt disponible</span>
+                  <span class="badge" style="background: #DCFCE7; color: #166534; font-weight: 600;">Disponible</span>
                 </div>
-                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Exportez vos écritures comptables synchronisées pour votre expert-comptable.</p>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Exportez vos écritures comptables synchronisées (FEC, CSV, Sage/QuickBooks) pour votre expert-comptable.</p>
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 1rem;">
-                <span style="font-size: 0.8rem; color: var(--text-muted);">Plan Business</span>
-                <button class="btn btn-secondary btn-sm" disabled style="opacity: 0.6;">Bientôt</button>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Standard FEC / CSV</span>
+                <button class="btn btn-primary btn-sm" onclick="KivoApp.openAccountingExportModal()">Exporter les écritures</button>
               </div>
             </div>
           </div>
@@ -4813,6 +4857,43 @@
         <button class="btn btn-primary" onclick="KivoApp.closeModal('modal-add-seat');KivoApp.openInviteMemberModal();">
           Inviter un membre maintenant →
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Export Comptable -->
+  <div class="modal-overlay" id="modal-accounting-export">
+    <div class="modal-card" style="max-width:520px;">
+      <div class="modal-header">
+        <h2 style="display:flex;align-items:center;gap:0.5rem;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Export Comptable
+        </h2>
+        <button class="modal-close" onclick="KivoApp.closeModal('modal-accounting-export')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+
+      <div style="padding:0.5rem 0 1rem;">
+        <p style="font-size:0.88rem;color:var(--text-secondary);margin:0 0 1.25rem;line-height:1.5;">
+          Exportez les écritures de ventes synchronisées pour votre cabinet comptable ou logiciel de gestion.
+        </p>
+
+        <div style="display:flex;flex-direction:column;gap:0.75rem;">
+          <div style="border:1px solid #E2E8F0;border-radius:10px;padding:1rem;display:flex;align-items:center;justify-content:space-between;background:#FFFFFF;">
+            <div>
+              <div style="font-weight:700;font-size:0.92rem;color:#0F172A;">Format FEC Officiel (.txt)</div>
+              <div style="font-size:0.78rem;color:#64748B;">Fichier des Écritures Comptables conforme DGFIP (France / OHADA standard)</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="KivoApp.downloadAccountingExport('fec')">Télécharger</button>
+          </div>
+
+          <div style="border:1px solid #E2E8F0;border-radius:10px;padding:1rem;display:flex;align-items:center;justify-content:space-between;background:#FFFFFF;">
+            <div>
+              <div style="font-weight:700;font-size:0.92rem;color:#0F172A;">CSV Comptable (Standard)</div>
+              <div style="font-size:0.78rem;color:#64748B;">Compatible Sage, QuickBooks, EBP, Cegid et Excel</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="KivoApp.downloadAccountingExport('csv')">Télécharger</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

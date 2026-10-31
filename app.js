@@ -328,17 +328,40 @@ window.KivoApp = {
       self.saveState();
 
       // Mettre à jour le compteur affiché
-      const members = (self.state.business && self.state.business.teamMembers) || [];
+      const members = self._teamMembers || (self.state.business && self.state.business.teamMembers) || [];
       const totalOccupied = 1 + members.length;
       const totalSeats = 5 + self.state.business.extraSeats;
       const badgeEl = document.getElementById('invite-seats-badge');
-      if (badgeEl) badgeEl.textContent = totalOccupied + ' / ' + totalSeats + ' sièges';
+      if (badgeEl) {
+        badgeEl.textContent = totalOccupied + ' / ' + totalSeats + ' sièges';
+        badgeEl.style.background = '#F1F5F9';
+        badgeEl.style.color = '#334155';
+      }
       const seatsEl = document.getElementById('team-kpi-seats');
       if (seatsEl) seatsEl.innerHTML = totalOccupied + ' <span style="font-size:1rem;color:var(--text-muted);font-weight:normal;">/ ' + totalSeats + ' (Plan Business)</span>';
 
       // Masquer la bannière limite si le plafond n'est plus atteint
       const limitBanner = document.getElementById('invite-seats-limit-banner');
       if (limitBanner && totalOccupied < totalSeats) limitBanner.style.display = 'none';
+
+      // Réactiver le formulaire d'invitation
+      const sendBtn = document.getElementById('btn-send-member-invite');
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.style.opacity = '1';
+        sendBtn.style.cursor = 'pointer';
+      }
+      const emailInput = document.getElementById('invite-member-email');
+      if (emailInput) {
+        emailInput.disabled = false;
+      }
+
+      // Re-rendre la vue équipe pour mettre à jour tous les éléments
+      if (typeof self.renderTeam === 'function') {
+        self.renderTeam();
+      }
+
+      self.showToast('Nouveau siège activé avec succès !', 'success');
 
       // Afficher l'étape succès
       const stepConfirm = document.getElementById('add-seat-step-confirm');
@@ -641,7 +664,8 @@ window.KivoApp = {
         'modal-client-details',
         'modal-change-password',
         'modal-connected-accounts',
-        'modal-add-seat'
+        'modal-add-seat',
+        'modal-accounting-export'
       ];
       modalIds.forEach(function(id) {
         const el = document.getElementById(id);
@@ -2882,10 +2906,24 @@ window.KivoApp = {
         totalInvoices++;
         const s = (doc.status || '').toLowerCase().trim();
         const isDocPaid = s === 'paid' || s === 'payée' || s === 'payee';
+        const isDocDraft = s === 'draft' || s === 'brouillon';
+        const isDocCancelled = s === 'cancelled' || s === 'annulée' || s === 'annulee' || s === 'rejected';
+
+        let isPastDue = false;
+        if (!isDocPaid && !isDocDraft && !isDocCancelled && doc.dueDate) {
+          try {
+            const dStr = String(doc.dueDate);
+            const dt = new Date(dStr + (dStr.includes('T') ? '' : 'T23:59:59'));
+            if (!isNaN(dt.getTime()) && dt < new Date()) {
+              isPastDue = true;
+            }
+          } catch (_) {}
+        }
+
         if (isDocPaid) {
           paidTotal += docTotal;
           paidInvoicesCount++;
-        } else if (s === 'overdue') {
+        } else if (s === 'overdue' || isPastDue) {
           overdueTotal += docTotal;
           overdueInvoicesCount++;
         } else if (s === 'sent' || s === 'viewed') {
@@ -3983,10 +4021,14 @@ window.KivoApp = {
     const initPrimaryColor = (!rawP || rawP === '#000000' || rawP === '#000') ? '#4F46E5' : rawP;
     const rawS = this.state.business.secondaryColor;
     const initSecondaryColor = (!rawS || rawS === '#000000' || rawS === '#000') ? '#64748B' : rawS;
+    const rawBg = this.state.business.docBgColor;
+    const initBgColor = (!rawBg || rawBg === '#000000' || rawBg === '#000') ? '#FFFFFF' : rawBg;
     setVal('builder-color-primary', initPrimaryColor);
     setVal('builder-color-primary-text', initPrimaryColor);
     setVal('builder-color-secondary', initSecondaryColor);
     setVal('builder-color-secondary-text', initSecondaryColor);
+    setVal('builder-color-bg', initBgColor);
+    setVal('builder-color-bg-text', initBgColor);
     const titleEl = document.getElementById('builder-page-title');
     if (titleEl) titleEl.textContent = (type === 'quote') ? 'Créer un devis' : 'Créer une facture';
 
@@ -4249,10 +4291,14 @@ window.KivoApp = {
     const primColor = (!rawPrim || rawPrim === '#000000' || rawPrim === '#000') ? '#4F46E5' : rawPrim;
     const rawSec = doc.secondaryColor || meta.secondaryColor || biz.secondaryColor;
     const secColor = (!rawSec || rawSec === '#000000' || rawSec === '#000') ? '#64748B' : rawSec;
+    const rawBg = doc.bgColor || meta.bgColor || biz.docBgColor;
+    const bgColor = (!rawBg || rawBg === '#000000' || rawBg === '#000') ? '#FFFFFF' : rawBg;
     setVal('builder-color-primary', primColor);
     setVal('builder-color-primary-text', primColor);
     setVal('builder-color-secondary', secColor);
     setVal('builder-color-secondary-text', secColor);
+    setVal('builder-color-bg', bgColor);
+    setVal('builder-color-bg-text', bgColor);
 
     // Items table rows
     const tbody = document.getElementById('builder-items-tbody');
@@ -6108,6 +6154,7 @@ window.KivoApp = {
       logoUrl: this._invoiceLogoRemoved ? null : (this.builderCustomLogoUrl !== undefined && this.builderCustomLogoUrl !== null ? this.builderCustomLogoUrl : ((this.state.business && this.state.business.logoUrl) || null)),
       primaryColor: (() => { const c = document.getElementById('builder-color-primary')?.value || ''; return (!c || c === '#000000' || c === '#000') ? '#4F46E5' : c; })(),
       secondaryColor: (() => { const c = document.getElementById('builder-color-secondary')?.value || ''; return (!c || c === '#000000' || c === '#000') ? '#64748B' : c; })(),
+      bgColor: (() => { const c = document.getElementById('builder-color-bg')?.value || ''; return (!c || c === '#000000' || c === '#000') ? '#FFFFFF' : c; })(),
       // Strong token: 32 hex chars from crypto.randomUUID() (no dashes).
       // Only generate for NEW documents; existing docs keep their token so public links don't break.
       publicToken: existingDocId
@@ -6948,12 +6995,12 @@ window.KivoApp = {
 
       return `
       <tr>
-        <td data-label="Nom du client"><strong style="cursor: pointer; color: var(--primary);" onclick="KivoApp.openClientDetails('${c.id}')" title="Voir les détails et factures de ce client">${c.name}</strong> ${c.clientType ? `<span class="badge badge-accepted" style="font-size: 0.65rem;">${c.clientType}</span>` : ''}</td>
+        <td data-label="Client"><strong style="cursor: pointer; color: var(--primary);" onclick="KivoApp.openClientDetails('${c.id}')" title="Voir les détails et factures de ce client">${c.name}</strong> ${c.clientType ? `<span class="badge badge-accepted" style="font-size: 0.65rem;">${c.clientType}</span>` : ''}</td>
         <td data-label="Entreprise">${c.company || c.taxId || '-'}</td>
         <td data-label="Téléphone">${c.phone || '-'}</td>
-        <td data-label="Total Facturé"><strong>${totalInvoiced.toLocaleString('fr-FR')} ${currency}</strong></td>
-        <td data-label="Encaissement" style="color: var(--success-text);"><strong>${totalPaid.toLocaleString('fr-FR')} ${currency}</strong></td>
-        <td data-label="Reste dû" style="color: ${balanceDue > 0 ? 'var(--danger-text)' : 'var(--success-text)'}"><strong>${balanceDue.toLocaleString('fr-FR')} ${currency}</strong></td>
+        <td data-label="Facturé"><strong>${totalInvoiced.toLocaleString('fr-FR')} ${currency}</strong></td>
+        <td data-label="Encaissé" style="color: var(--success-text);"><strong>${totalPaid.toLocaleString('fr-FR')} ${currency}</strong></td>
+        <td data-label="Solde dû" style="color: ${balanceDue > 0 ? 'var(--danger-text)' : 'var(--success-text)'}"><strong>${balanceDue.toLocaleString('fr-FR')} ${currency}</strong></td>
         <td data-label="Actions" style="text-align: right; display: flex; gap: 0.35rem; justify-content: flex-end;">
           <button class="btn btn-secondary btn-sm" onclick="KivoApp.openClientDetails('${c.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="10" r="3"/></svg> Détails</button>
           <button class="btn btn-secondary btn-sm" onclick="KivoApp.openEditClientModal('${c.id}')" title="Modifier ce client"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifier</button>
@@ -7617,9 +7664,11 @@ window.KivoApp = {
     }
 
     // Vérifier le quota
+    const extraSeats = parseInt((this.state.business && this.state.business.extraSeats) || 0, 10);
+    const maxAllowedSeats = 5 + extraSeats;
     const totalOccupied = 1 + (this._teamMembers ? this._teamMembers.length : 0);
-    if (totalOccupied >= 5) {
-      showError("Tous vos 5 sièges sont déjà occupés.");
+    if (totalOccupied >= maxAllowedSeats) {
+      showError(`Tous vos ${maxAllowedSeats} sièges sont déjà occupés.`);
       return;
     }
 
@@ -8663,6 +8712,368 @@ window.KivoApp = {
       };
       document.head.appendChild(script);
     }
+  },
+
+  /** Export PDF de la liste des factures/devis */
+  exportDocsPdf: function () {
+    const docs = this.getFilteredDocuments();
+    if (!docs || docs.length === 0) {
+      this.showToast('Aucun document à exporter.', 'warning');
+      return;
+    }
+    const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      this.showToast('Veuillez autoriser les popups pour générer le PDF.', 'warning');
+      return;
+    }
+
+    const rowsHtml = docs.map(d => {
+      const isPaid = d.status === 'paid' || d.status === 'payée' || d.status === 'payee';
+      const statusLabel = isPaid ? 'Payée' : (d.status === 'sent' ? 'Envoyée' : (d.status === 'draft' ? 'Brouillon' : (d.status === 'overdue' ? 'En retard' : d.status)));
+      return `
+        <tr>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;font-weight:600;">${d.number || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${d.type === 'quote' ? 'Devis' : 'Facture'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${d.clientName || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${d.issueDate || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${d.dueDate || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${statusLabel}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;text-align:right;font-weight:700;">${(d.total || 0).toLocaleString('fr-FR')} ${currency}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const totalAmount = docs.reduce((sum, d) => sum + (d.total || 0), 0);
+
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>KIVO_Documents_${dateStr}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 24px; color: #0F172A; }
+          h1 { margin: 0 0 4px; font-size: 20px; color: #1E293B; }
+          p { margin: 0 0 16px; font-size: 13px; color: #64748B; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+          th { background: #F8FAFC; text-align: left; padding: 8px 10px; border-bottom: 2px solid #CBD5E1; font-weight: 700; color: #334155; }
+          @media print { body { padding: 0; } @page { margin: 1.5cm; } }
+        </style>
+      </head>
+      <body>
+        <h1>KIVO MATIQUE — Liste des Documents</h1>
+        <p>Exporté le ${new Date().toLocaleDateString('fr-FR')} • ${docs.length} document(s) • Total : ${totalAmount.toLocaleString('fr-FR')} ${currency}</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Numéro</th>
+              <th>Type</th>
+              <th>Client</th>
+              <th>Date d'émission</th>
+              <th>Échéance</th>
+              <th>Statut</th>
+              <th style="text-align:right;">Montant TTC</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        <script>
+          window.onload = function() { window.print(); };
+        </script>
+      </body>
+      </html>
+    `);
+    printWin.document.close();
+    this.showToast('Génération du PDF des documents en cours...', 'info');
+  },
+
+  /** Export PDF de la liste des clients */
+  exportClientsPdf: function () {
+    const clients = (this.state && this.state.clients) || [];
+    if (!clients || clients.length === 0) {
+      this.showToast('Aucun client à exporter.', 'warning');
+      return;
+    }
+    const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      this.showToast('Veuillez autoriser les popups pour générer le PDF.', 'warning');
+      return;
+    }
+
+    const rowsHtml = clients.map(c => {
+      const clientDocs = (this.state.documents || []).filter(d => d.clientId === c.id || d.clientName === c.name);
+      const totalInvoiced = clientDocs.reduce((sum, d) => sum + (d.total || 0), 0);
+      const totalPaid = clientDocs
+        .filter(d => d.status === 'paid' || d.status === 'accepted')
+        .reduce((sum, d) => sum + (d.amountPaid || d.total || 0), 0);
+      const balanceDue = Math.max(0, totalInvoiced - totalPaid);
+
+      return `
+        <tr>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;font-weight:600;">${c.name || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${c.company || c.taxId || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${c.email || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${c.phone || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;text-align:right;">${totalInvoiced.toLocaleString('fr-FR')} ${currency}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;text-align:right;color:#16A34A;">${totalPaid.toLocaleString('fr-FR')} ${currency}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;text-align:right;font-weight:700;color:${balanceDue > 0 ? '#DC2626' : '#16A34A'};">${balanceDue.toLocaleString('fr-FR')} ${currency}</td>
+        </tr>
+      `;
+    }).join('');
+
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>KIVO_Clients_${dateStr}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 24px; color: #0F172A; }
+          h1 { margin: 0 0 4px; font-size: 20px; color: #1E293B; }
+          p { margin: 0 0 16px; font-size: 13px; color: #64748B; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+          th { background: #F8FAFC; text-align: left; padding: 8px 10px; border-bottom: 2px solid #CBD5E1; font-weight: 700; color: #334155; }
+          @media print { body { padding: 0; } @page { margin: 1.5cm; } }
+        </style>
+      </head>
+      <body>
+        <h1>KIVO MATIQUE — Répertoire Clients</h1>
+        <p>Exporté le ${new Date().toLocaleDateString('fr-FR')} • ${clients.length} client(s)</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Entreprise</th>
+              <th>Email</th>
+              <th>Téléphone</th>
+              <th style="text-align:right;">Total Facturé</th>
+              <th style="text-align:right;">Encaissé</th>
+              <th style="text-align:right;">Solde dû</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        <script>
+          window.onload = function() { window.print(); };
+        </script>
+      </body>
+      </html>
+    `);
+    printWin.document.close();
+    this.showToast('Génération du PDF clients en cours...', 'info');
+  },
+
+  /** Export CSV des Rapports & Statistiques */
+  exportAnalyticsCsv: function () {
+    const docs = (this.state && this.state.documents) || [];
+    if (!docs || docs.length === 0) {
+      this.showToast('Aucune donnée à exporter dans les rapports.', 'warning');
+      return;
+    }
+    const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    const headers = ['Type', 'Numéro', 'Client', 'Date émission', 'Échéance', 'Statut', 'Sous-total HT', 'TVA', 'Total TTC', 'Devise'];
+    const rows = docs.map(d => {
+      const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      return [
+        escape(d.type === 'quote' ? 'Devis' : 'Facture'),
+        escape(d.number || ''),
+        escape(d.clientName || ''),
+        escape(d.issueDate || ''),
+        escape(d.dueDate || ''),
+        escape(d.status || ''),
+        escape(d.subtotal || 0),
+        escape(d.taxAmount || 0),
+        escape(d.total || 0),
+        escape(currency)
+      ].join(';');
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `KIVO_Rapport_${dateStr}.csv`;
+    link.click();
+    this.showToast('Rapport CSV téléchargé.', 'success');
+  },
+
+  /** Export Excel (.xlsx) des Rapports & Statistiques */
+  exportAnalyticsExcel: function () {
+    if (!this.canUse('exportExcel')) {
+      this.showUpgradePrompt('exportExcel');
+      return;
+    }
+    const docs = (this.state && this.state.documents) || [];
+    if (!docs || docs.length === 0) {
+      this.showToast('Aucune donnée à exporter dans les rapports.', 'warning');
+      return;
+    }
+    const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    const runExport = () => {
+      try {
+        const rows = docs.map(d => ({
+          'Type': d.type === 'quote' ? 'Devis' : 'Facture',
+          'Numéro': d.number || '',
+          'Client': d.clientName || '',
+          'Date émission': d.issueDate || '',
+          'Échéance': d.dueDate || '',
+          'Statut': d.status || '',
+          'Sous-total HT': d.subtotal || 0,
+          'TVA': d.taxAmount || 0,
+          'Total TTC': d.total || 0,
+          'Devise': currency
+        }));
+
+        const wb = window.XLSX.utils.book_new();
+        const ws = window.XLSX.utils.json_to_sheet(rows);
+        window.XLSX.utils.book_append_sheet(wb, ws, 'Rapport KIVO');
+        window.XLSX.writeFile(wb, `KIVO_Rapport_${dateStr}.xlsx`);
+        this.showToast('Rapport Excel généré avec succès.', 'success');
+      } catch (err) {
+        console.error('[KivoApp] exportAnalyticsExcel error:', err);
+        this.showToast("Erreur lors de l'export Excel des rapports.", 'error');
+      }
+    };
+
+    if (window.XLSX) {
+      runExport();
+    } else {
+      this.showToast('Chargement du module Excel...', 'info');
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      script.onload = () => runExport();
+      script.onerror = () => {
+        this.showToast("Impossible de charger le module d'export Excel.", 'error');
+      };
+      document.head.appendChild(script);
+    }
+  },
+
+  /** Export PDF des Rapports */
+  exportAnalyticsPdf: function () {
+    const analyticsEl = document.getElementById('analytics-content');
+    if (!analyticsEl) {
+      window.print();
+      return;
+    }
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      window.print();
+      return;
+    }
+    const dateStr = new Date().toISOString().split('T')[0];
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>KIVO_Rapport_${dateStr}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 24px; color: #0F172A; }
+          h1 { margin: 0 0 4px; font-size: 20px; color: #1E293B; }
+          p { margin: 0 0 16px; font-size: 13px; color: #64748B; }
+          @media print { body { padding: 0; } @page { margin: 1cm; } }
+        </style>
+      </head>
+      <body>
+        <h1>KIVO MATIQUE — Rapport Financier & Statistiques</h1>
+        <p>Exporté le ${new Date().toLocaleDateString('fr-FR')}</p>
+        <div>${analyticsEl.innerHTML}</div>
+        <script>
+          window.onload = function() { window.print(); };
+        </script>
+      </body>
+      </html>
+    `);
+    printWin.document.close();
+    this.showToast('Génération du PDF du rapport en cours...', 'info');
+  },
+
+  /** Ouvre la modale d'Export Comptable (FEC / CSV standard / Sage / QuickBooks) */
+  openAccountingExportModal: function () {
+    this.openModal('modal-accounting-export');
+  },
+
+  /** Génère et télécharge le fichier d'export comptable (FEC ou CSV) */
+  downloadAccountingExport: function (format) {
+    const docs = (this.state && this.state.documents) || [];
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    if (docs.length === 0) {
+      this.showToast('Aucun document à exporter.', 'warning');
+      return;
+    }
+
+    if (format === 'fec') {
+      // Format FEC officiel français (tab-separated standard)
+      const headers = ['JournalCode', 'JournalLib', 'EcritureNum', 'EcritureDate', 'CompteNum', 'CompteLib', 'CompAuxNum', 'CompAuxLib', 'PieceRef', 'PieceDate', 'EcritureLib', 'Debit', 'Credit', 'EcritureLet', 'DateLet', 'ValidDate', 'Montantdevise', 'Idevise'];
+      const rows = [];
+      let ecritureIdx = 1;
+
+      docs.forEach(doc => {
+        const docDate = (doc.issueDate || dateStr).replace(/-/g, '');
+        const ref = doc.number || `DOC-${ecritureIdx}`;
+        const total = (doc.total || 0).toFixed(2).replace('.', ',');
+        const ht = (doc.subtotal || doc.total || 0).toFixed(2).replace('.', ',');
+        const tva = (doc.taxAmount || 0).toFixed(2).replace('.', ',');
+
+        // Ligne Client (Débit 411000)
+        rows.push(['VT', 'Ventes', ecritureIdx, docDate, '411000', 'Clients', '', '', ref, docDate, `Facture ${ref}`, total, '0,00', '', '', docDate, '', ''].join('\t'));
+        // Ligne Vente (Crédit 706000)
+        rows.push(['VT', 'Ventes', ecritureIdx, docDate, '706000', 'Prestations de services', '', '', ref, docDate, `Facture ${ref}`, '0,00', ht, '', '', docDate, '', ''].join('\t'));
+        // Ligne TVA si applicable (Crédit 445710)
+        if (doc.taxAmount > 0) {
+          rows.push(['VT', 'Ventes', ecritureIdx, docDate, '445710', 'TVA collectée', '', '', ref, docDate, `TVA ${ref}`, '0,00', tva, '', '', docDate, '', ''].join('\t'));
+        }
+        ecritureIdx++;
+      });
+
+      const fecContent = [headers.join('\t'), ...rows].join('\r\n');
+      const blob = new Blob([fecContent], { type: 'text/plain;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `FEC_${dateStr}.txt`;
+      link.click();
+      this.showToast('Fichier FEC exporté avec succès.', 'success');
+    } else {
+      // Export CSV Comptable standard
+      const headers = ['Journal', 'Date', 'Pièce', 'Compte', 'Libellé Compte', 'Libellé Écriture', 'Débit', 'Crédit'];
+      const rows = [];
+
+      docs.forEach(doc => {
+        const dDate = doc.issueDate || dateStr;
+        const ref = doc.number || '';
+        const total = doc.total || 0;
+        const ht = doc.subtotal || doc.total || 0;
+        const tva = doc.taxAmount || 0;
+
+        rows.push(['VT', dDate, ref, '411000', 'Clients', `Facture ${ref}`, total, 0].map(v => `"${v}"`).join(';'));
+        rows.push(['VT', dDate, ref, '706000', 'Ventes', `Facture ${ref}`, 0, ht].map(v => `"${v}"`).join(';'));
+        if (tva > 0) {
+          rows.push(['VT', dDate, ref, '445710', 'TVA collectée', `TVA ${ref}`, 0, tva].map(v => `"${v}"`).join(';'));
+        }
+      });
+
+      const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `KIVO_Compta_${dateStr}.csv`;
+      link.click();
+      this.showToast('Export comptable CSV téléchargé.', 'success');
+    }
+
+    this.closeModal('modal-accounting-export');
   },
 
   /**
@@ -12272,6 +12683,9 @@ window.KivoApp = {
     const sInput = document.getElementById('builder-color-secondary');
     const secondary = sInput ? sInput.value : (biz.secondaryColor || '#64748B');
 
+    const bgInput = document.getElementById('builder-color-bg');
+    const docBg = bgInput ? bgInput.value : (biz.docBgColor || '#FFFFFF');
+
     // Apply classes to both the builder preview and the public view
     const containers = [
       document.getElementById('live-paper-preview-container'),
@@ -12290,6 +12704,7 @@ window.KivoApp = {
       // Apply CSS variables
       container.style.setProperty('--doc-primary', primary);
       container.style.setProperty('--doc-secondary', secondary);
+      container.style.setProperty('--doc-bg', docBg);
       
       // Auto-calculate text color for primary background
       const hex = primary.replace('#', '');
@@ -12298,6 +12713,14 @@ window.KivoApp = {
       const b = parseInt(hex.substring(4,6), 16) || 0;
       const luminance = (0.299*r + 0.587*g + 0.114*b) / 255;
       container.style.setProperty('--doc-text', luminance > 0.5 ? '#000000' : '#FFFFFF');
+
+      // Auto-calculate text color for doc background
+      const bgHex = docBg.replace('#', '');
+      const bgR = parseInt(bgHex.substring(0,2), 16) || 255;
+      const bgG = parseInt(bgHex.substring(2,4), 16) || 255;
+      const bgB = parseInt(bgHex.substring(4,6), 16) || 255;
+      const bgLum = (0.299*bgR + 0.587*bgG + 0.114*bgB) / 255;
+      container.style.setProperty('--doc-text-on-bg', bgLum > 0.5 ? '#1E293B' : '#F1F5F9');
     });
 
     // Save to global state so it's persisted on saveSettings
@@ -12389,11 +12812,14 @@ window.KivoApp = {
   onBuilderColorChange: function () {
     const pPicker = document.getElementById('builder-color-primary');
     const sPicker = document.getElementById('builder-color-secondary');
+    const bgPicker = document.getElementById('builder-color-bg');
     const pText = document.getElementById('builder-color-primary-text');
     const sText = document.getElementById('builder-color-secondary-text');
+    const bgText = document.getElementById('builder-color-bg-text');
 
     if (pPicker && pText) pText.value = pPicker.value;
     if (sPicker && sText) sText.value = sPicker.value;
+    if (bgPicker && bgText) bgText.value = bgPicker.value;
 
     this.updateLiveInvoicePreview();
   },
@@ -12406,6 +12832,9 @@ window.KivoApp = {
     if (type === 'primary') {
       const pPicker = document.getElementById('builder-color-primary');
       if (pPicker) pPicker.value = hex;
+    } else if (type === 'bg') {
+      const bgPicker = document.getElementById('builder-color-bg');
+      if (bgPicker) bgPicker.value = hex;
     } else {
       const sPicker = document.getElementById('builder-color-secondary');
       if (sPicker) sPicker.value = hex;

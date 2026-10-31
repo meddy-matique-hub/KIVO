@@ -281,6 +281,10 @@ window.KivoTemplates = {
         const c = (document.getElementById('builder-color-secondary') || {}).value || biz.secondaryColor;
         return (!c || c === '#000000' || c === '#000') ? '#64748B' : c;
       })(),
+      bgColor: (() => {
+        const c = (document.getElementById('builder-color-bg') || {}).value || biz.docBgColor || '#FFFFFF';
+        return (!c || c === '#000000' || c === '#000') ? '#FFFFFF' : c;
+      })(),
       lang: (window.KivoApp && KivoApp.state && KivoApp.state.language) || 'fr',
     };
   },
@@ -841,8 +845,9 @@ window.KivoTemplates = {
   // 1. MINIMALIST (Exact reproduction of reference image)
   renderMinimalist: function (d) {
     const ac = d.primaryColor || '#0F172A';
+    const bg = d.bgColor || '#FFFFFF';
     return `
-      <div class="kivo-invoice-sheet" style="background:#FFFFFF;font-family:Inter,Arial,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:34px 40px;color:#1E293B;position:relative;">
+      <div class="kivo-invoice-sheet" style="background:${bg};font-family:Inter,Arial,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:34px 40px;color:#1E293B;position:relative;">
         <div>
           ${this.renderHeader(d, ac, '#475569')}
           ${this.renderClient(d, '#0F172A', '#475569')}
@@ -870,8 +875,9 @@ window.KivoTemplates = {
   // 2. CORPORATE
   renderCorporate: function (d) {
     const ac = d.primaryColor || '#1E3A5F';
+    const bg = d.bgColor || '#FFFFFF';
     return `
-      <div class="kivo-invoice-sheet" style="background:#FFFFFF;font-family:Inter,Arial,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;color:#1E293B;position:relative;">
+      <div class="kivo-invoice-sheet" style="background:${bg};font-family:Inter,Arial,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;color:#1E293B;position:relative;">
         <div>
           <div style="background:${ac};padding:22px 40px;color:#FFFFFF;margin-bottom:22px;">
             ${this.renderHeader(d, '#FFFFFF', 'rgba(255,255,255,0.75)')}
@@ -935,8 +941,9 @@ window.KivoTemplates = {
   renderModern: function (d) {
     const ac = d.primaryColor || '#7C3AED';
     const sec = d.secondaryColor || '#EC4899';
+    const bg = d.bgColor || '#FFFFFF';
     return `
-      <div class="kivo-invoice-sheet" style="background:#FFFFFF;font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 40px;position:relative;">
+      <div class="kivo-invoice-sheet" style="background:${bg};font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 40px;position:relative;">
         <div>
           <div style="height:6px;background:linear-gradient(90deg,${ac},${sec});border-radius:3px;margin-bottom:20px;"></div>
           ${this.renderHeader(d, ac, '#64748B')}
