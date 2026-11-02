@@ -8842,71 +8842,362 @@ window.KivoApp = {
   },
 
   /**
-   * Exporte la facture/devis courante du constructeur en format Excel (.xlsx) avec colonnes stylées et totaux
+   * Exporte la facture/devis courante du constructeur en format Excel (.xlsx)
+   * Mise en page document : 2 onglets (FACTURE/DEVIS + Articles), styles complets, ExcelJS.
    */
   exportCurrentDocExcel: function () {
+    const self = this;
     const doc = this.getCurrentBuilderDocumentData();
+    // Données émetteur complètes (RCCM, NIU, adresse, email...) via collectData
+    const fullData = (window.KivoTemplates && typeof window.KivoTemplates.collectData === 'function')
+      ? window.KivoTemplates.collectData(this.state)
+      : null;
+    const biz = (fullData && fullData.biz) || this.state.business || {};
+    const client = (fullData && fullData.client) || {};
+    const paymentConfig = this.getPaymentConfig ? this.getPaymentConfig() : {};
+    const selectedPaymentMethods = (this.getSelectedPaymentMethodsFromBuilder)
+      ? this.getSelectedPaymentMethodsFromBuilder()
+      : [];
 
-    const runExport = () => {
+    const runExport = async () => {
       try {
-        const wb = window.XLSX.utils.book_new();
+        const ExcelJS = window.ExcelJS;
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'KIVO MATIQUE';
+        wb.created = new Date();
 
-        // Données d'en-tête et récapitulatif
-        const summaryData = [
-          { 'Propriété': 'Document', 'Valeur': doc.typeLabel },
-          { 'Propriété': 'Numéro', 'Valeur': doc.num },
-          { 'Propriété': 'Émetteur', 'Valeur': doc.issuerName },
-          { 'Propriété': 'Client', 'Valeur': doc.clientName },
-          { 'Propriété': 'Date d\'émission', 'Valeur': doc.issueDate },
-          { 'Propriété': 'Date d\'échéance', 'Valeur': doc.dueDate || '-' },
-          { 'Propriété': 'Statut', 'Valeur': doc.status },
-          { 'Propriété': 'Devise', 'Valeur': doc.currency },
-          { 'Propriété': 'Sous-total HT', 'Valeur': Number(doc.subtotal.toFixed(2)) },
-          { 'Propriété': 'Remise globale', 'Valeur': Number(doc.globalDiscount.toFixed(2)) },
-          { 'Propriété': 'TVA', 'Valeur': Number(doc.totalTax.toFixed(2)) },
-          { 'Propriété': 'Total TTC', 'Valeur': Number(doc.grandTotal.toFixed(2)) },
-          { 'Propriété': 'Acompte versé', 'Valeur': Number(doc.depositAmount.toFixed(2)) },
-          { 'Propriété': 'Solde net à payer', 'Valeur': Number(doc.balanceDue.toFixed(2)) }
+        // ── Helpers ────────────────────────────────────────────────────
+        function toArgb(hex, def) {
+          if (!hex || typeof hex !== 'string') return def || 'FF0F172A';
+          let c = hex.replace('#', '').trim();
+          if (c.length === 3) c = c.split('').map(function(x){ return x + x; }).join('');
+          if (c.length === 6) return 'FF' + c.toUpperCase();
+          return def || 'FF0F172A';
+        }
+        function parseExcelDate(s) {
+          if (!s) return null;
+          const p = String(s).split('-');
+          if (p.length === 3) {
+            const d = new Date(+p[0], +p[1] - 1, +p[2]);
+            return isNaN(d) ? null : d;
+          }
+          const d = new Date(s);
+          return isNaN(d) ? null : d;
+        }
+
+        const currency = doc.currency || 'FCFA';
+        const isInt = ['FCFA', 'XOF', 'XAF'].includes(currency);
+        const numFmt = isInt ? '#,##0' : '#,##0.00';
+        const primaryArgb = toArgb(
+          (biz && biz.primaryColor) || (doc && doc.primaryColor) || (self.state && self.state.business && self.state.business.primaryColor),
+          'FF1E293B'
+        );
+
+        const STATUS_FR = {
+          draft: 'Brouillon', brouillon: 'Brouillon',
+          sent: 'Envoyée', 'envoyée': 'Envoyée',
+          paid: 'Payée', 'payée': 'Payée',
+          overdue: 'En retard', 'en retard': 'En retard',
+          cancelled: 'Annulée', 'annulée': 'Annulée',
+          refunded: 'Remboursée', 'remboursée': 'Remboursée'
+        };
+        const statusText = STATUS_FR[String(doc.status || 'draft').toLowerCase().trim()] || 'Brouillon';
+
+        const rccmVal = (biz && biz.rccm) || 'Non renseigné';
+        const niuVal  = (biz && biz.niu)  || 'Non renseigné';
+        const issueDateObj = parseExcelDate(doc.issueDate);
+        const dueDateObj   = parseExcelDate(doc.dueDate);
+
+        // ── Sheet 1: FACTURE / DEVIS ───────────────────────────────────
+        const sheetName = doc.type === 'quote' ? 'DEVIS' : 'FACTURE';
+        const ws = wb.addWorksheet(sheetName, {
+          views: [{ showGridLines: false }],
+          pageSetup: {
+            paperSize: 9, orientation: 'portrait',
+            fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+            margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+          }
+        });
+        ws.columns = [
+          { key: 'A', width: 40 }, { key: 'B', width: 12 },
+          { key: 'C', width: 18 }, { key: 'D', width: 14 }, { key: 'E', width: 22 }
         ];
 
-        // Lignes d'articles
-        const itemsData = doc.items.map(it => ({
-          'N°': it.num,
-          'Description': it.name,
-          'Quantité': it.quantity,
-          'Unité': it.unit,
-          'Prix unitaire': it.price,
-          'Remise (%)': it.discount,
-          'TVA (%)': it.taxRate,
-          'Total HT': Number(it.totalHT.toFixed(2)),
-          'Total TTC': Number(it.totalTTC.toFixed(2))
-        }));
+        // Row 2 : Titre + Numéro
+        const titleText = doc.type === 'quote' ? 'DEVIS' : 'FACTURE';
+        ws.getCell('A2').value = titleText;
+        ws.getCell('A2').font = { name: 'Calibri', size: 18, bold: true, color: { argb: primaryArgb } };
+        ws.getCell('E2').value = doc.num;
+        ws.getCell('E2').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF0F172A' } };
+        ws.getCell('E2').alignment = { horizontal: 'right', vertical: 'middle' };
+        ws.getRow(2).height = 28;
 
-        const wsSummary = window.XLSX.utils.json_to_sheet(summaryData);
-        const wsItems = window.XLSX.utils.json_to_sheet(itemsData);
+        // Row 4 : En-têtes blocs
+        const h4Font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF64748B' } };
+        ws.getCell('A4').value = 'ÉMETTEUR'; ws.getCell('A4').font = h4Font;
+        ws.getCell('D4').value = 'CLIENT';   ws.getCell('D4').font = h4Font;
 
-        window.XLSX.utils.book_append_sheet(wb, wsSummary, 'Récapitulatif');
-        window.XLSX.utils.book_append_sheet(wb, wsItems, 'Articles');
+        // Row 5 : Raison sociale
+        ws.getCell('A5').value = (biz && biz.name) || 'Mon Entreprise';
+        ws.getCell('A5').font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F172A' } };
+        ws.getCell('D5').value = (client && (client.name || client.company)) || doc.clientName || 'Client Destinataire';
+        ws.getCell('D5').font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F172A' } };
 
-        const cleanNum = doc.num.replace(/[^a-zA-Z0-9-_]/g, '_');
-        const today = new Date().toISOString().slice(0, 10);
-        window.XLSX.writeFile(wb, `KIVO_${cleanNum}_${today}.xlsx`);
-        this.showToast('Export Excel généré avec succès.', 'success');
+        const bodyFont = { name: 'Calibri', size: 9.5, color: { argb: 'FF334155' } };
+        // Row 6 : Adresses
+        ws.getCell('A6').value = (biz && biz.address) || 'Non renseigné'; ws.getCell('A6').font = bodyFont;
+        ws.getCell('D6').value = (client && client.address) || 'Non renseigné'; ws.getCell('D6').font = bodyFont;
+        // Row 7 : Téléphones
+        ws.getCell('A7').value = (biz && biz.phone) ? 'Tél. : ' + biz.phone : 'Tél. : Non renseigné'; ws.getCell('A7').font = bodyFont;
+        ws.getCell('D7').value = (client && client.phone) ? 'Tél. : ' + client.phone : 'Tél. : Non renseigné'; ws.getCell('D7').font = bodyFont;
+        // Row 8 : Emails
+        ws.getCell('A8').value = (biz && biz.email) ? 'Email : ' + biz.email : 'Email : Non renseigné'; ws.getCell('A8').font = bodyFont;
+        ws.getCell('D8').value = (client && client.email) ? 'Email : ' + client.email : 'Email : Non renseigné'; ws.getCell('D8').font = bodyFont;
+        // Row 9 : RCCM & N° Fiscal client
+        ws.getCell('A9').value = 'RCCM : ' + rccmVal; ws.getCell('A9').font = bodyFont;
+        ws.getCell('D9').value = 'N° Fiscal : ' + ((client && client.taxId) || 'Non renseigné'); ws.getCell('D9').font = bodyFont;
+        // Row 10 : NIU
+        ws.getCell('A10').value = 'NIU : ' + niuVal; ws.getCell('A10').font = bodyFont;
+
+        // Row 12–13 : Dates & Statut
+        const lbFont = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF475569' } };
+        ws.getCell('A12').value = "Date d'émission :"; ws.getCell('A12').font = lbFont;
+        if (issueDateObj) { ws.getCell('B12').value = issueDateObj; ws.getCell('B12').numFmt = 'dd/mm/yyyy'; }
+        else { ws.getCell('B12').value = doc.issueDate || '-'; }
+        ws.getCell('B12').font = bodyFont;
+        ws.getCell('D12').value = "Date d'échéance :"; ws.getCell('D12').font = lbFont;
+        if (dueDateObj) { ws.getCell('E12').value = dueDateObj; ws.getCell('E12').numFmt = 'dd/mm/yyyy'; }
+        else { ws.getCell('E12').value = doc.dueDate || '-'; }
+        ws.getCell('E12').font = bodyFont;
+        ws.getCell('A13').value = 'Statut :'; ws.getCell('A13').font = lbFont;
+        const sk = String(doc.status || '').toLowerCase();
+        const stColor = (sk === 'paid' || sk === 'payée') ? 'FF047857'
+          : (sk === 'sent' || sk === 'envoyée') ? 'FF2563EB'
+          : (sk === 'overdue' || sk === 'en retard') ? 'FFDC2626'
+          : 'FF475569';
+        ws.getCell('B13').value = statusText;
+        ws.getCell('B13').font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: stColor } };
+
+        // Row 15 : En-tête tableau articles
+        const HDR_ROW = 15;
+        ws.getRow(HDR_ROW).height = 24;
+        const headers = [
+          { col: 'A', txt: 'Description',                         al: 'left'   },
+          { col: 'B', txt: 'Quantité',                            al: 'center' },
+          { col: 'C', txt: 'Prix unitaire (' + currency + ')',    al: 'right'  },
+          { col: 'D', txt: 'TVA (%)',                             al: 'center' },
+          { col: 'E', txt: 'Total HT (' + currency + ')',         al: 'right'  }
+        ];
+        headers.forEach(function(h) {
+          const c = ws.getCell(h.col + HDR_ROW);
+          c.value = h.txt;
+          c.font  = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+          c.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryArgb } };
+          c.alignment = { horizontal: h.al, vertical: 'middle', indent: h.al === 'left' ? 1 : 0 };
+          c.border = {
+            top:    { style: 'thin', color: { argb: primaryArgb } },
+            bottom: { style: 'thin', color: { argb: primaryArgb } },
+            left:   { style: 'thin', color: { argb: 'FF475569' } },
+            right:  { style: 'thin', color: { argb: 'FF475569' } }
+          };
+        });
+
+        // Lignes articles
+        let row = HDR_ROW + 1;
+        const bdr = {
+          top:    { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          left:   { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right:  { style: 'thin', color: { argb: 'FFE2E8F0' } }
+        };
+        const items = Array.isArray(doc.items) ? doc.items : [];
+        items.forEach(function(it) {
+          ws.getRow(row).height = 22;
+          const cA = ws.getCell('A' + row);
+          cA.value = it.name || 'Article';
+          cA.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          cA.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true, indent: 1 };
+          cA.border = bdr;
+          const cB = ws.getCell('B' + row);
+          cB.value = Number(it.quantity) || 1;
+          cB.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          cB.alignment = { horizontal: 'center', vertical: 'middle' };
+          cB.numFmt = '#,##0.##';
+          cB.border = bdr;
+          const cC = ws.getCell('C' + row);
+          cC.value = Number(it.price) || 0;
+          cC.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          cC.alignment = { horizontal: 'right', vertical: 'middle' };
+          cC.numFmt = numFmt;
+          cC.border = bdr;
+          const cD = ws.getCell('D' + row);
+          cD.value = (Number(it.taxRate) || 0) / 100;
+          cD.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          cD.alignment = { horizontal: 'center', vertical: 'middle' };
+          cD.numFmt = '0" %"';
+          cD.border = bdr;
+          const cE = ws.getCell('E' + row);
+          cE.value = Number(it.totalHT) || (Number(it.quantity || 1) * Number(it.price || 0));
+          cE.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          cE.alignment = { horizontal: 'right', vertical: 'middle' };
+          cE.numFmt = numFmt;
+          cE.border = bdr;
+          row++;
+        });
+        row++;
+
+        // Totaux (colonnes D + E)
+        function addTot(lbl, val, bold, highlight, colArgb) {
+          const lc = ws.getCell('D' + row);
+          const vc = ws.getCell('E' + row);
+          lc.value = lbl;
+          lc.font = { name: 'Calibri', size: highlight ? 10.5 : 9.5, bold: !!bold, color: { argb: colArgb || 'FF1E293B' } };
+          lc.alignment = { horizontal: 'right', vertical: 'middle' };
+          vc.value = Number(val) || 0;
+          vc.font = { name: 'Calibri', size: highlight ? 11 : 9.5, bold: !!bold, color: { argb: colArgb || 'FF1E293B' } };
+          vc.alignment = { horizontal: 'right', vertical: 'middle' };
+          vc.numFmt = numFmt;
+          if (highlight) {
+            const b = { top: { style: 'thin', color: { argb: 'FF0F172A' } } };
+            lc.border = b; vc.border = b;
+            const fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+            lc.fill = fill; vc.fill = fill;
+          }
+          ws.getRow(row).height = highlight ? 24 : 18;
+          row++;
+        }
+        addTot('Sous-total HT :', doc.subtotal);
+        if (doc.globalDiscount > 0) addTot('Remise :', -doc.globalDiscount, false, false, 'FFDC2626');
+        addTot('TVA :', doc.totalTax);
+        addTot('Total TTC :', doc.grandTotal, true);
+        if (doc.depositAmount > 0) addTot('Acompte versé :', doc.depositAmount);
+        addTot('Net à payer :', doc.balanceDue, true, true, primaryArgb);
+
+        // Modalités de règlement
+        row += 2;
+        ws.getCell('A' + row).value = 'MODALITÉS DE RÈGLEMENT';
+        ws.getCell('A' + row).font = { name: 'Calibri', size: 10, bold: true, color: { argb: primaryArgb } };
+        row++;
+        const cfg = paymentConfig || {};
+        const sel = Array.isArray(selectedPaymentMethods) ? selectedPaymentMethods : [];
+        const pmLines = [];
+        if (sel.includes('bank') && cfg.bank) {
+          const b = cfg.bank;
+          const p = ['Virement bancaire'];
+          if (b.bankName) p.push('Banque : ' + b.bankName);
+          if (b.accountHolder) p.push('Bénéficiaire : ' + b.accountHolder);
+          if (b.iban || b.accountNumber) p.push('IBAN / Compte : ' + (b.iban || b.accountNumber));
+          if (b.swift) p.push('BIC/SWIFT : ' + b.swift);
+          pmLines.push(p.join(' | '));
+        }
+        if (sel.includes('momo') && cfg.momo && Array.isArray(cfg.momo.accounts)) {
+          cfg.momo.accounts.forEach(function(m) {
+            const p = ['Mobile Money (' + (m.operator || 'Wave') + ')'];
+            if (m.phone) p.push('N° : ' + m.phone);
+            if (m.holder) p.push('Titulaire : ' + m.holder);
+            pmLines.push(p.join(' | '));
+          });
+        }
+        if (sel.includes('cash') && cfg.cash) pmLines.push('Espèces : Paiement en espèces à la livraison ou au comptoir');
+        if (sel.includes('check') && cfg.check) {
+          const chk = cfg.check;
+          const p = ['Chèque'];
+          if (chk.payableTo) p.push("À l'ordre de : " + chk.payableTo);
+          if (chk.address) p.push("Adresse d'envoi : " + chk.address);
+          pmLines.push(p.join(' | '));
+        }
+        if (sel.includes('card') && cfg.card) {
+          const crd = cfg.card;
+          const p = ['Paiement en ligne (' + (crd.provider || 'Stripe') + ')'];
+          if (crd.paymentUrl) p.push('Lien : ' + crd.paymentUrl);
+          pmLines.push(p.join(' | '));
+        }
+        if (pmLines.length === 0) pmLines.push('Aucun moyen de paiement renseigné');
+        pmLines.forEach(function(pl) {
+          ws.getCell('A' + row).value = pl;
+          ws.getCell('A' + row).font = { name: 'Calibri', size: 9, color: { argb: 'FF475569' } };
+          ws.mergeCells('A' + row + ':E' + row);
+          row++;
+        });
+
+        // Pied de page légal
+        row += 2;
+        const footer = ((biz && biz.name) || 'KIVO MATIQUE') + ' · RCCM : ' + rccmVal + ' · NIU : ' + niuVal;
+        ws.getCell('A' + row).value = footer;
+        ws.getCell('A' + row).font = { name: 'Calibri', size: 8.5, italic: true, color: { argb: 'FF64748B' } };
+        ws.getCell('A' + row).alignment = { horizontal: 'center', vertical: 'middle' };
+        ws.mergeCells('A' + row + ':E' + row);
+
+        // ── Sheet 2 : Articles (données plates) ────────────────────────
+        const wsArt = wb.addWorksheet('Articles', {
+          views: [{ state: 'frozen', xSplit: 0, ySplit: 1, showGridLines: true }]
+        });
+        wsArt.columns = [
+          { header: 'Numéro',           key: 'num',      width: 16 },
+          { header: "Date d'émission",  key: 'issueDate',width: 15 },
+          { header: 'Client',           key: 'client',   width: 28 },
+          { header: 'Description',      key: 'desc',     width: 36 },
+          { header: 'Quantité',         key: 'qty',      width: 12 },
+          { header: 'Prix unitaire',    key: 'price',    width: 16 },
+          { header: 'TVA (%)',          key: 'taxRate',  width: 12 },
+          { header: 'Total HT',         key: 'totalHT',  width: 16 }
+        ];
+        const artHdr = wsArt.getRow(1);
+        artHdr.height = 24;
+        for (let ci = 1; ci <= 8; ci++) {
+          const cell = artHdr.getCell(ci);
+          cell.font  = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+          cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryArgb } };
+          cell.alignment = { vertical: 'middle', horizontal: ci >= 5 ? 'right' : (ci === 2 ? 'center' : 'left') };
+        }
+        const clientLabel = (client && (client.name || client.company)) || doc.clientName || '-';
+        items.forEach(function(it) {
+          const r2 = wsArt.addRow({
+            num:      doc.num,
+            issueDate:issueDateObj || doc.issueDate,
+            client:   clientLabel,
+            desc:     it.name || 'Article',
+            qty:      Number(it.quantity) || 1,
+            price:    Number(it.price) || 0,
+            taxRate:  (Number(it.taxRate) || 0) / 100,
+            totalHT:  Number(it.totalHT) || (Number(it.quantity || 1) * Number(it.price || 0))
+          });
+          r2.height = 20;
+          r2.getCell(2).numFmt = 'dd/mm/yyyy';
+          r2.getCell(5).numFmt = '#,##0.##';
+          r2.getCell(6).numFmt = numFmt;
+          r2.getCell(7).numFmt = '0" %"';
+          r2.getCell(8).numFmt = numFmt;
+        });
+        wsArt.autoFilter = 'A1:H1';
+
+        // ── Génération du fichier ───────────────────────────────────────
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const cleanNum = (doc.num || 'KIVO').replace(/[^a-zA-Z0-9-_]/g, '_');
+        const issueDateStr = doc.issueDate || new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = cleanNum + '_' + issueDateStr + '.xlsx';
+        a.click();
+        URL.revokeObjectURL(url);
+        self.showToast('Export Excel généré avec succès.', 'success');
       } catch (err) {
         console.error('[KivoApp] exportCurrentDocExcel error:', err);
-        this.showToast("Erreur lors de la génération du fichier Excel.", 'error');
+        self.showToast("Erreur lors de la génération du fichier Excel.", 'error');
       }
     };
 
-    if (window.XLSX) {
+    if (window.ExcelJS) {
       runExport();
     } else {
-      this.showToast('Chargement du module Excel...', 'info');
+      self.showToast('Chargement du module Excel...', 'info');
       const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-      script.onload = () => runExport();
-      script.onerror = () => {
-        this.showToast("Impossible de charger le module d'export Excel.", 'error');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+      script.onload = function() { runExport(); };
+      script.onerror = function() {
+        self.showToast("Impossible de charger le module d'export Excel.", 'error');
       };
       document.head.appendChild(script);
     }
