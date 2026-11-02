@@ -911,8 +911,9 @@ window.KivoTemplates = {
   // 3. ELEGANT
   renderElegant: function (d) {
     const ac = d.primaryColor || '#C9A84C';
+    const bg = d.bgColor || '#FFFDF7';
     return `
-      <div class="kivo-invoice-sheet" style="background:#FFFDF7;font-family:Georgia,serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 38px;color:#2D241E;border:6px solid #F6F1E5;position:relative;">
+      <div class="kivo-invoice-sheet" style="background:${bg};font-family:Georgia,serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 38px;color:#2D241E;border:6px solid #F6F1E5;position:relative;">
         <div>
           ${this.renderHeader(d, ac, '#6B5C2A')}
           ${this.renderClient(d, '#2D241E', '#6B5C2A')}
@@ -972,8 +973,9 @@ window.KivoTemplates = {
   // 5. CLEAN (Modern Clean)
   renderClean: function (d) {
     const ac = d.primaryColor || '#0E7490';
+    const bg = d.bgColor || '#FFFFFF';
     return `
-      <div class="kivo-invoice-sheet" style="background:#FFFFFF;font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 40px;border-top:6px solid ${ac};position:relative;">
+      <div class="kivo-invoice-sheet" style="background:${bg};font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:32px 40px;border-top:6px solid ${ac};position:relative;">
         <div>
           ${this.renderHeader(d, ac, '#64748B')}
           ${this.renderClient(d, '#0F172A', '#64748B')}
@@ -1001,8 +1003,9 @@ window.KivoTemplates = {
   // 6. EDITORIAL
   renderEditorial: function (d) {
     const ac = d.primaryColor || '#EF4444';
+    const bg = d.bgColor || '#FFFFFF';
     return `
-      <div class="kivo-invoice-sheet" style="background:#FFFFFF;font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;color:#111;position:relative;">
+      <div class="kivo-invoice-sheet" style="background:${bg};font-family:Inter,sans-serif;height:100%;min-height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;color:#111;position:relative;">
         <div>
           <div style="background:#111;padding:20px 40px;color:#FFFFFF;margin-bottom:22px;">
             ${this.renderHeader(d, '#FFFFFF', '#9CA3AF')}

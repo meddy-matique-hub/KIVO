@@ -665,7 +665,8 @@ window.KivoApp = {
         'modal-change-password',
         'modal-connected-accounts',
         'modal-add-seat',
-        'modal-accounting-export'
+        'modal-accounting-export',
+        'modal-template-editor'
       ];
       modalIds.forEach(function(id) {
         const el = document.getElementById(id);
@@ -4319,7 +4320,7 @@ window.KivoApp = {
     }
 
     this.populateBuilderCatalogDropdown();
-    this.renderBuilderPaymentMethodsSelection(doc.selectedPaymentMethods || (meta && meta.selectedPaymentMethods));
+    this.renderBuilderPaymentMethodsSelection(doc.selectedPaymentMethods || (meta && meta.selectedPaymentMethods), doc.paymentConfig || (meta && meta.paymentConfig));
     this.recalculateBuilderTotals();
     this.updateLiveInvoicePreview();
     this.navigate('document-builder');
@@ -5003,9 +5004,59 @@ window.KivoApp = {
   },
 
   /**
-   * Retourne la configuration complète des moyens de paiement actifs de l'entreprise
+   * Retourne la configuration des moyens de paiement saisis ou sélectionnés dans le builder
+   */
+  getPaymentConfigFromBuilder: function () {
+    const selected = this.getSelectedPaymentMethodsFromBuilder();
+    const has = (id) => selected.includes(id);
+
+    const getV = (id) => (document.getElementById(id)?.value || '').trim();
+
+    const bankChecked = has('bank');
+    const momoChecked = has('momo');
+    const cashChecked = has('cash');
+    const checkChecked = has('check');
+    const cardChecked = has('card');
+
+    return {
+      bank: bankChecked ? {
+        bankName: getV('builder-pm-bank-name'),
+        accountHolder: getV('builder-pm-bank-holder'),
+        accountNumber: getV('builder-pm-bank-iban'),
+        iban: getV('builder-pm-bank-iban'),
+        swift: getV('builder-pm-bank-bic')
+      } : null,
+      momo: momoChecked ? {
+        accounts: [{
+          operator: getV('builder-pm-momo-op') || 'Wave',
+          holder: getV('builder-pm-momo-holder'),
+          phone: getV('builder-pm-momo-phone')
+        }]
+      } : null,
+      cash: cashChecked ? {
+        notice: 'Paiement en espèces à la livraison ou au comptoir'
+      } : null,
+      check: checkChecked ? {
+        payableTo: getV('builder-pm-check-payable'),
+        address: getV('builder-pm-check-address')
+      } : null,
+      card: cardChecked ? {
+        provider: getV('builder-pm-card-provider') || 'Stripe',
+        paymentUrl: getV('builder-pm-card-link'),
+        notice: 'Paiement sécurisé par carte bancaire en ligne'
+      } : null
+    };
+  },
+
+  /**
+   * Retourne la configuration complète des moyens de paiement actifs
    */
   getPaymentConfig: function () {
+    const container = document.getElementById('builder-pm-checkboxes-container');
+    if (container && container.children.length > 0) {
+      return this.getPaymentConfigFromBuilder();
+    }
+
     const biz = (this.state && this.state.business) || {};
     const bDetails = biz.bankDetails || {};
     return {
@@ -5048,119 +5099,192 @@ window.KivoApp = {
   },
 
   /**
-   * Rendu de la section "Moyens de paiement acceptés" dans le constructeur de facture
+   * Rendu de la section "Modalités de paiement acceptées" dans le constructeur de facture
    * @param {Array<string>} [initialSelected] - Liste des IDs sélectionnés ou null pour tous par défaut
+   * @param {Object} [savedConfig] - Configuration de paiement spécifique au document
    */
-  renderBuilderPaymentMethodsSelection: function (initialSelected) {
+  renderBuilderPaymentMethodsSelection: function (initialSelected, savedConfig) {
     const container = document.getElementById('builder-pm-checkboxes-container');
     const alertBox = document.getElementById('builder-pm-no-methods-alert');
     if (!container) return;
 
-    const biz = (this.state && this.state.business) || {};
-    const bDetails = biz.bankDetails || {};
-    const activeMethods = [];
-
-    // 1. Virement bancaire
-    if (bDetails.active) {
-      const summaryParts = [];
-      if (bDetails.bankName) summaryParts.push(bDetails.bankName);
-      if (bDetails.iban || bDetails.accountNumber) summaryParts.push(`IBAN / Compte : ${bDetails.iban || bDetails.accountNumber}`);
-      if (bDetails.accountName || biz.name) summaryParts.push(`Titulaire : ${bDetails.accountName || biz.name}`);
-      activeMethods.push({
-        id: 'bank',
-        icon: '💳',
-        title: 'Virement bancaire',
-        summary: summaryParts.join(' • ') || 'Coordonnées bancaires configurées'
-      });
-    }
-
-    // 2. Mobile Money
-    if (bDetails.mobileMoney && bDetails.mobileMoney.active) {
-      const momo = bDetails.mobileMoney;
-      const op = momo.operator || 'Mobile Money';
-      const ph = momo.phone || momo.wave || momo.orangeMoney || momo.mtn || '';
-      const holder = momo.holder || biz.owner || '';
-      activeMethods.push({
-        id: 'momo',
-        icon: '📱',
-        title: `Mobile Money (${op})`,
-        summary: `${op} : ${ph}${holder ? ' • Titulaire : ' + holder : ''}`
-      });
-    }
-
-    // 3. Espèces
-    if (bDetails.cash && bDetails.cash.active) {
-      activeMethods.push({
-        id: 'cash',
-        icon: '💵',
-        title: 'Espèces (Cash)',
-        summary: bDetails.cash.notice || 'Paiement en espèces à la livraison ou au comptoir'
-      });
-    }
-
-    // 4. Chèque
-    if (bDetails.check && bDetails.check.active) {
-      const chk = bDetails.check;
-      const payable = chk.payable || biz.name || '';
-      activeMethods.push({
-        id: 'check',
-        icon: '📝',
-        title: 'Chèque',
-        summary: `À l'ordre de : ${payable}${chk.address ? ' • Adresse : ' + chk.address : ''}`
-      });
-    }
-
-    // 5. Carte bancaire / En ligne
-    if (bDetails.card && bDetails.card.active) {
-      const crd = bDetails.card;
-      activeMethods.push({
-        id: 'card',
-        icon: '💳',
-        title: `Paiement en ligne (${crd.provider || 'Stripe'})`,
-        summary: crd.paymentLink ? `Lien sécurisé : ${crd.paymentLink}` : 'Paiement en ligne par carte activé'
-      });
-    }
-
-    if (activeMethods.length === 0) {
-      if (alertBox) alertBox.style.display = 'block';
-      container.innerHTML = '';
-      return;
-    }
-
     if (alertBox) alertBox.style.display = 'none';
 
-    // Déterminer la sélection : si initialSelected est fourni (tableau), l'utiliser ; sinon tout sélectionner par défaut
+    const biz = (this.state && this.state.business) || {};
+    const bDetails = biz.bankDetails || {};
+    const cfg = savedConfig || {};
+
+    // Données par défaut pour les sous-champs
+    const bankVal = {
+      name: cfg.bank?.bankName || bDetails.bankName || '',
+      holder: cfg.bank?.accountHolder || bDetails.accountName || biz.name || biz.owner || '',
+      iban: cfg.bank?.iban || cfg.bank?.accountNumber || bDetails.iban || bDetails.accountNumber || '',
+      bic: cfg.bank?.swift || bDetails.bic || ''
+    };
+
+    const momoVal = {
+      op: cfg.momo?.accounts?.[0]?.operator || bDetails.mobileMoney?.operator || 'Wave',
+      holder: cfg.momo?.accounts?.[0]?.holder || bDetails.mobileMoney?.holder || biz.name || biz.owner || '',
+      phone: cfg.momo?.accounts?.[0]?.phone || bDetails.mobileMoney?.phone || bDetails.mobileMoney?.wave || bDetails.mobileMoney?.orangeMoney || '+242 '
+    };
+
+    const checkVal = {
+      payable: cfg.check?.payableTo || bDetails.check?.payable || biz.name || biz.owner || '',
+      address: cfg.check?.address || bDetails.check?.address || biz.address || ''
+    };
+
+    const cardVal = {
+      provider: cfg.card?.provider || bDetails.card?.provider || 'Stripe',
+      link: cfg.card?.paymentUrl || bDetails.card?.paymentLink || ''
+    };
+
+    // Déterminer la sélection : si initialSelected est fourni, l'utiliser ; sinon activer par défaut les moyens configurés ou virement
     const isSelected = (id) => {
       if (Array.isArray(initialSelected)) {
         return initialSelected.includes(id);
       }
-      return true; // Coché par défaut pour une nouvelle facture
+      if (id === 'bank') return !!(bDetails.active || bDetails.bankName || bDetails.iban || true);
+      if (id === 'momo') return !!(bDetails.mobileMoney && bDetails.mobileMoney.active);
+      if (id === 'cash') return !!(bDetails.cash && bDetails.cash.active);
+      if (id === 'check') return !!(bDetails.check && bDetails.check.active);
+      if (id === 'card') return !!(bDetails.card && bDetails.card.active);
+      return false;
     };
 
-    container.innerHTML = activeMethods.map(m => {
-      const checked = isSelected(m.id);
-      return `
-        <div class="builder-pm-card-item" style="border:1px solid #E2E8F0; border-radius:10px; padding:0.65rem 0.85rem; background:#F8FAFC; transition:all 0.15s ease;">
-          <label style="display:flex; align-items:center; gap:0.6rem; font-weight:600; font-size:0.88rem; cursor:pointer; color:#1E293B; margin:0;">
-            <input type="checkbox" name="builder_pm" value="${m.id}" ${checked ? 'checked' : ''} onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:16px; height:16px; accent-color:var(--primary,#4F46E5); cursor:pointer;">
-            <span>${m.icon} ${m.title}</span>
-          </label>
-          <div class="builder-pm-summary" id="builder-pm-sum-${m.id}" style="margin-top:0.35rem; margin-left:1.6rem; font-size:0.78rem; color:#64748B; line-height:1.45; display:${checked ? 'block' : 'none'};">
-            ${m.summary}
+    const bankChecked = isSelected('bank');
+    const momoChecked = isSelected('momo');
+    const cashChecked = isSelected('cash');
+    const checkChecked = isSelected('check');
+    const cardChecked = isSelected('card');
+
+    container.innerHTML = `
+      <!-- 1. Virement bancaire -->
+      <div class="builder-pm-card-item" style="border:1px solid #E2E8F0; border-radius:10px; padding:0.75rem 1rem; background:#FFFFFF; transition:all 0.2s ease;">
+        <label style="display:flex; align-items:center; gap:0.65rem; font-weight:700; font-size:0.9rem; cursor:pointer; color:#1E293B; margin:0;">
+          <input type="checkbox" name="builder_pm" value="bank" ${bankChecked ? 'checked' : ''} onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:17px; height:17px; accent-color:#2563EB; cursor:pointer;">
+          <span>💳 Virement bancaire</span>
+        </label>
+        <div id="builder-pm-details-bank" style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed #E2E8F0; display:${bankChecked ? 'block' : 'none'}; transition:all 0.2s ease;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.65rem;">
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Nom de la banque</label>
+              <input type="text" id="builder-pm-bank-name" value="${bankVal.name}" placeholder="Ex: Société Générale, BGFI, BCI..." oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Nom du titulaire / Bénéficiaire</label>
+              <input type="text" id="builder-pm-bank-holder" value="${bankVal.holder}" placeholder="Ex: KIVO SAS ou Jean Dupont" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Numéro de compte / IBAN</label>
+              <input type="text" id="builder-pm-bank-iban" value="${bankVal.iban}" placeholder="FR76 ... ou N° de compte" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Code SWIFT / BIC <span style="font-weight:400; color:#94A3B8;">(Optionnel)</span></label>
+              <input type="text" id="builder-pm-bank-bic" value="${bankVal.bic}" placeholder="BNPAFRPP" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
           </div>
         </div>
-      `;
-    }).join('');
+      </div>
+
+      <!-- 2. Mobile Money -->
+      <div class="builder-pm-card-item" style="border:1px solid #E2E8F0; border-radius:10px; padding:0.75rem 1rem; background:#FFFFFF; transition:all 0.2s ease;">
+        <label style="display:flex; align-items:center; gap:0.65rem; font-weight:700; font-size:0.9rem; cursor:pointer; color:#1E293B; margin:0;">
+          <input type="checkbox" name="builder_pm" value="momo" ${momoChecked ? 'checked' : ''} onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:17px; height:17px; accent-color:#2563EB; cursor:pointer;">
+          <span>📱 Mobile Money</span>
+        </label>
+        <div id="builder-pm-details-momo" style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed #E2E8F0; display:${momoChecked ? 'block' : 'none'}; transition:all 0.2s ease;">
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.65rem;">
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Opérateur</label>
+              <select id="builder-pm-momo-op" onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.5rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; background:#FFF; box-sizing:border-box;">
+                <option value="Airtel Money" ${momoVal.op === 'Airtel Money' ? 'selected' : ''}>Airtel Money</option>
+                <option value="MTN MoMo" ${momoVal.op === 'MTN MoMo' ? 'selected' : ''}>MTN MoMo</option>
+                <option value="Moov Money" ${momoVal.op === 'Moov Money' ? 'selected' : ''}>Moov Money</option>
+                <option value="Orange Money" ${momoVal.op === 'Orange Money' ? 'selected' : ''}>Orange Money</option>
+                <option value="Wave" ${momoVal.op === 'Wave' ? 'selected' : ''}>Wave</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Nom du titulaire</label>
+              <input type="text" id="builder-pm-momo-holder" value="${momoVal.holder}" placeholder="Nom du titulaire du numéro" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Numéro de téléphone</label>
+              <input type="text" id="builder-pm-momo-phone" value="${momoVal.phone}" placeholder="+242 06 123 45 67" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Espèces -->
+      <div class="builder-pm-card-item" style="border:1px solid #E2E8F0; border-radius:10px; padding:0.75rem 1rem; background:#FFFFFF; transition:all 0.2s ease;">
+        <label style="display:flex; align-items:center; gap:0.65rem; font-weight:700; font-size:0.9rem; cursor:pointer; color:#1E293B; margin:0;">
+          <input type="checkbox" name="builder_pm" value="cash" ${cashChecked ? 'checked' : ''} onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:17px; height:17px; accent-color:#2563EB; cursor:pointer;">
+          <span>💵 Espèces (Cash)</span>
+        </label>
+        <div id="builder-pm-details-cash" style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px dashed #E2E8F0; display:${cashChecked ? 'block' : 'none'}; font-size:0.8rem; color:#64748B; font-style:italic;">
+          Ce mode sera mentionné comme « Paiement en espèces à la livraison ou au comptoir » sur vos documents.
+        </div>
+      </div>
+
+      <!-- 4. Chèque -->
+      <div class="builder-pm-card-item" style="border:1px solid #E2E8F0; border-radius:10px; padding:0.75rem 1rem; background:#FFFFFF; transition:all 0.2s ease;">
+        <label style="display:flex; align-items:center; gap:0.65rem; font-weight:700; font-size:0.9rem; cursor:pointer; color:#1E293B; margin:0;">
+          <input type="checkbox" name="builder_pm" value="check" ${checkChecked ? 'checked' : ''} onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:17px; height:17px; accent-color:#2563EB; cursor:pointer;">
+          <span>📝 Chèque</span>
+        </label>
+        <div id="builder-pm-details-check" style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed #E2E8F0; display:${checkChecked ? 'block' : 'none'}; transition:all 0.2s ease;">
+          <div style="display:flex; flex-direction:column; gap:0.65rem;">
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Nom du bénéficiaire <span style="font-weight:400; color:#94A3B8;">(à l'ordre de qui libeller le chèque)</span></label>
+              <input type="text" id="builder-pm-check-payable" value="${checkVal.payable}" placeholder="Ex: KIVO MATIQUE SAS" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Adresse d'envoi du chèque <span style="font-weight:400; color:#94A3B8;">(Optionnel)</span></label>
+              <textarea id="builder-pm-check-address" rows="2" placeholder="Adresse postale où faire parvenir le règlement..." oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; padding:0.45rem 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box; resize:vertical; font-family:inherit;">${checkVal.address}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Carte bancaire / En ligne -->
+      <div class="builder-pm-card-item" style="border:1px solid #E2E8F0; border-radius:10px; padding:0.75rem 1rem; background:#FFFFFF; transition:all 0.2s ease;">
+        <label style="display:flex; align-items:center; gap:0.65rem; font-weight:700; font-size:0.9rem; cursor:pointer; color:#1E293B; margin:0;">
+          <input type="checkbox" name="builder_pm" value="card" ${cardChecked ? 'checked' : ''} onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:17px; height:17px; accent-color:#2563EB; cursor:pointer;">
+          <span>💳 Carte bancaire / Paiement en ligne</span>
+        </label>
+        <div id="builder-pm-details-card" style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed #E2E8F0; display:${cardChecked ? 'block' : 'none'}; transition:all 0.2s ease;">
+          <div style="display:grid; grid-template-columns:1fr 2fr; gap:0.65rem;">
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Fournisseur</label>
+              <select id="builder-pm-card-provider" onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.5rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; background:#FFF; box-sizing:border-box;">
+                <option value="Stripe" ${cardVal.provider === 'Stripe' ? 'selected' : ''}>Stripe</option>
+                <option value="CinetPay" ${cardVal.provider === 'CinetPay' ? 'selected' : ''}>CinetPay</option>
+                <option value="Wave" ${cardVal.provider === 'Wave' ? 'selected' : ''}>Wave</option>
+                <option value="Autre" ${cardVal.provider === 'Autre' ? 'selected' : ''}>Autre</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Lien de paiement ou Clé API</label>
+              <input type="text" id="builder-pm-card-link" value="${cardVal.link}" placeholder="https://buy.stripe.com/... ou lien de paiement sécurisé" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
   },
 
   /**
-   * Déclenché quand une checkbox de moyen de paiement est cochée / décochée
+   * Déclenché quand une checkbox ou un champ de moyen de paiement change
    */
   onBuilderPaymentMethodChange: function () {
-    const checkboxes = document.querySelectorAll('#builder-pm-checkboxes-container input[type="checkbox"][name="builder_pm"]');
-    checkboxes.forEach(cb => {
-      const sum = document.getElementById(`builder-pm-sum-${cb.value}`);
-      if (sum) sum.style.display = cb.checked ? 'block' : 'none';
+    const methods = ['bank', 'momo', 'cash', 'check', 'card'];
+    methods.forEach(id => {
+      const cb = document.querySelector(`#builder-pm-checkboxes-container input[name="builder_pm"][value="${id}"]`);
+      const details = document.getElementById(`builder-pm-details-${id}`);
+      if (details) {
+        details.style.display = (cb && cb.checked) ? 'block' : 'none';
+      }
     });
     this.updateLiveInvoicePreview();
   },
@@ -5328,7 +5452,12 @@ window.KivoApp = {
 
     const rawSelectedStatus = (getVal('builder-doc-status') || '').toLowerCase().trim();
     const existingDoc = (this.state.documents || []).find(d => d && d.id === docId);
-    let resolvedStatus = rawSelectedStatus || (existingDoc ? existingDoc.status : 'draft');
+    let resolvedStatus = rawSelectedStatus;
+    if (existingDoc && existingDoc.status && existingDoc.status !== 'draft' && existingDoc.status !== 'brouillon') {
+      resolvedStatus = (rawSelectedStatus && rawSelectedStatus !== 'draft') ? rawSelectedStatus : existingDoc.status;
+    } else if (!resolvedStatus) {
+      resolvedStatus = existingDoc ? existingDoc.status : 'draft';
+    }
     if (resolvedStatus === 'payée' || resolvedStatus === 'payee') resolvedStatus = 'paid';
     if (!resolvedStatus) resolvedStatus = 'draft';
 
@@ -5520,7 +5649,7 @@ window.KivoApp = {
       }
 
       if (typeof this.renderBuilderPaymentMethodsSelection === 'function') {
-        this.renderBuilderPaymentMethodsSelection(draft.selectedPaymentMethods);
+        this.renderBuilderPaymentMethodsSelection(draft.selectedPaymentMethods, draft.paymentConfig);
       }
 
       this._currentDraftDocId = draft.id;
@@ -5986,9 +6115,15 @@ window.KivoApp = {
     };
     const issueDate = document.getElementById('builder-issue-date').value;
     const dueDate = document.getElementById('builder-due-date').value;
-    const rawBuilderStatus = (document.getElementById('builder-doc-status')?.value || 'draft').toLowerCase().trim();
-    const isStatusPaid = rawBuilderStatus === 'paid' || rawBuilderStatus === 'payée' || rawBuilderStatus === 'payee';
-    const status = isStatusPaid ? 'paid' : (rawBuilderStatus || 'draft');
+    const existingDoc = existingDocId ? (this.state.documents || []).find(d => d && d.id === existingDocId) : null;
+    let rawBuilderStatus = (document.getElementById('builder-doc-status')?.value || 'draft').toLowerCase().trim();
+    let status = rawBuilderStatus;
+    if (existingDoc && existingDoc.status && existingDoc.status !== 'draft' && existingDoc.status !== 'brouillon') {
+      status = (rawBuilderStatus && rawBuilderStatus !== 'draft') ? rawBuilderStatus : existingDoc.status;
+    }
+    if (status === 'payée' || status === 'payee') status = 'paid';
+    if (!status) status = 'draft';
+    const isStatusPaid = status === 'paid';
 
     // Point B: Custom header and issuer fields (stored per-document, NEVER modifies state.business profile)
     const docTitleText = (document.getElementById('builder-doc-title-text')?.value || '').trim();
@@ -6069,9 +6204,40 @@ window.KivoApp = {
       }
     });
 
-    if (items.length === 0) {
-      this.showToast(this._t('toast_doc_no_items'), "warning");
-      return;
+    const isDraft = (status === 'draft' || status === 'brouillon');
+    if (!isDraft) {
+      const hasClient = (customClientName && customClientName !== 'Client Destinataire') || (clientId && clientId !== 'cli_anon');
+      if (!hasClient) {
+        const clientNameInput = document.getElementById('builder-client-name');
+        const clientSelect = document.getElementById('builder-doc-client-select');
+        if (clientNameInput) {
+          clientNameInput.style.borderColor = '#EF4444';
+          clientNameInput.focus();
+        } else if (clientSelect) {
+          clientSelect.style.borderColor = '#EF4444';
+          clientSelect.focus();
+        }
+        this.showToast('Veuillez sélectionner ou renseigner un client destinataire.', 'error');
+        this._savingDoc = false;
+        return;
+      }
+
+      if (items.length === 0) {
+        this.showToast('Veuillez ajouter au moins une prestation ou un produit.', 'error');
+        this._savingDoc = false;
+        return;
+      }
+
+      if (!issueDate) {
+        const issueDateInput = document.getElementById('builder-issue-date');
+        if (issueDateInput) {
+          issueDateInput.style.borderColor = '#EF4444';
+          issueDateInput.focus();
+        }
+        this.showToast("La date d'émission est requise.", 'error');
+        this._savingDoc = false;
+        return;
+      }
     }
 
     let globalDiscount = 0;
@@ -7522,8 +7688,123 @@ window.KivoApp = {
   },
 
   openTemplateEditor: function () {
-    // Basic interaction for "Créer mon modèle"
-    this.showToast(this._t('toast_template_editor_soon'), 'info');
+    const modal = document.getElementById('modal-template-editor');
+    if (!modal) return;
+    
+    const nameInput = document.getElementById('template-editor-name');
+    if (nameInput) nameInput.value = '';
+    const errEl = document.getElementById('template-editor-name-error');
+    if (errEl) errEl.style.display = 'none';
+
+    const pColor = (this.state.business && this.state.business.primaryColor) || '#2563EB';
+    const sColor = (this.state.business && this.state.business.secondaryColor) || '#64748B';
+    const bgColor = (this.state.business && this.state.business.docBgColor) || '#FFFFFF';
+
+    const pInput = document.getElementById('template-editor-primary');
+    const pText = document.getElementById('template-editor-primary-text');
+    if (pInput) pInput.value = pColor;
+    if (pText) pText.value = pColor;
+
+    const sInput = document.getElementById('template-editor-secondary');
+    const sText = document.getElementById('template-editor-secondary-text');
+    if (sInput) sInput.value = sColor;
+    if (sText) sText.value = sColor;
+
+    const bgInput = document.getElementById('template-editor-bg');
+    const bgText = document.getElementById('template-editor-bg-text');
+    if (bgInput) bgInput.value = bgColor;
+    if (bgText) bgText.value = bgColor;
+
+    this.openModal('modal-template-editor');
+    this.updateTemplateEditorMiniPreview();
+  },
+
+  updateTemplateEditorMiniPreview: function () {
+    const previewContainer = document.getElementById('template-editor-mini-preview');
+    if (!previewContainer) return;
+    const baseTmpl = document.getElementById('template-editor-base')?.value || 'corporate';
+    const primary = document.getElementById('template-editor-primary')?.value || '#2563EB';
+    const secondary = document.getElementById('template-editor-secondary')?.value || '#64748B';
+    const bg = document.getElementById('template-editor-bg')?.value || '#FFFFFF';
+
+    if (window.KivoTemplates && typeof window.KivoTemplates.miniPreview === 'function') {
+      previewContainer.innerHTML = `<div style="background:${bg}; width:100%; height:100%; display:flex; align-items:center; justify-content:center;">${window.KivoTemplates.miniPreview(baseTmpl, primary)}</div>`;
+    } else {
+      previewContainer.innerHTML = `<div style="background:${bg}; width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:${primary}; font-weight:700;">${baseTmpl.toUpperCase()}</div>`;
+    }
+  },
+
+  saveTemplateFromModal: async function () {
+    const nameInput = document.getElementById('template-editor-name');
+    const errEl = document.getElementById('template-editor-name-error');
+    const name = nameInput ? nameInput.value.trim() : '';
+
+    if (!name) {
+      if (errEl) errEl.style.display = 'block';
+      if (nameInput) nameInput.focus();
+      return;
+    }
+    if (errEl) errEl.style.display = 'none';
+
+    const baseTemplateId = document.getElementById('template-editor-base')?.value || 'corporate';
+    const primaryColor = document.getElementById('template-editor-primary')?.value || '#2563EB';
+    const secondaryColor = document.getElementById('template-editor-secondary')?.value || '#64748B';
+    const bgColor = document.getElementById('template-editor-bg')?.value || '#FFFFFF';
+
+    const custom = {
+      id: 'custom-' + Date.now(),
+      name: name,
+      baseTemplateId: baseTemplateId,
+      primaryColor: primaryColor,
+      secondaryColor: secondaryColor,
+      bgColor: bgColor,
+      createdAt: new Date().toISOString()
+    };
+
+    if (!this.state.business) this.state.business = {};
+    const biz = this.state.business;
+    if (!biz.customTemplates) biz.customTemplates = [];
+    biz.customTemplates.push(custom);
+    this.saveState();
+
+    try {
+      if (window.KivoDb && typeof window.KivoDb.saveSettings === 'function') {
+        await window.KivoDb.saveSettings({
+          custom_templates: biz.customTemplates
+        });
+      } else if (window.KivoDb && window.KivoDb.supabase) {
+        const userId = window.KivoAuth?.user?.id;
+        if (userId) {
+          await window.KivoDb.supabase.from('business_settings').update({
+            custom_templates: biz.customTemplates
+          }).eq('user_id', userId);
+        }
+      }
+
+      const authUser = window.KivoAuth?.user;
+      if (authUser && window.KivoDb?.supabase) {
+        try {
+          await window.KivoDb.supabase.from('custom_templates').upsert({
+            id: custom.id,
+            user_id: authUser.id,
+            name: custom.name,
+            base_template_id: custom.baseTemplateId,
+            primary_color: custom.primaryColor,
+            secondary_color: custom.secondaryColor,
+            updated_at: new Date().toISOString()
+          });
+        } catch (_) {}
+      }
+
+      this.closeModal('modal-template-editor');
+      this.renderTemplateGallery();
+      this.showToast('Modèle « ' + custom.name + ' » créé et enregistré avec succès !', 'success');
+    } catch (e) {
+      console.error('[KivoApp] saveTemplateFromModal error:', e);
+      this.closeModal('modal-template-editor');
+      this.renderTemplateGallery();
+      this.showToast('Modèle enregistré localement.', 'success');
+    }
   },
 
   renderReminders: function () {
@@ -8361,11 +8642,11 @@ window.KivoApp = {
   },
 
   /**
-   * Bascule l'affichage du menu déroulant d'export (Documents ou Clients).
-   * @param {'docs'|'clients'} scope
+   * Bascule l'affichage du menu déroulant d'export (Documents, Clients ou Builder).
+   * @param {'docs'|'clients'|'builder'} scope
    */
   toggleExportDropdown: function (scope) {
-    const menuId = scope === 'clients' ? 'clients-export-menu' : 'docs-export-menu';
+    const menuId = scope === 'clients' ? 'clients-export-menu' : (scope === 'builder' ? 'builder-export-menu' : 'docs-export-menu');
     const menu = document.getElementById(menuId);
     if (!menu) return;
     const isVisible = menu.style.display === 'block';
@@ -8377,18 +8658,257 @@ window.KivoApp = {
 
   /**
    * Ferme les menus déroulants d'exportation.
-   * @param {'docs'|'clients'} [scope]
+   * @param {'docs'|'clients'|'builder'} [scope]
    */
   closeExportDropdown: function (scope) {
     if (scope) {
-      const menuId = scope === 'clients' ? 'clients-export-menu' : 'docs-export-menu';
+      const menuId = scope === 'clients' ? 'clients-export-menu' : (scope === 'builder' ? 'builder-export-menu' : 'docs-export-menu');
       const menu = document.getElementById(menuId);
       if (menu) menu.style.display = 'none';
     } else {
-      const mDocs = document.getElementById('docs-export-menu');
-      const mClients = document.getElementById('clients-export-menu');
-      if (mDocs) mDocs.style.display = 'none';
-      if (mClients) mClients.style.display = 'none';
+      ['docs-export-menu', 'clients-export-menu', 'builder-export-menu'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+    }
+  },
+
+  /**
+   * Extrait les données actuelles de la facture/devis ouvert dans le constructeur
+   */
+  getCurrentBuilderDocumentData: function () {
+    const num = (document.getElementById('builder-doc-number')?.value || 'FAC-XXXX').trim();
+    const type = document.getElementById('builder-doc-type')?.value || 'invoice';
+    const typeLabel = type === 'quote' ? 'Devis' : 'Facture';
+    const currency = document.getElementById('builder-doc-currency')?.value || (this.state.business?.currency || 'FCFA');
+    const clientId = document.getElementById('builder-doc-client-select')?.value || '';
+    const customClientName = (document.getElementById('builder-client-name')?.value || '').trim();
+    const clientObj = (this.state.clients || []).find(c => String(c.id) === String(clientId));
+    const clientName = customClientName || (clientObj && clientObj.name) || 'Client Destinataire';
+    const issueDate = document.getElementById('builder-issue-date')?.value || new Date().toISOString().split('T')[0];
+    const dueDate = document.getElementById('builder-due-date')?.value || '';
+    const status = document.getElementById('builder-doc-status')?.value || 'draft';
+    const issuerName = (document.getElementById('builder-biz-name')?.value || '').trim() || this.getBusinessName();
+
+    const items = [];
+    let subtotal = 0;
+    let totalTax = 0;
+
+    const showVat = document.getElementById('builder-toggle-vat') ? document.getElementById('builder-toggle-vat').checked : true;
+    const showDiscount = document.getElementById('builder-toggle-discount') ? document.getElementById('builder-toggle-discount').checked : false;
+    const discountVal = parseFloat(document.getElementById('builder-discount-value')?.value) || 0;
+    const discountType = document.getElementById('builder-discount-type')?.value || 'percent';
+    const showDeposit = document.getElementById('builder-toggle-deposit') ? document.getElementById('builder-toggle-deposit').checked : false;
+    const depositAmount = showDeposit ? (parseFloat(document.getElementById('builder-deposit-amount')?.value) || 0) : 0;
+
+    document.querySelectorAll('#builder-items-tbody .builder-item-card, #builder-items-tbody tr').forEach((tr, index) => {
+      const name = (tr.querySelector('.item-name')?.value || '').trim();
+      const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 1;
+      const unit = (tr.querySelector('.item-unit')?.value || '').trim();
+      const price = parseFloat(tr.querySelector('.item-price')?.value) || 0;
+      const taxRate = (showVat && tr.querySelector('.item-tax')) ? (parseFloat(tr.querySelector('.item-tax').value) || 0) : 0;
+      const rowDiscount = parseFloat(tr.querySelector('.item-discount')?.value) || 0;
+
+      let totalHT = qty * price;
+      if (rowDiscount > 0) {
+        totalHT = Math.max(0, totalHT - (totalHT * (rowDiscount / 100)));
+      }
+      const taxAmount = showVat ? totalHT * (taxRate / 100) : 0;
+
+      if (name || price > 0) {
+        items.push({
+          num: index + 1,
+          name: name || 'Article',
+          quantity: qty,
+          unit: unit || '-',
+          price: price,
+          discount: rowDiscount,
+          taxRate: taxRate,
+          totalHT: totalHT,
+          totalTTC: totalHT + taxAmount
+        });
+        subtotal += totalHT;
+        totalTax += taxAmount;
+      }
+    });
+
+    let globalDiscount = 0;
+    if (showDiscount && discountVal > 0) {
+      if (discountType === 'percent') {
+        globalDiscount = subtotal * (discountVal / 100);
+      } else {
+        globalDiscount = discountVal;
+      }
+      globalDiscount = Math.min(globalDiscount, subtotal);
+    }
+
+    const taxableAmount = Math.max(0, subtotal - globalDiscount);
+    const grandTotal = Math.max(0, taxableAmount + (showVat ? totalTax : 0));
+    const balanceDue = Math.max(0, grandTotal - (showDeposit ? depositAmount : 0));
+
+    return {
+      num,
+      type,
+      typeLabel,
+      currency,
+      clientName,
+      issueDate,
+      dueDate,
+      status,
+      issuerName,
+      items,
+      subtotal,
+      globalDiscount,
+      totalTax: showVat ? totalTax : 0,
+      grandTotal,
+      depositAmount: showDeposit ? depositAmount : 0,
+      balanceDue
+    };
+  },
+
+  /**
+   * Exporte la facture/devis courante du constructeur en format CSV (UTF-8 avec BOM, séparateur ;)
+   */
+  exportCurrentDocCsv: function () {
+    const doc = this.getCurrentBuilderDocumentData();
+    const escapeCsv = (str) => {
+      const s = String(str == null ? '' : str);
+      return '"' + s.replace(/"/g, '""') + '"';
+    };
+
+    const lines = [
+      [escapeCsv('KIVO MATIQUE - Facturation & Gestion')],
+      [escapeCsv('Type de document'), escapeCsv(doc.typeLabel)],
+      [escapeCsv('Numéro'), escapeCsv(doc.num)],
+      [escapeCsv('Émetteur'), escapeCsv(doc.issuerName)],
+      [escapeCsv('Client'), escapeCsv(doc.clientName)],
+      [escapeCsv('Date d\'émission'), escapeCsv(doc.issueDate)],
+      [escapeCsv('Date d\'échéance'), escapeCsv(doc.dueDate || '-')],
+      [escapeCsv('Statut'), escapeCsv(doc.status)],
+      [escapeCsv('Devise'), escapeCsv(doc.currency)],
+      [],
+      [
+        escapeCsv('N°'),
+        escapeCsv('Description'),
+        escapeCsv('Quantité'),
+        escapeCsv('Unité'),
+        escapeCsv('Prix unitaire'),
+        escapeCsv('Remise (%)'),
+        escapeCsv('TVA (%)'),
+        escapeCsv('Total HT'),
+        escapeCsv('Total TTC')
+      ]
+    ];
+
+    doc.items.forEach(it => {
+      lines.push([
+        escapeCsv(it.num),
+        escapeCsv(it.name),
+        escapeCsv(it.quantity),
+        escapeCsv(it.unit),
+        escapeCsv(it.price.toFixed(2)),
+        escapeCsv(it.discount.toFixed(2)),
+        escapeCsv(it.taxRate.toFixed(2)),
+        escapeCsv(it.totalHT.toFixed(2)),
+        escapeCsv(it.totalTTC.toFixed(2))
+      ]);
+    });
+
+    lines.push([]);
+    lines.push([escapeCsv('Sous-total HT'), escapeCsv(doc.subtotal.toFixed(2))]);
+    if (doc.globalDiscount > 0) {
+      lines.push([escapeCsv('Remise globale'), escapeCsv(doc.globalDiscount.toFixed(2))]);
+    }
+    lines.push([escapeCsv('TVA / Taxe'), escapeCsv(doc.totalTax.toFixed(2))]);
+    lines.push([escapeCsv('Total TTC'), escapeCsv(doc.grandTotal.toFixed(2))]);
+    if (doc.depositAmount > 0) {
+      lines.push([escapeCsv('Acompte versé'), escapeCsv(doc.depositAmount.toFixed(2))]);
+      lines.push([escapeCsv('Reste à payer'), escapeCsv(doc.balanceDue.toFixed(2))]);
+    }
+
+    const csvContent = lines.map(row => row.join(';')).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const cleanNum = doc.num.replace(/[^a-zA-Z0-9-_]/g, '_');
+    const today = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `KIVO_${cleanNum}_${today}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    this.showToast('Export CSV de la facture téléchargé avec succès.', 'success');
+  },
+
+  /**
+   * Exporte la facture/devis courante du constructeur en format Excel (.xlsx) avec colonnes stylées et totaux
+   */
+  exportCurrentDocExcel: function () {
+    const doc = this.getCurrentBuilderDocumentData();
+
+    const runExport = () => {
+      try {
+        const wb = window.XLSX.utils.book_new();
+
+        // Données d'en-tête et récapitulatif
+        const summaryData = [
+          { 'Propriété': 'Document', 'Valeur': doc.typeLabel },
+          { 'Propriété': 'Numéro', 'Valeur': doc.num },
+          { 'Propriété': 'Émetteur', 'Valeur': doc.issuerName },
+          { 'Propriété': 'Client', 'Valeur': doc.clientName },
+          { 'Propriété': 'Date d\'émission', 'Valeur': doc.issueDate },
+          { 'Propriété': 'Date d\'échéance', 'Valeur': doc.dueDate || '-' },
+          { 'Propriété': 'Statut', 'Valeur': doc.status },
+          { 'Propriété': 'Devise', 'Valeur': doc.currency },
+          { 'Propriété': 'Sous-total HT', 'Valeur': Number(doc.subtotal.toFixed(2)) },
+          { 'Propriété': 'Remise globale', 'Valeur': Number(doc.globalDiscount.toFixed(2)) },
+          { 'Propriété': 'TVA', 'Valeur': Number(doc.totalTax.toFixed(2)) },
+          { 'Propriété': 'Total TTC', 'Valeur': Number(doc.grandTotal.toFixed(2)) },
+          { 'Propriété': 'Acompte versé', 'Valeur': Number(doc.depositAmount.toFixed(2)) },
+          { 'Propriété': 'Solde net à payer', 'Valeur': Number(doc.balanceDue.toFixed(2)) }
+        ];
+
+        // Lignes d'articles
+        const itemsData = doc.items.map(it => ({
+          'N°': it.num,
+          'Description': it.name,
+          'Quantité': it.quantity,
+          'Unité': it.unit,
+          'Prix unitaire': it.price,
+          'Remise (%)': it.discount,
+          'TVA (%)': it.taxRate,
+          'Total HT': Number(it.totalHT.toFixed(2)),
+          'Total TTC': Number(it.totalTTC.toFixed(2))
+        }));
+
+        const wsSummary = window.XLSX.utils.json_to_sheet(summaryData);
+        const wsItems = window.XLSX.utils.json_to_sheet(itemsData);
+
+        window.XLSX.utils.book_append_sheet(wb, wsSummary, 'Récapitulatif');
+        window.XLSX.utils.book_append_sheet(wb, wsItems, 'Articles');
+
+        const cleanNum = doc.num.replace(/[^a-zA-Z0-9-_]/g, '_');
+        const today = new Date().toISOString().slice(0, 10);
+        window.XLSX.writeFile(wb, `KIVO_${cleanNum}_${today}.xlsx`);
+        this.showToast('Export Excel généré avec succès.', 'success');
+      } catch (err) {
+        console.error('[KivoApp] exportCurrentDocExcel error:', err);
+        this.showToast("Erreur lors de la génération du fichier Excel.", 'error');
+      }
+    };
+
+    if (window.XLSX) {
+      runExport();
+    } else {
+      this.showToast('Chargement du module Excel...', 'info');
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      script.onload = () => runExport();
+      script.onerror = () => {
+        this.showToast("Impossible de charger le module d'export Excel.", 'error');
+      };
+      document.head.appendChild(script);
     }
   },
 
@@ -13297,12 +13817,14 @@ window.KivoApp = {
         balanceDue: balanceDue,
         currency: currencyStr,
         primaryColor: targetDoc.primaryColor || meta.primaryColor || biz.primaryColor || '#0F172A',
-        secondaryColor: targetDoc.secondaryColor || meta.secondaryColor || biz.secondaryColor || '#64748B'
+        secondaryColor: targetDoc.secondaryColor || meta.secondaryColor || biz.secondaryColor || '#64748B',
+        bgColor: targetDoc.bgColor || meta.bgColor || biz.docBgColor || (templateId === 'premium' ? '#181A20' : '#FFFFFF')
       };
 
+      const docBg = docData.bgColor;
       const filename = ((targetDoc.number || 'facture_KIVO').trim().replace(/[^a-zA-Z0-9-_]/g, '_')) + '.pdf';
       const renderedHtml = window.KivoTemplates ? window.KivoTemplates.render(templateId, docData) : '';
-      return { renderedHtml, filename, templateId, docData };
+      return { renderedHtml, filename, templateId, docData, bgColor: docBg };
     }
 
     // Sans argument : état courant du builder (y compris avant d'enregistrer)
@@ -13310,6 +13832,7 @@ window.KivoApp = {
     if (window.KivoTemplates && typeof window.KivoTemplates.collectData === 'function') {
       builderData = window.KivoTemplates.collectData(this.state);
     }
+    const docBg = (builderData && builderData.bgColor) || (document.getElementById('builder-color-bg')?.value) || biz.docBgColor || (templateId === 'premium' ? '#181A20' : '#FFFFFF');
     const builderNum = (builderData && builderData.docNum) || (document.getElementById('builder-doc-number') || {}).value || 'facture_KIVO';
     const filename = (builderNum.trim().replace(/[^a-zA-Z0-9-_]/g, '_')) + '.pdf';
     let renderedHtml = '';
@@ -13320,15 +13843,15 @@ window.KivoApp = {
       const sourceEl = document.getElementById('live-paper-preview-container') || document.getElementById('public-doc-printable-area');
       if (sourceEl) renderedHtml = sourceEl.innerHTML;
     }
-    return { renderedHtml, filename, templateId };
+    return { renderedHtml, filename, templateId, docData: builderData, bgColor: docBg };
   },
 
   /**
    * Crée et prépare l'iframe hors écran pour html2canvas / impression
    */
-  _preparePdfIframe: async function (renderedHtml, templateId) {
+  _preparePdfIframe: async function (renderedHtml, templateId, customBgColor) {
     const isDark = (templateId === 'premium');
-    const bgColor = isDark ? '#181A20' : '#FFFFFF';
+    const bgColor = customBgColor || (isDark ? '#181A20' : '#FFFFFF');
 
     const iframe = document.createElement('iframe');
     iframe.id = 'kivo-pdf-render-frame';
@@ -13444,14 +13967,14 @@ window.KivoApp = {
       document.body.appendChild(overlay);
 
       // 2. Extraire données et HTML du document
-      const { renderedHtml, filename, templateId } = this._getDocForRender(targetDocOrId);
+      const { renderedHtml, filename, templateId, bgColor: extractedBg } = this._getDocForRender(targetDocOrId);
       if (!renderedHtml) {
         this.showToast(this._t('toast_doc_no_download'), "error");
         return;
       }
 
       // 3. Monter dans l'iframe hors écran et attendre les ressources
-      const prep = await this._preparePdfIframe(renderedHtml, templateId);
+      const prep = await this._preparePdfIframe(renderedHtml, templateId, extractedBg);
       iframe = prep.iframe;
       const iframeDoc = prep.iframeDoc;
       const bgColor = prep.bgColor;
@@ -13584,13 +14107,13 @@ window.KivoApp = {
       `;
       document.body.appendChild(overlay);
 
-      const { renderedHtml, templateId } = this._getDocForRender(targetDocOrId);
+      const { renderedHtml, templateId, bgColor: extractedBg } = this._getDocForRender(targetDocOrId);
       if (!renderedHtml) {
         this.showToast(this._t('toast_doc_no_print'), "error");
         return;
       }
 
-      const prep = await this._preparePdfIframe(renderedHtml, templateId);
+      const prep = await this._preparePdfIframe(renderedHtml, templateId, extractedBg);
       iframe = prep.iframe;
 
       if (overlay && overlay.parentNode) {

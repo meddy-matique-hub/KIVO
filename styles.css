@@ -8822,3 +8822,77 @@ body.full-width-view .main-content {
   }
 }
 
+/* ==========================================================================
+   A5 & A7 — Impression couleur fidèle et améliorations Mobile
+   ========================================================================== */
+.kivo-invoice-sheet {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+@media print {
+  .kivo-invoice-sheet {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Paramètres : titre et textes toujours blancs et lisibles sur fond dégradé */
+  .profile-header-wrap,
+  .profile-header-wrap h1,
+  .profile-header-wrap h2,
+  .profile-header-wrap h3,
+  .profile-header-wrap p,
+  .profile-header-wrap div {
+    color: #FFFFFF !important;
+  }
+
+  /* Onglets Paramètres : défilement horizontal fluide sans saut de ligne */
+  .profile-nav-links {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    gap: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  .profile-nav-links::-webkit-scrollbar {
+    display: none !important;
+  }
+  .profile-nav-link {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  /* Champs tactiles mobiles : hauteur minimale accessible 44px */
+  .profile-input,
+  .form-input,
+  .btn,
+  .profile-tab-btn,
+  .builder-field-input,
+  select {
+    min-height: 44px;
+  }
+
+  /* Barre d'action mobile du Builder fixée en bas avec safe-area */
+  .builder-actions-mobile {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 999 !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border-top: 1px solid #E2E8F0 !important;
+    padding: 0.65rem 1rem !important;
+    padding-bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px)) !important;
+    display: flex !important;
+    gap: 0.5rem !important;
+    box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08) !important;
+  }
+}
+
