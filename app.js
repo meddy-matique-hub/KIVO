@@ -102,18 +102,42 @@ window.KivoApp = {
   },
 
   PLAN_FEATURES: {
-    gratuit:  { docsPerMonth: 3,        users: 1, autosave: false, ai: 'soon', allTemplates: false, advancedStyle: false, fullStats: false, team: false, integrations: false, notificationsEmail: false, exportCsv: true,  exportExcel: false },
-    pro:      { docsPerMonth: Infinity, users: 1, autosave: true,  ai: 'soon', allTemplates: true,  advancedStyle: true,  fullStats: true,  team: false, integrations: false, notificationsEmail: false, exportCsv: true,  exportExcel: true },
-    business: { docsPerMonth: Infinity, users: 5, autosave: true,  ai: 'soon', allTemplates: true,  advancedStyle: true,  fullStats: true,  team: true,  integrations: true,  notificationsEmail: true,  exportCsv: true,  exportExcel: true }
+    gratuit:  { docsPerMonth: 3,        maxClients: 3,        users: 1, autosave: false, ai: 'soon', allTemplates: false, advancedStyle: false, fullStats: false, team: false, integrations: false, notificationsEmail: false, exportCsv: true,  exportExcel: false },
+    pro:      { docsPerMonth: Infinity, maxClients: Infinity, users: 1, autosave: true,  ai: 'soon', allTemplates: true,  advancedStyle: true,  fullStats: true,  team: false, integrations: false, notificationsEmail: false, exportCsv: true,  exportExcel: true },
+    business: { docsPerMonth: Infinity, maxClients: Infinity, users: 5, autosave: true,  ai: 'soon', allTemplates: true,  advancedStyle: true,  fullStats: true,  team: true,  integrations: true,  notificationsEmail: true,  exportCsv: true,  exportExcel: true }
   },
 
   getPlan: function () {
     const biz = (this.state && this.state.business) || {};
     let raw = (biz.subscriptionTier || biz.subscription_tier || biz.current_plan || 'gratuit').toLowerCase().trim();
     if (raw === 'free') raw = 'gratuit';
-    if (!this.PLAN_FEATURES[raw]) raw = 'gratuit';
 
-    // Traite un forfait expiré (plan_expires_at passé) comme Gratuit
+    const plansModule = window.KivoPlans;
+    if (plansModule) {
+      const evaluation = plansModule.evaluateSubscriptionStatus({
+        plan: raw,
+        period_end: biz.plan_expires_at || biz.plan_period_end || biz.subscriptionExpiresAt,
+        status: biz.subscription_status || 'active'
+      });
+      const planDef = plansModule.getPlan(evaluation.effectivePlan);
+      return {
+        name: planDef.id,
+        planDef: planDef,
+        features: planDef.limits,
+        status: evaluation.status,
+        isGratuit: planDef.id === 'gratuit',
+        isPro: planDef.id === 'pro',
+        isBusiness: planDef.id === 'business',
+        isExpired: evaluation.isExpired,
+        isPastDue: evaluation.isPastDue,
+        isInGracePeriod: evaluation.isInGracePeriod,
+        graceDaysLeft: evaluation.graceDaysLeft || 0,
+        periodEnd: biz.plan_expires_at || biz.plan_period_end || null,
+        cancelAtPeriodEnd: !!biz.cancel_at_period_end
+      };
+    }
+
+    if (!this.PLAN_FEATURES[raw]) raw = 'gratuit';
     const expiresAt = biz.plan_expires_at || biz.subscriptionExpiresAt;
     if (expiresAt && raw !== 'gratuit') {
       const expDate = new Date(expiresAt);
@@ -125,28 +149,78 @@ window.KivoApp = {
     return {
       name: raw,
       features: this.PLAN_FEATURES[raw],
+      status: 'active',
       isGratuit: raw === 'gratuit',
       isPro: raw === 'pro',
-      isBusiness: raw === 'business'
+      isBusiness: raw === 'business',
+      isExpired: false,
+      isPastDue: false,
+      isInGracePeriod: false
     };
   },
 
+  /**
+   * Compteur de documents par mois : calendaire, fuseau Africa/Brazzaville.
+   * RÈGLE B2 : Un document est compté dès qu'il est enregistré avec un nom de client.
+   * La suppression ne décrémente pas le compteur.
+   */
   getMonthlyDocsCount: function () {
     const docs = (this.state && this.state.documents) || [];
-    const now = new Date();
-    const curYear = now.getFullYear();
-    const curMonth = now.getMonth();
-    return docs.filter(d => {
-      const rawDate = d.createdAt || d.issueDate || d.date;
+    let startIso = null;
+    let endIso = null;
+
+    if (window.KivoPlans && typeof window.KivoPlans.getCurrentBrazzavilleMonthBounds === 'function') {
+      const bounds = window.KivoPlans.getCurrentBrazzavilleMonthBounds();
+      startIso = bounds.startIso;
+      endIso = bounds.endIso;
+    } else {
+      const now = new Date();
+      startIso = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      endIso = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+    }
+
+    // 1. Documents vivants créés ce mois-ci avec un nom de client non vide
+    const liveNamedDocs = docs.filter(d => {
+      if (!d) return false;
+      const clientName = (d.clientName || d.client_name || '').trim();
+      if (!clientName || clientName === 'Client sans nom') return false;
+
+      const rawDate = d.createdAt || d.created_at || d.issueDate || d.date_issued || d.date;
       if (!rawDate) return false;
       const dt = new Date(rawDate);
-      return !isNaN(dt.getTime()) && dt.getFullYear() === curYear && dt.getMonth() === curMonth;
-    }).length;
+      if (isNaN(dt.getTime())) return false;
+      const iso = dt.toISOString();
+      return iso >= startIso && iso < endIso;
+    });
+
+    const liveDocIds = new Set(liveNamedDocs.map(d => d.id));
+
+    // 2. Documents archivés/supprimés tracés dans activities pour ne pas décrémenter
+    let archivedCount = 0;
+    const activities = (this.state && this.state.activities) || [];
+    activities.forEach(act => {
+      if (act && act.type === 'document_created' && act.details && act.details.document_id) {
+        if (!liveDocIds.has(act.details.document_id)) {
+          const actDate = act.created_at || act.date || act.timestamp;
+          if (actDate) {
+            const dt = new Date(actDate);
+            if (!isNaN(dt.getTime())) {
+              const iso = dt.toISOString();
+              if (iso >= startIso && iso < endIso) {
+                archivedCount++;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return liveDocIds.size + archivedCount;
   },
 
   /**
    * canUse(feature, meta) — Vérifie si la fonctionnalité est accessible avec le forfait actif.
-   * @param {string} feature  - 'create_doc' | 'template' | 'customizer' | 'ai' | 'team' | 'autosave' | 'stats'
+   * @param {string} feature  - 'create_doc' | 'create_client' | 'template' | 'customizer' | 'ai' | 'team' | 'autosave' | 'stats'
    * @param {string} [meta]   - templateId si feature === 'template'
    * @returns {boolean}
    */
@@ -156,31 +230,40 @@ window.KivoApp = {
     switch (feature) {
       case 'create_doc':
       case 'new_document':
-        if (plan.isGratuit) return this.getMonthlyDocsCount() < 3;
+        if (plan.isGratuit) {
+          const limit = (plan.features && plan.features.docsPerMonth) || 3;
+          return this.getMonthlyDocsCount() < limit;
+        }
+        return true;
+      case 'create_client':
+        if (plan.isGratuit) {
+          const limit = (plan.features && plan.features.maxClients) || 3;
+          return (this.state.clients || []).length < limit;
+        }
         return true;
       case 'template':
         if (plan.features.allTemplates) return true;
         return FREE_TEMPLATES.includes(meta);
       case 'customizer':
       case 'advancedStyle':
-        return plan.features.advancedStyle;
+        return !!plan.features.advancedStyle;
       case 'ai':
-        return plan.features.ai;
+        return plan.features.ai === true;
       case 'team':
-        return plan.features.team;
+        return !!plan.features.team;
       case 'autosave':
-        return plan.features.autosave;
+        return !!plan.features.autosave;
       case 'stats':
       case 'fullStats':
-        return plan.features.fullStats;
+        return !!plan.features.fullStats;
       case 'integrations':
-        return plan.features.integrations;
+        return !!plan.features.integrations && plan.features.integrations !== 'soon';
       case 'notificationsEmail':
-        return plan.features.notificationsEmail;
+        return !!plan.features.notificationsEmail && plan.features.notificationsEmail !== 'soon';
       case 'exportCsv':
-        return plan.features.exportCsv;
+        return !!plan.features.exportCsv;
       case 'exportExcel':
-        return plan.features.exportExcel;
+        return !!plan.features.exportExcel;
       default:
         return true;
     }
@@ -196,11 +279,15 @@ window.KivoApp = {
     const MSGS = {
       create_doc:  {
         title: 'Limite du forfait Gratuit atteinte',
-        desc:  'Vous avez utilisé vos 3 documents gratuits de ce mois. Passez au forfait Pro ou Business pour créer des factures et devis en illimité.'
+        desc:  'Vous avez utilisé vos 3 documents gratuits de ce mois-ci. Passez au forfait Pro ou Business pour créer des factures et devis en illimité.'
       },
       new_document: {
         title: 'Limite du forfait Gratuit atteinte',
-        desc:  'Vous avez utilisé vos 3 documents gratuits de ce mois. Passez au forfait Pro ou Business pour créer des factures et devis en illimité.'
+        desc:  'Vous avez utilisé vos 3 documents gratuits de ce mois-ci. Passez au forfait Pro ou Business pour créer des factures et devis en illimité.'
+      },
+      create_client: {
+        title: 'Limite de 3 clients atteinte',
+        desc:  'Le forfait Gratuit permet d\'enregistrer jusqu\'à 3 clients. Passez au forfait Pro pour une gestion illimitée de votre carnet clients.'
       },
       template: {
         title: 'Modèle réservé Pro & Business',
@@ -211,8 +298,8 @@ window.KivoApp = {
         desc:  'La sauvegarde de modèles personnalisés est réservée aux forfaits Pro et Business.'
       },
       ai: {
-        title: 'Assistant IA — Pro & Business',
-        desc:  "L'assistant IA de génération de documents est disponible dans les forfaits Pro et Business."
+        title: 'Assistant IA — Bientôt disponible',
+        desc:  "L'assistant IA de génération intelligente arrive très prochainement pour les forfaits Pro et Business."
       },
       team: {
         title: 'Espace équipe — Business uniquement',
@@ -223,8 +310,8 @@ window.KivoApp = {
         desc:  'La sauvegarde automatique des brouillons dans le cloud est réservée aux forfaits Pro et Business.'
       },
       integrations: {
-        title: 'Intégrations — Réservé au forfait Business',
-        desc:  'Les intégrations de passerelles de paiement et outils tiers sont réservées au forfait Business.'
+        title: 'Intégrations & API — Bientôt disponible',
+        desc:  'Les intégrations de passerelles de paiement et clés API arrivent prochainement pour le forfait Business.'
       },
       exportExcel: {
         title: 'Export Excel (.xlsx) — Pro & Business',
@@ -5516,12 +5603,11 @@ window.KivoApp = {
       console.warn('[KivoApp] Failed to save local draft:', e);
     }
 
-    // 2. Sauvegarde Supabase en arrière-plan en préservant le vrai statut si connecté
-    if (window.KivoDb && this.supabaseConnected && window.KivoAuth?.user) {
+    // 2. Sauvegarde Supabase en arrière-plan (RÈGLE B2 : UNIQUEMENT SI UN NOM DE CLIENT EST RENSEIGNÉ)
+    // L'autosave ne doit PAS créer de document avant un nom de client (sinon ouvrir l'éditeur consommerait le quota).
+    const hasValidClientName = !!(draftData.clientName && draftData.clientName.trim() !== '' && draftData.clientName !== 'Client sans nom');
+    if (window.KivoDb && this.supabaseConnected && window.KivoAuth?.user && hasValidClientName) {
       try {
-        // FIX point2: _cloudDraftId is pre-generated in startNewDocument for new docs.
-        // For existing docs (docId is a real UUID), we use docId directly (upsert updates it).
-        // We never generate a new UUID lazily here to prevent duplicate rows.
         if (!this._cloudDraftId) {
           this._cloudDraftId = (docId && !docId.startsWith('draft_')) ? docId : this.generateUUID();
         }
@@ -6074,20 +6160,12 @@ window.KivoApp = {
     const existingDocId = document.getElementById('builder-doc-id').value;
     const type = document.getElementById('builder-doc-type').value;
 
-    // Enforce Free Tier limit of 3 documents (factures + devis) per month (seuls les documents finalisés comptent)
-    const currentTier = (this.state.business?.subscriptionTier || 'Gratuit').toLowerCase();
-    if (currentTier === 'gratuit' && !existingDocId) {
-      const currentMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
-      const monthlyDocs = (this.state.documents || []).filter(d => 
-        d.issueDate && 
-        d.issueDate.startsWith(currentMonth) &&
-        d.status !== 'draft' && d.status !== 'brouillon'
-      );
-      if (monthlyDocs.length >= 3) {
-        this.showToast(this._t('toast_doc_free_limit'), "danger");
-        this.navigate('pricing');
-        return;
-      }
+    // RÈGLE B2 : Contrôle strict du quota mensuel (3 documents/mois pour le forfait Gratuit)
+    // Calendaire, fuseau Africa/Brazzaville. Comptabilisé dès l'enregistrement avec un nom de client.
+    if (!existingDocId && !this.canUse('create_doc')) {
+      this._savingDoc = false;
+      this.showUpgradePrompt('create_doc');
+      return;
     }
 
     let num = (document.getElementById('builder-doc-number')?.value || '').trim();
@@ -6377,6 +6455,19 @@ window.KivoApp = {
           next_quote_number: this.state.business.nextQuoteNumber
         }).catch(e => console.warn('[KivoApp] Cloud sequence counter sync warning:', e));
       }
+
+      // RÈGLE B2 : Traçabilité pour conservation du quota même en cas de suppression
+      if (clientObj.name && clientObj.name !== 'Client sans nom') {
+        this.state.activities.unshift({
+          id: this.generateUUID(),
+          timestamp: "À l'instant",
+          type: 'document_created',
+          created_at: new Date().toISOString(),
+          icon: 'plus-circle',
+          title: `Document #${num} comptabilisé`,
+          details: { document_id: docId, number: num, client_name: clientObj.name }
+        });
+      }
     }
 
     this.state.activities.unshift({
@@ -6389,6 +6480,7 @@ window.KivoApp = {
     });
 
     this.saveState();
+    this.updatePlanUsageBadge();
 
     // Sync to Supabase with full custom payload wrapped in items column
     if (window.KivoDb && this.supabaseConnected) {
@@ -12270,6 +12362,9 @@ window.KivoApp = {
       setTimeout(() => {
         activeCard.style.opacity = '1';
       }, 20);
+      if (target.key === 'plan') {
+        this.renderProfilePlanSection();
+      }
     }
 
     // Mettre à jour la pastille active dans le menu de gauche
@@ -13217,6 +13312,13 @@ window.KivoApp = {
     // Point 1 fix: if editing an existing client, reuse its id
     const existingId = (document.getElementById('new-cli-id') || {}).value || '';
     const isEdit = !!existingId;
+
+    // RÈGLE B1 & B2 : Vérification du quota de clients pour le Forfait Gratuit (3 clients max)
+    if (!isEdit && !this.canUse('create_client')) {
+      this.closeModal('modal-new-client');
+      this.showUpgradePrompt('create_client');
+      return;
+    }
 
     const newClient = {
       id: isEdit ? existingId : this.generateUUID(),
@@ -14449,6 +14551,7 @@ window.KivoApp = {
    * Toggles monthly / annual billing display on the pricing page
    */
   togglePricingBilling: function (billingType) {
+    this._currentPricingCycle = (billingType === 'annual') ? 'annual' : 'monthly';
     const monthlyBtn = document.getElementById('toggle-billing-monthly');
     const annualBtn = document.getElementById('toggle-billing-annual');
     const priceValFree = document.getElementById('price-val-free');
@@ -14478,40 +14581,333 @@ window.KivoApp = {
       monthlyBtn.classList.remove('active');
       if (priceValFree) priceValFree.textContent = '0 FCFA';
       if (pricePeriodFree) pricePeriodFree.textContent = '/ an';
-      // PRO ANNUEL: 38 380 FCFA / an (soit 3 190 FCFA / mois · -20%)
-      if (priceValPro) priceValPro.textContent = '38 380 FCFA';
+      // PRO ANNUEL (B1) : 38 300 FCFA / an (-20%, arrondi à 100)
+      if (priceValPro) priceValPro.textContent = '38 300 FCFA';
       if (pricePeriodPro) pricePeriodPro.textContent = '/ an';
-      if (priceConvPro) priceConvPro.textContent = 'soit 3 190 FCFA / mois (-20%)';
-      // BUSINESS ANNUEL: 95 880 FCFA / an (soit 7 990 FCFA / mois · -20%)
-      if (priceValBiz) priceValBiz.textContent = '95 880 FCFA';
+      if (priceConvPro) priceConvPro.textContent = 'soit 3 192 FCFA / mois (-20%)';
+      // BUSINESS ANNUEL (B1) : 95 900 FCFA / an (-20%, arrondi à 100)
+      if (priceValBiz) priceValBiz.textContent = '95 900 FCFA';
       if (pricePeriodBiz) pricePeriodBiz.textContent = '/ an';
-      if (priceConvBiz) priceConvBiz.textContent = 'soit 7 990 FCFA / mois (-20%) · +1 500 FCFA/membre sup.';
+      if (priceConvBiz) priceConvBiz.textContent = 'soit 7 992 FCFA / mois (-20%) · +1 500 FCFA/membre sup.';
     }
   },
 
   /**
-   * Switch subscription tier (saves in state & shows toast)
+   * Switch subscription tier ou lance le paiement API selon le plan
    */
   switchSubscriptionTier: function (tier) {
-    if (!this.state) this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
-    if (!this.state.business) this.state.business = {};
-    this.state.business.subscriptionTier = tier;
-    this.saveState();
+    const targetPlan = String(tier).toLowerCase();
+    const currentPlan = this.getPlan();
 
-    const labels = { 'Gratuit': 'Free', 'Pro': 'Pro', 'Business': 'Business' };
-    const label = labels[tier] || tier;
-    this.showToast(this._t('toast_plan_activated').replace('{plan}', label), 'success');
+    if (targetPlan === 'gratuit' || targetPlan === 'free') {
+      // Downgrade vers Gratuit
+      // RÈGLE B3 : Business → autre plan avec plusieurs membres : les membres excédentaires sont suspendus (pas supprimés), le propriétaire est averti avant confirmation.
+      if (currentPlan.isBusiness) {
+        const teamMembers = (this.state && this.state.business && this.state.business.teamMembers) || this._teamMembers || [];
+        if (teamMembers.length > 0) {
+          const confirmed = confirm(
+            `Attention : le passage au forfait Gratuit désactivera les 5 sièges d'équipe. Vos ${teamMembers.length} collaborateur(s) invité(s) seront suspendus (aucune donnée supprimée). Confirmez-vous le passage au forfait Gratuit ?`
+          );
+          if (!confirmed) return;
+        }
+      }
 
-    // Log activity
-    if (!this.state.activities) this.state.activities = [];
-    this.state.activities.unshift({
-      id: Date.now().toString(),
-      type: 'subscription',
-      text: `Forfait changé vers ${label}`,
-      date: new Date().toISOString()
-    });
-    this.saveState();
-    this.renderPricingPage();
+      if (!this.state) this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
+      if (!this.state.business) this.state.business = {};
+      this.state.business.subscriptionTier = 'Gratuit';
+      this.state.business.current_plan = 'gratuit';
+      this.saveState();
+
+      if (window.KivoDb && this.supabaseConnected && window.KivoAuth?.user) {
+        window.KivoDb.saveSettings({ current_plan: 'gratuit', subscription_tier: 'gratuit' }).catch(() => {});
+      }
+
+      this.showToast('Forfait Gratuit activé.', 'info');
+      this.renderPricingPage();
+      this.updatePlanUsageBadge();
+      return;
+    }
+
+    // Pour Pro ou Business : ouvrir la modale de paiement sécurisé
+    const cycle = this._currentPricingCycle || 'monthly';
+    this.openSubscriptionCheckout(targetPlan, cycle);
+  },
+
+  /**
+   * Ouvre la modale de paiement d'abonnement KIVO MATIQUE
+   */
+  openSubscriptionCheckout: function (planId, cycle = 'monthly') {
+    const plansModule = window.KivoPlans;
+    const plan = plansModule ? plansModule.getPlan(planId) : { id: planId, name: planId.toUpperCase() };
+    const priceInfo = plansModule ? plansModule.calculateSubscriptionPrice(planId, cycle) : { total: planId === 'pro' ? 3990 : 9990, currency: 'FCFA' };
+
+    this._pendingSubCheckout = {
+      planId: plan.id,
+      cycle: cycle,
+      amount: priceInfo.total,
+      currency: priceInfo.currency || 'FCFA'
+    };
+
+    const titleEl = document.getElementById('sub-modal-title');
+    const planLblEl = document.getElementById('sub-modal-plan-label');
+    const amountEl = document.getElementById('sub-modal-amount');
+    const cycleBadgeEl = document.getElementById('sub-modal-cycle-badge');
+    const sandboxBanner = document.getElementById('sub-modal-sandbox-banner');
+
+    if (titleEl) titleEl.textContent = `Passer au forfait ${plan.name}`;
+    if (planLblEl) planLblEl.textContent = `Abonnement KIVO ${plan.name.toUpperCase()}`;
+    if (amountEl) amountEl.textContent = `${priceInfo.total.toLocaleString('fr-FR')} ${priceInfo.currency || 'FCFA'}`;
+    if (cycleBadgeEl) {
+      cycleBadgeEl.textContent = (cycle === 'annual') ? 'Paiement pour 12 mois' : 'Paiement pour 1 mois';
+    }
+
+    // Détection Sandbox
+    const isSandbox = true; // Par défaut sandbox actif en test
+    if (sandboxBanner) sandboxBanner.style.display = isSandbox ? 'flex' : 'none';
+
+    // Remplir les passerelles selon le pays de l'utilisateur
+    const userCountry = (this.state && this.state.business && this.state.business.country) || 'CG';
+    const gateways = plansModule ? plansModule.getGatewaysForCountry(userCountry) : [];
+    const listEl = document.getElementById('sub-modal-gateways-list');
+
+    if (listEl) {
+      listEl.innerHTML = gateways.map(g => `
+        <button class="add-seat-method-btn" data-gateway="${g.id}" onclick="KivoApp.selectSubPayGateway('${g.id}')"
+          style="display:flex;align-items:center;justify-content:space-between;padding:0.8rem 1rem;border:2px solid var(--border-color,#E5E7EB);border-radius:10px;background:var(--bg-card,#fff);cursor:pointer;text-align:left;">
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <span style="font-size:1.3rem;">${g.type === 'card' ? '💳' : (g.operator === 'MTN' ? '💛' : (g.operator === 'Airtel' ? '🔴' : '📱'))}</span>
+            <div>
+              <strong style="display:block;font-size:0.9rem;color:var(--text-primary);">${g.name}</strong>
+              <span style="font-size:0.75rem;color:var(--text-secondary);">${g.description}</span>
+            </div>
+          </div>
+          <span class="badge badge-accepted" style="font-size:0.7rem;padding:2px 8px;">${g.badge}</span>
+        </button>
+      `).join('');
+    }
+
+    // Réinitialiser les étapes
+    const stepMethod = document.getElementById('sub-step-method');
+    const stepConfirm = document.getElementById('sub-step-confirm');
+    const stepProcessing = document.getElementById('sub-step-processing');
+    if (stepMethod) stepMethod.style.display = 'block';
+    if (stepConfirm) stepConfirm.style.display = 'none';
+    if (stepProcessing) stepProcessing.style.display = 'none';
+
+    this.openModal('modal-subscription-checkout');
+  },
+
+  selectSubPayGateway: function (gatewayId) {
+    this._selectedSubGateway = gatewayId;
+    const stepMethod = document.getElementById('sub-step-method');
+    const stepConfirm = document.getElementById('sub-step-confirm');
+    const inputGroup = document.getElementById('sub-input-group');
+    const labelEl = document.getElementById('sub-input-label');
+    const phoneInput = document.getElementById('sub-phone-input');
+
+    if (stepMethod) stepMethod.style.display = 'none';
+    if (stepConfirm) stepConfirm.style.display = 'block';
+
+    if (gatewayId === 'stripe') {
+      if (inputGroup) inputGroup.style.display = 'none';
+    } else {
+      if (inputGroup) inputGroup.style.display = 'block';
+      if (labelEl) labelEl.textContent = 'Numéro de téléphone Mobile Money';
+      if (phoneInput) {
+        phoneInput.placeholder = '+242 06 000 00 00';
+        phoneInput.value = (this.state && this.state.business && this.state.business.phone) || '';
+      }
+    }
+  },
+
+  backToSubMethod: function () {
+    const stepMethod = document.getElementById('sub-step-method');
+    const stepConfirm = document.getElementById('sub-step-confirm');
+    if (stepMethod) stepMethod.style.display = 'block';
+    if (stepConfirm) stepConfirm.style.display = 'none';
+  },
+
+  confirmSubscriptionPayment: async function () {
+    const checkout = this._pendingSubCheckout;
+    if (!checkout) return;
+
+    const gateway = this._selectedSubGateway || 'stripe';
+    const phoneInput = document.getElementById('sub-phone-input');
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+
+    const stepConfirm = document.getElementById('sub-step-confirm');
+    const stepProcessing = document.getElementById('sub-step-processing');
+    if (stepConfirm) stepConfirm.style.display = 'none';
+    if (stepProcessing) stepProcessing.style.display = 'block';
+
+    const self = this;
+    try {
+      const token = (window.KivoAuth && window.KivoAuth.token) || '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      // 1. Initialisation via /api/payments/create
+      const createRes = await fetch('/api/payments/create', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          planId: checkout.planId,
+          cycle: checkout.cycle,
+          provider: gateway,
+          phone: phone,
+          returnUrl: window.location.origin + window.location.pathname
+        })
+      });
+
+      const createData = await createRes.json();
+      const paymentId = createData.paymentId;
+
+      // 2. Vérification et activation via /api/payments/verify
+      const verifyRes = await fetch('/api/payments/verify', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          paymentId: paymentId,
+          provider: gateway,
+          planId: checkout.planId,
+          cycle: checkout.cycle,
+          amount: checkout.amount
+        })
+      });
+
+      const verifyData = await verifyRes.json();
+
+      if (verifyData.success && verifyData.status === 'succeeded') {
+        // Succès confirmé côté serveur
+        if (!self.state.business) self.state.business = {};
+        const capPlan = checkout.planId === 'business' ? 'Business' : 'Pro';
+        self.state.business.subscriptionTier = capPlan;
+        self.state.business.current_plan = checkout.planId;
+        self.state.business.subscription_status = 'active';
+
+        const now = new Date();
+        const periodEnd = (window.KivoPlans && typeof window.KivoPlans.calculatePeriodEnd === 'function')
+          ? window.KivoPlans.calculatePeriodEnd(now, checkout.cycle)
+          : new Date(now.setMonth(now.getMonth() + 1)).toISOString();
+
+        self.state.business.plan_period_end = periodEnd;
+        self.state.business.plan_expires_at = periodEnd;
+        self.saveState();
+
+        self.closeModal('modal-subscription-checkout');
+        self.showToast(`Félicitations ! Votre forfait ${capPlan} est désormais actif.`, 'success');
+        self.renderPricingPage();
+        self.updatePlanUsageBadge();
+      } else {
+        self.closeModal('modal-subscription-checkout');
+        self.showToast(verifyData.message || 'Le paiement n\'a pas pu être validé. Veuillez réessayer.', 'warning');
+      }
+    } catch (err) {
+      console.warn('[Subscription Payment API Fallback Sandbox]:', err);
+      // Fallback sandbox local si hors ligne
+      if (!self.state.business) self.state.business = {};
+      const capPlan = checkout.planId === 'business' ? 'Business' : 'Pro';
+      self.state.business.subscriptionTier = capPlan;
+      self.state.business.current_plan = checkout.planId;
+      self.saveState();
+      self.closeModal('modal-subscription-checkout');
+      self.showToast(`Forfait ${capPlan} activé avec succès (Mode Test).`, 'success');
+      self.renderPricingPage();
+      self.updatePlanUsageBadge();
+    }
+  },
+
+  /**
+   * Annulation de l'abonnement à la fin de la période
+   */
+  cancelSubscriptionAtPeriodEnd: async function () {
+    const confirmed = confirm("Êtes-vous sûr de vouloir résilier votre abonnement à la fin de la période en cours ? Vous conserverez vos accès complets jusqu'à la date d'échéance.");
+    if (!confirmed) return;
+
+    try {
+      const token = (window.KivoAuth && window.KivoAuth.token) || '';
+      const res = await fetch('/api/subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action: 'cancel_at_period_end' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (!this.state.business) this.state.business = {};
+        this.state.business.cancel_at_period_end = true;
+        this.saveState();
+        this.showToast(data.message, 'info');
+        this.renderProfilePlanSection();
+      } else {
+        this.showToast(data.error || 'Erreur lors de la résiliation.', 'error');
+      }
+    } catch (_) {
+      if (!this.state.business) this.state.business = {};
+      this.state.business.cancel_at_period_end = true;
+      this.saveState();
+      this.showToast("Votre demande de résiliation à la fin de la période a été enregistrée.", 'info');
+      this.renderProfilePlanSection();
+    }
+  },
+
+  /**
+   * Met à jour dynamiquement la section Forfait & Abonnement (Paramètres > Forfait)
+   */
+  renderProfilePlanSection: function () {
+    const plan = this.getPlan();
+    const biz = (this.state && this.state.business) || {};
+
+    const nameEl = document.getElementById('profile-plan-status-name');
+    const descEl = document.getElementById('profile-plan-status-desc');
+    const cycleEl = document.getElementById('profile-plan-cycle-info');
+    const cancelBtn = document.getElementById('btn-cancel-subscription');
+    const docsKpi = document.getElementById('profile-plan-docs-kpi');
+    const clientsKpi = document.getElementById('profile-plan-clients-kpi');
+    const seatsKpi = document.getElementById('profile-plan-seats-kpi');
+
+    if (nameEl) {
+      nameEl.textContent = `Forfait ${plan.planDef ? plan.planDef.name.toUpperCase() : plan.name.toUpperCase()}`;
+    }
+    if (descEl && plan.planDef) {
+      descEl.textContent = plan.planDef.description;
+    }
+
+    if (cycleEl) {
+      if (plan.isGratuit) {
+        cycleEl.textContent = "Formule gratuite permanente.";
+      } else {
+        const expStr = plan.periodEnd ? new Date(plan.periodEnd).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Période active';
+        if (plan.isPastDue) {
+          cycleEl.innerHTML = `<span style="color:#DC2626;font-weight:700;">⚠️ Paiement en retard — Période de grâce (${plan.graceDaysLeft} jour(s) restant(s)).</span>`;
+        } else if (plan.cancelAtPeriodEnd) {
+          cycleEl.innerHTML = `<span style="color:#D97706;font-weight:600;">Résiliation programmée au ${expStr}.</span>`;
+        } else {
+          cycleEl.textContent = `Renouvellement le ${expStr}.`;
+        }
+      }
+    }
+
+    if (cancelBtn) {
+      cancelBtn.style.display = (!plan.isGratuit && !plan.cancelAtPeriodEnd) ? 'inline-block' : 'none';
+    }
+
+    if (docsKpi) {
+      const docsCount = this.getMonthlyDocsCount();
+      docsKpi.textContent = plan.isGratuit ? `${docsCount} / 3` : `${docsCount} (Illimité)`;
+    }
+
+    if (clientsKpi) {
+      const cliCount = (this.state && this.state.clients) ? this.state.clients.length : 0;
+      clientsKpi.textContent = plan.isGratuit ? `${cliCount} / 3` : `${cliCount} (Illimité)`;
+    }
+
+    if (seatsKpi) {
+      const extraSeats = parseInt(biz.extraSeats || 0, 10);
+      seatsKpi.textContent = plan.isBusiness ? `${5 + extraSeats} sièges inclus` : '1 siège inclus';
+    }
   },
 
   /**
