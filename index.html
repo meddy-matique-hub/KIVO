@@ -3066,7 +3066,8 @@
                       <select id="builder-terms-select"
                         style="width: 100%; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; background: #FFF; font-family: 'Inter', sans-serif;"
                         onchange="KivoApp.onBuilderTermsChange(this.value)">
-                        <option value="À réception" selected>À réception</option>
+                        <option value="" selected>Aucune (échéance standard)</option>
+                        <option value="À réception">À réception</option>
                         <option value="Net 7 jours">Net 7 jours</option>
                         <option value="Net 15 jours">Net 15 jours</option>
                         <option value="Net 30 jours">Net 30 jours</option>
@@ -3074,7 +3075,7 @@
                         <option value="Net 60 jours">Net 60 jours</option>
                         <option value="custom">Personnalisé…</option>
                       </select>
-                      <input type="text" id="builder-terms" value="À réception"
+                      <input type="text" id="builder-terms" value=""
                         style="display: none; width: 100%; margin-top: 0.5rem; padding: 0.6rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; font-family: 'Inter', sans-serif;"
                         placeholder="Ex: Acompte 30%, solde livraison" oninput="KivoApp.updateLiveInvoicePreview()">
                     </div>
@@ -7128,11 +7129,11 @@
       </div>
     </div>
 
-    <script defer src="js/whatsapp-helper.js?v=3.3"></script>
+    <script defer src="js/whatsapp-helper.js?v=3.4"></script>
     <script defer src="js/i18n.js?v=1.1"></script>
     <script defer src="js/invoice-typography.js?v=1.0"></script>
-    <script defer src="js/doc-templates.js?v=3.8"></script>
-    <script defer src="app.js?v=3.48"></script>
+    <script defer src="js/doc-templates.js?v=3.9"></script>
+    <script defer src="app.js?v=3.49"></script>
 </body>
 
 </html>

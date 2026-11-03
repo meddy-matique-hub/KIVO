@@ -4010,11 +4010,11 @@ window.KivoApp = {
     setVal('builder-due-date', dueStr);
     setVal('builder-doc-status', 'sent');
     setVal('builder-notes', '');
-    setVal('builder-terms', 'À réception');
-    setVal('builder-terms-select', 'À réception');
+    setVal('builder-terms', '');
+    setVal('builder-terms-select', '');
     const termsCustomInput = document.getElementById('builder-terms');
     if (termsCustomInput) termsCustomInput.style.display = 'none';
-    setVal('builder-payment-method', 'Virement bancaire');
+    setVal('builder-payment-method', '');
     setVal('builder-doc-currency', this.state.business.currency || 'FCFA');
     const safeTemplate3880 = (this.state.business.visualTemplate && this.canUse('template', this.state.business.visualTemplate)) ? this.state.business.visualTemplate : 'minimalist';
     setVal('builder-visual-template', safeTemplate3880);
@@ -4127,7 +4127,7 @@ window.KivoApp = {
     if (tbody) tbody.innerHTML = '';
     this.addBuilderLineItem('', 1, 0, defaultVat, '', 0);
     this.populateBuilderCatalogDropdown();
-    this.renderBuilderPaymentMethodsSelection();
+    this.renderBuilderPaymentMethodsSelection([]);
 
     this.recalculateBuilderTotals();
     this.updateLiveInvoicePreview();
@@ -4231,11 +4231,14 @@ window.KivoApp = {
 
     // Payment terms & details
     const knownTerms = ['À réception', 'Net 7 jours', 'Net 15 jours', 'Net 30 jours', 'Net 45 jours', 'Net 60 jours'];
-    const docTerms = doc.terms || doc.conditions || meta.terms || 'À réception';
+    const docTerms = doc.terms || doc.conditions || meta.terms || '';
     const termsSelectEl = document.getElementById('builder-terms-select');
     const termsInputEl = document.getElementById('builder-terms');
     if (termsSelectEl) {
-      if (knownTerms.includes(docTerms)) {
+      if (!docTerms) {
+        termsSelectEl.value = '';
+        if (termsInputEl) { termsInputEl.value = ''; termsInputEl.style.display = 'none'; }
+      } else if (knownTerms.includes(docTerms)) {
         termsSelectEl.value = docTerms;
         if (termsInputEl) { termsInputEl.value = docTerms; termsInputEl.style.display = 'none'; }
       } else {
@@ -4246,7 +4249,7 @@ window.KivoApp = {
       setVal('builder-terms', docTerms);
     }
 
-    setVal('builder-payment-method', doc.paymentMethod || meta.paymentMethod || 'Virement bancaire');
+    setVal('builder-payment-method', doc.paymentMethod || meta.paymentMethod || '');
     setChk('builder-toggle-payment-methods', doc.showPaymentMethods !== undefined ? !!doc.showPaymentMethods : (meta.showPaymentMethods !== undefined ? !!meta.showPaymentMethods : true));
     setVal('builder-payment-details', doc.paymentDetails || meta.paymentDetails || '');
 
@@ -4960,10 +4963,10 @@ window.KivoApp = {
 
     // 4. BOTTOM NOTES & TERMS
     const methodEl = document.getElementById('paper-payment-method');
-    if (methodEl) methodEl.textContent = paymentMethod || "Virement bancaire";
+    if (methodEl) methodEl.textContent = paymentMethod || "";
     
     const termsEl = document.getElementById('paper-terms-text');
-    if (termsEl) termsEl.textContent = terms || "À réception";
+    if (termsEl) termsEl.textContent = terms || "";
     
     const notesEl = document.getElementById('paper-notes-text');
     if (notesEl) {
@@ -5018,10 +5021,15 @@ window.KivoApp = {
     const checkChecked = has('check');
     const cardChecked = has('card');
 
+    const rawBName = getV('builder-pm-bank-name');
+    const rawBHolder = getV('builder-pm-bank-holder');
+    const biz = (this.state && this.state.business) || {};
+    const isFakeName = rawBName && (rawBName === biz.owner || rawBName === biz.name || rawBName === rawBHolder);
+
     return {
       bank: bankChecked ? {
-        bankName: getV('builder-pm-bank-name'),
-        accountHolder: getV('builder-pm-bank-holder'),
+        bankName: isFakeName ? '' : rawBName,
+        accountHolder: isFakeName ? rawBName : rawBHolder,
         accountNumber: getV('builder-pm-bank-iban'),
         iban: getV('builder-pm-bank-iban'),
         swift: getV('builder-pm-bank-bic')
@@ -5059,10 +5067,14 @@ window.KivoApp = {
 
     const biz = (this.state && this.state.business) || {};
     const bDetails = biz.bankDetails || {};
+    const rawBkName = (bDetails.bankName || '').trim();
+    const rawBkHolder = (bDetails.accountName || biz.name || biz.owner || '').trim();
+    const isFakeBk = rawBkName && (rawBkName === biz.owner || rawBkName === biz.name || rawBkName === rawBkHolder);
+
     return {
       bank: (bDetails.active || bDetails.bankName || bDetails.iban || bDetails.accountNumber) ? {
-        bankName: bDetails.bankName || '',
-        accountHolder: bDetails.accountName || biz.name || '',
+        bankName: isFakeBk ? '' : rawBkName,
+        accountHolder: isFakeBk ? rawBkName : rawBkHolder,
         accountNumber: bDetails.accountNumber || '',
         iban: bDetails.iban || '',
         swift: bDetails.bic || ''
@@ -5138,12 +5150,12 @@ window.KivoApp = {
       link: cfg.card?.paymentUrl || bDetails.card?.paymentLink || ''
     };
 
-    // Déterminer la sélection : si initialSelected est fourni, l'utiliser ; sinon activer par défaut les moyens configurés ou virement
+    // Déterminer la sélection : si initialSelected est fourni, l'utiliser ; sinon par défaut aucun moyen n'est forcé (A2)
     const isSelected = (id) => {
       if (Array.isArray(initialSelected)) {
         return initialSelected.includes(id);
       }
-      if (id === 'bank') return !!(bDetails.active || bDetails.bankName || bDetails.iban || true);
+      if (id === 'bank') return !!(bDetails.active && (bDetails.bankName || bDetails.iban || bDetails.accountNumber));
       if (id === 'momo') return !!(bDetails.mobileMoney && bDetails.mobileMoney.active);
       if (id === 'cash') return !!(bDetails.cash && bDetails.cash.active);
       if (id === 'check') return !!(bDetails.check && bDetails.check.active);
@@ -5484,8 +5496,8 @@ window.KivoApp = {
       total: grandDraftTotal,
       amountPaid: resolvedAmountPaid,
       notes: getVal('builder-notes') || '',
-      terms: getVal('builder-terms') || 'À réception',
-      paymentMethod: getVal('builder-payment-method') || 'Virement bancaire',
+      terms: getVal('builder-terms') || '',
+      paymentMethod: getVal('builder-payment-method') || '',
       paymentDetails: getVal('builder-payment-details') || '',
       selectedPaymentMethods: (typeof this.getSelectedPaymentMethodsFromBuilder === 'function') ? this.getSelectedPaymentMethodsFromBuilder() : [],
       paymentConfig: (typeof this.getPaymentConfig === 'function') ? this.getPaymentConfig() : null,
@@ -5613,8 +5625,8 @@ window.KivoApp = {
       setVal('builder-issue-date', draft.issueDate || '');
       setVal('builder-due-date', draft.dueDate || '');
       setVal('builder-notes', draft.notes || '');
-      setVal('builder-terms', draft.terms || 'À réception');
-      setVal('builder-payment-method', draft.paymentMethod || 'Virement bancaire');
+      setVal('builder-terms', draft.terms || '');
+      setVal('builder-payment-method', draft.paymentMethod || '');
       setVal('builder-payment-details', draft.paymentDetails || '');
       setVal('builder-thankyou', draft.thankYouText || 'Merci pour votre confiance !');
       setVal('builder-legal-notices', draft.legalNoticesText || '');
@@ -6167,8 +6179,8 @@ window.KivoApp = {
     const showDeposit = document.getElementById('builder-toggle-deposit') ? document.getElementById('builder-toggle-deposit').checked : false;
     const depositAmount = showDeposit ? (parseFloat(document.getElementById('builder-deposit-amount')?.value) || 0) : 0;
 
-    const terms = document.getElementById('builder-terms')?.value || 'À réception';
-    const paymentMethod = document.getElementById('builder-payment-method')?.value || 'Virement bancaire';
+    const terms = (document.getElementById('builder-terms')?.value || '').trim();
+    const paymentMethod = (document.getElementById('builder-payment-method')?.value || '').trim();
     const showPaymentMethods = document.getElementById('builder-toggle-payment-methods') ? document.getElementById('builder-toggle-payment-methods').checked : true;
     const paymentDetails = (document.getElementById('builder-payment-details')?.value || '').trim();
 
@@ -8767,97 +8779,116 @@ window.KivoApp = {
   },
 
   /**
-   * Exporte la facture/devis courante du constructeur en format CSV (UTF-8 avec BOM, séparateur ;)
+   * Exporte la facture/devis courante du constructeur en format CSV (A7 : UTF-8 avec BOM, séparateur ;, règle vide = invisible)
    */
   exportCurrentDocCsv: function () {
-    const doc = this.getCurrentBuilderDocumentData();
+    const rawData = this.getCurrentBuilderDocumentData();
+    const view = (typeof window.buildDocumentView === 'function')
+      ? window.buildDocumentView(rawData, this.state)
+      : rawData;
+
     const escapeCsv = (str) => {
       const s = String(str == null ? '' : str);
       return '"' + s.replace(/"/g, '""') + '"';
     };
 
+    const currency = (view.totals && view.totals.currency) || 'FCFA';
     const lines = [
       [escapeCsv('KIVO MATIQUE - Facturation & Gestion')],
-      [escapeCsv('Type de document'), escapeCsv(doc.typeLabel)],
-      [escapeCsv('Numéro'), escapeCsv(doc.num)],
-      [escapeCsv('Émetteur'), escapeCsv(doc.issuerName)],
-      [escapeCsv('Client'), escapeCsv(doc.clientName)],
-      [escapeCsv('Date d\'émission'), escapeCsv(doc.issueDate)],
-      [escapeCsv('Date d\'échéance'), escapeCsv(doc.dueDate || '-')],
-      [escapeCsv('Statut'), escapeCsv(doc.status)],
-      [escapeCsv('Devise'), escapeCsv(doc.currency)],
-      [],
-      [
-        escapeCsv('N°'),
-        escapeCsv('Description'),
-        escapeCsv('Quantité'),
-        escapeCsv('Unité'),
-        escapeCsv('Prix unitaire'),
-        escapeCsv('Remise (%)'),
-        escapeCsv('TVA (%)'),
-        escapeCsv('Total HT'),
-        escapeCsv('Total TTC')
-      ]
+      [escapeCsv('Type de document'), escapeCsv(view.doc ? view.doc.typeLabel : 'Facture')],
+      [escapeCsv('Numéro'), escapeCsv(view.doc ? view.doc.num : '')],
+      [escapeCsv('Émetteur'), escapeCsv(view.issuer ? view.issuer.name : '')],
+      [escapeCsv('Client'), escapeCsv(view.client ? view.client.name : '')],
+      [escapeCsv("Date d'émission"), escapeCsv(view.doc ? (view.doc.issueDateFormatted || view.doc.issueDate) : '')]
     ];
 
-    doc.items.forEach(it => {
+    if (view.doc && view.doc.dueDate) {
+      lines.push([escapeCsv("Date d'échéance"), escapeCsv(view.doc.dueDateFormatted || view.doc.dueDate)]);
+    }
+
+    lines.push([escapeCsv('Statut'), escapeCsv(view.doc ? view.doc.statusLabel : 'Brouillon')]);
+    lines.push([escapeCsv('Devise'), escapeCsv(currency)]);
+    lines.push([]);
+
+    // En-tête des articles
+    lines.push([
+      escapeCsv('N°'),
+      escapeCsv('Description'),
+      escapeCsv('Quantité'),
+      escapeCsv('Unité'),
+      escapeCsv('Prix unitaire (' + currency + ')'),
+      escapeCsv('Remise (%)'),
+      escapeCsv('TVA (%)'),
+      escapeCsv('Total HT (' + currency + ')'),
+      escapeCsv('Total TTC (' + currency + ')')
+    ]);
+
+    (view.items || []).forEach(it => {
       lines.push([
         escapeCsv(it.num),
-        escapeCsv(it.name),
+        escapeCsv(it.description || it.name),
         escapeCsv(it.quantity),
-        escapeCsv(it.unit),
-        escapeCsv(it.price.toFixed(2)),
-        escapeCsv(it.discount.toFixed(2)),
-        escapeCsv(it.taxRate.toFixed(2)),
-        escapeCsv(it.totalHT.toFixed(2)),
-        escapeCsv(it.totalTTC.toFixed(2))
+        escapeCsv(it.unit || ''),
+        escapeCsv(Number(it.price || 0).toFixed(2)),
+        escapeCsv(Number(it.discount || 0).toFixed(2)),
+        escapeCsv(Number(it.taxRate || 0).toFixed(2)),
+        escapeCsv(Number(it.totalHT || 0).toFixed(2)),
+        escapeCsv(Number(it.totalTTC || 0).toFixed(2))
       ]);
     });
 
     lines.push([]);
-    lines.push([escapeCsv('Sous-total HT'), escapeCsv(doc.subtotal.toFixed(2))]);
-    if (doc.globalDiscount > 0) {
-      lines.push([escapeCsv('Remise globale'), escapeCsv(doc.globalDiscount.toFixed(2))]);
+    lines.push([escapeCsv('Sous-total HT'), escapeCsv(Number(view.totals ? view.totals.subtotal : 0).toFixed(2))]);
+
+    if (view.totals && view.totals.discount !== null && view.totals.discount > 0) {
+      lines.push([escapeCsv('Remise globale'), escapeCsv((-Number(view.totals.discount)).toFixed(2))]);
     }
-    lines.push([escapeCsv('TVA / Taxe'), escapeCsv(doc.totalTax.toFixed(2))]);
-    lines.push([escapeCsv('Total TTC'), escapeCsv(doc.grandTotal.toFixed(2))]);
-    if (doc.depositAmount > 0) {
-      lines.push([escapeCsv('Acompte versé'), escapeCsv(doc.depositAmount.toFixed(2))]);
-      lines.push([escapeCsv('Reste à payer'), escapeCsv(doc.balanceDue.toFixed(2))]);
+    if (view.totals && view.totals.taxAmount !== null && view.totals.taxAmount > 0) {
+      lines.push([escapeCsv('TVA'), escapeCsv(Number(view.totals.taxAmount).toFixed(2))]);
+    }
+    lines.push([escapeCsv('Total TTC'), escapeCsv(Number(view.totals ? view.totals.grandTotal : 0).toFixed(2))]);
+
+    if (view.totals && view.totals.deposit !== null && view.totals.deposit > 0) {
+      lines.push([escapeCsv('Acompte versé'), escapeCsv(Number(view.totals.deposit).toFixed(2))]);
+    }
+    lines.push([escapeCsv('Solde net à payer'), escapeCsv(Number(view.totals ? view.totals.balanceDue : 0).toFixed(2))]);
+
+    // Section moyens de paiement (uniquement si au moins un moyen avec coordonnées)
+    if (view.payment && view.payment.hasPayment && view.payment.methods.length > 0) {
+      lines.push([]);
+      lines.push([escapeCsv('Moyens de paiement')]);
+      view.payment.methods.forEach(m => {
+        m.fields.forEach(f => {
+          lines.push([escapeCsv(`${m.title} - ${f.label}`), escapeCsv(f.value)]);
+        });
+      });
     }
 
     const csvContent = lines.map(row => row.join(';')).join('\r\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const cleanNum = doc.num.replace(/[^a-zA-Z0-9-_]/g, '_');
-    const today = new Date().toISOString().slice(0, 10);
+    const cleanNum = (view.doc && view.doc.num ? view.doc.num : 'DOC').replace(/[^a-zA-Z0-9-_]/g, '_');
+    const issueDateStr = view.doc && view.doc.issueDate ? view.doc.issueDate : new Date().toISOString().slice(0, 10);
     a.href = url;
-    a.download = `KIVO_${cleanNum}_${today}.csv`;
+    a.download = `KIVO_${cleanNum}_${issueDateStr}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    this.showToast('Export CSV de la facture téléchargé avec succès.', 'success');
+    this.showToast('Export CSV téléchargé avec succès.', 'success');
   },
 
   /**
-   * Exporte la facture/devis courante du constructeur en format Excel (.xlsx)
-   * Mise en page document : 2 onglets (FACTURE/DEVIS + Articles), styles complets, ExcelJS.
+   * Exporte la facture/devis courante en Excel (.xlsx) conforme A6 :
+   * 2 onglets ("Récapitulatif" + "Articles"), styles complets, cellules numériques formatées, ExcelJS.
    */
   exportCurrentDocExcel: function () {
     const self = this;
-    const doc = this.getCurrentBuilderDocumentData();
-    // Données émetteur complètes (RCCM, NIU, adresse, email...) via collectData
-    const fullData = (window.KivoTemplates && typeof window.KivoTemplates.collectData === 'function')
-      ? window.KivoTemplates.collectData(this.state)
-      : null;
-    const biz = (fullData && fullData.biz) || this.state.business || {};
-    const client = (fullData && fullData.client) || {};
-    const paymentConfig = this.getPaymentConfig ? this.getPaymentConfig() : {};
-    const selectedPaymentMethods = (this.getSelectedPaymentMethodsFromBuilder)
-      ? this.getSelectedPaymentMethodsFromBuilder()
-      : [];
+    const rawData = this.getCurrentBuilderDocumentData();
+    const view = (typeof window.buildDocumentView === 'function')
+      ? window.buildDocumentView(rawData, this.state)
+      : rawData;
 
     const runExport = async () => {
       try {
@@ -8866,14 +8897,6 @@ window.KivoApp = {
         wb.creator = 'KIVO MATIQUE';
         wb.created = new Date();
 
-        // ── Helpers ────────────────────────────────────────────────────
-        function toArgb(hex, def) {
-          if (!hex || typeof hex !== 'string') return def || 'FF0F172A';
-          let c = hex.replace('#', '').trim();
-          if (c.length === 3) c = c.split('').map(function(x){ return x + x; }).join('');
-          if (c.length === 6) return 'FF' + c.toUpperCase();
-          return def || 'FF0F172A';
-        }
         function parseExcelDate(s) {
           if (!s) return null;
           const p = String(s).split('-');
@@ -8885,302 +8908,255 @@ window.KivoApp = {
           return isNaN(d) ? null : d;
         }
 
-        const currency = doc.currency || 'FCFA';
+        const currency = (view.totals && view.totals.currency) || 'FCFA';
         const isInt = ['FCFA', 'XOF', 'XAF'].includes(currency);
-        const numFmt = isInt ? '#,##0' : '#,##0.00';
-        const primaryArgb = toArgb(
-          (biz && biz.primaryColor) || (doc && doc.primaryColor) || (self.state && self.state.business && self.state.business.primaryColor),
-          'FF1E293B'
-        );
+        const numFmt = isInt ? `#,##0 "${currency}"` : `#,##0.00 "${currency}"`;
+        const primaryArgb = 'FF4F46E5'; // #4f46e5
 
-        const STATUS_FR = {
-          draft: 'Brouillon', brouillon: 'Brouillon',
-          sent: 'Envoyée', 'envoyée': 'Envoyée',
-          paid: 'Payée', 'payée': 'Payée',
-          overdue: 'En retard', 'en retard': 'En retard',
-          cancelled: 'Annulée', 'annulée': 'Annulée',
-          refunded: 'Remboursée', 'remboursée': 'Remboursée'
-        };
-        const statusText = STATUS_FR[String(doc.status || 'draft').toLowerCase().trim()] || 'Brouillon';
-
-        const rccmVal = (biz && biz.rccm) || 'Non renseigné';
-        const niuVal  = (biz && biz.niu)  || 'Non renseigné';
-        const issueDateObj = parseExcelDate(doc.issueDate);
-        const dueDateObj   = parseExcelDate(doc.dueDate);
-
-        // ── Sheet 1: FACTURE / DEVIS ───────────────────────────────────
-        const sheetName = doc.type === 'quote' ? 'DEVIS' : 'FACTURE';
-        const ws = wb.addWorksheet(sheetName, {
-          views: [{ showGridLines: false }],
-          pageSetup: {
-            paperSize: 9, orientation: 'portrait',
-            fitToPage: true, fitToWidth: 1, fitToHeight: 0,
-            margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
-          }
-        });
-        ws.columns = [
-          { key: 'A', width: 40 }, { key: 'B', width: 12 },
-          { key: 'C', width: 18 }, { key: 'D', width: 14 }, { key: 'E', width: 22 }
-        ];
-
-        // Row 2 : Titre + Numéro
-        const titleText = doc.type === 'quote' ? 'DEVIS' : 'FACTURE';
-        ws.getCell('A2').value = titleText;
-        ws.getCell('A2').font = { name: 'Calibri', size: 18, bold: true, color: { argb: primaryArgb } };
-        ws.getCell('E2').value = doc.num;
-        ws.getCell('E2').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF0F172A' } };
-        ws.getCell('E2').alignment = { horizontal: 'right', vertical: 'middle' };
-        ws.getRow(2).height = 28;
-
-        // Row 4 : En-têtes blocs
-        const h4Font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF64748B' } };
-        ws.getCell('A4').value = 'ÉMETTEUR'; ws.getCell('A4').font = h4Font;
-        ws.getCell('D4').value = 'CLIENT';   ws.getCell('D4').font = h4Font;
-
-        // Row 5 : Raison sociale
-        ws.getCell('A5').value = (biz && biz.name) || 'Mon Entreprise';
-        ws.getCell('A5').font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F172A' } };
-        ws.getCell('D5').value = (client && (client.name || client.company)) || doc.clientName || 'Client Destinataire';
-        ws.getCell('D5').font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F172A' } };
-
-        const bodyFont = { name: 'Calibri', size: 9.5, color: { argb: 'FF334155' } };
-        // Row 6 : Adresses
-        ws.getCell('A6').value = (biz && biz.address) || 'Non renseigné'; ws.getCell('A6').font = bodyFont;
-        ws.getCell('D6').value = (client && client.address) || 'Non renseigné'; ws.getCell('D6').font = bodyFont;
-        // Row 7 : Téléphones
-        ws.getCell('A7').value = (biz && biz.phone) ? 'Tél. : ' + biz.phone : 'Tél. : Non renseigné'; ws.getCell('A7').font = bodyFont;
-        ws.getCell('D7').value = (client && client.phone) ? 'Tél. : ' + client.phone : 'Tél. : Non renseigné'; ws.getCell('D7').font = bodyFont;
-        // Row 8 : Emails
-        ws.getCell('A8').value = (biz && biz.email) ? 'Email : ' + biz.email : 'Email : Non renseigné'; ws.getCell('A8').font = bodyFont;
-        ws.getCell('D8').value = (client && client.email) ? 'Email : ' + client.email : 'Email : Non renseigné'; ws.getCell('D8').font = bodyFont;
-        // Row 9 : RCCM & N° Fiscal client
-        ws.getCell('A9').value = 'RCCM : ' + rccmVal; ws.getCell('A9').font = bodyFont;
-        ws.getCell('D9').value = 'N° Fiscal : ' + ((client && client.taxId) || 'Non renseigné'); ws.getCell('D9').font = bodyFont;
-        // Row 10 : NIU
-        ws.getCell('A10').value = 'NIU : ' + niuVal; ws.getCell('A10').font = bodyFont;
-
-        // Row 12–13 : Dates & Statut
-        const lbFont = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF475569' } };
-        ws.getCell('A12').value = "Date d'émission :"; ws.getCell('A12').font = lbFont;
-        if (issueDateObj) { ws.getCell('B12').value = issueDateObj; ws.getCell('B12').numFmt = 'dd/mm/yyyy'; }
-        else { ws.getCell('B12').value = doc.issueDate || '-'; }
-        ws.getCell('B12').font = bodyFont;
-        ws.getCell('D12').value = "Date d'échéance :"; ws.getCell('D12').font = lbFont;
-        if (dueDateObj) { ws.getCell('E12').value = dueDateObj; ws.getCell('E12').numFmt = 'dd/mm/yyyy'; }
-        else { ws.getCell('E12').value = doc.dueDate || '-'; }
-        ws.getCell('E12').font = bodyFont;
-        ws.getCell('A13').value = 'Statut :'; ws.getCell('A13').font = lbFont;
-        const sk = String(doc.status || '').toLowerCase();
-        const stColor = (sk === 'paid' || sk === 'payée') ? 'FF047857'
-          : (sk === 'sent' || sk === 'envoyée') ? 'FF2563EB'
-          : (sk === 'overdue' || sk === 'en retard') ? 'FFDC2626'
-          : 'FF475569';
-        ws.getCell('B13').value = statusText;
-        ws.getCell('B13').font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: stColor } };
-
-        // Row 15 : En-tête tableau articles
-        const HDR_ROW = 15;
-        ws.getRow(HDR_ROW).height = 24;
-        const headers = [
-          { col: 'A', txt: 'Description',                         al: 'left'   },
-          { col: 'B', txt: 'Quantité',                            al: 'center' },
-          { col: 'C', txt: 'Prix unitaire (' + currency + ')',    al: 'right'  },
-          { col: 'D', txt: 'TVA (%)',                             al: 'center' },
-          { col: 'E', txt: 'Total HT (' + currency + ')',         al: 'right'  }
-        ];
-        headers.forEach(function(h) {
-          const c = ws.getCell(h.col + HDR_ROW);
-          c.value = h.txt;
-          c.font  = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-          c.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryArgb } };
-          c.alignment = { horizontal: h.al, vertical: 'middle', indent: h.al === 'left' ? 1 : 0 };
-          c.border = {
-            top:    { style: 'thin', color: { argb: primaryArgb } },
-            bottom: { style: 'thin', color: { argb: primaryArgb } },
-            left:   { style: 'thin', color: { argb: 'FF475569' } },
-            right:  { style: 'thin', color: { argb: 'FF475569' } }
-          };
-        });
-
-        // Lignes articles
-        let row = HDR_ROW + 1;
-        const bdr = {
-          top:    { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        const borderThin = {
+          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
           bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          left:   { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          right:  { style: 'thin', color: { argb: 'FFE2E8F0' } }
+          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
         };
-        const items = Array.isArray(doc.items) ? doc.items : [];
-        items.forEach(function(it) {
-          ws.getRow(row).height = 22;
-          const cA = ws.getCell('A' + row);
-          cA.value = it.name || 'Article';
-          cA.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
-          cA.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true, indent: 1 };
-          cA.border = bdr;
-          const cB = ws.getCell('B' + row);
-          cB.value = Number(it.quantity) || 1;
-          cB.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
-          cB.alignment = { horizontal: 'center', vertical: 'middle' };
-          cB.numFmt = '#,##0.##';
-          cB.border = bdr;
-          const cC = ws.getCell('C' + row);
-          cC.value = Number(it.price) || 0;
-          cC.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
-          cC.alignment = { horizontal: 'right', vertical: 'middle' };
-          cC.numFmt = numFmt;
-          cC.border = bdr;
-          const cD = ws.getCell('D' + row);
-          cD.value = (Number(it.taxRate) || 0) / 100;
-          cD.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
-          cD.alignment = { horizontal: 'center', vertical: 'middle' };
-          cD.numFmt = '0" %"';
-          cD.border = bdr;
-          const cE = ws.getCell('E' + row);
-          cE.value = Number(it.totalHT) || (Number(it.quantity || 1) * Number(it.price || 0));
-          cE.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
-          cE.alignment = { horizontal: 'right', vertical: 'middle' };
-          cE.numFmt = numFmt;
-          cE.border = bdr;
-          row++;
+
+        // ══════════════════════════════════════════════════════════════
+        // FEUILLE 1 : "Récapitulatif" (A6)
+        // ══════════════════════════════════════════════════════════════
+        const wsRecap = wb.addWorksheet('Récapitulatif', {
+          views: [{ showGridLines: true }]
         });
-        row++;
+        // Colonne A >= 28, Colonne B >= 32
+        wsRecap.columns = [
+          { key: 'prop', width: 30 },
+          { key: 'val',  width: 45 }
+        ];
 
-        // Totaux (colonnes D + E)
-        function addTot(lbl, val, bold, highlight, colArgb) {
-          const lc = ws.getCell('D' + row);
-          const vc = ws.getCell('E' + row);
-          lc.value = lbl;
-          lc.font = { name: 'Calibri', size: highlight ? 10.5 : 9.5, bold: !!bold, color: { argb: colArgb || 'FF1E293B' } };
-          lc.alignment = { horizontal: 'right', vertical: 'middle' };
-          vc.value = Number(val) || 0;
-          vc.font = { name: 'Calibri', size: highlight ? 11 : 9.5, bold: !!bold, color: { argb: colArgb || 'FF1E293B' } };
-          vc.alignment = { horizontal: 'right', vertical: 'middle' };
-          vc.numFmt = numFmt;
-          if (highlight) {
-            const b = { top: { style: 'thin', color: { argb: 'FF0F172A' } } };
-            lc.border = b; vc.border = b;
-            const fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-            lc.fill = fill; vc.fill = fill;
+        // Ligne 1 : En-tête fond #4f46e5, texte blanc, gras
+        const hRow = wsRecap.getRow(1);
+        hRow.height = 25;
+        const hA = hRow.getCell(1);
+        hA.value = 'Propriété';
+        hA.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFFFFFFF' } };
+        hA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryArgb } };
+        hA.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        hA.border = borderThin;
+
+        const hB = hRow.getCell(2);
+        hB.value = 'Valeur';
+        hB.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFFFFFFF' } };
+        hB.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryArgb } };
+        hB.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        hB.border = borderThin;
+
+        let rIdx = 2;
+        function addRow(prop, val, options = {}) {
+          const row = wsRecap.getRow(rIdx);
+          row.height = 22;
+          const cA = row.getCell(1);
+          const cB = row.getCell(2);
+
+          cA.value = prop;
+          cA.font = { name: 'Calibri', size: 9.5, bold: !!options.bold, color: { argb: 'FF1E293B' } };
+          cA.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+          cA.border = borderThin;
+
+          cB.value = val;
+          cB.font = { name: 'Calibri', size: 9.5, bold: !!options.bold, color: { argb: options.color || 'FF0F172A' } };
+          cB.alignment = { horizontal: options.align || 'left', vertical: 'middle', indent: options.align ? 0 : 1 };
+          cB.border = borderThin;
+
+          if (options.numFmt) {
+            cB.numFmt = options.numFmt;
           }
-          ws.getRow(row).height = highlight ? 24 : 18;
-          row++;
+          if (options.fill) {
+            cA.fill = options.fill;
+            cB.fill = options.fill;
+          }
+          rIdx++;
         }
-        addTot('Sous-total HT :', doc.subtotal);
-        if (doc.globalDiscount > 0) addTot('Remise :', -doc.globalDiscount, false, false, 'FFDC2626');
-        addTot('TVA :', doc.totalTax);
-        addTot('Total TTC :', doc.grandTotal, true);
-        if (doc.depositAmount > 0) addTot('Acompte versé :', doc.depositAmount);
-        addTot('Net à payer :', doc.balanceDue, true, true, primaryArgb);
 
-        // Modalités de règlement
-        row += 2;
-        ws.getCell('A' + row).value = 'MODALITÉS DE RÈGLEMENT';
-        ws.getCell('A' + row).font = { name: 'Calibri', size: 10, bold: true, color: { argb: primaryArgb } };
-        row++;
-        const cfg = paymentConfig || {};
-        const sel = Array.isArray(selectedPaymentMethods) ? selectedPaymentMethods : [];
-        const pmLines = [];
-        if (sel.includes('bank') && cfg.bank) {
-          const b = cfg.bank;
-          const p = ['Virement bancaire'];
-          if (b.bankName) p.push('Banque : ' + b.bankName);
-          if (b.accountHolder) p.push('Bénéficiaire : ' + b.accountHolder);
-          if (b.iban || b.accountNumber) p.push('IBAN / Compte : ' + (b.iban || b.accountNumber));
-          if (b.swift) p.push('BIC/SWIFT : ' + b.swift);
-          pmLines.push(p.join(' | '));
-        }
-        if (sel.includes('momo') && cfg.momo && Array.isArray(cfg.momo.accounts)) {
-          cfg.momo.accounts.forEach(function(m) {
-            const p = ['Mobile Money (' + (m.operator || 'Wave') + ')'];
-            if (m.phone) p.push('N° : ' + m.phone);
-            if (m.holder) p.push('Titulaire : ' + m.holder);
-            pmLines.push(p.join(' | '));
+        // Propriétés du document
+        addRow('Document', (view.doc && view.doc.typeLabel) || 'Facture');
+        addRow('Numéro', (view.doc && view.doc.num) || '', { bold: true });
+        addRow('Émetteur', (view.issuer && view.issuer.name) || '');
+        addRow('Client', (view.client && view.client.name) || '');
+
+        const issueDateObj = parseExcelDate(view.doc && view.doc.issueDate);
+        addRow("Date d'émission", issueDateObj || (view.doc && view.doc.issueDate) || '', {
+          numFmt: issueDateObj ? 'dd/mm/yyyy' : undefined
+        });
+
+        if (view.doc && view.doc.dueDate) {
+          const dueDateObj = parseExcelDate(view.doc.dueDate);
+          addRow("Date d'échéance", dueDateObj || view.doc.dueDate, {
+            numFmt: dueDateObj ? 'dd/mm/yyyy' : undefined
           });
         }
-        if (sel.includes('cash') && cfg.cash) pmLines.push('Espèces : Paiement en espèces à la livraison ou au comptoir');
-        if (sel.includes('check') && cfg.check) {
-          const chk = cfg.check;
-          const p = ['Chèque'];
-          if (chk.payableTo) p.push("À l'ordre de : " + chk.payableTo);
-          if (chk.address) p.push("Adresse d'envoi : " + chk.address);
-          pmLines.push(p.join(' | '));
-        }
-        if (sel.includes('card') && cfg.card) {
-          const crd = cfg.card;
-          const p = ['Paiement en ligne (' + (crd.provider || 'Stripe') + ')'];
-          if (crd.paymentUrl) p.push('Lien : ' + crd.paymentUrl);
-          pmLines.push(p.join(' | '));
-        }
-        if (pmLines.length === 0) pmLines.push('Aucun moyen de paiement renseigné');
-        pmLines.forEach(function(pl) {
-          ws.getCell('A' + row).value = pl;
-          ws.getCell('A' + row).font = { name: 'Calibri', size: 9, color: { argb: 'FF475569' } };
-          ws.mergeCells('A' + row + ':E' + row);
-          row++;
-        });
 
-        // Pied de page légal
-        row += 2;
-        const footer = ((biz && biz.name) || 'KIVO MATIQUE') + ' · RCCM : ' + rccmVal + ' · NIU : ' + niuVal;
-        ws.getCell('A' + row).value = footer;
-        ws.getCell('A' + row).font = { name: 'Calibri', size: 8.5, italic: true, color: { argb: 'FF64748B' } };
-        ws.getCell('A' + row).alignment = { horizontal: 'center', vertical: 'middle' };
-        ws.mergeCells('A' + row + ':E' + row);
+        // Statut en français (Brouillon, Envoyée, Payée, etc. - JAMAIS "draft")
+        addRow('Statut', (view.doc && view.doc.statusLabel) || 'Brouillon', { bold: true });
+        addRow('Devise', currency);
 
-        // ── Sheet 2 : Articles (données plates) ────────────────────────
-        const wsArt = wb.addWorksheet('Articles', {
+        // Totaux financiers (numériques alignés à droite)
+        addRow('Sous-total HT', Number(view.totals ? view.totals.subtotal : 0), { align: 'right', numFmt: numFmt });
+
+        // Lignes sans valeur supprimées (remise 0, acompte 0)
+        if (view.totals && view.totals.discount !== null && view.totals.discount > 0) {
+          addRow('Remise globale', -Number(view.totals.discount), { align: 'right', numFmt: numFmt, color: 'FFDC2626' });
+        }
+        if (view.totals && view.totals.taxAmount !== null && view.totals.taxAmount > 0) {
+          addRow('TVA', Number(view.totals.taxAmount), { align: 'right', numFmt: numFmt });
+        }
+        addRow('Total TTC', Number(view.totals ? view.totals.grandTotal : 0), { bold: true, align: 'right', numFmt: numFmt });
+
+        if (view.totals && view.totals.deposit !== null && view.totals.deposit > 0) {
+          addRow('Acompte versé', Number(view.totals.deposit), { align: 'right', numFmt: numFmt });
+        }
+        addRow('Solde net à payer', Number(view.totals ? view.totals.balanceDue : 0), { bold: true, align: 'right', numFmt: numFmt });
+
+        // Section "Moyens de paiement" UNIQUEMENT si au moins un moyen est sélectionné
+        if (view.payment && view.payment.hasPayment && view.payment.methods.length > 0) {
+          const secRow = wsRecap.getRow(rIdx);
+          secRow.height = 24;
+          const sA = secRow.getCell(1);
+          sA.value = 'Moyens de paiement';
+          sA.font = { name: 'Calibri', size: 10, bold: true, color: { argb: primaryArgb } };
+          sA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+          sA.border = borderThin;
+          const sB = secRow.getCell(2);
+          sB.value = '';
+          sB.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+          sB.border = borderThin;
+          rIdx++;
+
+          view.payment.methods.forEach(m => {
+            m.fields.forEach(f => {
+              addRow(`${m.title} - ${f.label}`, f.value);
+            });
+          });
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // FEUILLE 2 : "Articles" (A6)
+        // ══════════════════════════════════════════════════════════════
+        const wsArticles = wb.addWorksheet('Articles', {
           views: [{ state: 'frozen', xSplit: 0, ySplit: 1, showGridLines: true }]
         });
-        wsArt.columns = [
-          { header: 'Numéro',           key: 'num',      width: 16 },
-          { header: "Date d'émission",  key: 'issueDate',width: 15 },
-          { header: 'Client',           key: 'client',   width: 28 },
-          { header: 'Description',      key: 'desc',     width: 36 },
-          { header: 'Quantité',         key: 'qty',      width: 12 },
-          { header: 'Prix unitaire',    key: 'price',    width: 16 },
-          { header: 'TVA (%)',          key: 'taxRate',  width: 12 },
-          { header: 'Total HT',         key: 'totalHT',  width: 16 }
+        wsArticles.columns = [
+          { key: 'desc',     width: 40 },
+          { key: 'qty',      width: 14 },
+          { key: 'price',    width: 20 },
+          { key: 'taxRate',  width: 14 },
+          { key: 'totalHT',  width: 22 }
         ];
-        const artHdr = wsArt.getRow(1);
-        artHdr.height = 24;
-        for (let ci = 1; ci <= 8; ci++) {
-          const cell = artHdr.getCell(ci);
-          cell.font  = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-          cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryArgb } };
-          cell.alignment = { vertical: 'middle', horizontal: ci >= 5 ? 'right' : (ci === 2 ? 'center' : 'left') };
-        }
-        const clientLabel = (client && (client.name || client.company)) || doc.clientName || '-';
-        items.forEach(function(it) {
-          const r2 = wsArt.addRow({
-            num:      doc.num,
-            issueDate:issueDateObj || doc.issueDate,
-            client:   clientLabel,
-            desc:     it.name || 'Article',
-            qty:      Number(it.quantity) || 1,
-            price:    Number(it.price) || 0,
-            taxRate:  (Number(it.taxRate) || 0) / 100,
-            totalHT:  Number(it.totalHT) || (Number(it.quantity || 1) * Number(it.price || 0))
-          });
-          r2.height = 20;
-          r2.getCell(2).numFmt = 'dd/mm/yyyy';
-          r2.getCell(5).numFmt = '#,##0.##';
-          r2.getCell(6).numFmt = numFmt;
-          r2.getCell(7).numFmt = '0" %"';
-          r2.getCell(8).numFmt = numFmt;
-        });
-        wsArt.autoFilter = 'A1:H1';
 
-        // ── Génération du fichier ───────────────────────────────────────
+        // En-tête feuille Articles
+        const artHdr = wsArticles.getRow(1);
+        artHdr.height = 24;
+        [
+          { col: 1, txt: 'Description',      align: 'left'   },
+          { col: 2, txt: 'Quantité',         align: 'center' },
+          { col: 3, txt: 'Prix unitaire',    align: 'right'  },
+          { col: 4, txt: 'TVA %',            align: 'center' },
+          { col: 5, txt: 'Total ligne',      align: 'right'  }
+        ].forEach(h => {
+          const c = artHdr.getCell(h.col);
+          c.value = h.txt;
+          c.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryArgb } };
+          c.alignment = { horizontal: h.align, vertical: 'middle', indent: h.align === 'left' ? 1 : 0 };
+          c.border = borderThin;
+        });
+
+        let aRowIdx = 2;
+        let sumHT = 0;
+        (view.items || []).forEach(it => {
+          const r = wsArticles.getRow(aRowIdx);
+          r.height = 22;
+
+          const c1 = r.getCell(1);
+          c1.value = it.description || it.name || 'Article';
+          c1.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          c1.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true, indent: 1 };
+          c1.border = borderThin;
+
+          const c2 = r.getCell(2);
+          c2.value = Number(it.quantity) || 1;
+          c2.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          c2.alignment = { horizontal: 'center', vertical: 'middle' };
+          c2.numFmt = '#,##0.##';
+          c2.border = borderThin;
+
+          const c3 = r.getCell(3);
+          c3.value = Number(it.price) || 0;
+          c3.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          c3.alignment = { horizontal: 'right', vertical: 'middle' };
+          c3.numFmt = numFmt;
+          c3.border = borderThin;
+
+          const c4 = r.getCell(4);
+          c4.value = (Number(it.taxRate) || 0) / 100;
+          c4.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          c4.alignment = { horizontal: 'center', vertical: 'middle' };
+          c4.numFmt = '0 %';
+          c4.border = borderThin;
+
+          const lineTotal = Number(it.totalHT) || (Number(it.quantity || 1) * Number(it.price || 0));
+          sumHT += lineTotal;
+          const c5 = r.getCell(5);
+          c5.value = lineTotal;
+          c5.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          c5.alignment = { horizontal: 'right', vertical: 'middle' };
+          c5.numFmt = numFmt;
+          c5.border = borderThin;
+
+          aRowIdx++;
+        });
+
+        // Ligne de total en bas de feuille Articles
+        const totRow = wsArticles.getRow(aRowIdx);
+        totRow.height = 24;
+        const totLabel = totRow.getCell(1);
+        totLabel.value = 'Total HT';
+        totLabel.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F172A' } };
+        totLabel.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        totLabel.border = {
+          top: { style: 'thin', color: { argb: 'FF0F172A' } },
+          bottom: { style: 'double', color: { argb: 'FF0F172A' } }
+        };
+
+        for (let ci = 2; ci <= 4; ci++) {
+          const emptyCell = totRow.getCell(ci);
+          emptyCell.border = {
+            top: { style: 'thin', color: { argb: 'FF0F172A' } },
+            bottom: { style: 'double', color: { argb: 'FF0F172A' } }
+          };
+        }
+
+        const totVal = totRow.getCell(5);
+        totVal.value = sumHT;
+        totVal.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: primaryArgb } };
+        totVal.alignment = { horizontal: 'right', vertical: 'middle' };
+        totVal.numFmt = numFmt;
+        totVal.border = {
+          top: { style: 'thin', color: { argb: 'FF0F172A' } },
+          bottom: { style: 'double', color: { argb: 'FF0F172A' } }
+        };
+
+        // ── Génération du fichier Excel ─────────────────────────────────
         const buffer = await wb.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        const cleanNum = (doc.num || 'KIVO').replace(/[^a-zA-Z0-9-_]/g, '_');
-        const issueDateStr = doc.issueDate || new Date().toISOString().slice(0, 10);
+        const cleanNum = ((view.doc && view.doc.num) || 'DOC').replace(/[^a-zA-Z0-9-_]/g, '_');
+        const issueDateStr = (view.doc && view.doc.issueDate) ? view.doc.issueDate : new Date().toISOString().slice(0, 10);
         a.href = url;
-        a.download = cleanNum + '_' + issueDateStr + '.xlsx';
+        // Nom : KIVO_FAC-2026-1004_2026-11-02.xlsx (A6)
+        a.download = `KIVO_${cleanNum}_${issueDateStr}.xlsx`;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
         self.showToast('Export Excel généré avec succès.', 'success');
       } catch (err) {
@@ -14056,10 +14032,10 @@ window.KivoApp = {
         subject: targetDoc.subject || meta.subject || '',
         showSubject: targetDoc.showSubject !== undefined ? !!targetDoc.showSubject : (meta.showSubject !== undefined ? !!meta.showSubject : true),
         showLogo: targetDoc.showLogo !== undefined ? !!targetDoc.showLogo : (meta.showLogo !== undefined ? !!meta.showLogo : true),
-        paymentMethod: targetDoc.paymentMethod || meta.paymentMethod || 'Virement bancaire',
+        paymentMethod: targetDoc.paymentMethod || meta.paymentMethod || '',
         paymentDetails: targetDoc.paymentDetails || meta.paymentDetails || '',
         showPaymentMethods: targetDoc.showPaymentMethods !== undefined ? !!targetDoc.showPaymentMethods : (meta.showPaymentMethods !== undefined ? !!meta.showPaymentMethods : true),
-        terms: targetDoc.terms || targetDoc.conditions || meta.terms || 'À réception',
+        terms: targetDoc.terms || targetDoc.conditions || meta.terms || '',
         notes: targetDoc.notes || meta.notes || '',
         showNotes: targetDoc.showNotes !== undefined ? !!targetDoc.showNotes : (meta.showNotes !== undefined ? !!meta.showNotes : true),
         thankYouText: targetDoc.thankYouText || meta.thankYouText || 'Merci pour votre confiance !',

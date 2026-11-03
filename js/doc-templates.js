@@ -21,6 +21,379 @@ window.KivoTemplates = {
     return true;
   },
 
+  // ── Universal Text & Formatting Helpers (A1, A4, A5) ──────────────────
+  cleanText: function (str) {
+    if (str === null || str === undefined) return null;
+    const s = String(str).trim();
+    if (!s || s === '--' || s === '-' || s === 'undefined' || s === 'null') return null;
+    return s;
+  },
+
+  formatPhoneNumber: function (phone) {
+    if (phone === null || phone === undefined) return null;
+    const s = String(phone).trim();
+    if (!s || s === '--' || s === '-' || s === 'undefined' || s === 'null') return null;
+    const rawDigits = s.replace(/[^\d+]/g, '');
+    if (rawDigits.startsWith('+242')) {
+      const rest = rawDigits.slice(4).replace(/^0+/, '');
+      if (rest.length === 9) {
+        return `+242 ${rest.slice(0, 2)} ${rest.slice(2, 5)} ${rest.slice(5, 7)} ${rest.slice(7, 9)}`;
+      } else if (rest.length === 8) {
+        return `+242 0${rest.slice(0, 1)} ${rest.slice(1, 4)} ${rest.slice(4, 6)} ${rest.slice(6, 8)}`;
+      }
+      return `+242 ${rest}`;
+    } else if (rawDigits.startsWith('242') && rawDigits.length >= 11) {
+      const rest = rawDigits.slice(3);
+      return `+242 ${rest.slice(0, 2)} ${rest.slice(2, 5)} ${rest.slice(5, 7)} ${rest.slice(7, 9)}`;
+    } else if (/^0[4-6]\d{7}$/.test(rawDigits)) {
+      return `+242 ${rawDigits.slice(0, 2)} ${rawDigits.slice(2, 5)} ${rawDigits.slice(5, 7)} ${rawDigits.slice(7, 9)}`;
+    }
+    return s;
+  },
+
+  formatDocDate: function (isoStr) {
+    if (!isoStr) return '';
+    const parts = String(isoStr).split('-');
+    if (parts.length === 3) {
+      const d = new Date(+parts[0], +parts[1] - 1, +parts[2], 12, 0, 0);
+      return d.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'Africa/Brazzaville'
+      });
+    }
+    const d = new Date(isoStr);
+    return isNaN(d.getTime()) ? String(isoStr) : d.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'Africa/Brazzaville'
+    });
+  },
+
+  /**
+   * Fonction universelle A1 : "Donnée vide = rien d'affiché"
+   * Produit les données affichables pour Aperçu, PDF, Excel, CSV et WhatsApp.
+   */
+  buildDocumentView: function (docOrData, state) {
+    const self = this;
+    const raw = docOrData || {};
+    const st = state || (window.KivoApp && window.KivoApp.state) || {};
+    const biz = (st && st.business) || raw.biz || {};
+
+    const clean = (s) => self.cleanText(s);
+    const fmtPhone = (p) => self.formatPhoneNumber(p);
+    const fmtDate = (d) => self.formatDocDate(d);
+
+    // 1. Émetteur
+    const rawBiz = raw.biz || biz || {};
+    const bizName = (rawBiz.name || rawBiz.company_name || rawBiz.owner || 'Mon Entreprise').trim();
+    const bizOwner = (rawBiz.owner || '').trim();
+    const bizAddress = clean(rawBiz.address);
+    const bizPhone = fmtPhone(rawBiz.phone);
+    const bizEmail = clean(rawBiz.email);
+    const bizWebsite = clean(rawBiz.website);
+    const bizRccm = clean(rawBiz.rccm || (st.business && st.business.rccm));
+    const bizNiu = clean(rawBiz.niu || (st.business && st.business.niu));
+    const bizTaxId = clean(rawBiz.taxId || rawBiz.fiscal_id || (st.business && st.business.taxId));
+    const bizLegal = clean(rawBiz.legal || (st.business && st.business.legal));
+
+    // 2. Client
+    let rawClient = raw.client || {};
+    if (!rawClient.name && raw.clientName) {
+      rawClient = {
+        name: raw.clientName,
+        company: raw.clientCompany || '',
+        phone: raw.clientPhone || '',
+        email: raw.clientEmail || '',
+        address: raw.clientAddress || '',
+        taxId: raw.clientTaxId || ''
+      };
+    }
+    const clientName = clean(rawClient.name || raw.clientName) || 'Client Destinataire';
+    const clientCompany = clean(rawClient.company);
+    const clientAddress = clean(rawClient.address);
+    const clientPhone = fmtPhone(rawClient.phone);
+    const clientEmail = clean(rawClient.email);
+    const clientTaxId = clean(rawClient.taxId || raw.clientTaxId);
+    const clientHasContact = !!(clientEmail || clientPhone);
+
+    // 3. Dates & Statut
+    const issueDateIso = clean(raw.issueDate || raw.date || raw.date_issued) || new Date().toISOString().slice(0, 10);
+    const dueDateIso = clean(raw.dueDate || raw.due_date);
+    const issueDateFormatted = fmtDate(issueDateIso);
+    const dueDateFormatted = dueDateIso ? fmtDate(dueDateIso) : null;
+
+    const STATUS_MAP = {
+      draft: 'Brouillon', brouillon: 'Brouillon',
+      sent: 'Envoyée', 'envoyée': 'Envoyée',
+      paid: 'Payée', 'payée': 'Payée',
+      overdue: 'En retard', 'en retard': 'En retard',
+      cancelled: 'Annulée', 'annulée': 'Annulée',
+      refunded: 'Remboursée', 'remboursée': 'Remboursée'
+    };
+    const statusKey = String(raw.status || 'draft').toLowerCase().trim();
+    const statusLabel = STATUS_MAP[statusKey] || 'Brouillon';
+
+    // 4. Numéro & Type
+    const isQuote = raw.docType === 'quote' || raw.type === 'quote' || raw.type === 'devis';
+    const docType = isQuote ? 'quote' : 'invoice';
+    const docTypeLabel = isQuote ? 'Devis' : 'Facture';
+    const docNum = clean(raw.docNum || raw.number) || (isQuote ? 'DEV-2026-0001' : 'FAC-2026-0001');
+    const currency = clean(raw.currency) || rawBiz.currency || 'FCFA';
+
+    // 5. Items
+    let rawItems = [];
+    if (Array.isArray(raw.items)) rawItems = raw.items;
+    else if (typeof raw.items === 'string') {
+      try { rawItems = JSON.parse(raw.items); } catch (_) { rawItems = []; }
+    }
+    const items = rawItems.map((it, idx) => {
+      const qty = Number(it.quantity || it.qty) || 1;
+      const price = Number(it.price || it.unit_price) || 0;
+      const taxRate = Number(it.taxRate || it.tax_rate) || 0;
+      const discount = Number(it.discount) || 0;
+      let lineHT = Number(it.totalHT);
+      if (isNaN(lineHT)) {
+        lineHT = qty * price;
+        if (discount > 0) lineHT = Math.max(0, lineHT - (lineHT * (discount / 100)));
+      }
+      const lineTax = lineHT * (taxRate / 100);
+      return {
+        num: idx + 1,
+        description: clean(it.name || it.description) || 'Article',
+        quantity: qty,
+        unit: clean(it.unit) || '',
+        price: price,
+        taxRate: taxRate,
+        discount: discount,
+        totalHT: lineHT,
+        totalTTC: lineHT + lineTax
+      };
+    });
+
+    // 6. Totaux
+    const subtotal = Number(raw.subtotal !== undefined ? raw.subtotal : (raw.totalHT || items.reduce((s, i) => s + i.totalHT, 0))) || 0;
+    const rawDisc = Number(raw.discount !== undefined ? raw.discount : (raw.globalDiscount || 0)) || 0;
+    const discountVal = rawDisc > 0 ? rawDisc : null;
+    const rawTax = Number(raw.taxAmount !== undefined ? raw.taxAmount : (raw.totalTax || 0)) || 0;
+    const taxAmountVal = rawTax > 0 ? rawTax : null;
+    const grandTotal = Number(raw.grandTotal !== undefined ? raw.grandTotal : (raw.total || 0)) || (subtotal - (discountVal || 0) + (taxAmountVal || 0));
+    const rawDep = Number(raw.deposit !== undefined ? raw.deposit : (raw.depositAmount || 0)) || 0;
+    const depositVal = rawDep > 0 ? rawDep : null;
+    const balanceDue = Number(raw.balanceDue !== undefined ? raw.balanceDue : (grandTotal - (depositVal || 0))) || 0;
+
+    // 7. Conditions de règlement (A3)
+    let terms = clean(raw.terms);
+    if (terms === 'Net 7 jours' || terms === 'À réception') {
+      if (issueDateIso && dueDateIso && issueDateIso !== dueDateIso) {
+        if (terms === 'Net 7 jours') terms = null;
+      }
+    }
+
+    // 8. Moyens de paiement (A2)
+    let paymentMethods = [];
+    const showPayment = raw.showPaymentMethods !== false;
+    let selectedKeys = [];
+    if (Array.isArray(raw.selectedPaymentMethods)) {
+      selectedKeys = raw.selectedPaymentMethods;
+    } else if (Array.isArray(raw.selectedPaymentMethodIds)) {
+      selectedKeys = raw.selectedPaymentMethodIds;
+    }
+
+    const pConfig = raw.paymentConfig || (window.KivoApp && typeof window.KivoApp.getPaymentConfig === 'function' ? window.KivoApp.getPaymentConfig() : null) || (rawBiz && rawBiz.paymentConfig) || {};
+
+    if (showPayment && selectedKeys.length > 0) {
+      selectedKeys.forEach(k => {
+        if (k === 'bank' && pConfig.bank) {
+          const b = pConfig.bank;
+          let bankName = clean(b.bankName);
+          let accountHolder = clean(b.accountHolder);
+          const accountNumber = clean(b.accountNumber);
+          const iban = clean(b.iban);
+          const swift = clean(b.swift || b.bic);
+
+          // Correction bug : si bankName est identique au propriétaire ou au titulaire,
+          // ne jamais l'afficher sous "Banque" !
+          if (bankName && (bankName === bizOwner || bankName === bizName || bankName === accountHolder)) {
+            if (!accountHolder) accountHolder = bankName;
+            bankName = null;
+          }
+
+          // Migration A2 : si moyen virement mais aucune coordonnée, ignorer
+          const hasCoords = !!(bankName || accountNumber || iban || swift);
+          if (hasCoords) {
+            const fields = [];
+            if (bankName) fields.push({ label: 'Banque', value: bankName });
+            if (accountHolder) fields.push({ label: 'Titulaire du compte', value: accountHolder });
+            if (accountNumber && accountNumber !== iban) fields.push({ label: 'Numéro de compte', value: accountNumber });
+            if (iban) fields.push({ label: 'IBAN / N° de compte', value: iban });
+            if (swift) fields.push({ label: 'BIC', value: swift });
+            paymentMethods.push({
+              type: 'bank',
+              title: 'Virement bancaire',
+              icon: '💳',
+              fields: fields
+            });
+          }
+        } else if (k === 'momo' || k.startsWith('momo')) {
+          const accounts = (pConfig.momo && Array.isArray(pConfig.momo.accounts)) ? pConfig.momo.accounts : [];
+          accounts.forEach(m => {
+            const phone = fmtPhone(m.phone);
+            const op = clean(m.operator) || 'Wave';
+            const holder = clean(m.holder);
+            if (phone || holder) {
+              const fields = [];
+              fields.push({ label: 'Opérateur', value: op });
+              if (holder) fields.push({ label: 'Titulaire', value: holder });
+              if (phone) fields.push({ label: 'Numéro', value: phone });
+              paymentMethods.push({
+                type: 'momo',
+                title: `Mobile Money (${op})`,
+                icon: '📱',
+                fields: fields
+              });
+            }
+          });
+        } else if (k === 'cash' && pConfig.cash) {
+          paymentMethods.push({
+            type: 'cash',
+            title: 'Espèces',
+            icon: '💵',
+            fields: [{ label: 'Mention', value: 'Paiement en espèces' }]
+          });
+        } else if (k === 'check' && pConfig.check) {
+          const chk = pConfig.check;
+          const payable = clean(chk.payableTo);
+          const addr = clean(chk.address);
+          if (payable || addr) {
+            const fields = [];
+            if (payable) fields.push({ label: 'À l\'ordre de', value: payable });
+            if (addr) fields.push({ label: 'Adresse d\'envoi', value: addr });
+            paymentMethods.push({
+              type: 'check',
+              title: 'Chèque',
+              icon: '📝',
+              fields: fields
+            });
+          }
+        } else if (k === 'card' && pConfig.card) {
+          const crd = pConfig.card;
+          const prov = clean(crd.provider) || 'Paiement en ligne';
+          const url = clean(crd.paymentUrl);
+          const fields = [{ label: 'Fournisseur', value: prov }];
+          if (url) fields.push({ label: 'Lien', value: url });
+          paymentMethods.push({
+            type: 'card',
+            title: 'Carte bancaire / Paiement en ligne',
+            icon: '🌐',
+            fields: fields
+          });
+        }
+      });
+    }
+
+    return {
+      issuer: {
+        name: bizName,
+        owner: bizOwner,
+        address: bizAddress,
+        phone: bizPhone,
+        email: bizEmail,
+        website: bizWebsite,
+        rccm: bizRccm,
+        niu: bizNiu,
+        taxId: bizTaxId,
+        legal: bizLegal,
+        logoUrl: rawBiz.logoUrl || null,
+        logoSize: rawBiz.logoSize || 70,
+        logoPosition: rawBiz.logoPosition || 'right'
+      },
+      client: {
+        name: clientName,
+        company: clientCompany,
+        address: clientAddress,
+        phone: clientPhone,
+        email: clientEmail,
+        taxId: clientTaxId,
+        hasContact: clientHasContact
+      },
+      doc: {
+        type: docType,
+        typeLabel: docTypeLabel,
+        num: docNum,
+        issueDate: issueDateIso,
+        issueDateFormatted: issueDateFormatted,
+        dueDate: dueDateIso,
+        dueDateFormatted: dueDateFormatted,
+        status: statusKey,
+        statusLabel: statusLabel,
+        terms: terms,
+        subject: clean(raw.subject),
+        notes: clean(raw.notes),
+        thankYouText: clean(raw.thankYouText),
+        legalNotices: clean(raw.legalNotices),
+        primaryColor: raw.primaryColor || '#4F46E5',
+        secondaryColor: raw.secondaryColor || '#64748B',
+        bgColor: raw.bgColor || '#FFFFFF'
+      },
+      items: items,
+      totals: {
+        currency: currency,
+        subtotal: subtotal,
+        discount: discountVal,
+        taxAmount: taxAmountVal,
+        grandTotal: grandTotal,
+        deposit: depositVal,
+        balanceDue: balanceDue
+      },
+      payment: {
+        methods: paymentMethods,
+        hasPayment: paymentMethods.length > 0
+      },
+      // Rétrocompatibilité avec les renderers existants
+      biz: Object.assign({}, rawBiz, {
+        name: bizName,
+        owner: bizOwner,
+        address: bizAddress,
+        phone: bizPhone,
+        email: bizEmail,
+        rccm: bizRccm,
+        niu: bizNiu,
+        taxId: bizTaxId
+      }),
+      currency: currency,
+      subtotal: subtotal,
+      discount: discountVal || 0,
+      showDiscount: discountVal !== null && discountVal > 0,
+      taxAmount: taxAmountVal || 0,
+      showVat: taxAmountVal !== null && taxAmountVal > 0,
+      grandTotal: grandTotal,
+      deposit: depositVal || 0,
+      showDeposit: depositVal !== null && depositVal > 0,
+      balanceDue: balanceDue,
+      issueDate: issueDateIso,
+      dueDate: dueDateIso,
+      issueDateFormatted: issueDateFormatted,
+      dueDateFormatted: dueDateFormatted,
+      docNum: docNum,
+      docType: docType,
+      status: statusKey,
+      statusLabel: statusLabel,
+      terms: terms,
+      subject: clean(raw.subject),
+      notes: clean(raw.notes),
+      thankYouText: clean(raw.thankYouText),
+      legalNotices: clean(raw.legalNotices),
+      primaryColor: raw.primaryColor || '#4F46E5',
+      secondaryColor: raw.secondaryColor || '#64748B',
+      bgColor: raw.bgColor || '#FFFFFF',
+      paymentMethods: paymentMethods,
+      showPaymentMethods: paymentMethods.length > 0
+    };
+  },
+
   // ── Helpers ──────────────────────────────────────────────────────────
 
   fmt: function (n, currency) {
@@ -257,8 +630,8 @@ window.KivoTemplates = {
       items, subtotal, discount, showDiscount, showVat,
       taxAmount: showVat ? totalTaxAmount : 0,
       grandTotal, deposit, showDeposit, balanceDue, currency,
-      terms:               get('builder-terms')                  || 'À réception',
-      paymentMethod:       get('builder-payment-method')         || 'Virement bancaire',
+      terms:               get('builder-terms')                  || '',
+      paymentMethod:       get('builder-payment-method')         || '',
       paymentDetails:      get('builder-payment-details')        || '',
       showPaymentMethods:  getChecked('builder-toggle-payment-methods'),
       selectedPaymentMethods: (window.KivoApp && typeof window.KivoApp.getSelectedPaymentMethodsFromBuilder === 'function')
@@ -314,6 +687,10 @@ window.KivoTemplates = {
         ${_t('doc_refunded_badge')}
       </div>` : '');
 
+    const issueDateStr = d.issueDateFormatted || this.formatDocDate(d.issueDate);
+    const dueDateStr = d.dueDateFormatted || (d.dueDate ? this.formatDocDate(d.dueDate) : '');
+    const bizPhoneFmt = d.biz && d.biz.phone ? (this.formatPhoneNumber(d.biz.phone) || d.biz.phone) : '';
+
     if (pos === 'left') {
       return `
         <div style="margin-bottom:24px;">
@@ -323,9 +700,9 @@ window.KivoTemplates = {
               <div>
                 <div style="font-size:15px;font-weight:700;color:${titleColor};">${bizDisplayName}</div>
                 <div style="font-size:12px;font-weight:400;color:${textMuted};line-height:1.5;margin-top:3px;">
-                  ${d.biz.address ? d.biz.address + '<br>' : ''}
-                  ${d.biz.phone ? 'Tél.: ' + d.biz.phone + '<br>' : ''}
-                  ${d.biz.email || ''}
+                  ${d.biz && d.biz.address ? d.biz.address + '<br>' : ''}
+                  ${bizPhoneFmt ? 'Tél. : ' + bizPhoneFmt + '<br>' : ''}
+                  ${(d.biz && d.biz.email) ? d.biz.email + '<br>' : ''}
                   ${bizLegal}
                 </div>
               </div>
@@ -334,8 +711,8 @@ window.KivoTemplates = {
               <div style="font-size:28px;font-weight:700;color:${titleColor};letter-spacing:0.5px;">${lbl}</div>
               <div style="font-size:16px;font-weight:700;color:${docAccent};margin-top:3px;">${d.docNum}</div>
               ${paidBadge ? `<div style="margin-top:3px;">${paidBadge}</div>` : ''}
-              <div style="font-size:12px;font-weight:400;color:${textMuted};margin-top:5px;">${_t('doc_issue_date_label')} <strong style="color:${titleColor};font-weight:700;">${d.issueDate}</strong></div>
-              ${d.dueDate ? `<div style="font-size:12px;font-weight:400;color:${textMuted};">${_t('doc_due_date_label')} <strong style="color:${titleColor};font-weight:700;">${d.dueDate}</strong></div>` : ''}
+              <div style="font-size:12px;font-weight:400;color:${textMuted};margin-top:5px;">${_t('doc_issue_date_label')} <strong style="color:${titleColor};font-weight:700;">${issueDateStr}</strong></div>
+              ${dueDateStr ? `<div style="font-size:12px;font-weight:400;color:${textMuted};">${_t('doc_due_date_label')} <strong style="color:${titleColor};font-weight:700;">${dueDateStr}</strong></div>` : ''}
             </div>
           </div>
           ${subjectHtml}
@@ -352,11 +729,11 @@ window.KivoTemplates = {
           ${paidBadge ? `<div style="margin:4px 0;">${paidBadge}</div>` : ''}
           <div style="font-size:15px;font-weight:700;color:${titleColor};margin-top:4px;">${bizDisplayName}</div>
           <div style="font-size:12px;font-weight:400;color:${textMuted};margin-top:3px;">
-            ${[d.biz.address, d.biz.phone, d.biz.email].filter(Boolean).join(' · ')}
+            ${[d.biz && d.biz.address, bizPhoneFmt, d.biz && d.biz.email].filter(Boolean).join(' · ')}
             ${bizLegal}
           </div>
           <div style="font-size:12px;font-weight:400;color:${textMuted};margin-top:5px;">
-            ${_t('doc_issue_date_label')} <strong style="color:${titleColor};font-weight:700;">${d.issueDate}</strong> ${d.dueDate ? `· ${_t('doc_due_date_label')} <strong style="color:${titleColor};font-weight:700;">${d.dueDate}</strong>` : ''}
+            ${_t('doc_issue_date_label')} <strong style="color:${titleColor};font-weight:700;">${issueDateStr}</strong> ${dueDateStr ? `· ${_t('doc_due_date_label')} <strong style="color:${titleColor};font-weight:700;">${dueDateStr}</strong>` : ''}
           </div>
           ${subjectHtml}
         </div>
@@ -371,9 +748,9 @@ window.KivoTemplates = {
             <div style="font-size:28px;font-weight:700;color:${titleColor};letter-spacing:0.5px;margin-bottom:4px;">${lbl}</div>
             <div style="font-size:15px;font-weight:700;color:${titleColor};">${bizDisplayName}</div>
             <div style="font-size:12px;font-weight:400;color:${textMuted};line-height:1.5;margin-top:3px;">
-              ${d.biz.address ? d.biz.address + '<br>' : ''}
-              ${d.biz.phone ? 'Tél.: ' + d.biz.phone + '<br>' : ''}
-              ${d.biz.email || ''}
+              ${d.biz && d.biz.address ? d.biz.address + '<br>' : ''}
+              ${bizPhoneFmt ? 'Tél. : ' + bizPhoneFmt + '<br>' : ''}
+              ${(d.biz && d.biz.email) ? d.biz.email + '<br>' : ''}
               ${bizLegal}
             </div>
           </div>
@@ -381,8 +758,8 @@ window.KivoTemplates = {
             ${logo ? `<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">${logo}</div>` : ''}
             <div style="font-size:16px;font-weight:700;color:${docAccent};">${d.docNum}</div>
             ${paidBadge ? `<div style="margin-top:3px;">${paidBadge}</div>` : ''}
-            <div style="font-size:12px;font-weight:400;color:${textMuted};margin-top:5px;">${_t('doc_issue_date_label')} <strong style="color:${titleColor};font-weight:700;">${d.issueDate}</strong></div>
-            ${d.dueDate ? `<div style="font-size:12px;font-weight:400;color:${textMuted};">${_t('doc_due_date_label')} <strong style="color:${titleColor};font-weight:700;">${d.dueDate}</strong></div>` : ''}
+            <div style="font-size:12px;font-weight:400;color:${textMuted};margin-top:5px;">${_t('doc_issue_date_label')} <strong style="color:${titleColor};font-weight:700;">${issueDateStr}</strong></div>
+            ${dueDateStr ? `<div style="font-size:12px;font-weight:400;color:${textMuted};">${_t('doc_due_date_label')} <strong style="color:${titleColor};font-weight:700;">${dueDateStr}</strong></div>` : ''}
           </div>
         </div>
         ${subjectHtml}
@@ -398,21 +775,42 @@ window.KivoTemplates = {
     const borderStyle = isDark ? '#2D323F' : (d.secondaryColor || '#E2E8F0');
     const textMuted = isDark ? '#94A3B8' : '#6B7280';
     const taxIdVal = (d.client && (d.client.taxId || d.clientTaxId));
+    const phoneVal = (d.client && d.client.phone) ? (this.formatPhoneNumber(d.client.phone) || d.client.phone) : '';
+    const emailVal = (d.client && d.client.email && d.client.email !== '--' && d.client.email !== '-') ? d.client.email : '';
+    const hasContact = !!(phoneVal || emailVal);
+
+    if (!hasContact) {
+      // Pleine largeur si aucun contact (pas de colonne CONTACT vide et aucun "--")
+      return `
+        <div style="margin-bottom:20px;background:${isDark ? '#222631' : '#F8FAFC'};padding:14px 18px;border-radius:8px;border:1px solid ${borderStyle};border-left:3px solid ${secColor};">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${textMuted};">${_t('doc_billed_to')}</div>
+          <div style="font-size:14px;font-weight:700;color:${titleColor};margin-top:3px;">${hasClient ? d.client.name : '<span style="font-size:12px;font-weight:400;color:' + textMuted + ';font-style:italic;">' + _t('doc_select_client') + '</span>'}</div>
+          ${(d.client && (d.client.address || taxIdVal)) ? `
+          <div style="font-size:12px;font-weight:400;color:${textMuted};line-height:1.4;margin-top:3px;">
+            ${d.client.address ? d.client.address + '<br>' : ''}
+            ${taxIdVal ? '<span style="font-weight:600;">N° Fiscal / Registre :</span> ' + taxIdVal : ''}
+          </div>` : ''}
+        </div>
+      `;
+    }
+
     return `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;background:${isDark ? '#222631' : '#F8FAFC'};padding:14px 18px;border-radius:8px;border:1px solid ${borderStyle};border-left:3px solid ${secColor};">
         <div>
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${textMuted};">${_t('doc_billed_to')}</div>
           <div style="font-size:14px;font-weight:700;color:${titleColor};margin-top:3px;">${hasClient ? d.client.name : '<span style="font-size:12px;font-weight:400;color:' + textMuted + ';font-style:italic;">' + _t('doc_select_client') + '</span>'}</div>
-          ${(d.client.address || d.client.phone || taxIdVal) ? `
+          ${(d.client && (d.client.address || taxIdVal)) ? `
           <div style="font-size:12px;font-weight:400;color:${textMuted};line-height:1.4;margin-top:3px;">
             ${d.client.address ? d.client.address + '<br>' : ''}
-            ${d.client.phone ? 'Tél.: ' + d.client.phone + '<br>' : ''}
             ${taxIdVal ? '<span style="font-weight:600;">N° Fiscal / Registre :</span> ' + taxIdVal : ''}
           </div>` : ''}
         </div>
         <div style="text-align:right;">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${textMuted};">${_t('doc_contact')}</div>
-          <div style="font-size:12px;font-weight:400;color:${textMuted};margin-top:3px;">${d.client.email || '--'}</div>
+          <div style="font-size:12px;font-weight:400;color:${textMuted};margin-top:3px;line-height:1.4;">
+            ${emailVal ? `<div>${emailVal}</div>` : ''}
+            ${phoneVal ? `<div>${phoneVal}</div>` : ''}
+          </div>
         </div>
       </div>
     `;
@@ -429,7 +827,7 @@ window.KivoTemplates = {
     return (biz.legalFieldName && biz.legalFieldName !== 'N° Fiscal') ? biz.legalFieldName : 'N° d\'enregistrement / Identifiant fiscal';
   },
 
-  // ── Conditional Payment Section Renderer ──────────────────────────────
+  // ── Conditional Payment Section Renderer (A1 & A2) ─────────────────────
   renderPaymentSection: function (d, ac, isDark = false) {
     if (d.showPaymentMethods === false) return '';
 
@@ -438,6 +836,35 @@ window.KivoTemplates = {
     const valColor = isDark ? '#E2E8F0' : '#1E293B';
     const borderColor = isDark ? '#2D323F' : '#E2E8F0';
 
+    // 1. Si une liste normalisée de moyens existe (buildDocumentView)
+    if (d.payment && Array.isArray(d.payment.methods)) {
+      if (d.payment.methods.length === 0) return '';
+      const blocks = d.payment.methods.map(m => `
+        <div style="margin-top:8px;padding-top:8px;border-top:1px dashed ${borderColor};">
+          <div style="font-weight:700;font-size:12.5px;color:${titleColor};margin-bottom:3px;display:flex;align-items:center;gap:6px;">
+            <span>${m.icon || '💳'}</span> <span>${m.title}</span>
+          </div>
+          <div style="font-size:12.5px;line-height:1.55;color:${valColor};">
+            ${m.fields.map(f => `<div><strong>${f.label} :</strong> ${f.value}</div>`).join('')}
+          </div>
+        </div>
+      `);
+
+      const termsHtml = (d.terms && d.terms.trim()) ? `
+        <div style="font-size:12.5px;color:${valColor};margin-bottom:6px;">
+          <strong>${_t('doc_terms')} :</strong> ${d.terms}
+        </div>` : '';
+
+      return `
+        <div>
+          <strong style="color:${titleColor};display:block;margin-bottom:4px;font-size:13px;font-weight:700;">${_t('doc_payment_title')}</strong>
+          ${termsHtml}
+          ${blocks.join('')}
+        </div>
+      `;
+    }
+
+    // 2. Sinon, extraction directe depuis les données du document
     const cfg = d.paymentConfig || (d.biz && d.biz.paymentConfig) || (window.KivoApp && typeof window.KivoApp.getPaymentConfig === 'function' ? window.KivoApp.getPaymentConfig() : null);
 
     let selectedKeys = [];
@@ -451,72 +878,80 @@ window.KivoTemplates = {
     const blocksHtml = [];
 
     if (selectedKeys.length > 0 && cfg) {
+      const bizOwner = (d.biz && d.biz.owner) || '';
+      const bizName = (d.biz && d.biz.name) || '';
+
       selectedKeys.forEach(key => {
         if (key === 'bank' && cfg.bank) {
           const b = cfg.bank;
-          if (b.bankName || b.accountNumber) {
+          let bName = (b.bankName || '').trim();
+          let bHolder = (b.accountHolder || '').trim();
+          const bNum = (b.accountNumber || '').trim();
+          const bIban = (b.iban || '').trim();
+          const bSwift = (b.swift || b.bic || '').trim();
+
+          // Éliminer nom de personne sous Banque
+          if (bName && (bName === bizOwner || bName === bizName || bName === bHolder)) {
+            if (!bHolder) bHolder = bName;
+            bName = '';
+          }
+
+          if (bName || bNum || bIban || bSwift) {
             blocksHtml.push(`
               <div style="margin-top:8px;padding-top:8px;border-top:1px dashed ${borderColor};">
                 <div style="font-weight:700;font-size:12.5px;color:${titleColor};margin-bottom:3px;display:flex;align-items:center;gap:6px;">
                   <span>💳</span> <span>Virement bancaire</span>
                 </div>
                 <div style="font-size:12.5px;line-height:1.55;color:${valColor};">
-                  ${b.bankName ? `<div><strong>Banque :</strong> ${b.bankName}</div>` : ''}
-                  ${b.accountHolder ? `<div><strong>Titulaire du compte :</strong> ${b.accountHolder}</div>` : ''}
-                  ${b.accountNumber ? `<div><strong>Numéro de compte :</strong> ${b.accountNumber}</div>` : ''}
-                  ${b.iban ? `<div><strong>RIB / IBAN :</strong> ${b.iban}</div>` : ''}
-                  ${b.swift ? `<div><strong>Code SWIFT / BIC :</strong> ${b.swift}</div>` : ''}
+                  ${bName ? `<div><strong>Banque :</strong> ${bName}</div>` : ''}
+                  ${bHolder ? `<div><strong>Titulaire du compte :</strong> ${bHolder}</div>` : ''}
+                  ${(bNum && bNum !== bIban) ? `<div><strong>Numéro de compte :</strong> ${bNum}</div>` : ''}
+                  ${bIban ? `<div><strong>RIB / IBAN :</strong> ${bIban}</div>` : ''}
+                  ${bSwift ? `<div><strong>Code SWIFT / BIC :</strong> ${bSwift}</div>` : ''}
                 </div>
               </div>
             `);
           }
         } else if (key.startsWith('momo') && cfg.momo && Array.isArray(cfg.momo.accounts)) {
-          let momoList = [];
-          if (key === 'momo') {
-            momoList = cfg.momo.accounts;
-          } else {
-            const idx = parseInt(key.replace('momo_', ''), 10);
-            if (!isNaN(idx) && cfg.momo.accounts[idx]) {
-              momoList = [cfg.momo.accounts[idx]];
-            }
-          }
+          let momoList = key === 'momo' ? cfg.momo.accounts : [cfg.momo.accounts[parseInt(key.replace('momo_', ''), 10)]].filter(Boolean);
           momoList.forEach(m => {
-            if (m && (m.phone || m.operator)) {
+            const phone = m && m.phone ? (this.formatPhoneNumber(m.phone) || m.phone) : '';
+            if (phone || (m && m.holder)) {
               blocksHtml.push(`
                 <div style="margin-top:8px;padding-top:8px;border-top:1px dashed ${borderColor};">
                   <div style="font-weight:700;font-size:12.5px;color:${titleColor};margin-bottom:3px;display:flex;align-items:center;gap:6px;">
                     <span>📱</span> <span>Mobile Money${m.operator ? ` (${m.operator})` : ''}</span>
                   </div>
                   <div style="font-size:12.5px;line-height:1.55;color:${valColor};">
-                    ${m.phone ? `<div><strong>Numéro :</strong> ${m.phone}</div>` : ''}
+                    ${m.operator ? `<div><strong>Opérateur :</strong> ${m.operator}</div>` : ''}
                     ${m.holder ? `<div><strong>Titulaire :</strong> ${m.holder}</div>` : ''}
+                    ${phone ? `<div><strong>Numéro :</strong> ${phone}</div>` : ''}
                   </div>
                 </div>
               `);
             }
           });
         } else if (key === 'cash' && cfg.cash) {
-          const notice = cfg.cash.notice || 'Paiement en espèces accepté.';
           blocksHtml.push(`
             <div style="margin-top:8px;padding-top:8px;border-top:1px dashed ${borderColor};">
               <div style="font-weight:700;font-size:12.5px;color:${titleColor};margin-bottom:3px;display:flex;align-items:center;gap:6px;">
                 <span>💵</span> <span>Espèces</span>
               </div>
               <div style="font-size:12.5px;line-height:1.55;color:${valColor};font-style:italic;">
-                ${notice}
+                Paiement en espèces à la livraison ou au comptoir
               </div>
             </div>
           `);
         } else if (key === 'check' && cfg.check) {
           const chk = cfg.check;
-          if (chk.payableTo) {
+          if (chk.payableTo || chk.address) {
             blocksHtml.push(`
               <div style="margin-top:8px;padding-top:8px;border-top:1px dashed ${borderColor};">
                 <div style="font-weight:700;font-size:12.5px;color:${titleColor};margin-bottom:3px;display:flex;align-items:center;gap:6px;">
                   <span>📝</span> <span>Chèque</span>
                 </div>
                 <div style="font-size:12.5px;line-height:1.55;color:${valColor};">
-                  <div><strong>À l'ordre de :</strong> ${chk.payableTo}</div>
+                  ${chk.payableTo ? `<div><strong>À l'ordre de :</strong> ${chk.payableTo}</div>` : ''}
                   ${chk.address ? `<div><strong>Adresse d'envoi :</strong> ${chk.address}</div>` : ''}
                 </div>
               </div>
@@ -530,8 +965,8 @@ window.KivoTemplates = {
                 <span>💳</span> <span>Carte bancaire / Paiement en ligne</span>
               </div>
               <div style="font-size:12.5px;line-height:1.55;color:${valColor};">
-                ${crd.paymentUrl ? `<div><strong>Lien sécurisé :</strong> <a href="${crd.paymentUrl}" target="_blank" rel="noopener noreferrer" style="color:${ac};text-decoration:underline;">Payer en ligne</a></div>` : ''}
-                ${crd.notice ? `<div style="font-style:italic;margin-top:2px;">${crd.notice}</div>` : ''}
+                ${crd.paymentUrl ? `<div><strong>Lien :</strong> <a href="${crd.paymentUrl}" target="_blank" rel="noopener noreferrer" style="color:${ac};text-decoration:underline;">Payer en ligne</a></div>` : ''}
+                ${crd.provider ? `<div><strong>Fournisseur :</strong> ${crd.provider}</div>` : ''}
               </div>
             </div>
           `);
@@ -539,45 +974,14 @@ window.KivoTemplates = {
       });
     }
 
-    // Legacy fallback: check if paymentMethod / paymentDetails / bankDetails exist
-    if (blocksHtml.length === 0) {
-      const hasLegacyMethod = d.paymentMethod && d.paymentMethod.trim() && d.paymentMethod !== 'none';
-      const hasLegacyDetails = d.paymentDetails && d.paymentDetails.trim();
-      const hasBizBank = d.biz && d.biz.bankDetails && (d.biz.bankDetails.bankName || d.biz.bankDetails.iban);
-
-      if (hasLegacyDetails || hasBizBank || (hasLegacyMethod && d.paymentMethod !== 'Espèces' && d.paymentMethod !== 'Chèque')) {
-        let detailsHtml = '';
-        if (hasLegacyDetails) {
-          detailsHtml = `<div style="margin-top:4px;white-space:pre-wrap;font-size:12.5px;color:${valColor};">${d.paymentDetails}</div>`;
-        } else if (hasBizBank) {
-          const bk = d.biz.bankDetails;
-          detailsHtml = `
-            <div style="font-size:12.5px;line-height:1.55;color:${valColor};margin-top:4px;">
-              ${bk.bankName ? `<div><strong>Banque :</strong> ${bk.bankName}</div>` : ''}
-              ${bk.accountHolder ? `<div><strong>Titulaire :</strong> ${bk.accountHolder}</div>` : ''}
-              ${bk.accountNumber ? `<div><strong>N° Compte :</strong> ${bk.accountNumber}</div>` : ''}
-              ${bk.iban ? `<div><strong>IBAN :</strong> ${bk.iban}</div>` : ''}
-              ${bk.swift ? `<div><strong>SWIFT/BIC :</strong> ${bk.swift}</div>` : ''}
-            </div>
-          `;
-        }
-        blocksHtml.push(`
-          <div style="margin-top:6px;font-size:12.5px;color:${valColor};">
-            <div><strong>${_t('doc_mode')}</strong> ${d.paymentMethod || 'Virement bancaire'}</div>
-            ${detailsHtml}
-          </div>
-        `);
-      }
-    }
-
-    // If completely empty, return nothing
+    // Si aucun moyen n'est sélectionné ou renseigné : ne rien afficher du tout !
     if (blocksHtml.length === 0) {
       return '';
     }
 
-    const termsHtml = d.terms ? `
+    const termsHtml = (d.terms && d.terms.trim()) ? `
       <div style="font-size:12.5px;color:${valColor};margin-bottom:6px;">
-        <strong>${_t('doc_terms')}</strong> ${d.terms}
+        <strong>${_t('doc_terms')} :</strong> ${d.terms}
       </div>` : '';
 
     return `
@@ -673,7 +1077,13 @@ window.KivoTemplates = {
         <div style="text-align:center;font-size:11px;font-weight:400;color:${isDark ? '#94A3B8' : '#6B7280'};padding-top:10px;border-top:1px solid ${isDark ? '#2D323F' : '#E2E8F0'};line-height:1.6;">
           <div>${[(d.biz && d.biz.name) || (d.biz && d.biz.owner) || 'Mon Entreprise', d.biz && d.biz.address, d.biz && d.biz.phone, d.biz && d.biz.email].filter(Boolean).join(' · ')}</div>
           ${d.legalNotices ? `<div style="margin-top:4px;font-size:11px;color:${isDark ? '#94A3B8' : '#6B7280'};">${d.legalNotices}</div>` : ''}
-          ${(d.biz && d.biz.taxId) ? `<div style="font-size:11px;color:${isDark ? '#94A3B8' : '#6B7280'};margin-top:2px;">${this.getLegalLabel(d.biz)} : <strong>${d.biz.taxId}</strong></div>` : ''}
+          ${(() => {
+            const legals = [];
+            if (d.biz && d.biz.rccm) legals.push(`RCCM : <strong>${d.biz.rccm}</strong>`);
+            if (d.biz && d.biz.niu) legals.push(`NIU : <strong>${d.biz.niu}</strong>`);
+            if (legals.length === 0 && d.biz && d.biz.taxId) legals.push(`${this.getLegalLabel(d.biz)} : <strong>${d.biz.taxId}</strong>`);
+            return legals.length > 0 ? `<div style="font-size:11px;color:${isDark ? '#94A3B8' : '#6B7280'};margin-top:2px;">${legals.join(' · ')}</div>` : '';
+          })()}
           ${(d.client && d.client.taxId) ? `<div style="font-size:11px;color:${isDark ? '#94A3B8' : '#6B7280'};margin-top:2px;">Client : ${d.client.name || ''} · ${d.client.legalFieldName || 'N° Fiscal'} : <strong>${d.client.taxId}</strong></div>` : ''}
         </div>` : ''}
       </div>
@@ -1069,7 +1479,10 @@ window.KivoTemplates = {
 
   // ── Main render dispatcher ────────────────────────────────────────────
   render: function (templateId, data) {
-    const d = data || this.collectData();
+    const rawData = data || this.collectData();
+    const d = (typeof this.buildDocumentView === 'function')
+      ? this.buildDocumentView(rawData)
+      : rawData;
     let html = '';
     switch (templateId) {
       case 'minimalist':  html = this.renderMinimalist(d); break;
@@ -1084,6 +1497,14 @@ window.KivoTemplates = {
 
     return html;
   }
+};
+
+// Exposition globale universelle (A1)
+window.buildDocumentView = function (docOrData, state) {
+  if (window.KivoTemplates && typeof window.KivoTemplates.buildDocumentView === 'function') {
+    return window.KivoTemplates.buildDocumentView(docOrData, state);
+  }
+  return docOrData || {};
 };
 
 console.log('[KivoTemplates]', window.KivoTemplates.builtIn.length, 'templates disponibles.');
