@@ -113,3 +113,4 @@ module.exports = {
   supabaseFetch,
   authenticateUser
 };
+

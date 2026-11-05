@@ -102,3 +102,4 @@ module.exports = async function handler(req, res) {
     message: paymentRecord.status === 'succeeded' ? 'Paiement confirmé.' : 'En attente de confirmation par la passerelle de paiement.'
   });
 };
+

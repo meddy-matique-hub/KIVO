@@ -407,3 +407,4 @@ module.exports = {
   AirtelMoneyAdapter,
   CinetPayAdapter
 };
+
