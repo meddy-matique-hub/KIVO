@@ -62,8 +62,8 @@
       pricing: {
         currency: 'FCFA',
         monthly: 3990,
-        annual: 38300,
-        monthlyEquivalentAnnual: 3192,
+        annual: 38280,
+        monthlyEquivalentAnnual: 3190,
         discountPercent: 20
       },
       limits: {
@@ -94,8 +94,8 @@
       pricing: {
         currency: 'FCFA',
         monthly: 9990,
-        annual: 95900,
-        monthlyEquivalentAnnual: 7992,
+        annual: 95880,
+        monthlyEquivalentAnnual: 7990,
         discountPercent: 20,
         extraSeatMonthly: 1500,
         extraSeatAnnual: 14400 // 1 500 * 12 * 0.8
