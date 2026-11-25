@@ -19,19 +19,77 @@ window.escapeHtml = escapeHtml;
 
 // Global Error Boundary to prevent non-critical errors from crashing the whole app
 window.addEventListener('error', function (event) {
-  console.error('[KivoApp/ErrorBoundary] Uncaught error intercepted:', event.error || event.message);
+  const msg = event.error?.message || event.message || '(unknown error)';
+  const src = event.filename ? `${event.filename}:${event.lineno}:${event.colno}` : '';
+  console.error('[KivoApp/ErrorBoundary] Uncaught error:', msg, src, event.error);
+  if (window._kivoDebugLog) window._kivoDebugLog('[ERROR] ' + msg + (src ? ' @ ' + src : ''));
+  // Only suppress default browser error dialog when app is initialized; never suppress logic errors
   if (window.KivoApp && window.KivoApp._isInitialized) {
     event.preventDefault();
   }
 });
 window.addEventListener('unhandledrejection', function (event) {
-  console.warn('[KivoApp/ErrorBoundary] Unhandled promise rejection intercepted:', event.reason);
-  event.preventDefault();
+  // CRITICAL FIX: Do NOT call event.preventDefault() here — doing so silently swallows ALL
+  // unhandled promise rejections including those from logout/template save, hiding [DEBUG-*] logs.
+  // We only log + forward to debug panel. Let the rejection propagate normally.
+  const reason = event.reason;
+  const msg = reason?.message || String(reason) || '(unknown rejection)';
+  console.warn('[KivoApp/ErrorBoundary] Unhandled promise rejection:', msg, reason);
+  if (window._kivoDebugLog) window._kivoDebugLog('[REJECTION] ' + msg);
+  // DO NOT call event.preventDefault() — removed intentionally
 });
+
+// ── Debug Panel (A.4) — activated via ?debug=1 in URL ────────────────────────
+(function initKivoDebugPanel() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('debug') && !window.location.href.includes('debug=1')) return;
+  const panel = document.createElement('div');
+  panel.id = 'kivo-debug-panel';
+  panel.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#0a0a0a;color:#00ff88;' +
+    'font-family:monospace;font-size:11px;padding:10px 12px;max-width:370px;max-height:220px;' +
+    'overflow-y:auto;z-index:2147483647;border-radius:8px;border:1px solid #00ff8844;' +
+    'box-shadow:0 4px 24px #000a;pointer-events:none;line-height:1.5;';
+  panel.innerHTML = '<div style="color:#888;margin-bottom:4px;font-size:10px;">🛠 KIVO Debug Panel (debug=1)</div>';
+  document.addEventListener('DOMContentLoaded', function() {
+    document.body.appendChild(panel);
+  });
+  // Fallback: insert immediately if DOM already ready
+  if (document.body) document.body.appendChild(panel);
+
+  window._kivoDebugLog = function(msg) {
+    const p = document.getElementById('kivo-debug-panel');
+    if (!p) return;
+    const time = new Date().toISOString().slice(11, 23);
+    const line = document.createElement('div');
+    line.style.cssText = 'border-top:1px solid #ffffff11;padding-top:2px;margin-top:2px;word-break:break-all;';
+    const col = msg.startsWith('[ERROR') || msg.startsWith('[REJECTION') ? '#ff6b6b' :
+                msg.startsWith('[WARN') ? '#ffd93d' : '#00ff88';
+    line.innerHTML = '<span style="color:#666;">' + time + '</span> ' +
+      '<span style="color:' + col + ';">' + msg.replace(/</g,'&lt;') + '</span>';
+    p.appendChild(line);
+    p.scrollTop = p.scrollHeight;
+  };
+
+  // Intercept console.log/warn/error for logout+template keywords
+  const _origLog   = console.log.bind(console);
+  const _origWarn  = console.warn.bind(console);
+  const _origError = console.error.bind(console);
+  const _shouldCapture = (args) => {
+    const s = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+    return s.includes('DEBUG-LOGOUT') || s.includes('DEBUG-TEMPLATE') || s.includes('DEBUG-MODAL') ||
+           s.includes('AUDIT') || s.includes('KivoAuth') || s.includes('SIGNED_') ||
+           s.includes('ErrorBoundary') || s.includes('signOut') || s.includes('REJECTION');
+  };
+  console.log = function(...args) { _origLog(...args); if(_shouldCapture(args)) window._kivoDebugLog('[LOG] ' + args.join(' ')); };
+  console.warn = function(...args) { _origWarn(...args); if(_shouldCapture(args)) window._kivoDebugLog('[WARN] ' + args.join(' ')); };
+  console.error = function(...args) { _origError(...args); if(_shouldCapture(args)) window._kivoDebugLog('[ERR] ' + args.join(' ')); };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 
 window.KivoApp = {
   state: null,
   _isInitialized: false,
+  _logoutInFlight: false,
 
   /**
    * Safe HTML Escaping method
@@ -44,18 +102,42 @@ window.KivoApp = {
   },
 
   PLAN_FEATURES: {
-    gratuit:  { docsPerMonth: 3,        users: 1, autosave: false, ai: 'soon', allTemplates: false, advancedStyle: false, fullStats: false, team: false, integrations: false, notificationsEmail: false, exportCsv: true,  exportExcel: false },
-    pro:      { docsPerMonth: Infinity, users: 1, autosave: true,  ai: 'soon', allTemplates: true,  advancedStyle: true,  fullStats: true,  team: false, integrations: false, notificationsEmail: false, exportCsv: true,  exportExcel: true },
-    business: { docsPerMonth: Infinity, users: 5, autosave: true,  ai: 'soon', allTemplates: true,  advancedStyle: true,  fullStats: true,  team: true,  integrations: true,  notificationsEmail: true,  exportCsv: true,  exportExcel: true }
+    gratuit:  { docsPerMonth: 3,        maxClients: 3,        users: 1, autosave: false, ai: 'soon', allTemplates: false, advancedStyle: false, fullStats: false, team: false, integrations: false, notificationsEmail: false, exportCsv: true,  exportExcel: false },
+    pro:      { docsPerMonth: Infinity, maxClients: Infinity, users: 1, autosave: true,  ai: 'soon', allTemplates: true,  advancedStyle: true,  fullStats: true,  team: false, integrations: false, notificationsEmail: false, exportCsv: true,  exportExcel: true },
+    business: { docsPerMonth: Infinity, maxClients: Infinity, users: 5, autosave: true,  ai: 'soon', allTemplates: true,  advancedStyle: true,  fullStats: true,  team: true,  integrations: true,  notificationsEmail: true,  exportCsv: true,  exportExcel: true }
   },
 
   getPlan: function () {
     const biz = (this.state && this.state.business) || {};
     let raw = (biz.subscriptionTier || biz.subscription_tier || biz.current_plan || 'gratuit').toLowerCase().trim();
     if (raw === 'free') raw = 'gratuit';
-    if (!this.PLAN_FEATURES[raw]) raw = 'gratuit';
 
-    // Traite un forfait expiré (plan_expires_at passé) comme Gratuit
+    const plansModule = window.KivoPlans;
+    if (plansModule) {
+      const evaluation = plansModule.evaluateSubscriptionStatus({
+        plan: raw,
+        period_end: biz.plan_expires_at || biz.plan_period_end || biz.subscriptionExpiresAt,
+        status: biz.subscription_status || 'active'
+      });
+      const planDef = plansModule.getPlan(evaluation.effectivePlan);
+      return {
+        name: planDef.id,
+        planDef: planDef,
+        features: planDef.limits,
+        status: evaluation.status,
+        isGratuit: planDef.id === 'gratuit',
+        isPro: planDef.id === 'pro',
+        isBusiness: planDef.id === 'business',
+        isExpired: evaluation.isExpired,
+        isPastDue: evaluation.isPastDue,
+        isInGracePeriod: evaluation.isInGracePeriod,
+        graceDaysLeft: evaluation.graceDaysLeft || 0,
+        periodEnd: biz.plan_expires_at || biz.plan_period_end || null,
+        cancelAtPeriodEnd: !!biz.cancel_at_period_end
+      };
+    }
+
+    if (!this.PLAN_FEATURES[raw]) raw = 'gratuit';
     const expiresAt = biz.plan_expires_at || biz.subscriptionExpiresAt;
     if (expiresAt && raw !== 'gratuit') {
       const expDate = new Date(expiresAt);
@@ -67,28 +149,78 @@ window.KivoApp = {
     return {
       name: raw,
       features: this.PLAN_FEATURES[raw],
+      status: 'active',
       isGratuit: raw === 'gratuit',
       isPro: raw === 'pro',
-      isBusiness: raw === 'business'
+      isBusiness: raw === 'business',
+      isExpired: false,
+      isPastDue: false,
+      isInGracePeriod: false
     };
   },
 
+  /**
+   * Compteur de documents par mois : calendaire, fuseau Africa/Brazzaville.
+   * RÈGLE B2 : Un document est compté dès qu'il est enregistré avec un nom de client.
+   * La suppression ne décrémente pas le compteur.
+   */
   getMonthlyDocsCount: function () {
     const docs = (this.state && this.state.documents) || [];
-    const now = new Date();
-    const curYear = now.getFullYear();
-    const curMonth = now.getMonth();
-    return docs.filter(d => {
-      const rawDate = d.createdAt || d.issueDate || d.date;
+    let startIso = null;
+    let endIso = null;
+
+    if (window.KivoPlans && typeof window.KivoPlans.getCurrentBrazzavilleMonthBounds === 'function') {
+      const bounds = window.KivoPlans.getCurrentBrazzavilleMonthBounds();
+      startIso = bounds.startIso;
+      endIso = bounds.endIso;
+    } else {
+      const now = new Date();
+      startIso = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      endIso = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+    }
+
+    // 1. Documents vivants créés ce mois-ci avec un nom de client non vide
+    const liveNamedDocs = docs.filter(d => {
+      if (!d) return false;
+      const clientName = (d.clientName || d.client_name || '').trim();
+      if (!clientName || clientName === 'Client sans nom') return false;
+
+      const rawDate = d.createdAt || d.created_at || d.issueDate || d.date_issued || d.date;
       if (!rawDate) return false;
       const dt = new Date(rawDate);
-      return !isNaN(dt.getTime()) && dt.getFullYear() === curYear && dt.getMonth() === curMonth;
-    }).length;
+      if (isNaN(dt.getTime())) return false;
+      const iso = dt.toISOString();
+      return iso >= startIso && iso < endIso;
+    });
+
+    const liveDocIds = new Set(liveNamedDocs.map(d => d.id));
+
+    // 2. Documents archivés/supprimés tracés dans activities pour ne pas décrémenter
+    let archivedCount = 0;
+    const activities = (this.state && this.state.activities) || [];
+    activities.forEach(act => {
+      if (act && act.type === 'document_created' && act.details && act.details.document_id) {
+        if (!liveDocIds.has(act.details.document_id)) {
+          const actDate = act.created_at || act.date || act.timestamp;
+          if (actDate) {
+            const dt = new Date(actDate);
+            if (!isNaN(dt.getTime())) {
+              const iso = dt.toISOString();
+              if (iso >= startIso && iso < endIso) {
+                archivedCount++;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return liveDocIds.size + archivedCount;
   },
 
   /**
    * canUse(feature, meta) — Vérifie si la fonctionnalité est accessible avec le forfait actif.
-   * @param {string} feature  - 'create_doc' | 'template' | 'customizer' | 'ai' | 'team' | 'autosave' | 'stats'
+   * @param {string} feature  - 'create_doc' | 'create_client' | 'template' | 'customizer' | 'ai' | 'team' | 'autosave' | 'stats'
    * @param {string} [meta]   - templateId si feature === 'template'
    * @returns {boolean}
    */
@@ -98,31 +230,40 @@ window.KivoApp = {
     switch (feature) {
       case 'create_doc':
       case 'new_document':
-        if (plan.isGratuit) return this.getMonthlyDocsCount() < 3;
+        if (plan.isGratuit) {
+          const limit = (plan.features && plan.features.docsPerMonth) || 3;
+          return this.getMonthlyDocsCount() < limit;
+        }
+        return true;
+      case 'create_client':
+        if (plan.isGratuit) {
+          const limit = (plan.features && plan.features.maxClients) || 3;
+          return (this.state.clients || []).length < limit;
+        }
         return true;
       case 'template':
         if (plan.features.allTemplates) return true;
         return FREE_TEMPLATES.includes(meta);
       case 'customizer':
       case 'advancedStyle':
-        return plan.features.advancedStyle;
+        return !!plan.features.advancedStyle;
       case 'ai':
-        return plan.features.ai;
+        return plan.features.ai === true;
       case 'team':
-        return plan.features.team;
+        return !!plan.features.team;
       case 'autosave':
-        return plan.features.autosave;
+        return !!plan.features.autosave;
       case 'stats':
       case 'fullStats':
-        return plan.features.fullStats;
+        return !!plan.features.fullStats;
       case 'integrations':
-        return plan.features.integrations;
+        return !!plan.features.integrations && plan.features.integrations !== 'soon';
       case 'notificationsEmail':
-        return plan.features.notificationsEmail;
+        return !!plan.features.notificationsEmail && plan.features.notificationsEmail !== 'soon';
       case 'exportCsv':
-        return plan.features.exportCsv;
+        return !!plan.features.exportCsv;
       case 'exportExcel':
-        return plan.features.exportExcel;
+        return !!plan.features.exportExcel;
       default:
         return true;
     }
@@ -138,11 +279,15 @@ window.KivoApp = {
     const MSGS = {
       create_doc:  {
         title: 'Limite du forfait Gratuit atteinte',
-        desc:  'Vous avez utilisé vos 3 documents gratuits de ce mois. Passez au forfait Pro ou Business pour créer des factures et devis en illimité.'
+        desc:  'Vous avez utilisé vos 3 documents gratuits de ce mois-ci. Passez au forfait Pro ou Business pour créer des factures et devis en illimité.'
       },
       new_document: {
         title: 'Limite du forfait Gratuit atteinte',
-        desc:  'Vous avez utilisé vos 3 documents gratuits de ce mois. Passez au forfait Pro ou Business pour créer des factures et devis en illimité.'
+        desc:  'Vous avez utilisé vos 3 documents gratuits de ce mois-ci. Passez au forfait Pro ou Business pour créer des factures et devis en illimité.'
+      },
+      create_client: {
+        title: 'Limite de 3 clients atteinte',
+        desc:  'Le forfait Gratuit permet d\'enregistrer jusqu\'à 3 clients. Passez au forfait Pro pour une gestion illimitée de votre carnet clients.'
       },
       template: {
         title: 'Modèle réservé Pro & Business',
@@ -153,8 +298,8 @@ window.KivoApp = {
         desc:  'La sauvegarde de modèles personnalisés est réservée aux forfaits Pro et Business.'
       },
       ai: {
-        title: 'Assistant IA — Pro & Business',
-        desc:  "L'assistant IA de génération de documents est disponible dans les forfaits Pro et Business."
+        title: 'Assistant IA — Bientôt disponible',
+        desc:  "L'assistant IA de génération intelligente arrive très prochainement pour les forfaits Pro et Business."
       },
       team: {
         title: 'Espace équipe — Business uniquement',
@@ -165,8 +310,8 @@ window.KivoApp = {
         desc:  'La sauvegarde automatique des brouillons dans le cloud est réservée aux forfaits Pro et Business.'
       },
       integrations: {
-        title: 'Intégrations — Réservé au forfait Business',
-        desc:  'Les intégrations de passerelles de paiement et outils tiers sont réservées au forfait Business.'
+        title: 'Intégrations & API — Bientôt disponible',
+        desc:  'Les intégrations de passerelles de paiement et clés API arrivent prochainement pour le forfait Business.'
       },
       exportExcel: {
         title: 'Export Excel (.xlsx) — Pro & Business',
@@ -183,13 +328,135 @@ window.KivoApp = {
     this.openModal('modal-upgrade-prompt');
   },
 
-  /** Ouvre WhatsApp pour demander un siège Business supplémentaire */
+  /** Ouvre WhatsApp pour demander un siège Business supplémentaire (fallback) */
   requestAdditionalSeatWhatsApp: function () {
     const biz   = (this.state && this.state.business) || {};
     const owner = biz.owner || biz.name || 'Client Business';
     const email = (window.KivoAuth && window.KivoAuth.user ? window.KivoAuth.user.email : '') || biz.email || '';
     const msg   = encodeURIComponent(`Bonjour KIVO MATIQUE ! Je suis ${owner} (${email}), abonné au forfait Business (5 sièges). Tous mes sièges sont occupés et je souhaite commander un siège supplémentaire (+1 500 FCFA/mois). Pouvez-vous m'aider ?`);
     window.open(`https://wa.me/242068286376?text=${msg}`, '_blank');
+  },
+
+  /** Ouvre la modale de paiement pour ajouter un siège supplémentaire */
+  openAddSeatModal: function () {
+    // Réinitialiser la modale à l'étape 1
+    const stepMethod  = document.getElementById('add-seat-step-method');
+    const stepConfirm = document.getElementById('add-seat-step-confirm');
+    const stepSuccess = document.getElementById('add-seat-step-success');
+    if (stepMethod)  stepMethod.style.display  = '';
+    if (stepConfirm) stepConfirm.style.display = 'none';
+    if (stepSuccess) stepSuccess.style.display = 'none';
+    // Réinitialiser sélection bouton
+    document.querySelectorAll('.add-seat-method-btn').forEach(function(b) {
+      b.style.borderColor = 'var(--border-color,#E5E7EB)';
+      b.style.background  = 'var(--bg-card,#fff)';
+    });
+    const phoneInput = document.getElementById('add-seat-phone-input');
+    if (phoneInput) phoneInput.value = '';
+    this.openModal('modal-add-seat');
+  },
+
+  /** Sélectionne le moyen de paiement pour le siège */
+  selectSeatPayMethod: function (method) {
+    this._seatPayMethod = method;
+    // Highlight sélectionné
+    document.querySelectorAll('.add-seat-method-btn').forEach(function(b) {
+      const isSelected = b.dataset.method === method;
+      b.style.borderColor = isSelected ? 'var(--primary,#4F46E5)' : 'var(--border-color,#E5E7EB)';
+      b.style.background  = isSelected ? 'var(--primary-lightest,#EEF2FF)' : 'var(--bg-card,#fff)';
+    });
+    // Passer à l'étape 2
+    const stepMethod  = document.getElementById('add-seat-step-method');
+    const stepConfirm = document.getElementById('add-seat-step-confirm');
+    if (stepMethod)  stepMethod.style.display  = 'none';
+    if (stepConfirm) stepConfirm.style.display = '';
+    // Label adaptatif
+    const labelEl = document.getElementById('add-seat-input-label');
+    const phoneInput = document.getElementById('add-seat-phone-input');
+    if (method === 'stripe') {
+      if (labelEl)     labelEl.textContent  = 'Numéro de carte bancaire';
+      if (phoneInput)  phoneInput.placeholder = '4242 4242 4242 4242';
+      if (phoneInput)  phoneInput.type = 'text';
+    } else {
+      const labels = { wave: 'Numéro Wave', orange: 'Numéro Orange Money', mtn: 'Numéro MTN MoMo' };
+      if (labelEl)     labelEl.textContent  = labels[method] || 'Numéro Mobile Money';
+      if (phoneInput)  phoneInput.placeholder = '+221 77 000 00 00';
+      if (phoneInput)  phoneInput.type = 'tel';
+    }
+  },
+
+  /** Retour à l'étape 1 (choix méthode) */
+  backToSeatMethod: function () {
+    const stepMethod  = document.getElementById('add-seat-step-method');
+    const stepConfirm = document.getElementById('add-seat-step-confirm');
+    if (stepMethod)  stepMethod.style.display  = '';
+    if (stepConfirm) stepConfirm.style.display = 'none';
+  },
+
+  /** Confirme le paiement du siège et active le siège automatiquement */
+  confirmSeatPayment: function () {
+    const phoneInput = document.getElementById('add-seat-phone-input');
+    const value = phoneInput ? phoneInput.value.trim() : '';
+    if (!value) {
+      this.showToast('Veuillez saisir votre numéro de paiement.', 'error');
+      if (phoneInput) phoneInput.focus();
+      return;
+    }
+    const btn = document.querySelector('#add-seat-step-confirm .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = 'Traitement en cours…'; }
+
+    const self = this;
+    // Simulation du délai de confirmation paiement (2s) → activation automatique du siège
+    setTimeout(function() {
+      // Activer le siège : incrémenter le compteur de sièges dans l'état
+      if (!self.state.business) self.state.business = {};
+      const currentExtra = parseInt(self.state.business.extraSeats || 0, 10);
+      self.state.business.extraSeats = currentExtra + 1;
+      self.saveState();
+
+      // Mettre à jour le compteur affiché
+      const members = self._teamMembers || (self.state.business && self.state.business.teamMembers) || [];
+      const totalOccupied = 1 + members.length;
+      const totalSeats = 5 + self.state.business.extraSeats;
+      const badgeEl = document.getElementById('invite-seats-badge');
+      if (badgeEl) {
+        badgeEl.textContent = totalOccupied + ' / ' + totalSeats + ' sièges';
+        badgeEl.style.background = '#F1F5F9';
+        badgeEl.style.color = '#334155';
+      }
+      const seatsEl = document.getElementById('team-kpi-seats');
+      if (seatsEl) seatsEl.innerHTML = totalOccupied + ' <span style="font-size:1rem;color:var(--text-muted);font-weight:normal;">/ ' + totalSeats + ' (Plan Business)</span>';
+
+      // Masquer la bannière limite si le plafond n'est plus atteint
+      const limitBanner = document.getElementById('invite-seats-limit-banner');
+      if (limitBanner && totalOccupied < totalSeats) limitBanner.style.display = 'none';
+
+      // Réactiver le formulaire d'invitation
+      const sendBtn = document.getElementById('btn-send-member-invite');
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.style.opacity = '1';
+        sendBtn.style.cursor = 'pointer';
+      }
+      const emailInput = document.getElementById('invite-member-email');
+      if (emailInput) {
+        emailInput.disabled = false;
+      }
+
+      // Re-rendre la vue équipe pour mettre à jour tous les éléments
+      if (typeof self.renderTeam === 'function') {
+        self.renderTeam();
+      }
+
+      self.showToast('Nouveau siège activé avec succès !', 'success');
+
+      // Afficher l'étape succès
+      const stepConfirm = document.getElementById('add-seat-step-confirm');
+      const stepSuccess = document.getElementById('add-seat-step-success');
+      if (stepConfirm) stepConfirm.style.display = 'none';
+      if (stepSuccess) stepSuccess.style.display = '';
+      if (btn) { btn.disabled = false; btn.textContent = 'Payer 1 500 FCFA et activer le siège'; }
+    }, 2000);
   },
 
   updatePlanUsageBadge: function () {
@@ -462,6 +729,44 @@ window.KivoApp = {
    */
   init: async function () {
     console.log("[KivoApp] Initializing KIVO MATIQUE application...");
+
+    // ── FIX CRITIQUE : PORTAL PATTERN — Déplacer toutes les modales en enfant direct de <body> ──
+    // Cela échappe à tout contexte d'empilement (stacking context) parent qui pourrait piéger
+    // leur z-index (ex: .app-wrapper avec position:relative, ou sidebar avec position:fixed/z-index:40).
+    // Sans ce fix, z-index:99999 sur une modale imbriquée dans un sous-contexte ne garantit
+    // pas qu'elle passe AU-DESSUS d'éléments dans un autre contexte d'empilement (la sidebar).
+    (function escapeModalsToBody() {
+      const modalIds = [
+        'modal-confirm-logout',
+        'modal-confirm-delete',
+        'modal-invite-member',
+        'modal-new-doc-choice',
+        'modal-upgrade-prompt',
+        'modal-ai-prompt',
+        'modal-whatsapp-share',
+        'modal-payment-checkout',
+        'modal-new-client',
+        'modal-builder-catalog',
+        'modal-catalog-item',
+        'modal-client-details',
+        'modal-change-password',
+        'modal-connected-accounts',
+        'modal-add-seat',
+        'modal-accounting-export',
+        'modal-template-editor'
+      ];
+      modalIds.forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el && el.parentElement !== document.body) {
+          document.body.appendChild(el);
+          console.log('[DEBUG-MODAL] Portal fix: modale', id, 'déplacée en enfant direct de <body>.');
+        }
+      });
+    })();
+
+    // ── SÉCURITÉ AU DÉMARRAGE : nettoyer tout verrouillage de scroll résiduel ──
+    document.body.style.overflow = '';
+    document.body.classList.remove('modal-open', 'no-scroll');
     this.isSessionLoading = true;
 
     // Safety timeout: force-hide the overlay after 30 s in case of unexpected silence
@@ -714,6 +1019,12 @@ window.KivoApp = {
         logoSize: s.logo_size !== undefined ? s.logo_size : (this.state.business.logoSize || 100),
         logoPosition: s.logo_position || this.state.business.logoPosition || 'right',
         invoicePageSize: s.invoice_page_size || this.state.business.invoicePageSize || 'a4',
+        id: s.id || this.state.business.id,
+        customTemplates: Array.isArray(s.custom_templates)
+          ? s.custom_templates
+          : (typeof s.custom_templates === 'string'
+            ? (() => { try { return JSON.parse(s.custom_templates); } catch (_) { return []; } })()
+            : (this.state.business.customTemplates || []))
       };
     } else {
       const authUser = window.KivoAuth?.user;
@@ -993,17 +1304,37 @@ window.KivoApp = {
    * Without this, getSession() finds the old token and auto-logs in the user.
    */
   logout: async function (confirmed = false) {
-    if (!confirmed) {
-      const sidebar = document.getElementById('sidebar');
-      if (sidebar && sidebar.classList.contains('mobile-open') && typeof this.toggleMobileSidebar === 'function') {
-        this.toggleMobileSidebar(false);
-      }
-      this.openModal('modal-confirm-logout');
+    // ── VERROU ANTI DOUBLE-APPEL ──────────────────────────────────────────
+    if (this._logoutInFlight) {
+      console.warn('[DEBUG-LOGOUT] Appel ignoré : une déconnexion est déjà en cours.');
       return;
     }
-    this.closeModal('modal-confirm-logout');
+    console.log('[DEBUG-LOGOUT] 1. Clic détecté à', new Date().toISOString(), 'confirmed:', confirmed);
 
-    console.log('[KivoApp] Logging out...');
+    if (!confirmed) {
+      const sidebar = document.getElementById('sidebar');
+      const wasMobileOpen = sidebar && sidebar.classList.contains('mobile-open');
+      if (wasMobileOpen && typeof this.toggleMobileSidebar === 'function') {
+        this.toggleMobileSidebar(false);
+      }
+      // Découplage temporel systématique pour éviter que l'événement de clic du bouton
+      // ne soit capturé par la modale lors de son affichage
+      setTimeout(() => {
+        this.openModal('modal-confirm-logout');
+      }, wasMobileOpen ? 300 : 60);
+      return;
+    }
+
+    this._logoutInFlight = true;
+
+    const confirmBtn = document.getElementById('confirm-logout-action-btn');
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.style.opacity = '0.7';
+    }
+
+    this.closeModal('modal-confirm-logout', true);
+
     this.isSessionLoading = false;
     this._isAuthenticating = false;
     if (window.KivoAuth) {
@@ -1011,24 +1342,40 @@ window.KivoApp = {
     }
 
     try {
-      // 1. Capture user-scoped storage key BEFORE clearing user object
+      console.log('[DEBUG-LOGOUT] 2. Appel supabase.auth.signOut()...');
+      let signOutError = null;
+      if (window.KivoDb && window.KivoDb.supabase) {
+        try {
+          const res = await window.KivoDb.supabase.auth.signOut();
+          signOutError = res?.error || null;
+        } catch (authErr) {
+          signOutError = authErr;
+        }
+      } else {
+        console.warn('[DEBUG-LOGOUT] 2-WARN: window.KivoDb.supabase non disponible');
+      }
+
+      console.log('[DEBUG-LOGOUT] 3. Réponse signOut reçue. Erreur ?', signOutError);
+      if (signOutError) {
+        console.error('[DEBUG-LOGOUT] ERREUR signOut:', signOutError.message || signOutError, signOutError);
+        alert('Erreur de déconnexion : ' + (signOutError.message || JSON.stringify(signOutError)));
+      }
+
+      console.log('[DEBUG-LOGOUT] 4. Nettoyage du state local...');
       const userKey = this.getUserStorageKey();
       if (userKey) localStorage.removeItem(userKey);
       localStorage.removeItem('kivo_app_state');
       localStorage.removeItem('kivo_app_state_guest');
 
-      // 2. Explicitly purge all Supabase auth tokens from localStorage
-      // to ensure no stale token can re-authenticate the user on page refresh
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && (k.startsWith('sb-') || k.startsWith('supabase.') || k.includes('auth-token'))) {
+        if (k && (k.startsWith('sb-') || k.startsWith('supabase.') || k.includes('auth-token') || k.includes('kivo-auth'))) {
           keysToRemove.push(k);
         }
       }
       keysToRemove.forEach(k => localStorage.removeItem(k));
 
-      // 3. Clear session and user references in memory
       if (window.KivoAuth) {
         window.KivoAuth.user = null;
         window.KivoAuth.session = null;
@@ -1037,21 +1384,21 @@ window.KivoApp = {
       this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
       this.state.isOnboarded = false;
 
-      // 4. Perform Supabase SDK signOut with catch guard
-      if (window.KivoDb && window.KivoDb.supabase) {
-        try {
-          await KivoDb.supabase.auth.signOut();
-        } catch (authErr) {
-          console.warn('[KivoApp] Supabase signOut non-blocking error:', authErr);
-        }
-      }
-    } catch (e) {
-      console.error('[KivoApp] Error during logout:', e);
-    }
+      console.log('[DEBUG-LOGOUT] 5. Redirection vers #landing...');
+      window.location.hash = '#landing';
 
-    // 5. Clean URL and navigate to landing cleanly
-    this.navigate('landing');
-    this.showToast(this._t('toast_logout_success'), 'info');
+      console.log('[DEBUG-LOGOUT] 6. Rechargement forcé...');
+      window.location.reload();
+    } catch (e) {
+      console.error('[DEBUG-LOGOUT] EXCEPTION NON CATCHÉE:', e);
+      alert('Exception lors de la déconnexion : ' + (e.message || JSON.stringify(e)));
+    } finally {
+      this._logoutInFlight = false;
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.style.opacity = '';
+      }
+    }
   },
 
   /**
@@ -1674,6 +2021,9 @@ window.KivoApp = {
         }
       });
     }
+
+    // 5. Sidebar logout button: Handled solely by native onclick="KivoApp.logout()"
+    // with touch-action: manipulation in CSS, avoiding any double event firing.
 
     const filterPills = document.querySelectorAll('#doc-filter-pills button');
     filterPills.forEach(btn => {
@@ -2567,10 +2917,17 @@ window.KivoApp = {
     const iso = currencyMap[rawCurrency];
     if (iso && iso !== 'XOF' && iso !== 'XAF') {
       try {
-        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: iso }).format(num);
+        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: iso })
+          .format(num)
+          .replace(/[\u202F\u00A0]/g, ' ');
       } catch (e) {}
     }
-    return new Intl.NumberFormat('fr-FR').format(Math.round(num)) + ' ' + rawCurrency;
+    // Remplacement explicite de l'espace insécable fin (\u202F) par un espace standard
+    // pour garantir la visibilité du séparateur de milliers dans tous les navigateurs et SVG
+    const formattedNum = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
+      .format(Math.round(num))
+      .replace(/[\u202F\u00A0]/g, ' ');
+    return formattedNum + ' ' + rawCurrency;
   },
 
   /**
@@ -2637,10 +2994,24 @@ window.KivoApp = {
         totalInvoices++;
         const s = (doc.status || '').toLowerCase().trim();
         const isDocPaid = s === 'paid' || s === 'payée' || s === 'payee';
+        const isDocDraft = s === 'draft' || s === 'brouillon';
+        const isDocCancelled = s === 'cancelled' || s === 'annulée' || s === 'annulee' || s === 'rejected';
+
+        let isPastDue = false;
+        if (!isDocPaid && !isDocDraft && !isDocCancelled && doc.dueDate) {
+          try {
+            const dStr = String(doc.dueDate);
+            const dt = new Date(dStr + (dStr.includes('T') ? '' : 'T23:59:59'));
+            if (!isNaN(dt.getTime()) && dt < new Date()) {
+              isPastDue = true;
+            }
+          } catch (_) {}
+        }
+
         if (isDocPaid) {
           paidTotal += docTotal;
           paidInvoicesCount++;
-        } else if (s === 'overdue') {
+        } else if (s === 'overdue' || isPastDue) {
           overdueTotal += docTotal;
           overdueInvoicesCount++;
         } else if (s === 'sent' || s === 'viewed') {
@@ -2652,11 +3023,8 @@ window.KivoApp = {
       }
     });
 
-    // Format currency with Intl.NumberFormat('fr-FR')
-    const formatCurrency = (val) => {
-      const rawCurrency = (biz && biz.currency) || 'FCFA';
-      return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(val || 0)) + ' ' + rawCurrency;
-    };
+    // Utiliser le formateur centralisé de devise
+    const formatCurrency = (val) => this.formatCurrency(val);
 
     // Update total documents counter with count-up animation
     const totalDocs = totalInvoices + totalQuotes;
@@ -2731,17 +3099,25 @@ window.KivoApp = {
     });
 
     let trendHtml = '';
-    if (hasPrevMonthDocs && prevMonthPaid > 0) {
-      const diffPct = Math.round(((currMonthPaid - prevMonthPaid) / prevMonthPaid) * 100);
-      if (diffPct > 0) {
-        trendHtml = ` · <span style="color:#10B981; font-weight:700;">▲ +${diffPct} % vs. dernier mois</span>`;
-      } else if (diffPct < 0) {
-        trendHtml = ` · <span style="color:#EF4444; font-weight:700;">▼ ${diffPct} % vs. dernier mois</span>`;
+    if (!hasPrevMonthDocs || prevMonthPaid === 0) {
+      if (currMonthPaid > 0) {
+        trendHtml = ` · <span style="color:#6B7280; font-weight:600;">Premier mois d'activité</span>`;
       } else {
-        trendHtml = ` · <span style="color:#6B7280; font-weight:600;">= 0 % vs. dernier mois</span>`;
+        trendHtml = '';
       }
-    } else if (hasPrevMonthDocs && prevMonthPaid === 0 && currMonthPaid > 0) {
-      trendHtml = ` · <span style="color:#10B981; font-weight:700;">▲ +100 % vs. dernier mois</span>`;
+    } else if (prevMonthPaid > 0) {
+      if (currMonthPaid === 0) {
+        trendHtml = ` · <span style="color:#6B7280; font-weight:500;">En cours ce mois</span>`;
+      } else {
+        const diffPct = Math.round(((currMonthPaid - prevMonthPaid) / prevMonthPaid) * 100);
+        if (diffPct > 0) {
+          trendHtml = ` · <span style="color:#10B981; font-weight:700;">▲ +${diffPct} % vs. dernier mois</span>`;
+        } else if (diffPct < 0) {
+          trendHtml = ` · <span style="color:#EF4444; font-weight:700;">▼ ${diffPct} % vs. dernier mois</span>`;
+        } else {
+          trendHtml = ` · <span style="color:#6B7280; font-weight:600;">= 0 % vs. dernier mois</span>`;
+        }
+      }
     }
 
     const paidEl = document.getElementById('kpi-paid');
@@ -2764,35 +3140,30 @@ window.KivoApp = {
       }
     }
     
-    const pendCountEl = document.getElementById('kpi-pending-count');
-    if (pendCountEl) {
-      this.animateCountUp(pendCountEl, pendingInvoicesCount, 700, (v) => {
-        const n = Math.round(v);
-        return `${n} facture${n > 1 ? 's' : ''}`;
-      });
-    }
+    // Inverser la hiérarchie : Montant en grand, nombre de factures en détail
     const pendAmountEl = document.getElementById('kpi-pending-amount');
     if (pendAmountEl) {
+      this.animateCountUp(pendAmountEl, pendingTotal, 700, (v) => formatCurrency(v));
+    }
+    const pendCountEl = document.getElementById('kpi-pending-count');
+    if (pendCountEl) {
       if (pendingInvoicesCount > 0) {
-        this.animateCountUp(pendAmountEl, pendingTotal, 700, (v) => formatCurrency(v));
+        pendCountEl.textContent = `${pendingInvoicesCount} facture${pendingInvoicesCount > 1 ? 's' : ''} à encaisser`;
       } else {
-        pendAmountEl.innerHTML = `<span style="color:#9CA3AF; font-size:14px; font-style:italic;">Aucune facture en attente</span>`;
+        pendCountEl.innerHTML = `<span style="color:#9CA3AF; font-size:13px; font-style:italic;">Aucune facture en attente</span>`;
       }
     }
     
-    const overCountEl = document.getElementById('kpi-overdue-count');
-    if (overCountEl) {
-      this.animateCountUp(overCountEl, overdueInvoicesCount, 700, (v) => {
-        const n = Math.round(v);
-        return `${n} facture${n > 1 ? 's' : ''}`;
-      });
-    }
     const overAmountEl = document.getElementById('kpi-overdue-amount');
     if (overAmountEl) {
+      this.animateCountUp(overAmountEl, overdueTotal, 700, (v) => formatCurrency(v));
+    }
+    const overCountEl = document.getElementById('kpi-overdue-count');
+    if (overCountEl) {
       if (overdueInvoicesCount > 0) {
-        this.animateCountUp(overAmountEl, overdueTotal, 700, (v) => formatCurrency(v));
+        overCountEl.textContent = `${overdueInvoicesCount} facture${overdueInvoicesCount > 1 ? 's' : ''} en retard`;
       } else {
-        overAmountEl.innerHTML = `<span style="color:#9CA3AF; font-size:14px; font-style:italic;">Aucune facture en retard</span>`;
+        overCountEl.innerHTML = `<span style="color:#9CA3AF; font-size:13px; font-style:italic;">Aucune facture en retard</span>`;
       }
     }
 
@@ -2842,10 +3213,11 @@ window.KivoApp = {
             docDate = doc.createdAt ? new Date(doc.createdAt).toLocaleDateString('fr-FR') : 'N/A';
           }
 
+          const clientDisplayName = doc.clientName || 'Client';
           return `
             <tr onclick="KivoApp.viewPublicDoc('${doc.id}')" style="cursor: pointer;" title="${_t('btn_edit')} ${doc.number}">
               <td><strong style="color: var(--primary); font-weight: 600;">${doc.number}</strong></td>
-              <td>${doc.clientName || 'Client'}</td>
+              <td title="${clientDisplayName}" style="max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${clientDisplayName}</td>
               <td style="color: var(--text-secondary);">${docDate}</td>
               <td><strong>${formatCurrency(doc.total || 0)}</strong></td>
               <td style="text-align: right;"><span class="kivo-dash-badge ${badgeClass}">${badgeText}</span></td>
@@ -2996,9 +3368,10 @@ window.KivoApp = {
 
     const badgeLabel = document.getElementById('dash-chart-total-label');
     if (badgeLabel) {
+      const avgMonthly = Math.round(totalRevenue6M / 6);
       badgeLabel.textContent = totalRevenue6M > 0 
-        ? self.formatCurrency(totalRevenue6M) + ' encaissés (6 mois)'
-        : 'Données en direct';
+        ? 'Moy. ' + self.formatCurrency(avgMonthly) + ' / mois'
+        : 'Synchronisé en direct';
     }
 
     // Empty state if zero documents
@@ -3021,13 +3394,13 @@ window.KivoApp = {
       return;
     }
 
-    // SVG parameters
-    const svgW = 600;
+    // Paramètres SVG équilibrés pour éviter toute troncature à gauche (labels FCFA) et à droite (dernier mois / montant)
+    const svgW = 660;
     const svgH = 180;
     const padTop = 24;
     const padBottom = 32;
-    const padLeft = 45;
-    const padRight = 20;
+    const padLeft = 75;
+    const padRight = 50;
     const chartW = svgW - padLeft - padRight;
     const chartH = svgH - padTop - padBottom;
 
@@ -3059,7 +3432,7 @@ window.KivoApp = {
       const gy = (padTop + chartH * (1 - pct)).toFixed(1);
       const val = self.formatCurrency(ceiling * pct);
       return '<line x1="' + padLeft + '" y1="' + gy + '" x2="' + (svgW - padRight) + '" y2="' + gy + '" stroke="#F1F5F9" stroke-width="1" stroke-dasharray="3,4" />' +
-        '<text x="' + (padLeft - 8) + '" y="' + (parseFloat(gy) + 3.5).toFixed(1) + '" text-anchor="end" font-size="9" fill="#94A3B8" font-family="Inter,sans-serif">' + val + '</text>';
+        '<text x="' + (padLeft - 10) + '" y="' + (parseFloat(gy) + 3.5).toFixed(1) + '" text-anchor="end" font-size="9" fill="#94A3B8" font-family="Inter,sans-serif">' + val + '</text>';
     }).join('');
 
     // Markers and labels
@@ -3076,7 +3449,7 @@ window.KivoApp = {
     }).join('');
 
     container.innerHTML = `
-      <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;height:auto;overflow:visible;display:block;" aria-label="Évolution du chiffre d'affaires">
+      <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;min-width:480px;height:auto;display:block;" aria-label="Évolution du chiffre d'affaires">
         <defs>
           <linearGradient id="dashRevenueGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#4F46E5" stop-opacity="0.25"/>
@@ -3099,7 +3472,7 @@ window.KivoApp = {
     const isQuote = doc.type === 'quote';
     const rawStatus = (doc.status || 'draft').toLowerCase().trim();
 
-    // Determine semantic status & visual row tint matching reference design
+    // Determine semantic status
     const isDraft = rawStatus === 'draft' || rawStatus === 'brouillon';
     const isPaid = rawStatus === 'paid' || rawStatus === 'payée' || rawStatus === 'payee';
     const isRefunded = rawStatus === 'refunded';
@@ -3118,11 +3491,9 @@ window.KivoApp = {
     }
     const isOverdue = rawStatus === 'overdue' || isPastDue;
 
-    let rowStatusClass = 'doc-row-status-draft';
     let statusBadgeHtml = '';
 
     if (isDraft) {
-      rowStatusClass = 'doc-row-status-draft';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-draft">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 9.5-9.5z"/></svg>
@@ -3130,7 +3501,6 @@ window.KivoApp = {
         </span>
       `;
     } else if (isPaid) {
-      rowStatusClass = 'doc-row-status-paid';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-paid">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
@@ -3138,28 +3508,24 @@ window.KivoApp = {
         </span>
       `;
     } else if (isQuote && isArchived) {
-      rowStatusClass = 'doc-row-status-archived';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-archived">
           Devis (Archivé)
         </span>
       `;
     } else if (isQuote && isProspect) {
-      rowStatusClass = 'doc-row-status-prospect';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-prospect">
           Devis (Prospect)
         </span>
       `;
     } else if (isQuote) {
-      rowStatusClass = 'doc-row-status-quote-blue';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-quote-blue">
           Devis
         </span>
       `;
     } else if (isOverdue) {
-      rowStatusClass = 'doc-row-status-overdue';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-overdue">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -3167,7 +3533,6 @@ window.KivoApp = {
         </span>
       `;
     } else if (isRefunded) {
-      rowStatusClass = 'doc-row-status-refunded';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-refunded">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -3175,7 +3540,6 @@ window.KivoApp = {
         </span>
       `;
     } else {
-      rowStatusClass = 'doc-row-status-sent';
       const label = rawStatus === 'viewed' ? 'Consultée' : 'Envoyée';
       statusBadgeHtml = `
         <span class="badge badge-doc-status badge-status-sent">
@@ -3189,23 +3553,30 @@ window.KivoApp = {
       ? `<span class="badge badge-type-quote">Devis</span>`
       : `<span class="badge badge-type-invoice">Facture</span>`;
 
+    const rawClientName = doc.clientName || (doc.client && doc.client.name) || 'Client anonyme';
+    const safeClientName = (typeof escapeHtml === 'function') ? escapeHtml(rawClientName) : rawClientName;
+    const safeClientType = doc.clientType ? ((typeof escapeHtml === 'function') ? escapeHtml(doc.clientType) : doc.clientType) : '';
+
+    const isRecentlyUpdated = this._recentlyUpdatedDocId && (this._recentlyUpdatedDocId === doc.id);
+    const recentClass = isRecentlyUpdated ? ' doc-row-just-updated' : '';
+
     return `
-      <tr class="doc-table-row ${rowStatusClass}" onclick="KivoApp.viewPublicDoc('${doc.id}')">
+      <tr class="doc-table-row${recentClass}" onclick="KivoApp.viewPublicDoc('${doc.id}')">
         <td class="col-doc-num">
-          <strong style="color: var(--text-primary); font-size: 0.88rem; font-weight: 600;">${doc.number}</strong>
+          <strong style="color: var(--text-primary); font-size: 0.88rem; font-weight: 600;">${doc.number || '-'}</strong>
           <div class="mobile-only-doc-status" style="margin-top: 4px; display: none;">${statusBadgeHtml}</div>
         </td>
-        <td class="col-doc-client">
-          <div class="client-name-cell" style="font-weight: 600; color: var(--text-primary); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${doc.clientName || 'Client anonyme'}">${doc.clientName || 'Client anonyme'}</div>
-          ${doc.clientType ? `<span style="font-size: 0.72rem; color: var(--text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${doc.clientType}</span>` : ''}
+        <td class="col-doc-client" title="${safeClientName}">
+          <div class="client-name-cell" title="${safeClientName}">${safeClientName}</div>
+          ${safeClientType ? `<span style="font-size: 0.72rem; color: var(--text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${safeClientName}">${safeClientType}</span>` : ''}
         </td>
         <td class="col-doc-type">${typeBadgeHtml}</td>
         <td class="col-doc-issue-date" style="color: var(--text-secondary); font-size: 0.88rem;">${doc.issueDate || '-'}</td>
         <td class="col-doc-due-date" style="color: var(--text-secondary); font-size: 0.88rem;">${doc.dueDate || '-'}</td>
         <td class="col-doc-total"><strong style="color: var(--text-primary); font-size: 0.95rem; white-space: nowrap;">${(doc.total || 0).toLocaleString('fr-FR')} ${currencyStr}</strong></td>
         <td class="col-doc-status">${statusBadgeHtml}</td>
-        <td class="col-doc-action" style="text-align: right;" onclick="event.stopPropagation();">
-          <button class="btn-row-action btn-row-kebab" onclick="KivoApp.toggleDocRowMenu(event, '${doc.id}')" title="Actions" aria-label="Actions">
+        <td class="col-doc-action" onclick="event.stopPropagation();">
+          <button class="btn-row-action btn-row-kebab" onclick="KivoApp.toggleDocRowMenu(event, '${doc.id}')" title="Actions pour le document ${doc.number || ''}" aria-label="Actions">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="12" cy="19" r="2.2"/></svg>
           </button>
         </td>
@@ -3322,6 +3693,7 @@ window.KivoApp = {
     if (!tbody) return;
 
     let docs = (this.state && this.state.documents) || [];
+    const totalCount = docs.length;
 
     if (filter !== 'all') {
       if (filter === 'invoice' || filter === 'quote') {
@@ -3369,38 +3741,8 @@ window.KivoApp = {
       );
     }
 
-    const emptyStateHtml = `
-      <tr>
-        <td colspan="8" style="padding: 3rem 1.5rem; text-align: center; background: #FFFFFF; border-radius: 12px; border: 1px dashed #E2E8F0;">
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
-            <div style="width:56px; height:56px; border-radius:16px; background:#F8FAFC; border:1px solid #E2E8F0; display:flex; align-items:center; justify-content:center; color:#64748B;">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <line x1="10" y1="9" x2="8" y2="9"></line>
-              </svg>
-            </div>
-            <div style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucun document trouvé</div>
-            <p style="color:#64748B; font-size:0.85rem; margin:0; max-width:340px; line-height:1.5;">Vous n'avez pas encore créé de document pour ce filtre. Émettez une facture ou un devis en quelques clics.</p>
-            <div style="display:flex; gap:0.65rem; margin-top:0.4rem; flex-wrap:wrap; justify-content:center;">
-              <button onclick="KivoApp.openNewDocModal('invoice')" class="btn btn-primary" style="padding:0.5rem 1.15rem; font-size:0.85rem;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                <span>Créer une facture</span>
-              </button>
-              <button onclick="KivoApp.openNewDocModal('quote')" class="btn btn-secondary" style="padding:0.5rem 1.15rem; font-size:0.85rem;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                <span>Créer un devis</span>
-              </button>
-            </div>
-          </div>
-        </td>
-      </tr>
-    `;
-
     if (docs.length === 0) {
-      tbody.innerHTML = emptyStateHtml;
+      tbody.innerHTML = this.getDocEmptyStateHtml(filter, searchQuery, totalCount);
       return;
     }
 
@@ -3416,7 +3758,7 @@ window.KivoApp = {
     }
 
     if (rowsHtml.length === 0) {
-      tbody.innerHTML = emptyStateHtml;
+      tbody.innerHTML = this.getDocEmptyStateHtml(filter, searchQuery, totalCount);
       return;
     }
 
@@ -3431,6 +3773,209 @@ window.KivoApp = {
         }
       });
     }, 150);
+  },
+
+  /**
+   * Generates custom, polished empty state HTML tailored to active filter & search
+   */
+  getDocEmptyStateHtml: function (filter = 'all', searchQuery = '', totalCount = 0) {
+    const safeEscape = (typeof this.escapeHtml === 'function')
+      ? this.escapeHtml.bind(this)
+      : (typeof window.escapeHtml === 'function' ? window.escapeHtml : (s => s));
+    const safeQuery = searchQuery ? safeEscape(searchQuery.trim()) : '';
+
+    // 1. Recherche infructueuse
+    if (safeQuery) {
+      return `
+        <tr>
+          <td colspan="8" class="doc-empty-state-cell">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+              <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#F8FAFC; border:1px solid #E2E8F0; display:flex; align-items:center; justify-content:center; color:#64748B;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </div>
+              <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucun résultat pour « ${safeQuery} »</div>
+              <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:380px; line-height:1.5;">Aucun document ne correspond à ce critère. Vérifiez l'orthographe du numéro ou du nom du client.</p>
+              <div style="margin-top:0.4rem;">
+                <button type="button" onclick="KivoApp.clearDocSearch()" class="btn btn-secondary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  <span>Effacer la recherche</span>
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // 2. Filtre Devis
+    if (filter === 'quote') {
+      return `
+        <tr>
+          <td colspan="8" class="doc-empty-state-cell">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+              <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#EFF6FF; border:1px solid #BFDBFE; display:flex; align-items:center; justify-content:center; color:#2563EB;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              </div>
+              <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucun devis pour le moment</div>
+              <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:380px; line-height:1.5;">Créez et envoyez des devis et propositions commerciales professionnelles à vos prospects en quelques clics.</p>
+              <div style="margin-top:0.4rem;">
+                <button type="button" onclick="KivoApp.openNewDocModal('quote')" class="btn btn-primary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>Créer un devis</span>
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // 3. Filtre Factures
+    if (filter === 'invoice') {
+      return `
+        <tr>
+          <td colspan="8" class="doc-empty-state-cell">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+              <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#ECFDF5; border:1px solid #A7F3D0; display:flex; align-items:center; justify-content:center; color:#059669;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+              </div>
+              <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucune facture pour le moment</div>
+              <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:380px; line-height:1.5;">Facturez vos prestations, suivez vos règlements et encaissez vos paiements plus rapidement.</p>
+              <div style="margin-top:0.4rem;">
+                <button type="button" onclick="KivoApp.openNewDocModal('invoice')" class="btn btn-primary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>Créer une facture</span>
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // 4. Filtre En retard
+    if (filter === 'overdue') {
+      return `
+        <tr>
+          <td colspan="8" class="doc-empty-state-cell">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+              <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#ECFDF5; border:1px solid #A7F3D0; display:flex; align-items:center; justify-content:center; color:#059669;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              </div>
+              <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucune facture en retard</div>
+              <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:380px; line-height:1.5;">Excellente nouvelle ! Tous vos paiements sont à jour. Aucun impayé n'est à déplorer.</p>
+              <div style="margin-top:0.4rem;">
+                <button type="button" onclick="KivoApp.setDocFilter('all')" class="btn btn-secondary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                  <span>Voir tous les documents</span>
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // 5. Filtre Payées
+    if (filter === 'paid') {
+      return `
+        <tr>
+          <td colspan="8" class="doc-empty-state-cell">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+              <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#F8FAFC; border:1px solid #E2E8F0; display:flex; align-items:center; justify-content:center; color:#64748B;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+              </div>
+              <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucune facture payée pour le moment</div>
+              <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:380px; line-height:1.5;">Dès qu'une facture sera réglée par votre client ou marquée comme payée, elle apparaîtra ici.</p>
+              <div style="margin-top:0.4rem; display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
+                <button type="button" onclick="KivoApp.setDocFilter('invoice')" class="btn btn-secondary" style="padding:0.5rem 1.15rem; font-size:0.85rem;">
+                  <span>Voir les factures en attente</span>
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // 6. Filtre Brouillons
+    if (filter === 'draft') {
+      return `
+        <tr>
+          <td colspan="8" class="doc-empty-state-cell">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+              <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#F8FAFC; border:1px solid #E2E8F0; display:flex; align-items:center; justify-content:center; color:#64748B;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 9.5-9.5z"></path></svg>
+              </div>
+              <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucun brouillon en cours</div>
+              <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:380px; line-height:1.5;">Tous vos documents sont finalisés. Aucun document n'est en attente de validation.</p>
+              <div style="margin-top:0.4rem;">
+                <button type="button" onclick="KivoApp.openNewDocModal('invoice')" class="btn btn-primary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>Créer un document</span>
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // 7. Défaut (Tous - Aucun document dans l'app)
+    return `
+      <tr>
+        <td colspan="8" class="doc-empty-state-cell">
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
+            <div class="empty-icon-wrap" style="width:56px; height:56px; border-radius:16px; background:#F8FAFC; border:1px solid #E2E8F0; display:flex; align-items:center; justify-content:center; color:#64748B;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <line x1="10" y1="9" x2="8" y2="9"></line>
+              </svg>
+            </div>
+            <div class="empty-state-title" style="font-weight:700; font-size:1.05rem; color:#0F172A; font-family:var(--font-heading, 'Outfit', sans-serif);">Aucun document pour le moment</div>
+            <p class="empty-state-desc" style="color:#64748B; font-size:0.85rem; margin:0; max-width:360px; line-height:1.5;">Vous n'avez pas encore créé de document. Émettez une facture ou un devis en quelques clics.</p>
+            <div style="display:flex; gap:0.65rem; margin-top:0.4rem; flex-wrap:wrap; justify-content:center;">
+              <button type="button" onclick="KivoApp.openNewDocModal('invoice')" class="btn btn-primary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Créer une facture</span>
+              </button>
+              <button type="button" onclick="KivoApp.openNewDocModal('quote')" class="btn btn-secondary" style="padding:0.5rem 1.15rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.45rem;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Créer un devis</span>
+              </button>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
+  },
+
+  /**
+   * Activates a document filter pill programmatically
+   */
+  setDocFilter: function (filterName = 'all') {
+    const filterPills = document.querySelectorAll('#doc-filter-pills button');
+    filterPills.forEach(b => {
+      if (b.getAttribute('data-filter') === filterName) {
+        b.classList.add('active-pill');
+      } else {
+        b.classList.remove('active-pill');
+      }
+    });
+    const searchVal = document.getElementById('doc-search-input')?.value || '';
+    this.renderDocumentsTable(filterName, searchVal);
+  },
+
+  /**
+   * Clears document search query input and re-renders table
+   */
+  clearDocSearch: function () {
+    const searchInput = document.getElementById('doc-search-input');
+    if (searchInput) searchInput.value = '';
+    const activeFilter = document.querySelector('#doc-filter-pills button.active-pill')?.getAttribute('data-filter') || 'all';
+    this.renderDocumentsTable(activeFilter, '');
   },
 
   /**
@@ -3552,21 +4097,26 @@ window.KivoApp = {
     setVal('builder-due-date', dueStr);
     setVal('builder-doc-status', 'sent');
     setVal('builder-notes', '');
-    setVal('builder-terms', 'À réception');
-    setVal('builder-terms-select', 'À réception');
+    setVal('builder-terms', '');
+    setVal('builder-terms-select', '');
     const termsCustomInput = document.getElementById('builder-terms');
     if (termsCustomInput) termsCustomInput.style.display = 'none';
-    setVal('builder-payment-method', 'Virement bancaire');
+    setVal('builder-payment-method', '');
     setVal('builder-doc-currency', this.state.business.currency || 'FCFA');
-    setVal('builder-visual-template', this.state.business.visualTemplate || 'minimalist');
+    const safeTemplate3880 = (this.state.business.visualTemplate && this.canUse('template', this.state.business.visualTemplate)) ? this.state.business.visualTemplate : 'minimalist';
+    setVal('builder-visual-template', safeTemplate3880);
     const rawP = this.state.business.primaryColor;
     const initPrimaryColor = (!rawP || rawP === '#000000' || rawP === '#000') ? '#4F46E5' : rawP;
     const rawS = this.state.business.secondaryColor;
     const initSecondaryColor = (!rawS || rawS === '#000000' || rawS === '#000') ? '#64748B' : rawS;
+    const rawBg = this.state.business.docBgColor;
+    const initBgColor = (!rawBg || rawBg === '#000000' || rawBg === '#000') ? '#FFFFFF' : rawBg;
     setVal('builder-color-primary', initPrimaryColor);
     setVal('builder-color-primary-text', initPrimaryColor);
     setVal('builder-color-secondary', initSecondaryColor);
     setVal('builder-color-secondary-text', initSecondaryColor);
+    setVal('builder-color-bg', initBgColor);
+    setVal('builder-color-bg-text', initBgColor);
     const titleEl = document.getElementById('builder-page-title');
     if (titleEl) titleEl.textContent = (type === 'quote') ? 'Créer un devis' : 'Créer une facture';
 
@@ -3664,6 +4214,7 @@ window.KivoApp = {
     if (tbody) tbody.innerHTML = '';
     this.addBuilderLineItem('', 1, 0, defaultVat, '', 0);
     this.populateBuilderCatalogDropdown();
+    this.renderBuilderPaymentMethodsSelection([]);
 
     this.recalculateBuilderTotals();
     this.updateLiveInvoicePreview();
@@ -3767,11 +4318,14 @@ window.KivoApp = {
 
     // Payment terms & details
     const knownTerms = ['À réception', 'Net 7 jours', 'Net 15 jours', 'Net 30 jours', 'Net 45 jours', 'Net 60 jours'];
-    const docTerms = doc.terms || doc.conditions || meta.terms || 'À réception';
+    const docTerms = doc.terms || doc.conditions || meta.terms || '';
     const termsSelectEl = document.getElementById('builder-terms-select');
     const termsInputEl = document.getElementById('builder-terms');
     if (termsSelectEl) {
-      if (knownTerms.includes(docTerms)) {
+      if (!docTerms) {
+        termsSelectEl.value = '';
+        if (termsInputEl) { termsInputEl.value = ''; termsInputEl.style.display = 'none'; }
+      } else if (knownTerms.includes(docTerms)) {
         termsSelectEl.value = docTerms;
         if (termsInputEl) { termsInputEl.value = docTerms; termsInputEl.style.display = 'none'; }
       } else {
@@ -3782,7 +4336,7 @@ window.KivoApp = {
       setVal('builder-terms', docTerms);
     }
 
-    setVal('builder-payment-method', doc.paymentMethod || meta.paymentMethod || 'Virement bancaire');
+    setVal('builder-payment-method', doc.paymentMethod || meta.paymentMethod || '');
     setChk('builder-toggle-payment-methods', doc.showPaymentMethods !== undefined ? !!doc.showPaymentMethods : (meta.showPaymentMethods !== undefined ? !!meta.showPaymentMethods : true));
     setVal('builder-payment-details', doc.paymentDetails || meta.paymentDetails || '');
 
@@ -3821,16 +4375,21 @@ window.KivoApp = {
     }
 
     // Colors & Template
-    const templateVal = doc.templateId || doc.visualTemplate || meta.templateId || biz.visualTemplate || 'minimalist';
+    const rawTemplateVal = doc.templateId || doc.visualTemplate || meta.templateId || biz.visualTemplate || 'minimalist';
+    const templateVal = this.canUse('template', rawTemplateVal) ? rawTemplateVal : 'minimalist';
     setVal('builder-visual-template', templateVal);
     const rawPrim = doc.primaryColor || meta.primaryColor || biz.primaryColor;
     const primColor = (!rawPrim || rawPrim === '#000000' || rawPrim === '#000') ? '#4F46E5' : rawPrim;
     const rawSec = doc.secondaryColor || meta.secondaryColor || biz.secondaryColor;
     const secColor = (!rawSec || rawSec === '#000000' || rawSec === '#000') ? '#64748B' : rawSec;
+    const rawBg = doc.bgColor || meta.bgColor || biz.docBgColor;
+    const bgColor = (!rawBg || rawBg === '#000000' || rawBg === '#000') ? '#FFFFFF' : rawBg;
     setVal('builder-color-primary', primColor);
     setVal('builder-color-primary-text', primColor);
     setVal('builder-color-secondary', secColor);
     setVal('builder-color-secondary-text', secColor);
+    setVal('builder-color-bg', bgColor);
+    setVal('builder-color-bg-text', bgColor);
 
     // Items table rows
     const tbody = document.getElementById('builder-items-tbody');
@@ -3851,6 +4410,7 @@ window.KivoApp = {
     }
 
     this.populateBuilderCatalogDropdown();
+    this.renderBuilderPaymentMethodsSelection(doc.selectedPaymentMethods || (meta && meta.selectedPaymentMethods), doc.paymentConfig || (meta && meta.paymentConfig));
     this.recalculateBuilderTotals();
     this.updateLiveInvoicePreview();
     this.navigate('document-builder');
@@ -4490,10 +5050,10 @@ window.KivoApp = {
 
     // 4. BOTTOM NOTES & TERMS
     const methodEl = document.getElementById('paper-payment-method');
-    if (methodEl) methodEl.textContent = paymentMethod || "Virement bancaire";
+    if (methodEl) methodEl.textContent = paymentMethod || "";
     
     const termsEl = document.getElementById('paper-terms-text');
-    if (termsEl) termsEl.textContent = terms || "À réception";
+    if (termsEl) termsEl.textContent = terms || "";
     
     const notesEl = document.getElementById('paper-notes-text');
     if (notesEl) {
@@ -4531,6 +5091,325 @@ window.KivoApp = {
     }
 
     this.triggerBuilderAutoSave();
+  },
+
+  /**
+   * Retourne la configuration des moyens de paiement saisis ou sélectionnés dans le builder
+   */
+  getPaymentConfigFromBuilder: function () {
+    const selected = this.getSelectedPaymentMethodsFromBuilder();
+    const has = (id) => selected.includes(id);
+
+    const getV = (id) => (document.getElementById(id)?.value || '').trim();
+
+    const bankChecked = has('bank');
+    const momoChecked = has('momo');
+    const cashChecked = has('cash');
+    const checkChecked = has('check');
+    const cardChecked = has('card');
+
+    const rawBName = getV('builder-pm-bank-name');
+    const rawBHolder = getV('builder-pm-bank-holder');
+    const biz = (this.state && this.state.business) || {};
+    const isFakeName = rawBName && (rawBName === biz.owner || rawBName === biz.name || rawBName === rawBHolder);
+
+    return {
+      bank: bankChecked ? {
+        bankName: isFakeName ? '' : rawBName,
+        accountHolder: isFakeName ? rawBName : rawBHolder,
+        accountNumber: getV('builder-pm-bank-iban'),
+        iban: getV('builder-pm-bank-iban'),
+        swift: getV('builder-pm-bank-bic')
+      } : null,
+      momo: momoChecked ? {
+        accounts: [{
+          operator: getV('builder-pm-momo-op') || 'Wave',
+          holder: getV('builder-pm-momo-holder'),
+          phone: getV('builder-pm-momo-phone')
+        }]
+      } : null,
+      cash: cashChecked ? {
+        notice: 'Paiement en espèces à la livraison ou au comptoir'
+      } : null,
+      check: checkChecked ? {
+        payableTo: getV('builder-pm-check-payable'),
+        address: getV('builder-pm-check-address')
+      } : null,
+      card: cardChecked ? {
+        provider: getV('builder-pm-card-provider') || 'Stripe',
+        paymentUrl: getV('builder-pm-card-link'),
+        notice: 'Paiement sécurisé par carte bancaire en ligne'
+      } : null
+    };
+  },
+
+  /**
+   * Retourne la configuration complète des moyens de paiement actifs
+   */
+  getPaymentConfig: function () {
+    const container = document.getElementById('builder-pm-checkboxes-container');
+    if (container && container.children.length > 0) {
+      return this.getPaymentConfigFromBuilder();
+    }
+
+    const biz = (this.state && this.state.business) || {};
+    const bDetails = biz.bankDetails || {};
+    const rawBkName = (bDetails.bankName || '').trim();
+    const rawBkHolder = (bDetails.accountName || biz.name || biz.owner || '').trim();
+    const isFakeBk = rawBkName && (rawBkName === biz.owner || rawBkName === biz.name || rawBkName === rawBkHolder);
+
+    return {
+      bank: (bDetails.active || bDetails.bankName || bDetails.iban || bDetails.accountNumber) ? {
+        bankName: isFakeBk ? '' : rawBkName,
+        accountHolder: isFakeBk ? rawBkName : rawBkHolder,
+        accountNumber: bDetails.accountNumber || '',
+        iban: bDetails.iban || '',
+        swift: bDetails.bic || ''
+      } : null,
+      momo: (bDetails.mobileMoney && (bDetails.mobileMoney.active || bDetails.mobileMoney.phone)) ? {
+        accounts: [{
+          operator: bDetails.mobileMoney.operator || 'Wave',
+          phone: bDetails.mobileMoney.phone || bDetails.mobileMoney.wave || bDetails.mobileMoney.orangeMoney || bDetails.mobileMoney.mtn || '',
+          holder: bDetails.mobileMoney.holder || biz.owner || ''
+        }]
+      } : null,
+      cash: (bDetails.cash && bDetails.cash.active) ? {
+        notice: bDetails.cash.notice || 'Paiement en espèces à la livraison ou au comptoir'
+      } : null,
+      check: (bDetails.check && (bDetails.check.active || bDetails.check.payable)) ? {
+        payableTo: bDetails.check.payable || biz.name || '',
+        address: bDetails.check.address || biz.address || ''
+      } : null,
+      card: (bDetails.card && (bDetails.card.active || bDetails.card.paymentLink)) ? {
+        provider: bDetails.card.provider || 'Stripe',
+        paymentUrl: bDetails.card.paymentLink || '',
+        notice: bDetails.card.notice || ''
+      } : null
+    };
+  },
+
+  /**
+   * Retourne la liste des IDs des moyens de paiement cochés dans le builder
+   */
+  getSelectedPaymentMethodsFromBuilder: function () {
+    const checkboxes = document.querySelectorAll('#builder-pm-checkboxes-container input[type="checkbox"][name="builder_pm"]:checked');
+    if (!checkboxes || checkboxes.length === 0) return [];
+    return Array.from(checkboxes).map(cb => cb.value);
+  },
+
+  /**
+   * Rendu de la section "Modalités de paiement acceptées" dans le constructeur de facture
+   * @param {Array<string>} [initialSelected] - Liste des IDs sélectionnés ou null pour tous par défaut
+   * @param {Object} [savedConfig] - Configuration de paiement spécifique au document
+   */
+  renderBuilderPaymentMethodsSelection: function (initialSelected, savedConfig) {
+    const container = document.getElementById('builder-pm-checkboxes-container');
+    const alertBox = document.getElementById('builder-pm-no-methods-alert');
+    if (!container) return;
+
+    if (alertBox) alertBox.style.display = 'none';
+
+    const biz = (this.state && this.state.business) || {};
+    const bDetails = biz.bankDetails || {};
+    const cfg = savedConfig || {};
+
+    // Données par défaut pour les sous-champs
+    const bankVal = {
+      name: cfg.bank?.bankName || bDetails.bankName || '',
+      holder: cfg.bank?.accountHolder || bDetails.accountName || biz.name || biz.owner || '',
+      iban: cfg.bank?.iban || cfg.bank?.accountNumber || bDetails.iban || bDetails.accountNumber || '',
+      bic: cfg.bank?.swift || bDetails.bic || ''
+    };
+
+    const momoVal = {
+      op: cfg.momo?.accounts?.[0]?.operator || bDetails.mobileMoney?.operator || 'Wave',
+      holder: cfg.momo?.accounts?.[0]?.holder || bDetails.mobileMoney?.holder || biz.name || biz.owner || '',
+      phone: cfg.momo?.accounts?.[0]?.phone || bDetails.mobileMoney?.phone || bDetails.mobileMoney?.wave || bDetails.mobileMoney?.orangeMoney || '+242 '
+    };
+
+    const checkVal = {
+      payable: cfg.check?.payableTo || bDetails.check?.payable || biz.name || biz.owner || '',
+      address: cfg.check?.address || bDetails.check?.address || biz.address || ''
+    };
+
+    const cardVal = {
+      provider: cfg.card?.provider || bDetails.card?.provider || 'Stripe',
+      link: cfg.card?.paymentUrl || bDetails.card?.paymentLink || ''
+    };
+
+    // Déterminer la sélection : si initialSelected est fourni, l'utiliser ; sinon par défaut aucun moyen n'est forcé (A2)
+    const isSelected = (id) => {
+      if (Array.isArray(initialSelected)) {
+        return initialSelected.includes(id);
+      }
+      if (id === 'bank') return !!(bDetails.active && (bDetails.bankName || bDetails.iban || bDetails.accountNumber));
+      if (id === 'momo') return !!(bDetails.mobileMoney && bDetails.mobileMoney.active);
+      if (id === 'cash') return !!(bDetails.cash && bDetails.cash.active);
+      if (id === 'check') return !!(bDetails.check && bDetails.check.active);
+      if (id === 'card') return !!(bDetails.card && bDetails.card.active);
+      return false;
+    };
+
+    const bankChecked = isSelected('bank');
+    const momoChecked = isSelected('momo');
+    const cashChecked = isSelected('cash');
+    const checkChecked = isSelected('check');
+    const cardChecked = isSelected('card');
+
+    container.innerHTML = `
+      <!-- 1. Virement bancaire -->
+      <div class="builder-pm-card-item" style="border:1px solid #E2E8F0; border-radius:10px; padding:0.75rem 1rem; background:#FFFFFF; transition:all 0.2s ease;">
+        <label style="display:flex; align-items:center; gap:0.65rem; font-weight:700; font-size:0.9rem; cursor:pointer; color:#1E293B; margin:0;">
+          <input type="checkbox" name="builder_pm" value="bank" ${bankChecked ? 'checked' : ''} onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:17px; height:17px; accent-color:#2563EB; cursor:pointer;">
+          <span>💳 Virement bancaire</span>
+        </label>
+        <div id="builder-pm-details-bank" style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed #E2E8F0; display:${bankChecked ? 'block' : 'none'}; transition:all 0.2s ease;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.65rem;">
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Nom de la banque</label>
+              <input type="text" id="builder-pm-bank-name" value="${bankVal.name}" placeholder="Ex: Société Générale, BGFI, BCI..." oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Nom du titulaire / Bénéficiaire</label>
+              <input type="text" id="builder-pm-bank-holder" value="${bankVal.holder}" placeholder="Ex: KIVO SAS ou Jean Dupont" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Numéro de compte / IBAN</label>
+              <input type="text" id="builder-pm-bank-iban" value="${bankVal.iban}" placeholder="FR76 ... ou N° de compte" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Code SWIFT / BIC <span style="font-weight:400; color:#94A3B8;">(Optionnel)</span></label>
+              <input type="text" id="builder-pm-bank-bic" value="${bankVal.bic}" placeholder="BNPAFRPP" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Mobile Money -->
+      <div class="builder-pm-card-item" style="border:1px solid #E2E8F0; border-radius:10px; padding:0.75rem 1rem; background:#FFFFFF; transition:all 0.2s ease;">
+        <label style="display:flex; align-items:center; gap:0.65rem; font-weight:700; font-size:0.9rem; cursor:pointer; color:#1E293B; margin:0;">
+          <input type="checkbox" name="builder_pm" value="momo" ${momoChecked ? 'checked' : ''} onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:17px; height:17px; accent-color:#2563EB; cursor:pointer;">
+          <span>📱 Mobile Money</span>
+        </label>
+        <div id="builder-pm-details-momo" style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed #E2E8F0; display:${momoChecked ? 'block' : 'none'}; transition:all 0.2s ease;">
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.65rem;">
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Opérateur</label>
+              <select id="builder-pm-momo-op" onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.5rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; background:#FFF; box-sizing:border-box;">
+                <option value="Airtel Money" ${momoVal.op === 'Airtel Money' ? 'selected' : ''}>Airtel Money</option>
+                <option value="MTN MoMo" ${momoVal.op === 'MTN MoMo' ? 'selected' : ''}>MTN MoMo</option>
+                <option value="Moov Money" ${momoVal.op === 'Moov Money' ? 'selected' : ''}>Moov Money</option>
+                <option value="Orange Money" ${momoVal.op === 'Orange Money' ? 'selected' : ''}>Orange Money</option>
+                <option value="Wave" ${momoVal.op === 'Wave' ? 'selected' : ''}>Wave</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Nom du titulaire</label>
+              <input type="text" id="builder-pm-momo-holder" value="${momoVal.holder}" placeholder="Nom du titulaire du numéro" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Numéro de téléphone</label>
+              <input type="text" id="builder-pm-momo-phone" value="${momoVal.phone}" placeholder="+242 06 123 45 67" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Espèces -->
+      <div class="builder-pm-card-item" style="border:1px solid #E2E8F0; border-radius:10px; padding:0.75rem 1rem; background:#FFFFFF; transition:all 0.2s ease;">
+        <label style="display:flex; align-items:center; gap:0.65rem; font-weight:700; font-size:0.9rem; cursor:pointer; color:#1E293B; margin:0;">
+          <input type="checkbox" name="builder_pm" value="cash" ${cashChecked ? 'checked' : ''} onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:17px; height:17px; accent-color:#2563EB; cursor:pointer;">
+          <span>💵 Espèces (Cash)</span>
+        </label>
+        <div id="builder-pm-details-cash" style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px dashed #E2E8F0; display:${cashChecked ? 'block' : 'none'}; font-size:0.8rem; color:#64748B; font-style:italic;">
+          Ce mode sera mentionné comme « Paiement en espèces à la livraison ou au comptoir » sur vos documents.
+        </div>
+      </div>
+
+      <!-- 4. Chèque -->
+      <div class="builder-pm-card-item" style="border:1px solid #E2E8F0; border-radius:10px; padding:0.75rem 1rem; background:#FFFFFF; transition:all 0.2s ease;">
+        <label style="display:flex; align-items:center; gap:0.65rem; font-weight:700; font-size:0.9rem; cursor:pointer; color:#1E293B; margin:0;">
+          <input type="checkbox" name="builder_pm" value="check" ${checkChecked ? 'checked' : ''} onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:17px; height:17px; accent-color:#2563EB; cursor:pointer;">
+          <span>📝 Chèque</span>
+        </label>
+        <div id="builder-pm-details-check" style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed #E2E8F0; display:${checkChecked ? 'block' : 'none'}; transition:all 0.2s ease;">
+          <div style="display:flex; flex-direction:column; gap:0.65rem;">
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Nom du bénéficiaire <span style="font-weight:400; color:#94A3B8;">(à l'ordre de qui libeller le chèque)</span></label>
+              <input type="text" id="builder-pm-check-payable" value="${checkVal.payable}" placeholder="Ex: KIVO MATIQUE SAS" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Adresse d'envoi du chèque <span style="font-weight:400; color:#94A3B8;">(Optionnel)</span></label>
+              <textarea id="builder-pm-check-address" rows="2" placeholder="Adresse postale où faire parvenir le règlement..." oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; padding:0.45rem 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box; resize:vertical; font-family:inherit;">${checkVal.address}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Carte bancaire / En ligne -->
+      <div class="builder-pm-card-item" style="border:1px solid #E2E8F0; border-radius:10px; padding:0.75rem 1rem; background:#FFFFFF; transition:all 0.2s ease;">
+        <label style="display:flex; align-items:center; gap:0.65rem; font-weight:700; font-size:0.9rem; cursor:pointer; color:#1E293B; margin:0;">
+          <input type="checkbox" name="builder_pm" value="card" ${cardChecked ? 'checked' : ''} onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:17px; height:17px; accent-color:#2563EB; cursor:pointer;">
+          <span>💳 Carte bancaire / Paiement en ligne</span>
+        </label>
+        <div id="builder-pm-details-card" style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed #E2E8F0; display:${cardChecked ? 'block' : 'none'}; transition:all 0.2s ease;">
+          <div style="display:grid; grid-template-columns:1fr 2fr; gap:0.65rem;">
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Fournisseur</label>
+              <select id="builder-pm-card-provider" onchange="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.5rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; background:#FFF; box-sizing:border-box;">
+                <option value="Stripe" ${cardVal.provider === 'Stripe' ? 'selected' : ''}>Stripe</option>
+                <option value="CinetPay" ${cardVal.provider === 'CinetPay' ? 'selected' : ''}>CinetPay</option>
+                <option value="Wave" ${cardVal.provider === 'Wave' ? 'selected' : ''}>Wave</option>
+                <option value="Autre" ${cardVal.provider === 'Autre' ? 'selected' : ''}>Autre</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:0.25rem;">Lien de paiement ou Clé API</label>
+              <input type="text" id="builder-pm-card-link" value="${cardVal.link}" placeholder="https://buy.stripe.com/... ou lien de paiement sécurisé" oninput="KivoApp.onBuilderPaymentMethodChange()" style="width:100%; height:38px; padding:0 0.65rem; border:1px solid #CBD5E1; border-radius:6px; font-size:0.84rem; outline:none; box-sizing:border-box;">
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Déclenché quand une checkbox ou un champ de moyen de paiement change
+   */
+  onBuilderPaymentMethodChange: function () {
+    const methods = ['bank', 'momo', 'cash', 'check', 'card'];
+    methods.forEach(id => {
+      const cb = document.querySelector(`#builder-pm-checkboxes-container input[name="builder_pm"][value="${id}"]`);
+      const details = document.getElementById(`builder-pm-details-${id}`);
+      if (details) {
+        details.style.display = (cb && cb.checked) ? 'block' : 'none';
+      }
+    });
+    this.updateLiveInvoicePreview();
+  },
+
+  /**
+   * Ouvre le Bottom Sheet d'actions secondaires Facture sur mobile (< 768px)
+   */
+  openBuilderMoreActionsSheet: function () {
+    const sheet = document.getElementById('builder-more-actions-sheet');
+    if (!sheet) return;
+    sheet.style.display = 'flex';
+    requestAnimationFrame(() => {
+      sheet.classList.add('open');
+    });
+  },
+
+  /**
+   * Ferme le Bottom Sheet d'actions secondaires Facture sur mobile
+   */
+  closeBuilderMoreActionsSheet: function () {
+    const sheet = document.getElementById('builder-more-actions-sheet');
+    if (!sheet) return;
+    sheet.classList.remove('open');
+    setTimeout(() => {
+      sheet.style.display = 'none';
+    }, 250);
   },
 
   /**
@@ -4672,7 +5551,12 @@ window.KivoApp = {
 
     const rawSelectedStatus = (getVal('builder-doc-status') || '').toLowerCase().trim();
     const existingDoc = (this.state.documents || []).find(d => d && d.id === docId);
-    let resolvedStatus = rawSelectedStatus || (existingDoc ? existingDoc.status : 'draft');
+    let resolvedStatus = rawSelectedStatus;
+    if (existingDoc && existingDoc.status && existingDoc.status !== 'draft' && existingDoc.status !== 'brouillon') {
+      resolvedStatus = (rawSelectedStatus && rawSelectedStatus !== 'draft') ? rawSelectedStatus : existingDoc.status;
+    } else if (!resolvedStatus) {
+      resolvedStatus = existingDoc ? existingDoc.status : 'draft';
+    }
     if (resolvedStatus === 'payée' || resolvedStatus === 'payee') resolvedStatus = 'paid';
     if (!resolvedStatus) resolvedStatus = 'draft';
 
@@ -4712,9 +5596,11 @@ window.KivoApp = {
       total: grandDraftTotal,
       amountPaid: resolvedAmountPaid,
       notes: getVal('builder-notes') || '',
-      terms: getVal('builder-terms') || 'À réception',
-      paymentMethod: getVal('builder-payment-method') || 'Virement bancaire',
+      terms: getVal('builder-terms') || '',
+      paymentMethod: getVal('builder-payment-method') || '',
       paymentDetails: getVal('builder-payment-details') || '',
+      selectedPaymentMethods: (typeof this.getSelectedPaymentMethodsFromBuilder === 'function') ? this.getSelectedPaymentMethodsFromBuilder() : [],
+      paymentConfig: (typeof this.getPaymentConfig === 'function') ? this.getPaymentConfig() : null,
       thankYouText: getVal('builder-thankyou') || 'Merci pour votre confiance !',
       legalNoticesText: getVal('builder-legal-notices') || '',
       toggleNotes: document.getElementById('builder-toggle-notes') ? document.getElementById('builder-toggle-notes').checked : true,
@@ -4730,12 +5616,11 @@ window.KivoApp = {
       console.warn('[KivoApp] Failed to save local draft:', e);
     }
 
-    // 2. Sauvegarde Supabase en arrière-plan en préservant le vrai statut si connecté
-    if (window.KivoDb && this.supabaseConnected && window.KivoAuth?.user) {
+    // 2. Sauvegarde Supabase en arrière-plan (RÈGLE B2 : UNIQUEMENT SI UN NOM DE CLIENT EST RENSEIGNÉ)
+    // L'autosave ne doit PAS créer de document avant un nom de client (sinon ouvrir l'éditeur consommerait le quota).
+    const hasValidClientName = !!(draftData.clientName && draftData.clientName.trim() !== '' && draftData.clientName !== 'Client sans nom');
+    if (window.KivoDb && this.supabaseConnected && window.KivoAuth?.user && hasValidClientName) {
       try {
-        // FIX point2: _cloudDraftId is pre-generated in startNewDocument for new docs.
-        // For existing docs (docId is a real UUID), we use docId directly (upsert updates it).
-        // We never generate a new UUID lazily here to prevent duplicate rows.
         if (!this._cloudDraftId) {
           this._cloudDraftId = (docId && !docId.startsWith('draft_')) ? docId : this.generateUUID();
         }
@@ -4839,8 +5724,8 @@ window.KivoApp = {
       setVal('builder-issue-date', draft.issueDate || '');
       setVal('builder-due-date', draft.dueDate || '');
       setVal('builder-notes', draft.notes || '');
-      setVal('builder-terms', draft.terms || 'À réception');
-      setVal('builder-payment-method', draft.paymentMethod || 'Virement bancaire');
+      setVal('builder-terms', draft.terms || '');
+      setVal('builder-payment-method', draft.paymentMethod || '');
       setVal('builder-payment-details', draft.paymentDetails || '');
       setVal('builder-thankyou', draft.thankYouText || 'Merci pour votre confiance !');
       setVal('builder-legal-notices', draft.legalNoticesText || '');
@@ -4872,6 +5757,10 @@ window.KivoApp = {
         } else {
           this.addBuilderLineItem('', 1, 0);
         }
+      }
+
+      if (typeof this.renderBuilderPaymentMethodsSelection === 'function') {
+        this.renderBuilderPaymentMethodsSelection(draft.selectedPaymentMethods, draft.paymentConfig);
       }
 
       this._currentDraftDocId = draft.id;
@@ -4979,11 +5868,17 @@ window.KivoApp = {
     // Always sync the select so new templates (e.g. Emerald) are visible after upgrades
     const selectEl = document.getElementById('builder-visual-template');
     if (selectEl) {
+      const self = this;
       const currentVal = selectEl.value;
-      selectEl.innerHTML = window.KivoTemplates.builtIn.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-      // Restore previously selected value if it still exists
-      if (currentVal && selectEl.querySelector(`option[value="${currentVal}"]`)) {
-        selectEl.value = currentVal;
+      selectEl.innerHTML = window.KivoTemplates.builtIn.map(function(t) {
+        const locked = !self.canUse('template', t.id);
+        return `<option value="${t.id}">${locked ? '🔒 ' : ''}${t.name}${locked ? ' (PRO)' : ''}</option>`;
+      }).join('');
+      const curTmpl = currentVal || 'minimalist';
+      if (this.canUse('template', curTmpl) && selectEl.querySelector(`option[value="${curTmpl}"]`)) {
+        selectEl.value = curTmpl;
+      } else {
+        selectEl.value = 'minimalist';
       }
     }
 
@@ -5020,7 +5915,7 @@ window.KivoApp = {
         cGallery.innerHTML = customs.map((t, idx) => `
           <div class="kivo-template-card" style="cursor:pointer; position:relative;" onclick="KivoApp.startTemplateDocument('${docType}', '${t.id}', true)">
             <div class="kivo-template-card-preview" style="height: 140px; padding: 0.75rem 1rem 0 1rem;">
-              ${window.KivoTemplates.miniPreview(t.id, t.primaryColor)}
+              ${window.KivoTemplates.miniPreview(t.baseTemplateId || t.id, t.primaryColor)}
             </div>
             <div class="kivo-template-card-body" style="padding: 1rem;">
               <h3 class="kivo-template-card-title" style="font-size:0.9rem; margin-bottom:0.25rem;">${t.name}</h3>
@@ -5132,58 +6027,119 @@ window.KivoApp = {
   },
 
   saveAsTemplate: async function () {
+    console.log('[DEBUG-TEMPLATE] 1. Clic sur Sauvegarder modèle...');
     if (!this.canUse('customizer')) {
+      console.warn('[DEBUG-TEMPLATE] Bloqué par restriction forfait (canUse customizer = false)');
       this.showUpgradePrompt('customizer');
       return;
     }
-    const templateId = document.getElementById('builder-visual-template').value;
+    const templateId = document.getElementById('builder-visual-template')?.value || 'classic';
     const name = prompt("Nom du modèle personnalisé :");
-    if (!name) return;
+    if (!name || !name.trim()) {
+      console.log('[DEBUG-TEMPLATE] Saisie annulée par l\'utilisateur');
+      return;
+    }
 
     const custom = {
       id: 'custom-' + Date.now(),
-      name: name,
+      name: name.trim(),
       baseTemplateId: templateId,
-      primaryColor: document.getElementById('builder-color-primary').value,
-      secondaryColor: document.getElementById('builder-color-secondary').value
+      primaryColor: document.getElementById('builder-color-primary')?.value || '#4F46E5',
+      secondaryColor: document.getElementById('builder-color-secondary')?.value || '#7C3AED'
     };
 
+    console.log('[DEBUG-TEMPLATE] 1b. Data du modèle à sauvegarder:', custom);
+
+    if (!this.state.business) this.state.business = {};
     const biz = this.state.business;
     if (!biz.customTemplates) biz.customTemplates = [];
     biz.customTemplates.push(custom);
+    this.saveState();
 
     try {
-      if (window._kivoClient) {
-        const { error } = await window._kivoClient.from('business_settings').update({
+      console.log('[DEBUG-TEMPLATE] 2. Envoi Supabase business_settings & custom_templates...');
+      let updateError = null;
+      let saveRes = null;
+
+      // 1. Sauvegarde dans business_settings.custom_templates
+      if (window.KivoDb && typeof window.KivoDb.saveSettings === 'function') {
+        saveRes = await window.KivoDb.saveSettings({
           custom_templates: biz.customTemplates
-        }).eq('id', biz.id);
-        
-        if (error) throw error;
+        });
+      } else if (window.KivoDb && window.KivoDb.supabase) {
+        const userId = window.KivoAuth?.user?.id;
+        if (userId) {
+          const { data, error } = await window.KivoDb.supabase
+            .from('business_settings')
+            .update({ custom_templates: biz.customTemplates })
+            .eq('user_id', userId);
+          if (error) updateError = error;
+          saveRes = data;
+        }
       }
-      this.showToast(this._t('toast_template_saved'), "success");
+
+      // 2. Sauvegarde miroir dans la table dédiée public.custom_templates
+      const authUser = window.KivoAuth?.user;
+      if (authUser && window.KivoDb?.supabase) {
+        try {
+          await window.KivoDb.supabase.from('custom_templates').upsert({
+            id: custom.id,
+            user_id: authUser.id,
+            name: custom.name,
+            base_template_id: custom.baseTemplateId,
+            primary_color: custom.primaryColor,
+            secondary_color: custom.secondaryColor,
+            updated_at: new Date().toISOString()
+          });
+        } catch (tableErr) {
+          console.warn('[DEBUG-TEMPLATE] Mirror custom_templates table warning:', tableErr);
+        }
+      }
+
+      console.log('[DEBUG-TEMPLATE] 2b. Résultat Supabase:', { saveRes, updateError });
+      if (updateError) {
+        console.error('[DEBUG-TEMPLATE] ERREUR:', updateError.message, updateError.details, updateError.hint);
+        alert('Erreur sauvegarde modèle : ' + updateError.message);
+        return false;
+      }
+
+      console.log('[DEBUG-TEMPLATE] 3. Sauvegarde réussie avec succès !');
+      this.renderTemplateGallery();
+      this.showToast(this._t('toast_template_saved') || 'Modèle enregistré avec succès !', "success");
+      return true;
     } catch (e) {
-      console.error(e);
-      this.showToast(this._t('toast_template_save_error'), "error");
+      console.error('[DEBUG-TEMPLATE] EXCEPTION:', e);
+      alert('Exception lors de la sauvegarde du modèle : ' + (e.message || JSON.stringify(e)));
+      this.showToast(this._t('toast_template_save_error') || 'Erreur lors de la sauvegarde du modèle.', "error");
+      return false;
     }
   },
 
   deleteCustomTemplate: async function (idx) {
     if (!confirm("Supprimer ce modèle personnalisé ?")) return;
     const biz = this.state.business;
-    if (!biz.customTemplates) return;
+    if (!biz || !biz.customTemplates) return;
     
     biz.customTemplates.splice(idx, 1);
+    this.saveState();
     
     try {
-      if (window._kivoClient) {
-        await window._kivoClient.from('business_settings').update({
+      if (window.KivoDb && typeof window.KivoDb.saveSettings === 'function') {
+        await window.KivoDb.saveSettings({
           custom_templates: biz.customTemplates
-        }).eq('id', biz.id);
+        });
+      } else if (window.KivoDb && window.KivoDb.supabase) {
+        const userId = window.KivoAuth?.user?.id;
+        if (userId) {
+          await window.KivoDb.supabase.from('business_settings').update({
+            custom_templates: biz.customTemplates
+          }).eq('user_id', userId);
+        }
       }
       this.renderTemplateGallery();
-      this.showToast(this._t('toast_template_deleted'), "success");
+      this.showToast(this._t('toast_template_deleted') || 'Modèle supprimé avec succès.', "success");
     } catch (e) {
-      console.error(e);
+      console.error('[KivoApp] Error deleting custom template:', e);
     }
   },
 
@@ -5245,20 +6201,12 @@ window.KivoApp = {
     const existingDocId = document.getElementById('builder-doc-id').value;
     const type = document.getElementById('builder-doc-type').value;
 
-    // Enforce Free Tier limit of 3 documents (factures + devis) per month (seuls les documents finalisés comptent)
-    const currentTier = (this.state.business?.subscriptionTier || 'Gratuit').toLowerCase();
-    if (currentTier === 'gratuit' && !existingDocId) {
-      const currentMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
-      const monthlyDocs = (this.state.documents || []).filter(d => 
-        d.issueDate && 
-        d.issueDate.startsWith(currentMonth) &&
-        d.status !== 'draft' && d.status !== 'brouillon'
-      );
-      if (monthlyDocs.length >= 3) {
-        this.showToast(this._t('toast_doc_free_limit'), "danger");
-        this.navigate('pricing');
-        return;
-      }
+    // RÈGLE B2 : Contrôle strict du quota mensuel (3 documents/mois pour le forfait Gratuit)
+    // Calendaire, fuseau Africa/Brazzaville. Comptabilisé dès l'enregistrement avec un nom de client.
+    if (!existingDocId && !this.canUse('create_doc')) {
+      this._savingDoc = false;
+      this.showUpgradePrompt('create_doc');
+      return;
     }
 
     let num = (document.getElementById('builder-doc-number')?.value || '').trim();
@@ -5298,9 +6246,15 @@ window.KivoApp = {
     };
     const issueDate = document.getElementById('builder-issue-date').value;
     const dueDate = document.getElementById('builder-due-date').value;
-    const rawBuilderStatus = (document.getElementById('builder-doc-status')?.value || 'draft').toLowerCase().trim();
-    const isStatusPaid = rawBuilderStatus === 'paid' || rawBuilderStatus === 'payée' || rawBuilderStatus === 'payee';
-    const status = isStatusPaid ? 'paid' : (rawBuilderStatus || 'draft');
+    const existingDoc = existingDocId ? (this.state.documents || []).find(d => d && d.id === existingDocId) : null;
+    let rawBuilderStatus = (document.getElementById('builder-doc-status')?.value || 'draft').toLowerCase().trim();
+    let status = rawBuilderStatus;
+    if (existingDoc && existingDoc.status && existingDoc.status !== 'draft' && existingDoc.status !== 'brouillon') {
+      status = (rawBuilderStatus && rawBuilderStatus !== 'draft') ? rawBuilderStatus : existingDoc.status;
+    }
+    if (status === 'payée' || status === 'payee') status = 'paid';
+    if (!status) status = 'draft';
+    const isStatusPaid = status === 'paid';
 
     // Point B: Custom header and issuer fields (stored per-document, NEVER modifies state.business profile)
     const docTitleText = (document.getElementById('builder-doc-title-text')?.value || '').trim();
@@ -5344,8 +6298,8 @@ window.KivoApp = {
     const showDeposit = document.getElementById('builder-toggle-deposit') ? document.getElementById('builder-toggle-deposit').checked : false;
     const depositAmount = showDeposit ? (parseFloat(document.getElementById('builder-deposit-amount')?.value) || 0) : 0;
 
-    const terms = document.getElementById('builder-terms')?.value || 'À réception';
-    const paymentMethod = document.getElementById('builder-payment-method')?.value || 'Virement bancaire';
+    const terms = (document.getElementById('builder-terms')?.value || '').trim();
+    const paymentMethod = (document.getElementById('builder-payment-method')?.value || '').trim();
     const showPaymentMethods = document.getElementById('builder-toggle-payment-methods') ? document.getElementById('builder-toggle-payment-methods').checked : true;
     const paymentDetails = (document.getElementById('builder-payment-details')?.value || '').trim();
 
@@ -5381,9 +6335,40 @@ window.KivoApp = {
       }
     });
 
-    if (items.length === 0) {
-      this.showToast(this._t('toast_doc_no_items'), "warning");
-      return;
+    const isDraft = (status === 'draft' || status === 'brouillon');
+    if (!isDraft) {
+      const hasClient = (customClientName && customClientName !== 'Client Destinataire') || (clientId && clientId !== 'cli_anon');
+      if (!hasClient) {
+        const clientNameInput = document.getElementById('builder-client-name');
+        const clientSelect = document.getElementById('builder-doc-client-select');
+        if (clientNameInput) {
+          clientNameInput.style.borderColor = '#EF4444';
+          clientNameInput.focus();
+        } else if (clientSelect) {
+          clientSelect.style.borderColor = '#EF4444';
+          clientSelect.focus();
+        }
+        this.showToast('Veuillez sélectionner ou renseigner un client destinataire.', 'error');
+        this._savingDoc = false;
+        return;
+      }
+
+      if (items.length === 0) {
+        this.showToast('Veuillez ajouter au moins une prestation ou un produit.', 'error');
+        this._savingDoc = false;
+        return;
+      }
+
+      if (!issueDate) {
+        const issueDateInput = document.getElementById('builder-issue-date');
+        if (issueDateInput) {
+          issueDateInput.style.borderColor = '#EF4444';
+          issueDateInput.focus();
+        }
+        this.showToast("La date d'émission est requise.", 'error');
+        this._savingDoc = false;
+        return;
+      }
     }
 
     let globalDiscount = 0;
@@ -5455,6 +6440,8 @@ window.KivoApp = {
       paymentMethod: paymentMethod,
       paymentDetails: paymentDetails,
       showPaymentMethods: showPaymentMethods,
+      selectedPaymentMethods: this.getSelectedPaymentMethodsFromBuilder(),
+      paymentConfig: this.getPaymentConfig(),
       thankYouText: thankYouText,
       showThankYou: showThankYou,
       legalNoticesText: legalNoticesText,
@@ -5464,6 +6451,7 @@ window.KivoApp = {
       logoUrl: this._invoiceLogoRemoved ? null : (this.builderCustomLogoUrl !== undefined && this.builderCustomLogoUrl !== null ? this.builderCustomLogoUrl : ((this.state.business && this.state.business.logoUrl) || null)),
       primaryColor: (() => { const c = document.getElementById('builder-color-primary')?.value || ''; return (!c || c === '#000000' || c === '#000') ? '#4F46E5' : c; })(),
       secondaryColor: (() => { const c = document.getElementById('builder-color-secondary')?.value || ''; return (!c || c === '#000000' || c === '#000') ? '#64748B' : c; })(),
+      bgColor: (() => { const c = document.getElementById('builder-color-bg')?.value || ''; return (!c || c === '#000000' || c === '#000') ? '#FFFFFF' : c; })(),
       // Strong token: 32 hex chars from crypto.randomUUID() (no dashes).
       // Only generate for NEW documents; existing docs keep their token so public links don't break.
       publicToken: existingDocId
@@ -5508,6 +6496,19 @@ window.KivoApp = {
           next_quote_number: this.state.business.nextQuoteNumber
         }).catch(e => console.warn('[KivoApp] Cloud sequence counter sync warning:', e));
       }
+
+      // RÈGLE B2 : Traçabilité pour conservation du quota même en cas de suppression
+      if (clientObj.name && clientObj.name !== 'Client sans nom') {
+        this.state.activities.unshift({
+          id: this.generateUUID(),
+          timestamp: "À l'instant",
+          type: 'document_created',
+          created_at: new Date().toISOString(),
+          icon: 'plus-circle',
+          title: `Document #${num} comptabilisé`,
+          details: { document_id: docId, number: num, client_name: clientObj.name }
+        });
+      }
     }
 
     this.state.activities.unshift({
@@ -5520,6 +6521,7 @@ window.KivoApp = {
     });
 
     this.saveState();
+    this.updatePlanUsageBadge();
 
     // Sync to Supabase with full custom payload wrapped in items column
     if (window.KivoDb && this.supabaseConnected) {
@@ -5536,6 +6538,16 @@ window.KivoApp = {
     this._cloudDraftId = null;
     // Release save lock now that document is committed
     this._savingDoc = false;
+
+    // Temporary highlight: automatically removed after max 3s (never permanent)
+    this._recentlyUpdatedDocId = docId;
+    setTimeout(() => {
+      if (this._recentlyUpdatedDocId === docId) {
+        this._recentlyUpdatedDocId = null;
+        const row = document.querySelector(`tr[onclick*="${docId}"]`);
+        if (row) row.classList.remove('doc-row-just-updated');
+      }
+    }, 3000);
 
     this.showToast(this._t('toast_doc_saved').replace('{num}', num), "success");
     this.viewPublicDoc(docId);
@@ -5567,6 +6579,16 @@ window.KivoApp = {
     });
 
     this.saveState();
+
+    // Temporary highlight: automatically removed after max 3s
+    this._recentlyUpdatedDocId = docId;
+    setTimeout(() => {
+      if (this._recentlyUpdatedDocId === docId) {
+        this._recentlyUpdatedDocId = null;
+        const row = document.querySelector(`tr[onclick*="${docId}"]`);
+        if (row) row.classList.remove('doc-row-just-updated');
+      }
+    }, 3000);
 
     this.showToast(`Facture ${doc.number} marquée comme payée !`, "success");
 
@@ -6247,7 +7269,29 @@ window.KivoApp = {
     const currency = biz.currency || 'FCFA';
 
     if (this.state.clients.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Aucun client enregistré. Cliquez sur "+ Nouveau client".</td></tr>`;
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" style="padding: 3.5rem 1.5rem; text-align: center; background: var(--bg-card, #FFFFFF); border-radius: 12px;">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem; max-width:400px; margin:0 auto;">
+              <div style="width:60px; height:60px; border-radius:16px; background:var(--primary-lightest, #EFF6FF); border:1px solid var(--primary-border, #BFDBFE); display:flex; align-items:center; justify-content:center; color:var(--primary, #2563EB);">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </div>
+              <div style="font-weight:700; font-size:1.05rem; color:var(--text-primary, #0F172A); font-family:var(--font-heading, 'Outfit', sans-serif);">Aucun client enregistré</div>
+              <p style="color:var(--text-secondary, #64748B); font-size:0.875rem; margin:0; line-height:1.55; text-align:center;">
+                Ajoutez vos clients pour suivre leur historique de facturation, leurs encaissements et leur solde en temps réel.
+              </p>
+              <button type="button" class="btn btn-primary" onclick="KivoApp.openNewClientModal()" style="margin-top:0.25rem; display:inline-flex; align-items:center; gap:0.45rem; padding:0.55rem 1.25rem; font-size:0.88rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>+ Ajouter votre premier client</span>
+              </button>
+            </div>
+          </td>
+        </tr>`;
       return;
     }
 
@@ -6262,13 +7306,13 @@ window.KivoApp = {
 
       return `
       <tr>
-        <td><strong style="cursor: pointer; color: var(--primary);" onclick="KivoApp.openClientDetails('${c.id}')" title="Voir les détails et factures de ce client">${c.name}</strong> ${c.clientType ? `<span class="badge badge-accepted" style="font-size: 0.65rem;">${c.clientType}</span>` : ''}</td>
-        <td>${c.company || c.taxId || '-'}</td>
-        <td>${c.phone || '-'}</td>
-        <td><strong>${totalInvoiced.toLocaleString('fr-FR')} ${currency}</strong></td>
-        <td style="color: var(--success-text);"><strong>${totalPaid.toLocaleString('fr-FR')} ${currency}</strong></td>
-        <td style="color: ${balanceDue > 0 ? 'var(--danger-text)' : 'var(--success-text)'}"><strong>${balanceDue.toLocaleString('fr-FR')} ${currency}</strong></td>
-        <td style="text-align: right; display: flex; gap: 0.35rem; justify-content: flex-end;">
+        <td data-label="Client"><strong style="cursor: pointer; color: var(--primary);" onclick="KivoApp.openClientDetails('${c.id}')" title="Voir les détails et factures de ce client">${c.name}</strong> ${c.clientType ? `<span class="badge badge-accepted" style="font-size: 0.65rem;">${c.clientType}</span>` : ''}</td>
+        <td data-label="Entreprise">${c.company || c.taxId || '-'}</td>
+        <td data-label="Téléphone">${c.phone || '-'}</td>
+        <td data-label="Facturé"><strong>${totalInvoiced.toLocaleString('fr-FR')} ${currency}</strong></td>
+        <td data-label="Encaissé" style="color: var(--success-text);"><strong>${totalPaid.toLocaleString('fr-FR')} ${currency}</strong></td>
+        <td data-label="Solde dû" style="color: ${balanceDue > 0 ? 'var(--danger-text)' : 'var(--success-text)'}"><strong>${balanceDue.toLocaleString('fr-FR')} ${currency}</strong></td>
+        <td data-label="Actions" style="text-align: right; display: flex; gap: 0.35rem; justify-content: flex-end;">
           <button class="btn btn-secondary btn-sm" onclick="KivoApp.openClientDetails('${c.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="10" r="3"/></svg> Détails</button>
           <button class="btn btn-secondary btn-sm" onclick="KivoApp.openEditClientModal('${c.id}')" title="Modifier ce client"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifier</button>
           <button class="btn btn-secondary btn-sm" onclick="KivoApp.startNewDocumentForClient('${c.id}')">+ Facturer</button>
@@ -6446,10 +7490,17 @@ window.KivoApp = {
     if (catalog.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 3rem 1.5rem;">
-            <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">Votre liste de services &amp; prestations est vide</div>
-            <p style="font-size: 0.85rem; margin-bottom: 1rem;">Ajoutez vos prestations ou produits pour les insérer directement dans vos factures et devis.</p>
-            <button class="btn btn-primary btn-sm" onclick="KivoApp.openNewCatalogItemModal()">+ Ajouter votre premier service / prestation</button>
+          <td colspan="6" style="padding: 3.5rem 1.5rem; text-align: center; border: none; background: transparent;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem; max-width: 320px; margin: 0 auto;">
+              <div style="width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.12)); display: flex; align-items: center; justify-content: center; margin-bottom: 0.25rem;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="url(#svc-grad)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <defs><linearGradient id="svc-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs>
+                  <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>
+                </svg>
+              </div>
+              <div style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary);">Aucun service ou prestation</div>
+              <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin: 0;">Ajoutez vos prestations ou produits pour les insérer directement dans vos factures et devis.</p>
+            </div>
           </td>
         </tr>`;
       return;
@@ -6464,24 +7515,24 @@ window.KivoApp = {
 
       return `
         <tr>
-          <td>
+          <td data-label="Désignation">
             <strong style="color: var(--text-primary); font-size: 0.95rem;">${item.name || 'Article sans nom'}</strong>
           </td>
-          <td style="color: var(--text-muted); font-size: 0.85rem; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          <td data-label="Description" style="color: var(--text-muted); font-size: 0.85rem; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
             ${item.description || '<span style="opacity: 0.5;">—</span>'}
           </td>
-          <td style="text-align: right; font-weight: 700; color: var(--text-primary);">
+          <td data-label="Prix unitaire" style="text-align: right; font-weight: 700; color: var(--text-primary);">
             ${priceFmt}
           </td>
-          <td style="text-align: center;">
+          <td data-label="Unité" style="text-align: center;">
             <span class="badge" style="background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-color); font-size: 0.75rem; text-transform: uppercase;">
               ${unitLabel}
             </span>
           </td>
-          <td style="text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
+          <td data-label="TVA" style="text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
             ${taxLabel}
           </td>
-          <td style="text-align: right;">
+          <td data-label="Actions" style="text-align: right;">
             <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
               <button class="btn btn-secondary btn-sm" onclick="KivoApp.openEditCatalogItemModal('${item.id}')" title="Modifier cet article" style="padding: 4px 8px; font-size: 0.8rem;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -6745,6 +7796,15 @@ window.KivoApp = {
   },
 
   onBuilderTemplateChange: function (templateId) {
+    // Guard PRO : revenir au template précédent et afficher l'invite d'upgrade si template verrouillé
+    if (!this.canUse('template', templateId)) {
+      const prevTemplate = this.state.business?.visualTemplate || 'minimalist';
+      const sel = document.getElementById('builder-visual-template');
+      if (sel) sel.value = prevTemplate;
+      const tmplObj = window.KivoTemplates?.builtIn?.find(t => t.id === templateId);
+      this.showUpgradePrompt('template', tmplObj ? tmplObj.name : templateId);
+      return;
+    }
     this.state.business = this.state.business || {};
     this.state.business.visualTemplate = templateId;
     this.saveState();
@@ -6773,8 +7833,123 @@ window.KivoApp = {
   },
 
   openTemplateEditor: function () {
-    // Basic interaction for "Créer mon modèle"
-    this.showToast(this._t('toast_template_editor_soon'), 'info');
+    const modal = document.getElementById('modal-template-editor');
+    if (!modal) return;
+    
+    const nameInput = document.getElementById('template-editor-name');
+    if (nameInput) nameInput.value = '';
+    const errEl = document.getElementById('template-editor-name-error');
+    if (errEl) errEl.style.display = 'none';
+
+    const pColor = (this.state.business && this.state.business.primaryColor) || '#2563EB';
+    const sColor = (this.state.business && this.state.business.secondaryColor) || '#64748B';
+    const bgColor = (this.state.business && this.state.business.docBgColor) || '#FFFFFF';
+
+    const pInput = document.getElementById('template-editor-primary');
+    const pText = document.getElementById('template-editor-primary-text');
+    if (pInput) pInput.value = pColor;
+    if (pText) pText.value = pColor;
+
+    const sInput = document.getElementById('template-editor-secondary');
+    const sText = document.getElementById('template-editor-secondary-text');
+    if (sInput) sInput.value = sColor;
+    if (sText) sText.value = sColor;
+
+    const bgInput = document.getElementById('template-editor-bg');
+    const bgText = document.getElementById('template-editor-bg-text');
+    if (bgInput) bgInput.value = bgColor;
+    if (bgText) bgText.value = bgColor;
+
+    this.openModal('modal-template-editor');
+    this.updateTemplateEditorMiniPreview();
+  },
+
+  updateTemplateEditorMiniPreview: function () {
+    const previewContainer = document.getElementById('template-editor-mini-preview');
+    if (!previewContainer) return;
+    const baseTmpl = document.getElementById('template-editor-base')?.value || 'corporate';
+    const primary = document.getElementById('template-editor-primary')?.value || '#2563EB';
+    const secondary = document.getElementById('template-editor-secondary')?.value || '#64748B';
+    const bg = document.getElementById('template-editor-bg')?.value || '#FFFFFF';
+
+    if (window.KivoTemplates && typeof window.KivoTemplates.miniPreview === 'function') {
+      previewContainer.innerHTML = `<div style="background:${bg}; width:100%; height:100%; display:flex; align-items:center; justify-content:center;">${window.KivoTemplates.miniPreview(baseTmpl, primary)}</div>`;
+    } else {
+      previewContainer.innerHTML = `<div style="background:${bg}; width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:${primary}; font-weight:700;">${baseTmpl.toUpperCase()}</div>`;
+    }
+  },
+
+  saveTemplateFromModal: async function () {
+    const nameInput = document.getElementById('template-editor-name');
+    const errEl = document.getElementById('template-editor-name-error');
+    const name = nameInput ? nameInput.value.trim() : '';
+
+    if (!name) {
+      if (errEl) errEl.style.display = 'block';
+      if (nameInput) nameInput.focus();
+      return;
+    }
+    if (errEl) errEl.style.display = 'none';
+
+    const baseTemplateId = document.getElementById('template-editor-base')?.value || 'corporate';
+    const primaryColor = document.getElementById('template-editor-primary')?.value || '#2563EB';
+    const secondaryColor = document.getElementById('template-editor-secondary')?.value || '#64748B';
+    const bgColor = document.getElementById('template-editor-bg')?.value || '#FFFFFF';
+
+    const custom = {
+      id: 'custom-' + Date.now(),
+      name: name,
+      baseTemplateId: baseTemplateId,
+      primaryColor: primaryColor,
+      secondaryColor: secondaryColor,
+      bgColor: bgColor,
+      createdAt: new Date().toISOString()
+    };
+
+    if (!this.state.business) this.state.business = {};
+    const biz = this.state.business;
+    if (!biz.customTemplates) biz.customTemplates = [];
+    biz.customTemplates.push(custom);
+    this.saveState();
+
+    try {
+      if (window.KivoDb && typeof window.KivoDb.saveSettings === 'function') {
+        await window.KivoDb.saveSettings({
+          custom_templates: biz.customTemplates
+        });
+      } else if (window.KivoDb && window.KivoDb.supabase) {
+        const userId = window.KivoAuth?.user?.id;
+        if (userId) {
+          await window.KivoDb.supabase.from('business_settings').update({
+            custom_templates: biz.customTemplates
+          }).eq('user_id', userId);
+        }
+      }
+
+      const authUser = window.KivoAuth?.user;
+      if (authUser && window.KivoDb?.supabase) {
+        try {
+          await window.KivoDb.supabase.from('custom_templates').upsert({
+            id: custom.id,
+            user_id: authUser.id,
+            name: custom.name,
+            base_template_id: custom.baseTemplateId,
+            primary_color: custom.primaryColor,
+            secondary_color: custom.secondaryColor,
+            updated_at: new Date().toISOString()
+          });
+        } catch (_) {}
+      }
+
+      this.closeModal('modal-template-editor');
+      this.renderTemplateGallery();
+      this.showToast('Modèle « ' + custom.name + ' » créé et enregistré avec succès !', 'success');
+    } catch (e) {
+      console.error('[KivoApp] saveTemplateFromModal error:', e);
+      this.closeModal('modal-template-editor');
+      this.renderTemplateGallery();
+      this.showToast('Modèle enregistré localement.', 'success');
+    }
   },
 
   renderReminders: function () {
@@ -6846,13 +8021,15 @@ window.KivoApp = {
     await this.loadTeamMembers();
     
     // 1 Directeur (propriétaire) + membres enregistrés
+    const extraSeats = parseInt((this.state.business && this.state.business.extraSeats) || 0, 10);
+    const totalSeats = 5 + extraSeats;
     const totalOccupied = 1 + (this._teamMembers ? this._teamMembers.length : 0);
-    const isLimitReached = totalOccupied >= 5;
+    const isLimitReached = totalOccupied >= totalSeats;
 
-    // Mise à jour du compteur X / 5 sièges
+    // Mise à jour du compteur X / N sièges
     const badgeEl = document.getElementById('invite-seats-badge');
     if (badgeEl) {
-      badgeEl.textContent = `${totalOccupied} / 5 sièges`;
+      badgeEl.textContent = `${totalOccupied} / ${totalSeats} siège${totalSeats > 1 ? 's' : ''}`;
       badgeEl.style.background = isLimitReached ? '#FEE2E2' : '#F1F5F9';
       badgeEl.style.color = isLimitReached ? '#B91C1C' : '#334155';
     }
@@ -6913,9 +8090,11 @@ window.KivoApp = {
     }
 
     // Vérifier le quota
+    const extraSeats = parseInt((this.state.business && this.state.business.extraSeats) || 0, 10);
+    const maxAllowedSeats = 5 + extraSeats;
     const totalOccupied = 1 + (this._teamMembers ? this._teamMembers.length : 0);
-    if (totalOccupied >= 5) {
-      showError("Tous vos 5 sièges sont déjà occupés.");
+    if (totalOccupied >= maxAllowedSeats) {
+      showError(`Tous vos ${maxAllowedSeats} sièges sont déjà occupés.`);
       return;
     }
 
@@ -7069,12 +8248,14 @@ window.KivoApp = {
     }
     const members = this._teamMembers;
     const activeCount = members.filter(m => m.status === 'active').length;
+    const extraSeatsKpi = parseInt((this.state.business && this.state.business.extraSeats) || 0, 10);
+    const maxSeats    = 5 + extraSeatsKpi;
     const totalSeats  = 1 + members.length; // 1 directeur + membres
 
     // ── KPIs ────────────────────────────────────────────────────────────────
     const seatsEl = document.getElementById('team-kpi-seats');
     if (seatsEl) seatsEl.innerHTML =
-      `${totalSeats} <span style="font-size:1rem;color:var(--text-muted);font-weight:normal;">/ 5 (Plan Business)</span>`;
+      `${totalSeats} <span style="font-size:1rem;color:var(--text-muted);font-weight:normal;">/ ${maxSeats} (Plan Business)</span>`;
     const countEl = document.getElementById('team-active-count');
     if (countEl) countEl.textContent = `${1 + activeCount} actif${(1 + activeCount) > 1 ? 's' : ''}`;
 
@@ -7255,11 +8436,11 @@ window.KivoApp = {
               <line x1="6" y1="20" x2="6" y2="14"></line>
             </svg>
           </div>
-          <h3 style="font-size:1.3rem;font-weight:700;margin-bottom:0.6rem;color:var(--text-primary);font-family:var(--font-heading);">Aucune donnee statistique pour l instant</h3>
-          <p style="color:var(--text-muted);font-size:0.95rem;line-height:1.6;max-width:480px;margin:0 auto 2rem;">Creez et emettez vos premiers devis et factures. Vos statistiques apparaitront ici automatiquement.</p>
+          <h3 style="font-size:1.3rem;font-weight:700;margin-bottom:0.6rem;color:var(--text-primary);font-family:var(--font-heading);">Aucune donnée statistique pour l'instant</h3>
+          <p style="color:var(--text-muted);font-size:0.95rem;line-height:1.6;max-width:480px;margin:0 auto 2rem;">Créez et émettez vos premiers devis et factures. Vos statistiques apparaîtront ici automatiquement.</p>
           <button class="btn btn-primary" onclick="KivoApp.openNewDocModal('invoice')" style="padding:0.75rem 1.75rem;font-size:0.95rem;display:inline-flex;align-items:center;gap:0.5rem;margin:0 auto;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            <span>Creer mon premier document</span>
+            <span>Créer mon premier document</span>
           </button>
         </div>
       `;
@@ -7276,7 +8457,7 @@ window.KivoApp = {
     invoices.forEach(function(doc) {
       var tot = doc.total || 0;
       var s = (doc.status || '').toLowerCase().trim();
-      var isPaid = s === 'paid' || s === 'payee' || s === 'payee';
+      var isPaid = s === 'paid' || s === 'payée' || s === 'payee';
       if (isPaid)                           { paidTotal    += tot; paidCount++;    }
       else if (s === 'overdue')             { overdueTotal += tot; overdueCount++; }
       else if (s === 'sent' || s === 'viewed') { pendingTotal += tot; pendingCount++; }
@@ -7303,7 +8484,7 @@ window.KivoApp = {
     var maxCT = topClients.length > 0 ? topClients[0].total : 1;
 
     // ---- Monthly stats (last 6 months) ----
-    var mNames = ['Jan','Fev','Mar','Avr','Mai','Juin','Juil','Aout','Sep','Oct','Nov','Dec'];
+    var mNames = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
     var now = new Date();
     var monthlyStats = [];
     for (var i = 5; i >= 0; i--) {
@@ -7319,44 +8500,45 @@ window.KivoApp = {
         if (dt.getFullYear() === y && dt.getMonth() === mIdx) {
           mInvoiced += (inv.total || 0);
           var s = (inv.status || '').toLowerCase().trim();
-          if (s === 'paid' || s === 'payee') mPaid += (inv.total || 0);
+          if (s === 'paid' || s === 'payée' || s === 'payee') mPaid += (inv.total || 0);
         }
       });
       monthlyStats.push({ label: mNames[mIdx], paid: mPaid, invoiced: mInvoiced });
     }
     var maxMV = Math.max.apply(null, monthlyStats.map(function(m) { return Math.max(m.invoiced, m.paid); }).concat([1]));
 
-    // ---- SVG Grouped Bar Chart ----
-    var cW = 520, cH = 160, aH = 130;
+    // ---- SVG Grouped Bar Chart (Largeur sécurisée, zéro troncature) ----
+    var cW = 560, aH = 130, padTop = 20, padLeft = 70;
     var nM = monthlyStats.length;
-    var gW = cW / nM;
-    var bW = Math.min(20, gW * 0.32);
+    var chartAreaW = cW - padLeft - 25;
+    var gW = chartAreaW / nM;
+    var bW = Math.min(22, gW * 0.32);
     var bg = bW * 0.45;
 
     var gridSvg = [0.25, 0.5, 0.75, 1].map(function(p) {
-      var gy = (aH * (1 - p)).toFixed(1);
+      var gy = (padTop + aH * (1 - p)).toFixed(1);
       var lbl = self.formatCurrency(maxMV * p);
-      return '<line x1="42" y1="' + gy + '" x2="' + cW + '" y2="' + gy + '" stroke="var(--border-color,#E5E7EB)" stroke-width="1" stroke-dasharray="3,5"/>' +
-             '<text x="38" y="' + (parseFloat(gy) + 4).toFixed(1) + '" text-anchor="end" font-size="9" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">' + lbl + '</text>';
+      return '<line x1="' + padLeft + '" y1="' + gy + '" x2="' + (cW - 20) + '" y2="' + gy + '" stroke="var(--border-color,#E5E7EB)" stroke-width="1" stroke-dasharray="3,5"/>' +
+             '<text x="' + (padLeft - 10) + '" y="' + (parseFloat(gy) + 4).toFixed(1) + '" text-anchor="end" font-size="9" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">' + lbl + '</text>';
     }).join('');
 
     var barsSvg = monthlyStats.map(function(m, idx) {
-      var cx    = gW * idx + gW / 2;
+      var cx    = padLeft + gW * idx + gW / 2;
       var invH  = maxMV > 0 ? Math.max(3, (m.invoiced / maxMV) * aH) : 3;
       var paidH = maxMV > 0 ? Math.max(3, (m.paid    / maxMV) * aH) : 3;
-      var invY  = aH - invH;
-      var paidY = aH - paidH;
+      var invY  = padTop + aH - invH;
+      var paidY = padTop + aH - paidH;
       var delay = (idx * 0.07).toFixed(2);
       var fInv  = m.invoiced > 0 ? self.formatCurrency(m.invoiced) : '';
       var fPaid = m.paid     > 0 ? self.formatCurrency(m.paid)     : '';
       return '<g>' +
         '<rect x="' + (cx - bg - bW).toFixed(1) + '" y="' + invY.toFixed(1) + '" width="' + bW + '" height="' + invH.toFixed(1) + '" rx="3" fill="#C7D2FE"' +
-          ' style="transform-origin:' + (cx - bg - bW/2).toFixed(1) + 'px ' + aH + 'px;animation:kivo-bar-grow 0.55s cubic-bezier(.22,1,.36,1) ' + delay + 's both;">' +
-          (fInv ? '<title>' + m.label + ': Emis ' + fInv + '</title>' : '') + '</rect>' +
+          ' style="transform-origin:' + (cx - bg - bW/2).toFixed(1) + 'px ' + (padTop + aH) + 'px;animation:kivo-bar-grow 0.55s cubic-bezier(.22,1,.36,1) ' + delay + 's both;">' +
+          (fInv ? '<title>' + m.label + ' : Émis ' + fInv + '</title>' : '') + '</rect>' +
         '<rect x="' + (cx + bg).toFixed(1) + '" y="' + paidY.toFixed(1) + '" width="' + bW + '" height="' + paidH.toFixed(1) + '" rx="3" fill="#10B981"' +
-          ' style="transform-origin:' + (cx + bg + bW/2).toFixed(1) + 'px ' + aH + 'px;animation:kivo-bar-grow 0.55s cubic-bezier(.22,1,.36,1) ' + delay + 's both;">' +
-          (fPaid ? '<title>' + m.label + ': Encaisse ' + fPaid + '</title>' : '') + '</rect>' +
-        '<text x="' + cx.toFixed(1) + '" y="' + (aH + 15).toFixed(1) + '" text-anchor="middle" font-size="11" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">' + m.label + '</text>' +
+          ' style="transform-origin:' + (cx + bg + bW/2).toFixed(1) + 'px ' + (padTop + aH) + 'px;animation:kivo-bar-grow 0.55s cubic-bezier(.22,1,.36,1) ' + delay + 's both;">' +
+          (fPaid ? '<title>' + m.label + ' : Encaissé ' + fPaid + '</title>' : '') + '</rect>' +
+        '<text x="' + cx.toFixed(1) + '" y="' + (padTop + aH + 16).toFixed(1) + '" text-anchor="middle" font-size="11" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">' + m.label + '</text>' +
       '</g>';
     }).join('');
 
@@ -7364,31 +8546,32 @@ window.KivoApp = {
       <style>
         @keyframes kivo-bar-grow { from { transform:scaleY(0);opacity:0; } to { transform:scaleY(1);opacity:1; } }
       </style>
-      <svg viewBox="0 0 ${cW} ${aH + 24}" style="width:100%;overflow:visible;" aria-label="CA mensuel">${gridSvg}${barsSvg}</svg>`;
+      <svg viewBox="0 0 ${cW} ${padTop + aH + 28}" style="width:100%;min-width:480px;display:block;" aria-label="Évolution mensuelle du CA">${gridSvg}${barsSvg}</svg>`;
 
-    // ---- SVG Donut Chart ----
+    // ---- SVG Donut Chart (Garantie 100% visible par stroke circulaire SVG) ----
     var donutData = [
-      { label: 'Payees',      val: paidCount,    color: '#10B981' },
-      { label: 'En attente',  val: pendingCount,  color: '#F59E0B' },
-      { label: 'En retard',   val: overdueCount,  color: '#EF4444' },
-      { label: 'Brouillons',  val: draftCount,    color: '#6B7280' }
+      { label: 'Payées',      val: paidCount,    color: '#10B981' },
+      { label: 'En attente',  val: pendingCount, color: '#F59E0B' },
+      { label: 'En retard',   val: overdueCount, color: '#EF4444' },
+      { label: 'Brouillons',  val: draftCount,   color: '#6B7280' }
     ].filter(function(x) { return x.val > 0; });
 
     var totalDV = donutData.reduce(function(s, d) { return s + d.val; }, 0) || 1;
-    var R = 56, DCX = 75, DCY = 75;
-    var cumAngle = -0.5 * Math.PI;
+    var R = 48, DCX = 75, DCY = 75, strokeW = 16;
+    var C = 2 * Math.PI * R; // ~301.59
+    var cumOffset = 0;
 
     var donutSegs = donutData.map(function(d) {
       var frac = d.val / totalDV;
-      var sA = cumAngle;
-      var eA = sA + frac * 2 * Math.PI;
-      cumAngle = eA;
-      var x1 = DCX + R * Math.cos(sA), y1 = DCY + R * Math.sin(sA);
-      var x2 = DCX + R * Math.cos(eA), y2 = DCY + R * Math.sin(eA);
-      var la = frac > 0.5 ? 1 : 0;
-      return '<path d="M ' + DCX + ' ' + DCY + ' L ' + x1.toFixed(2) + ' ' + y1.toFixed(2) +
-             ' A ' + R + ' ' + R + ' 0 ' + la + ' 1 ' + x2.toFixed(2) + ' ' + y2.toFixed(2) + ' Z"' +
-             ' fill="' + d.color + '" opacity="0.9"><title>' + d.label + ': ' + d.val + '</title></path>';
+      var dash = (frac * C).toFixed(2);
+      var curOffset = cumOffset;
+      cumOffset += frac * C;
+      return '<circle cx="' + DCX + '" cy="' + DCY + '" r="' + R + '" fill="none"' +
+             ' stroke="' + d.color + '" stroke-width="' + strokeW + '"' +
+             ' stroke-dasharray="' + dash + ' ' + C.toFixed(2) + '"' +
+             ' stroke-dashoffset="' + (-curOffset).toFixed(2) + '"' +
+             ' transform="rotate(-90 ' + DCX + ' ' + DCY + ')">' +
+             '<title>' + d.label + ' : ' + d.val + '</title></circle>';
     }).join('');
 
     var donutLegend = donutData.map(function(d) {
@@ -7398,18 +8581,17 @@ window.KivoApp = {
         '<span style="margin-left:auto;font-weight:600;color:var(--text-primary);">' + d.val + '</span></div>';
     }).join('');
 
-    var donutSvg = '<svg viewBox="0 0 150 150" style="width:100%;max-width:150px;display:block;margin:0 auto;" aria-label="Repartition">' +
-      '<circle cx="' + DCX + '" cy="' + DCY + '" r="' + (R + 6) + '" fill="none" stroke="var(--border-color,#F3F4F6)" stroke-width="1"/>' +
+    var donutSvg = '<svg viewBox="0 0 150 150" style="width:100%;max-width:150px;display:block;margin:0 auto;" aria-label="Répartition des statuts">' +
+      '<circle cx="' + DCX + '" cy="' + DCY + '" r="' + R + '" fill="none" stroke="var(--border-color,#E5E7EB)" stroke-width="' + strokeW + '" opacity="0.35"/>' +
       donutSegs +
-      '<circle cx="' + DCX + '" cy="' + DCY + '" r="' + (R - 16) + '" fill="var(--bg-card,#fff)"/>' +
-      '<text x="' + DCX + '" y="' + (DCY - 4) + '" text-anchor="middle" font-size="20" font-weight="700" fill="var(--text-primary,#111827)" font-family="Outfit,sans-serif">' + invoices.length + '</text>' +
+      '<text x="' + DCX + '" y="' + (DCY - 2) + '" text-anchor="middle" font-size="20" font-weight="700" fill="var(--text-primary,#111827)" font-family="Outfit,sans-serif">' + invoices.length + '</text>' +
       '<text x="' + DCX + '" y="' + (DCY + 14) + '" text-anchor="middle" font-size="9.5" fill="var(--text-muted,#9CA3AF)" font-family="Inter,sans-serif">factures</text>' +
       '</svg>';
 
     // ---- Top Clients bars ----
     var clientColors = ['#4F46E5','#7C3AED','#2563EB','#059669','#D97706'];
     var clientBarsHtml = topClients.length === 0
-      ? '<p style="color:var(--text-muted);font-size:0.9rem;text-align:center;padding:2rem 0;">Aucun client enregistre.</p>'
+      ? '<p style="color:var(--text-muted);font-size:0.9rem;text-align:center;padding:2rem 0;">Aucun client enregistré.</p>'
       : topClients.map(function(c, idx) {
           var pct   = maxCT > 0 ? Math.round((c.total / maxCT) * 100) : 0;
           var col   = clientColors[idx % clientColors.length];
@@ -7437,13 +8619,13 @@ window.KivoApp = {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1rem;margin-bottom:1.75rem;">
         <div class="card kpi-card" style="padding:1.2rem;border-left:3px solid #10B981;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.35rem;">
-            <span style="color:var(--text-muted);font-size:0.8rem;font-weight:500;">CA Encaisse</span>
+            <span style="color:var(--text-muted);font-size:0.8rem;font-weight:500;">CA Encaissé</span>
             <span style="display:inline-flex;padding:5px;border-radius:8px;background:rgba(16,185,129,0.1);color:#10B981;">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             </span>
           </div>
           <div style="font-size:1.5rem;font-weight:700;color:#10B981;font-family:var(--font-heading);margin-bottom:0.15rem;">${this.formatCurrency(paidTotal)}</div>
-          <span style="font-size:0.76rem;color:var(--text-muted);">${paidCount} facture${paidCount > 1 ? 's' : ''} reglee${paidCount > 1 ? 's' : ''}</span>
+          <span style="font-size:0.76rem;color:var(--text-muted);">${paidCount} facture${paidCount > 1 ? 's' : ''} réglée${paidCount > 1 ? 's' : ''}</span>
         </div>
         <div class="card kpi-card" style="padding:1.2rem;border-left:3px solid #F59E0B;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.35rem;">
@@ -7463,7 +8645,7 @@ window.KivoApp = {
             </span>
           </div>
           <div style="font-size:1.5rem;font-weight:700;color:var(--text-primary);font-family:var(--font-heading);margin-bottom:0.15rem;">${recoveryRate}%</div>
-          <span style="font-size:0.76rem;color:var(--text-muted);">Sur ${self.formatCurrency(totalInvoiced)} facture</span>
+          <span style="font-size:0.76rem;color:var(--text-muted);">Sur ${self.formatCurrency(totalInvoiced)} facturés</span>
         </div>
         <div class="card kpi-card" style="padding:1.2rem;border-left:3px solid #6366F1;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.35rem;">
@@ -7473,7 +8655,7 @@ window.KivoApp = {
             </span>
           </div>
           <div style="font-size:1.5rem;font-weight:700;color:var(--text-primary);font-family:var(--font-heading);margin-bottom:0.15rem;">${quotes.length > 0 ? quoteAccRate + '%' : '—'}</div>
-          <span style="font-size:0.76rem;color:var(--text-muted);">${acceptedQ} sur ${quotes.length} devis</span>
+          <span style="font-size:0.76rem;color:var(--text-muted);">${quotes.length > 0 ? (acceptedQ + ' sur ' + quotes.length + ' devis') : 'Aucun devis émis pour le moment'}</span>
         </div>
       </div>
 
@@ -7481,18 +8663,18 @@ window.KivoApp = {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.4rem;margin-bottom:1.75rem;">
 
         <!-- Grouped Bar Chart -->
-        <div class="card" style="padding:1.5rem;grid-column:1/-1;">
+        <div class="card" style="padding:1.5rem;grid-column:1/-1;overflow-x:auto;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:1.25rem;">
             <div>
-              <h3 style="margin:0;font-size:1rem;font-weight:600;">Evolution mensuelle du CA</h3>
-              <p style="margin:3px 0 0;font-size:0.78rem;color:var(--text-muted);">Facturation et encaissements - 6 derniers mois</p>
+              <h3 style="margin:0;font-size:1rem;font-weight:600;">Évolution mensuelle du CA</h3>
+              <p style="margin:3px 0 0;font-size:0.78rem;color:var(--text-muted);">Facturation et encaissements — 6 derniers mois</p>
             </div>
             <div style="display:flex;gap:1rem;font-size:0.76rem;flex-shrink:0;">
               <span style="display:flex;align-items:center;gap:0.35rem;color:var(--text-muted);">
-                <span style="width:10px;height:10px;border-radius:3px;background:#C7D2FE;display:inline-block;"></span>Emis
+                <span style="width:10px;height:10px;border-radius:3px;background:#C7D2FE;display:inline-block;"></span>Émis
               </span>
               <span style="display:flex;align-items:center;gap:0.35rem;color:var(--text-muted);">
-                <span style="width:10px;height:10px;border-radius:3px;background:#10B981;display:inline-block;"></span>Encaisse
+                <span style="width:10px;height:10px;border-radius:3px;background:#10B981;display:inline-block;"></span>Encaissé
               </span>
             </div>
           </div>
@@ -7502,7 +8684,7 @@ window.KivoApp = {
         <!-- Donut: Status distribution -->
         <div class="card" style="padding:1.5rem;">
           <div style="margin-bottom:1.25rem;">
-            <h3 style="margin:0;font-size:1rem;font-weight:600;">Repartition des statuts</h3>
+            <h3 style="margin:0;font-size:1rem;font-weight:600;">Répartition des statuts</h3>
             <p style="margin:3px 0 0;font-size:0.78rem;color:var(--text-muted);">${invoices.length} facture${invoices.length > 1 ? 's' : ''} au total</p>
           </div>
           <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
@@ -7605,11 +8787,11 @@ window.KivoApp = {
   },
 
   /**
-   * Bascule l'affichage du menu déroulant d'export (Documents ou Clients).
-   * @param {'docs'|'clients'} scope
+   * Bascule l'affichage du menu déroulant d'export (Documents, Clients ou Builder).
+   * @param {'docs'|'clients'|'builder'} scope
    */
   toggleExportDropdown: function (scope) {
-    const menuId = scope === 'clients' ? 'clients-export-menu' : 'docs-export-menu';
+    const menuId = scope === 'clients' ? 'clients-export-menu' : (scope === 'builder' ? 'builder-export-menu' : 'docs-export-menu');
     const menu = document.getElementById(menuId);
     if (!menu) return;
     const isVisible = menu.style.display === 'block';
@@ -7621,18 +8803,512 @@ window.KivoApp = {
 
   /**
    * Ferme les menus déroulants d'exportation.
-   * @param {'docs'|'clients'} [scope]
+   * @param {'docs'|'clients'|'builder'} [scope]
    */
   closeExportDropdown: function (scope) {
     if (scope) {
-      const menuId = scope === 'clients' ? 'clients-export-menu' : 'docs-export-menu';
+      const menuId = scope === 'clients' ? 'clients-export-menu' : (scope === 'builder' ? 'builder-export-menu' : 'docs-export-menu');
       const menu = document.getElementById(menuId);
       if (menu) menu.style.display = 'none';
     } else {
-      const mDocs = document.getElementById('docs-export-menu');
-      const mClients = document.getElementById('clients-export-menu');
-      if (mDocs) mDocs.style.display = 'none';
-      if (mClients) mClients.style.display = 'none';
+      ['docs-export-menu', 'clients-export-menu', 'builder-export-menu'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+    }
+  },
+
+  /**
+   * Extrait les données actuelles de la facture/devis ouvert dans le constructeur
+   */
+  getCurrentBuilderDocumentData: function () {
+    const num = (document.getElementById('builder-doc-number')?.value || 'FAC-XXXX').trim();
+    const type = document.getElementById('builder-doc-type')?.value || 'invoice';
+    const typeLabel = type === 'quote' ? 'Devis' : 'Facture';
+    const currency = document.getElementById('builder-doc-currency')?.value || (this.state.business?.currency || 'FCFA');
+    const clientId = document.getElementById('builder-doc-client-select')?.value || '';
+    const customClientName = (document.getElementById('builder-client-name')?.value || '').trim();
+    const clientObj = (this.state.clients || []).find(c => String(c.id) === String(clientId));
+    const clientName = customClientName || (clientObj && clientObj.name) || 'Client Destinataire';
+    const issueDate = document.getElementById('builder-issue-date')?.value || new Date().toISOString().split('T')[0];
+    const dueDate = document.getElementById('builder-due-date')?.value || '';
+    const status = document.getElementById('builder-doc-status')?.value || 'draft';
+    const issuerName = (document.getElementById('builder-biz-name')?.value || '').trim() || this.getBusinessName();
+
+    const items = [];
+    let subtotal = 0;
+    let totalTax = 0;
+
+    const showVat = document.getElementById('builder-toggle-vat') ? document.getElementById('builder-toggle-vat').checked : true;
+    const showDiscount = document.getElementById('builder-toggle-discount') ? document.getElementById('builder-toggle-discount').checked : false;
+    const discountVal = parseFloat(document.getElementById('builder-discount-value')?.value) || 0;
+    const discountType = document.getElementById('builder-discount-type')?.value || 'percent';
+    const showDeposit = document.getElementById('builder-toggle-deposit') ? document.getElementById('builder-toggle-deposit').checked : false;
+    const depositAmount = showDeposit ? (parseFloat(document.getElementById('builder-deposit-amount')?.value) || 0) : 0;
+
+    document.querySelectorAll('#builder-items-tbody .builder-item-card, #builder-items-tbody tr').forEach((tr, index) => {
+      const name = (tr.querySelector('.item-name')?.value || '').trim();
+      const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 1;
+      const unit = (tr.querySelector('.item-unit')?.value || '').trim();
+      const price = parseFloat(tr.querySelector('.item-price')?.value) || 0;
+      const taxRate = (showVat && tr.querySelector('.item-tax')) ? (parseFloat(tr.querySelector('.item-tax').value) || 0) : 0;
+      const rowDiscount = parseFloat(tr.querySelector('.item-discount')?.value) || 0;
+
+      let totalHT = qty * price;
+      if (rowDiscount > 0) {
+        totalHT = Math.max(0, totalHT - (totalHT * (rowDiscount / 100)));
+      }
+      const taxAmount = showVat ? totalHT * (taxRate / 100) : 0;
+
+      if (name || price > 0) {
+        items.push({
+          num: index + 1,
+          name: name || 'Article',
+          quantity: qty,
+          unit: unit || '-',
+          price: price,
+          discount: rowDiscount,
+          taxRate: taxRate,
+          totalHT: totalHT,
+          totalTTC: totalHT + taxAmount
+        });
+        subtotal += totalHT;
+        totalTax += taxAmount;
+      }
+    });
+
+    let globalDiscount = 0;
+    if (showDiscount && discountVal > 0) {
+      if (discountType === 'percent') {
+        globalDiscount = subtotal * (discountVal / 100);
+      } else {
+        globalDiscount = discountVal;
+      }
+      globalDiscount = Math.min(globalDiscount, subtotal);
+    }
+
+    const taxableAmount = Math.max(0, subtotal - globalDiscount);
+    const grandTotal = Math.max(0, taxableAmount + (showVat ? totalTax : 0));
+    const balanceDue = Math.max(0, grandTotal - (showDeposit ? depositAmount : 0));
+
+    return {
+      num,
+      type,
+      typeLabel,
+      currency,
+      clientName,
+      issueDate,
+      dueDate,
+      status,
+      issuerName,
+      items,
+      subtotal,
+      globalDiscount,
+      totalTax: showVat ? totalTax : 0,
+      grandTotal,
+      depositAmount: showDeposit ? depositAmount : 0,
+      balanceDue
+    };
+  },
+
+  /**
+   * Exporte la facture/devis courante du constructeur en format CSV (A7 : UTF-8 avec BOM, séparateur ;, règle vide = invisible)
+   */
+  exportCurrentDocCsv: function () {
+    const rawData = this.getCurrentBuilderDocumentData();
+    const view = (typeof window.buildDocumentView === 'function')
+      ? window.buildDocumentView(rawData, this.state)
+      : rawData;
+
+    const escapeCsv = (str) => {
+      const s = String(str == null ? '' : str);
+      return '"' + s.replace(/"/g, '""') + '"';
+    };
+
+    const currency = (view.totals && view.totals.currency) || 'FCFA';
+    const lines = [
+      [escapeCsv('KIVO MATIQUE - Facturation & Gestion')],
+      [escapeCsv('Type de document'), escapeCsv(view.doc ? view.doc.typeLabel : 'Facture')],
+      [escapeCsv('Numéro'), escapeCsv(view.doc ? view.doc.num : '')],
+      [escapeCsv('Émetteur'), escapeCsv(view.issuer ? view.issuer.name : '')],
+      [escapeCsv('Client'), escapeCsv(view.client ? view.client.name : '')],
+      [escapeCsv("Date d'émission"), escapeCsv(view.doc ? (view.doc.issueDateFormatted || view.doc.issueDate) : '')]
+    ];
+
+    if (view.doc && view.doc.dueDate) {
+      lines.push([escapeCsv("Date d'échéance"), escapeCsv(view.doc.dueDateFormatted || view.doc.dueDate)]);
+    }
+
+    lines.push([escapeCsv('Statut'), escapeCsv(view.doc ? view.doc.statusLabel : 'Brouillon')]);
+    lines.push([escapeCsv('Devise'), escapeCsv(currency)]);
+    lines.push([]);
+
+    // En-tête des articles
+    lines.push([
+      escapeCsv('N°'),
+      escapeCsv('Description'),
+      escapeCsv('Quantité'),
+      escapeCsv('Unité'),
+      escapeCsv('Prix unitaire (' + currency + ')'),
+      escapeCsv('Remise (%)'),
+      escapeCsv('TVA (%)'),
+      escapeCsv('Total HT (' + currency + ')'),
+      escapeCsv('Total TTC (' + currency + ')')
+    ]);
+
+    (view.items || []).forEach(it => {
+      lines.push([
+        escapeCsv(it.num),
+        escapeCsv(it.description || it.name),
+        escapeCsv(it.quantity),
+        escapeCsv(it.unit || ''),
+        escapeCsv(Number(it.price || 0).toFixed(2)),
+        escapeCsv(Number(it.discount || 0).toFixed(2)),
+        escapeCsv(Number(it.taxRate || 0).toFixed(2)),
+        escapeCsv(Number(it.totalHT || 0).toFixed(2)),
+        escapeCsv(Number(it.totalTTC || 0).toFixed(2))
+      ]);
+    });
+
+    lines.push([]);
+    lines.push([escapeCsv('Sous-total HT'), escapeCsv(Number(view.totals ? view.totals.subtotal : 0).toFixed(2))]);
+
+    if (view.totals && view.totals.discount !== null && view.totals.discount > 0) {
+      lines.push([escapeCsv('Remise globale'), escapeCsv((-Number(view.totals.discount)).toFixed(2))]);
+    }
+    if (view.totals && view.totals.taxAmount !== null && view.totals.taxAmount > 0) {
+      lines.push([escapeCsv('TVA'), escapeCsv(Number(view.totals.taxAmount).toFixed(2))]);
+    }
+    lines.push([escapeCsv('Total TTC'), escapeCsv(Number(view.totals ? view.totals.grandTotal : 0).toFixed(2))]);
+
+    if (view.totals && view.totals.deposit !== null && view.totals.deposit > 0) {
+      lines.push([escapeCsv('Acompte versé'), escapeCsv(Number(view.totals.deposit).toFixed(2))]);
+    }
+    lines.push([escapeCsv('Solde net à payer'), escapeCsv(Number(view.totals ? view.totals.balanceDue : 0).toFixed(2))]);
+
+    // Section moyens de paiement (uniquement si au moins un moyen avec coordonnées)
+    if (view.payment && view.payment.hasPayment && view.payment.methods.length > 0) {
+      lines.push([]);
+      lines.push([escapeCsv('Moyens de paiement')]);
+      view.payment.methods.forEach(m => {
+        m.fields.forEach(f => {
+          lines.push([escapeCsv(`${m.title} - ${f.label}`), escapeCsv(f.value)]);
+        });
+      });
+    }
+
+    const csvContent = lines.map(row => row.join(';')).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const cleanNum = (view.doc && view.doc.num ? view.doc.num : 'DOC').replace(/[^a-zA-Z0-9-_]/g, '_');
+    const issueDateStr = view.doc && view.doc.issueDate ? view.doc.issueDate : new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `KIVO_${cleanNum}_${issueDateStr}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    this.showToast('Export CSV téléchargé avec succès.', 'success');
+  },
+
+  /**
+   * Exporte la facture/devis courante en Excel (.xlsx) conforme A6 :
+   * 2 onglets ("Récapitulatif" + "Articles"), styles complets, cellules numériques formatées, ExcelJS.
+   */
+  exportCurrentDocExcel: function () {
+    const self = this;
+    const rawData = this.getCurrentBuilderDocumentData();
+    const view = (typeof window.buildDocumentView === 'function')
+      ? window.buildDocumentView(rawData, this.state)
+      : rawData;
+
+    const runExport = async () => {
+      try {
+        const ExcelJS = window.ExcelJS;
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'KIVO MATIQUE';
+        wb.created = new Date();
+
+        function parseExcelDate(s) {
+          if (!s) return null;
+          const p = String(s).split('-');
+          if (p.length === 3) {
+            const d = new Date(+p[0], +p[1] - 1, +p[2]);
+            return isNaN(d) ? null : d;
+          }
+          const d = new Date(s);
+          return isNaN(d) ? null : d;
+        }
+
+        const currency = (view.totals && view.totals.currency) || 'FCFA';
+        const isInt = ['FCFA', 'XOF', 'XAF'].includes(currency);
+        const numFmt = isInt ? `#,##0 "${currency}"` : `#,##0.00 "${currency}"`;
+        const primaryArgb = 'FF4F46E5'; // #4f46e5
+
+        const borderThin = {
+          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+        };
+
+        // ══════════════════════════════════════════════════════════════
+        // FEUILLE 1 : "Récapitulatif" (A6)
+        // ══════════════════════════════════════════════════════════════
+        const wsRecap = wb.addWorksheet('Récapitulatif', {
+          views: [{ showGridLines: true }]
+        });
+        // Colonne A >= 28, Colonne B >= 32
+        wsRecap.columns = [
+          { key: 'prop', width: 30 },
+          { key: 'val',  width: 45 }
+        ];
+
+        // Ligne 1 : En-tête fond #4f46e5, texte blanc, gras
+        const hRow = wsRecap.getRow(1);
+        hRow.height = 25;
+        const hA = hRow.getCell(1);
+        hA.value = 'Propriété';
+        hA.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFFFFFFF' } };
+        hA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryArgb } };
+        hA.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        hA.border = borderThin;
+
+        const hB = hRow.getCell(2);
+        hB.value = 'Valeur';
+        hB.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFFFFFFF' } };
+        hB.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryArgb } };
+        hB.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        hB.border = borderThin;
+
+        let rIdx = 2;
+        function addRow(prop, val, options = {}) {
+          const row = wsRecap.getRow(rIdx);
+          row.height = 22;
+          const cA = row.getCell(1);
+          const cB = row.getCell(2);
+
+          cA.value = prop;
+          cA.font = { name: 'Calibri', size: 9.5, bold: !!options.bold, color: { argb: 'FF1E293B' } };
+          cA.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+          cA.border = borderThin;
+
+          cB.value = val;
+          cB.font = { name: 'Calibri', size: 9.5, bold: !!options.bold, color: { argb: options.color || 'FF0F172A' } };
+          cB.alignment = { horizontal: options.align || 'left', vertical: 'middle', indent: options.align ? 0 : 1 };
+          cB.border = borderThin;
+
+          if (options.numFmt) {
+            cB.numFmt = options.numFmt;
+          }
+          if (options.fill) {
+            cA.fill = options.fill;
+            cB.fill = options.fill;
+          }
+          rIdx++;
+        }
+
+        // Propriétés du document
+        addRow('Document', (view.doc && view.doc.typeLabel) || 'Facture');
+        addRow('Numéro', (view.doc && view.doc.num) || '', { bold: true });
+        addRow('Émetteur', (view.issuer && view.issuer.name) || '');
+        addRow('Client', (view.client && view.client.name) || '');
+
+        const issueDateObj = parseExcelDate(view.doc && view.doc.issueDate);
+        addRow("Date d'émission", issueDateObj || (view.doc && view.doc.issueDate) || '', {
+          numFmt: issueDateObj ? 'dd/mm/yyyy' : undefined
+        });
+
+        if (view.doc && view.doc.dueDate) {
+          const dueDateObj = parseExcelDate(view.doc.dueDate);
+          addRow("Date d'échéance", dueDateObj || view.doc.dueDate, {
+            numFmt: dueDateObj ? 'dd/mm/yyyy' : undefined
+          });
+        }
+
+        // Statut en français (Brouillon, Envoyée, Payée, etc. - JAMAIS "draft")
+        addRow('Statut', (view.doc && view.doc.statusLabel) || 'Brouillon', { bold: true });
+        addRow('Devise', currency);
+
+        // Totaux financiers (numériques alignés à droite)
+        addRow('Sous-total HT', Number(view.totals ? view.totals.subtotal : 0), { align: 'right', numFmt: numFmt });
+
+        // Lignes sans valeur supprimées (remise 0, acompte 0)
+        if (view.totals && view.totals.discount !== null && view.totals.discount > 0) {
+          addRow('Remise globale', -Number(view.totals.discount), { align: 'right', numFmt: numFmt, color: 'FFDC2626' });
+        }
+        if (view.totals && view.totals.taxAmount !== null && view.totals.taxAmount > 0) {
+          addRow('TVA', Number(view.totals.taxAmount), { align: 'right', numFmt: numFmt });
+        }
+        addRow('Total TTC', Number(view.totals ? view.totals.grandTotal : 0), { bold: true, align: 'right', numFmt: numFmt });
+
+        if (view.totals && view.totals.deposit !== null && view.totals.deposit > 0) {
+          addRow('Acompte versé', Number(view.totals.deposit), { align: 'right', numFmt: numFmt });
+        }
+        addRow('Solde net à payer', Number(view.totals ? view.totals.balanceDue : 0), { bold: true, align: 'right', numFmt: numFmt });
+
+        // Section "Moyens de paiement" UNIQUEMENT si au moins un moyen est sélectionné
+        if (view.payment && view.payment.hasPayment && view.payment.methods.length > 0) {
+          const secRow = wsRecap.getRow(rIdx);
+          secRow.height = 24;
+          const sA = secRow.getCell(1);
+          sA.value = 'Moyens de paiement';
+          sA.font = { name: 'Calibri', size: 10, bold: true, color: { argb: primaryArgb } };
+          sA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+          sA.border = borderThin;
+          const sB = secRow.getCell(2);
+          sB.value = '';
+          sB.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+          sB.border = borderThin;
+          rIdx++;
+
+          view.payment.methods.forEach(m => {
+            m.fields.forEach(f => {
+              addRow(`${m.title} - ${f.label}`, f.value);
+            });
+          });
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // FEUILLE 2 : "Articles" (A6)
+        // ══════════════════════════════════════════════════════════════
+        const wsArticles = wb.addWorksheet('Articles', {
+          views: [{ state: 'frozen', xSplit: 0, ySplit: 1, showGridLines: true }]
+        });
+        wsArticles.columns = [
+          { key: 'desc',     width: 40 },
+          { key: 'qty',      width: 14 },
+          { key: 'price',    width: 20 },
+          { key: 'taxRate',  width: 14 },
+          { key: 'totalHT',  width: 22 }
+        ];
+
+        // En-tête feuille Articles
+        const artHdr = wsArticles.getRow(1);
+        artHdr.height = 24;
+        [
+          { col: 1, txt: 'Description',      align: 'left'   },
+          { col: 2, txt: 'Quantité',         align: 'center' },
+          { col: 3, txt: 'Prix unitaire',    align: 'right'  },
+          { col: 4, txt: 'TVA %',            align: 'center' },
+          { col: 5, txt: 'Total ligne',      align: 'right'  }
+        ].forEach(h => {
+          const c = artHdr.getCell(h.col);
+          c.value = h.txt;
+          c.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryArgb } };
+          c.alignment = { horizontal: h.align, vertical: 'middle', indent: h.align === 'left' ? 1 : 0 };
+          c.border = borderThin;
+        });
+
+        let aRowIdx = 2;
+        let sumHT = 0;
+        (view.items || []).forEach(it => {
+          const r = wsArticles.getRow(aRowIdx);
+          r.height = 22;
+
+          const c1 = r.getCell(1);
+          c1.value = it.description || it.name || 'Article';
+          c1.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          c1.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true, indent: 1 };
+          c1.border = borderThin;
+
+          const c2 = r.getCell(2);
+          c2.value = Number(it.quantity) || 1;
+          c2.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          c2.alignment = { horizontal: 'center', vertical: 'middle' };
+          c2.numFmt = '#,##0.##';
+          c2.border = borderThin;
+
+          const c3 = r.getCell(3);
+          c3.value = Number(it.price) || 0;
+          c3.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          c3.alignment = { horizontal: 'right', vertical: 'middle' };
+          c3.numFmt = numFmt;
+          c3.border = borderThin;
+
+          const c4 = r.getCell(4);
+          c4.value = (Number(it.taxRate) || 0) / 100;
+          c4.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          c4.alignment = { horizontal: 'center', vertical: 'middle' };
+          c4.numFmt = '0 %';
+          c4.border = borderThin;
+
+          const lineTotal = Number(it.totalHT) || (Number(it.quantity || 1) * Number(it.price || 0));
+          sumHT += lineTotal;
+          const c5 = r.getCell(5);
+          c5.value = lineTotal;
+          c5.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+          c5.alignment = { horizontal: 'right', vertical: 'middle' };
+          c5.numFmt = numFmt;
+          c5.border = borderThin;
+
+          aRowIdx++;
+        });
+
+        // Ligne de total en bas de feuille Articles
+        const totRow = wsArticles.getRow(aRowIdx);
+        totRow.height = 24;
+        const totLabel = totRow.getCell(1);
+        totLabel.value = 'Total HT';
+        totLabel.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F172A' } };
+        totLabel.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        totLabel.border = {
+          top: { style: 'thin', color: { argb: 'FF0F172A' } },
+          bottom: { style: 'double', color: { argb: 'FF0F172A' } }
+        };
+
+        for (let ci = 2; ci <= 4; ci++) {
+          const emptyCell = totRow.getCell(ci);
+          emptyCell.border = {
+            top: { style: 'thin', color: { argb: 'FF0F172A' } },
+            bottom: { style: 'double', color: { argb: 'FF0F172A' } }
+          };
+        }
+
+        const totVal = totRow.getCell(5);
+        totVal.value = sumHT;
+        totVal.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: primaryArgb } };
+        totVal.alignment = { horizontal: 'right', vertical: 'middle' };
+        totVal.numFmt = numFmt;
+        totVal.border = {
+          top: { style: 'thin', color: { argb: 'FF0F172A' } },
+          bottom: { style: 'double', color: { argb: 'FF0F172A' } }
+        };
+
+        // ── Génération du fichier Excel ─────────────────────────────────
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const cleanNum = ((view.doc && view.doc.num) || 'DOC').replace(/[^a-zA-Z0-9-_]/g, '_');
+        const issueDateStr = (view.doc && view.doc.issueDate) ? view.doc.issueDate : new Date().toISOString().slice(0, 10);
+        a.href = url;
+        // Nom : KIVO_FAC-2026-1004_2026-11-02.xlsx (A6)
+        a.download = `KIVO_${cleanNum}_${issueDateStr}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        self.showToast('Export Excel généré avec succès.', 'success');
+      } catch (err) {
+        console.error('[KivoApp] exportCurrentDocExcel error:', err);
+        self.showToast("Erreur lors de la génération du fichier Excel.", 'error');
+      }
+    };
+
+    if (window.ExcelJS) {
+      runExport();
+    } else {
+      self.showToast('Chargement du module Excel...', 'info');
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+      script.onload = function() { runExport(); };
+      script.onerror = function() {
+        self.showToast("Impossible de charger le module d'export Excel.", 'error');
+      };
+      document.head.appendChild(script);
     }
   },
 
@@ -7956,6 +9632,368 @@ window.KivoApp = {
       };
       document.head.appendChild(script);
     }
+  },
+
+  /** Export PDF de la liste des factures/devis */
+  exportDocsPdf: function () {
+    const docs = this.getFilteredDocuments();
+    if (!docs || docs.length === 0) {
+      this.showToast('Aucun document à exporter.', 'warning');
+      return;
+    }
+    const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      this.showToast('Veuillez autoriser les popups pour générer le PDF.', 'warning');
+      return;
+    }
+
+    const rowsHtml = docs.map(d => {
+      const isPaid = d.status === 'paid' || d.status === 'payée' || d.status === 'payee';
+      const statusLabel = isPaid ? 'Payée' : (d.status === 'sent' ? 'Envoyée' : (d.status === 'draft' ? 'Brouillon' : (d.status === 'overdue' ? 'En retard' : d.status)));
+      return `
+        <tr>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;font-weight:600;">${d.number || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${d.type === 'quote' ? 'Devis' : 'Facture'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${d.clientName || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${d.issueDate || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${d.dueDate || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${statusLabel}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;text-align:right;font-weight:700;">${(d.total || 0).toLocaleString('fr-FR')} ${currency}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const totalAmount = docs.reduce((sum, d) => sum + (d.total || 0), 0);
+
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>KIVO_Documents_${dateStr}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 24px; color: #0F172A; }
+          h1 { margin: 0 0 4px; font-size: 20px; color: #1E293B; }
+          p { margin: 0 0 16px; font-size: 13px; color: #64748B; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+          th { background: #F8FAFC; text-align: left; padding: 8px 10px; border-bottom: 2px solid #CBD5E1; font-weight: 700; color: #334155; }
+          @media print { body { padding: 0; } @page { margin: 1.5cm; } }
+        </style>
+      </head>
+      <body>
+        <h1>KIVO MATIQUE — Liste des Documents</h1>
+        <p>Exporté le ${new Date().toLocaleDateString('fr-FR')} • ${docs.length} document(s) • Total : ${totalAmount.toLocaleString('fr-FR')} ${currency}</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Numéro</th>
+              <th>Type</th>
+              <th>Client</th>
+              <th>Date d'émission</th>
+              <th>Échéance</th>
+              <th>Statut</th>
+              <th style="text-align:right;">Montant TTC</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        <script>
+          window.onload = function() { window.print(); };
+        </script>
+      </body>
+      </html>
+    `);
+    printWin.document.close();
+    this.showToast('Génération du PDF des documents en cours...', 'info');
+  },
+
+  /** Export PDF de la liste des clients */
+  exportClientsPdf: function () {
+    const clients = (this.state && this.state.clients) || [];
+    if (!clients || clients.length === 0) {
+      this.showToast('Aucun client à exporter.', 'warning');
+      return;
+    }
+    const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      this.showToast('Veuillez autoriser les popups pour générer le PDF.', 'warning');
+      return;
+    }
+
+    const rowsHtml = clients.map(c => {
+      const clientDocs = (this.state.documents || []).filter(d => d.clientId === c.id || d.clientName === c.name);
+      const totalInvoiced = clientDocs.reduce((sum, d) => sum + (d.total || 0), 0);
+      const totalPaid = clientDocs
+        .filter(d => d.status === 'paid' || d.status === 'accepted')
+        .reduce((sum, d) => sum + (d.amountPaid || d.total || 0), 0);
+      const balanceDue = Math.max(0, totalInvoiced - totalPaid);
+
+      return `
+        <tr>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;font-weight:600;">${c.name || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${c.company || c.taxId || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${c.email || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;">${c.phone || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;text-align:right;">${totalInvoiced.toLocaleString('fr-FR')} ${currency}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;text-align:right;color:#16A34A;">${totalPaid.toLocaleString('fr-FR')} ${currency}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E2E8F0;text-align:right;font-weight:700;color:${balanceDue > 0 ? '#DC2626' : '#16A34A'};">${balanceDue.toLocaleString('fr-FR')} ${currency}</td>
+        </tr>
+      `;
+    }).join('');
+
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>KIVO_Clients_${dateStr}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 24px; color: #0F172A; }
+          h1 { margin: 0 0 4px; font-size: 20px; color: #1E293B; }
+          p { margin: 0 0 16px; font-size: 13px; color: #64748B; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+          th { background: #F8FAFC; text-align: left; padding: 8px 10px; border-bottom: 2px solid #CBD5E1; font-weight: 700; color: #334155; }
+          @media print { body { padding: 0; } @page { margin: 1.5cm; } }
+        </style>
+      </head>
+      <body>
+        <h1>KIVO MATIQUE — Répertoire Clients</h1>
+        <p>Exporté le ${new Date().toLocaleDateString('fr-FR')} • ${clients.length} client(s)</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Entreprise</th>
+              <th>Email</th>
+              <th>Téléphone</th>
+              <th style="text-align:right;">Total Facturé</th>
+              <th style="text-align:right;">Encaissé</th>
+              <th style="text-align:right;">Solde dû</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        <script>
+          window.onload = function() { window.print(); };
+        </script>
+      </body>
+      </html>
+    `);
+    printWin.document.close();
+    this.showToast('Génération du PDF clients en cours...', 'info');
+  },
+
+  /** Export CSV des Rapports & Statistiques */
+  exportAnalyticsCsv: function () {
+    const docs = (this.state && this.state.documents) || [];
+    if (!docs || docs.length === 0) {
+      this.showToast('Aucune donnée à exporter dans les rapports.', 'warning');
+      return;
+    }
+    const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    const headers = ['Type', 'Numéro', 'Client', 'Date émission', 'Échéance', 'Statut', 'Sous-total HT', 'TVA', 'Total TTC', 'Devise'];
+    const rows = docs.map(d => {
+      const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      return [
+        escape(d.type === 'quote' ? 'Devis' : 'Facture'),
+        escape(d.number || ''),
+        escape(d.clientName || ''),
+        escape(d.issueDate || ''),
+        escape(d.dueDate || ''),
+        escape(d.status || ''),
+        escape(d.subtotal || 0),
+        escape(d.taxAmount || 0),
+        escape(d.total || 0),
+        escape(currency)
+      ].join(';');
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `KIVO_Rapport_${dateStr}.csv`;
+    link.click();
+    this.showToast('Rapport CSV téléchargé.', 'success');
+  },
+
+  /** Export Excel (.xlsx) des Rapports & Statistiques */
+  exportAnalyticsExcel: function () {
+    if (!this.canUse('exportExcel')) {
+      this.showUpgradePrompt('exportExcel');
+      return;
+    }
+    const docs = (this.state && this.state.documents) || [];
+    if (!docs || docs.length === 0) {
+      this.showToast('Aucune donnée à exporter dans les rapports.', 'warning');
+      return;
+    }
+    const currency = (this.state && this.state.business && this.state.business.currency) || 'FCFA';
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    const runExport = () => {
+      try {
+        const rows = docs.map(d => ({
+          'Type': d.type === 'quote' ? 'Devis' : 'Facture',
+          'Numéro': d.number || '',
+          'Client': d.clientName || '',
+          'Date émission': d.issueDate || '',
+          'Échéance': d.dueDate || '',
+          'Statut': d.status || '',
+          'Sous-total HT': d.subtotal || 0,
+          'TVA': d.taxAmount || 0,
+          'Total TTC': d.total || 0,
+          'Devise': currency
+        }));
+
+        const wb = window.XLSX.utils.book_new();
+        const ws = window.XLSX.utils.json_to_sheet(rows);
+        window.XLSX.utils.book_append_sheet(wb, ws, 'Rapport KIVO');
+        window.XLSX.writeFile(wb, `KIVO_Rapport_${dateStr}.xlsx`);
+        this.showToast('Rapport Excel généré avec succès.', 'success');
+      } catch (err) {
+        console.error('[KivoApp] exportAnalyticsExcel error:', err);
+        this.showToast("Erreur lors de l'export Excel des rapports.", 'error');
+      }
+    };
+
+    if (window.XLSX) {
+      runExport();
+    } else {
+      this.showToast('Chargement du module Excel...', 'info');
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      script.onload = () => runExport();
+      script.onerror = () => {
+        this.showToast("Impossible de charger le module d'export Excel.", 'error');
+      };
+      document.head.appendChild(script);
+    }
+  },
+
+  /** Export PDF des Rapports */
+  exportAnalyticsPdf: function () {
+    const analyticsEl = document.getElementById('analytics-content');
+    if (!analyticsEl) {
+      window.print();
+      return;
+    }
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      window.print();
+      return;
+    }
+    const dateStr = new Date().toISOString().split('T')[0];
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>KIVO_Rapport_${dateStr}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 24px; color: #0F172A; }
+          h1 { margin: 0 0 4px; font-size: 20px; color: #1E293B; }
+          p { margin: 0 0 16px; font-size: 13px; color: #64748B; }
+          @media print { body { padding: 0; } @page { margin: 1cm; } }
+        </style>
+      </head>
+      <body>
+        <h1>KIVO MATIQUE — Rapport Financier & Statistiques</h1>
+        <p>Exporté le ${new Date().toLocaleDateString('fr-FR')}</p>
+        <div>${analyticsEl.innerHTML}</div>
+        <script>
+          window.onload = function() { window.print(); };
+        </script>
+      </body>
+      </html>
+    `);
+    printWin.document.close();
+    this.showToast('Génération du PDF du rapport en cours...', 'info');
+  },
+
+  /** Ouvre la modale d'Export Comptable (FEC / CSV standard / Sage / QuickBooks) */
+  openAccountingExportModal: function () {
+    this.openModal('modal-accounting-export');
+  },
+
+  /** Génère et télécharge le fichier d'export comptable (FEC ou CSV) */
+  downloadAccountingExport: function (format) {
+    const docs = (this.state && this.state.documents) || [];
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    if (docs.length === 0) {
+      this.showToast('Aucun document à exporter.', 'warning');
+      return;
+    }
+
+    if (format === 'fec') {
+      // Format FEC officiel français (tab-separated standard)
+      const headers = ['JournalCode', 'JournalLib', 'EcritureNum', 'EcritureDate', 'CompteNum', 'CompteLib', 'CompAuxNum', 'CompAuxLib', 'PieceRef', 'PieceDate', 'EcritureLib', 'Debit', 'Credit', 'EcritureLet', 'DateLet', 'ValidDate', 'Montantdevise', 'Idevise'];
+      const rows = [];
+      let ecritureIdx = 1;
+
+      docs.forEach(doc => {
+        const docDate = (doc.issueDate || dateStr).replace(/-/g, '');
+        const ref = doc.number || `DOC-${ecritureIdx}`;
+        const total = (doc.total || 0).toFixed(2).replace('.', ',');
+        const ht = (doc.subtotal || doc.total || 0).toFixed(2).replace('.', ',');
+        const tva = (doc.taxAmount || 0).toFixed(2).replace('.', ',');
+
+        // Ligne Client (Débit 411000)
+        rows.push(['VT', 'Ventes', ecritureIdx, docDate, '411000', 'Clients', '', '', ref, docDate, `Facture ${ref}`, total, '0,00', '', '', docDate, '', ''].join('\t'));
+        // Ligne Vente (Crédit 706000)
+        rows.push(['VT', 'Ventes', ecritureIdx, docDate, '706000', 'Prestations de services', '', '', ref, docDate, `Facture ${ref}`, '0,00', ht, '', '', docDate, '', ''].join('\t'));
+        // Ligne TVA si applicable (Crédit 445710)
+        if (doc.taxAmount > 0) {
+          rows.push(['VT', 'Ventes', ecritureIdx, docDate, '445710', 'TVA collectée', '', '', ref, docDate, `TVA ${ref}`, '0,00', tva, '', '', docDate, '', ''].join('\t'));
+        }
+        ecritureIdx++;
+      });
+
+      const fecContent = [headers.join('\t'), ...rows].join('\r\n');
+      const blob = new Blob([fecContent], { type: 'text/plain;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `FEC_${dateStr}.txt`;
+      link.click();
+      this.showToast('Fichier FEC exporté avec succès.', 'success');
+    } else {
+      // Export CSV Comptable standard
+      const headers = ['Journal', 'Date', 'Pièce', 'Compte', 'Libellé Compte', 'Libellé Écriture', 'Débit', 'Crédit'];
+      const rows = [];
+
+      docs.forEach(doc => {
+        const dDate = doc.issueDate || dateStr;
+        const ref = doc.number || '';
+        const total = doc.total || 0;
+        const ht = doc.subtotal || doc.total || 0;
+        const tva = doc.taxAmount || 0;
+
+        rows.push(['VT', dDate, ref, '411000', 'Clients', `Facture ${ref}`, total, 0].map(v => `"${v}"`).join(';'));
+        rows.push(['VT', dDate, ref, '706000', 'Ventes', `Facture ${ref}`, 0, ht].map(v => `"${v}"`).join(';'));
+        if (tva > 0) {
+          rows.push(['VT', dDate, ref, '445710', 'TVA collectée', `TVA ${ref}`, 0, tva].map(v => `"${v}"`).join(';'));
+        }
+      });
+
+      const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `KIVO_Compta_${dateStr}.csv`;
+      link.click();
+      this.showToast('Export comptable CSV téléchargé.', 'success');
+    }
+
+    this.closeModal('modal-accounting-export');
   },
 
   /**
@@ -9871,10 +11909,74 @@ window.KivoApp = {
 
     // 5. Coordonnées bancaires & Moyens de Paiement
     const bDetails = biz.bankDetails || {};
+    const pmBankActive = document.getElementById('setting-pm-bank-active');
+    const pmMomoActive = document.getElementById('setting-pm-momo-active');
+    const pmCheckActive = document.getElementById('setting-pm-check-active');
+    const pmCardActive = document.getElementById('setting-pm-card-active');
+
+    const bankIsActive = !!(bDetails.bankName || bDetails.accountName || bDetails.iban || bDetails.active);
+    if (pmBankActive) pmBankActive.checked = bankIsActive;
+    const cardPmBank = document.getElementById('card-pm-bank');
+    if (cardPmBank) cardPmBank.classList.toggle('active', bankIsActive);
+
     if (document.getElementById('setting-bank-name')) document.getElementById('setting-bank-name').value = bDetails.bankName || '';
     if (document.getElementById('setting-bank-account-name')) document.getElementById('setting-bank-account-name').value = bDetails.accountName || biz.name || '';
+    if (document.getElementById('setting-bank-number')) document.getElementById('setting-bank-number').value = bDetails.accountNumber || '';
     if (document.getElementById('setting-bank-iban')) document.getElementById('setting-bank-iban').value = bDetails.iban || '';
     if (document.getElementById('setting-bank-bic')) document.getElementById('setting-bank-bic').value = bDetails.bic || '';
+
+    // Mobile Money
+    const momoDetails = (bDetails && bDetails.mobileMoney) || {};
+    const momoIsActive = !!(momoDetails.phone || momoDetails.wave || momoDetails.orangeMoney || momoDetails.mtn || momoDetails.active);
+    if (pmMomoActive) pmMomoActive.checked = momoIsActive;
+    const cardPmMomo = document.getElementById('card-pm-momo');
+    if (cardPmMomo) cardPmMomo.classList.toggle('active', momoIsActive);
+    if (document.getElementById('setting-pm-momo-operator')) document.getElementById('setting-pm-momo-operator').value = momoDetails.operator || 'Wave';
+    if (document.getElementById('setting-pm-momo-phone')) document.getElementById('setting-pm-momo-phone').value = momoDetails.phone || momoDetails.wave || momoDetails.orangeMoney || momoDetails.mtn || '';
+    if (document.getElementById('setting-pm-momo-holder')) document.getElementById('setting-pm-momo-holder').value = momoDetails.holder || biz.owner || '';
+
+    // Espèces (Cash)
+    const cashDetails = (bDetails && bDetails.cash) || {};
+    const cashIsActive = !!(cashDetails.active);
+    const pmCashActive = document.getElementById('setting-pm-cash-active');
+    if (pmCashActive) pmCashActive.checked = cashIsActive;
+    const cardPmCash = document.getElementById('card-pm-cash');
+    if (cardPmCash) cardPmCash.classList.toggle('active', cashIsActive);
+    if (document.getElementById('setting-pm-cash-notice')) {
+      document.getElementById('setting-pm-cash-notice').value = cashDetails.notice || 'Paiement en espèces à la livraison ou au comptoir';
+    }
+
+    // Chèque
+    const checkDetails = (bDetails && bDetails.check) || {};
+    const checkIsActive = !!(checkDetails.payable || checkDetails.active);
+    if (pmCheckActive) pmCheckActive.checked = checkIsActive;
+    const cardPmCheck = document.getElementById('card-pm-check');
+    if (cardPmCheck) cardPmCheck.classList.toggle('active', checkIsActive);
+    if (document.getElementById('setting-pm-check-payable')) document.getElementById('setting-pm-check-payable').value = checkDetails.payable || biz.name || '';
+    if (document.getElementById('setting-pm-check-address')) document.getElementById('setting-pm-check-address').value = checkDetails.address || biz.address || '';
+
+    // Carte bancaire / Paiement en ligne
+    const cardDetails = (bDetails && bDetails.card) || {};
+    const cardIsActive = !!(cardDetails.paymentLink || cardDetails.apiKey || cardDetails.active);
+    if (pmCardActive) pmCardActive.checked = cardIsActive;
+    const cardPmCard = document.getElementById('card-pm-card');
+    if (cardPmCard) cardPmCard.classList.toggle('active', cardIsActive);
+    if (document.getElementById('setting-pm-card-provider')) document.getElementById('setting-pm-card-provider').value = cardDetails.provider || 'Stripe';
+    if (document.getElementById('setting-pm-card-link')) document.getElementById('setting-pm-card-link').value = cardDetails.paymentLink || '';
+    if (document.getElementById('setting-pm-card-api-key')) document.getElementById('setting-pm-card-api-key').value = cardDetails.apiKey || '';
+    if (document.getElementById('setting-pm-card-notice')) document.getElementById('setting-pm-card-notice').value = cardDetails.notice || '';
+
+    // 2FA state
+    const tfaInput = document.getElementById('setting-security-2fa');
+    const tfaBadge = document.getElementById('setting-2fa-status-badge');
+    if (tfaInput) {
+      tfaInput.checked = !!biz.twoFactorEnabled;
+      if (tfaBadge) {
+        tfaBadge.textContent = biz.twoFactorEnabled ? 'Activée' : 'Désactivée';
+        tfaBadge.style.background = biz.twoFactorEnabled ? '#DCFCE7' : '#F1F5F9';
+        tfaBadge.style.color = biz.twoFactorEnabled ? '#15803D' : '#64748B';
+      }
+    }
     
     // Moyens de paiement dynamiques (payment_methods)
     try {
@@ -9896,16 +11998,19 @@ window.KivoApp = {
     if (nameDisplay) nameDisplay.textContent = displayName;
     if (emailDisplay) emailDisplay.textContent = displayEmail;
 
-    // Logo Avatar
-    const avatarSvg = document.getElementById('profile-avatar-svg');
+    // Logo Avatar / Initiales unifiées avec la sidebar basse
+    const avatarInitials = document.getElementById('profile-avatar-initials');
     const avatarImg = document.getElementById('profile-avatar-img');
-    if (avatarSvg && avatarImg) {
+    const ownerName = biz.owner || biz.name || '';
+    const initials = ownerName.split(' ').filter(w => w.length > 0).slice(0, 2).map(w => w[0].toUpperCase()).join('') || 'KM';
+    if (avatarInitials) avatarInitials.textContent = initials;
+    if (avatarImg) {
       if (biz.logoUrl) {
-        avatarSvg.style.display = 'none';
+        if (avatarInitials) avatarInitials.style.display = 'none';
         avatarImg.src = biz.logoUrl;
         avatarImg.style.display = 'block';
       } else {
-        avatarSvg.style.display = '';
+        if (avatarInitials) avatarInitials.style.display = '';
         avatarImg.style.display = 'none';
       }
     }
@@ -9928,7 +12033,19 @@ window.KivoApp = {
     if (statusBadge) statusBadge.textContent = 'Compte Actif';
 
     const planBadge = document.getElementById('settings-current-plan-badge');
-    if (planBadge) planBadge.textContent = `FORFAIT ${plan.name.toUpperCase()}`;
+    if (planBadge) {
+      planBadge.textContent = `FORFAIT ${plan.name.toUpperCase()}`;
+      planBadge.classList.remove('plan-business', 'plan-pro');
+      if (plan.isBusiness) {
+        planBadge.classList.add('plan-business');
+      } else if (plan.isPro) {
+        planBadge.classList.add('plan-pro');
+      }
+    }
+
+    // Initialiser les aperçus des préfixes et l'aperçu apparence
+    this.updatePrefixPreviews();
+    this.updateAppearancePreview();
 
     const planStatusName = document.getElementById('profile-plan-status-name');
     if (planStatusName) planStatusName.textContent = `Forfait ${plan.name.toUpperCase()}`;
@@ -9936,17 +12053,185 @@ window.KivoApp = {
     const headerPlanText = document.getElementById('profile-header-plan-text');
     if (headerPlanText) headerPlanText.textContent = `Forfait ${plan.name.toUpperCase()}`;
 
-    // Sticky save bar status & dirty watcher
-    const statusText = document.getElementById('profile-save-status-text');
-    const statusDot = document.getElementById('profile-status-dot');
-    const stickyBar = document.getElementById('profile-sticky-bar');
-    if (statusText) statusText.textContent = 'Tous les changements sont synchronisés';
-    if (statusDot) statusDot.classList.remove('dirty');
-    if (stickyBar) stickyBar.classList.remove('visible');
+    // Sauvegarder l'état initial des champs pour le dirty state et l'annulation
+    this._snapshotSettingsState();
+
+    // Attacher le dirty watcher aux cartes de paramètres
     this.initProfileDirtyWatcher();
 
     // Activer l'onglet demandé ou "identity" par défaut
     this.switchProfileTab(subTab || 'identity', false);
+  },
+
+  /**
+   * Capture les valeurs actuelles des formulaires pour comparer et annuler
+   */
+  _snapshotSettingsState: function () {
+    this._settingsSnapshot = {};
+    const inputs = document.querySelectorAll('.profile-cards-stack input, .profile-cards-stack select, .profile-cards-stack textarea');
+    inputs.forEach(el => {
+      if (!el.id) return;
+      if (el.type === 'checkbox') {
+        this._settingsSnapshot[el.id] = el.checked;
+      } else {
+        this._settingsSnapshot[el.id] = el.value;
+      }
+    });
+  },
+
+  /**
+   * Met à jour l'aperçu dynamique des préfixes de numérotation
+   */
+  updatePrefixPreviews: function () {
+    const invInput = document.getElementById('setting-biz-prefix');
+    const quoteInput = document.getElementById('setting-biz-quote-prefix');
+    const invPrev = document.getElementById('preview-invoice-prefix');
+    const quotePrev = document.getElementById('preview-quote-prefix');
+
+    const invPrefix = (invInput && invInput.value.trim()) || 'FAC-2026-';
+    const quotePrefix = (quoteInput && quoteInput.value.trim()) || 'DEV-2026-';
+
+    if (invPrev) invPrev.textContent = `Prochaine facture : ${invPrefix}0001`;
+    if (quotePrev) quotePrev.textContent = `Prochain devis : ${quotePrefix}0001`;
+  },
+
+  /**
+   * Met à jour en direct le mini-aperçu PDF dans l'onglet Apparence
+   */
+  updateAppearancePreview: function () {
+    const primInput = document.getElementById('setting-biz-primary-color');
+    const secInput = document.getElementById('setting-biz-secondary-color');
+    const primColor = (primInput && primInput.value) || '#4F46E5';
+    const secColor = (secInput && secInput.value) || '#64748B';
+
+    const headerEl = document.getElementById('appearance-preview-header');
+    const titleEl = document.getElementById('appearance-preview-title');
+    const logoEl = document.getElementById('appearance-preview-logo');
+    const thEl = document.getElementById('appearance-preview-table-th');
+
+    if (headerEl) headerEl.style.borderColor = secColor;
+    if (titleEl) titleEl.style.color = primColor;
+    if (logoEl) {
+      logoEl.style.color = primColor;
+      logoEl.style.background = `${primColor}15`;
+    }
+    if (thEl) thEl.style.background = primColor;
+  },
+
+  /**
+   * Ouvre ou ferme le tiroir accordéon d'un moyen de paiement
+   */
+  togglePaymentMethodCard: function (type) {
+    const card = document.getElementById(`card-pm-${type}`);
+    if (card) {
+      card.classList.toggle('active');
+    }
+  },
+
+  /**
+   * Déclenche l'accordéon automatique quand le toggle change
+   */
+  onPaymentToggleChange: function (type) {
+    const toggle = document.getElementById(`setting-pm-${type}-active`);
+    const card = document.getElementById(`card-pm-${type}`);
+    if (toggle && card) {
+      if (toggle.checked) {
+        card.classList.add('active');
+      } else {
+        card.classList.remove('active');
+      }
+    }
+    this.markSettingsDirty();
+  },
+
+  /**
+   * Bascule l'activation du 2FA
+   */
+  toggle2FA: function (enabled) {
+    const badge = document.getElementById('setting-2fa-status-badge');
+    if (badge) {
+      badge.textContent = enabled ? 'Activée' : 'Désactivée';
+      badge.style.background = enabled ? '#DCFCE7' : '#F1F5F9';
+      badge.style.color = enabled ? '#15803D' : '#64748B';
+    }
+    this.markSettingsDirty();
+  },
+
+  /**
+   * Réinitialise les champs d'un onglet à leur valeur d'origine
+   */
+  resetSettingsFields: function (tabKey) {
+    if (!this._settingsSnapshot) return;
+    const tabMap = {
+      'identity': 'card-profile-identity',
+      'contact': 'card-profile-contact',
+      'legal': 'card-profile-legal',
+      'billing': 'card-profile-billing',
+      'payments': 'card-profile-payments',
+      'appearance': 'card-profile-appearance',
+      'notifications': 'card-profile-notifications'
+    };
+    const cardId = tabMap[tabKey];
+    const card = cardId ? document.getElementById(cardId) : null;
+    if (!card) return;
+
+    // Retirer les erreurs
+    card.querySelectorAll('.has-error').forEach(el => el.classList.remove('has-error'));
+    card.querySelectorAll('.profile-field-error-msg').forEach(el => el.classList.remove('visible'));
+
+    const inputs = card.querySelectorAll('input, select, textarea');
+    inputs.forEach(el => {
+      if (!el.id || this._settingsSnapshot[el.id] === undefined) return;
+      if (el.type === 'checkbox') {
+        el.checked = this._settingsSnapshot[el.id];
+      } else {
+        el.value = this._settingsSnapshot[el.id];
+      }
+    });
+
+    // Mettre à jour les aperçus associés
+    this.updatePrefixPreviews();
+    this.updateAppearancePreview();
+
+    // Vérifier l'état dirty
+    this.checkSettingsDirtyState();
+    this.showToast('Modifications annulées.', 'info');
+  },
+
+  /**
+   * Active ou désactive les boutons Enregistrer / Annuler selon les modifications
+   */
+  checkSettingsDirtyState: function () {
+    if (!this._settingsSnapshot) return;
+    let isDirty = false;
+    const inputs = document.querySelectorAll('.profile-cards-stack input, .profile-cards-stack select, .profile-cards-stack textarea');
+    for (let el of inputs) {
+      if (!el.id || this._settingsSnapshot[el.id] === undefined) continue;
+      const currentVal = (el.type === 'checkbox') ? el.checked : el.value;
+      if (currentVal !== this._settingsSnapshot[el.id]) {
+        isDirty = true;
+        break;
+      }
+    }
+
+    // Activer / désactiver les boutons
+    document.querySelectorAll('.profile-btn-save, .profile-btn-cancel').forEach(btn => {
+      btn.disabled = !isDirty;
+    });
+
+    // Sticky save bar
+    const stickyBar = document.getElementById('profile-sticky-bar');
+    const statusText = document.getElementById('profile-save-status-text');
+    const statusDot = document.getElementById('profile-status-dot');
+    if (stickyBar) stickyBar.classList.toggle('visible', isDirty);
+    if (statusDot) statusDot.classList.toggle('dirty', isDirty);
+    if (statusText) {
+      statusText.textContent = isDirty ? 'Modifications non enregistrées' : 'Tous les changements sont synchronisés';
+    }
+  },
+
+  markSettingsDirty: function () {
+    this.checkSettingsDirtyState();
   },
 
   /**
@@ -10118,6 +12403,9 @@ window.KivoApp = {
       setTimeout(() => {
         activeCard.style.opacity = '1';
       }, 20);
+      if (target.key === 'plan') {
+        this.renderProfilePlanSection();
+      }
     }
 
     // Mettre à jour la pastille active dans le menu de gauche
@@ -10138,17 +12426,12 @@ window.KivoApp = {
   },
 
   initProfileDirtyWatcher: function () {
-    const profileView = document.getElementById('view-profile');
+    const profileView = document.getElementById('view-settings');
     if (!profileView || profileView._dirtyWatcherAttached) return;
     profileView._dirtyWatcherAttached = true;
 
     const onInputChange = () => {
-      const stickyBar = document.getElementById('profile-sticky-bar');
-      const statusText = document.getElementById('profile-save-status-text');
-      const statusDot = document.getElementById('profile-status-dot');
-      if (stickyBar) stickyBar.classList.add('visible');
-      if (statusDot) statusDot.classList.add('dirty');
-      if (statusText) statusText.textContent = 'Modifications non enregistrées';
+      this.checkSettingsDirtyState();
     };
 
     profileView.addEventListener('input', onInputChange);
@@ -10290,8 +12573,36 @@ window.KivoApp = {
     this.openModal('modal-connected-accounts');
   },
 
-  saveSettings: function () {
+  saveSettings: function (sourceTab) {
     const biz = this.state.business = this.state.business || {};
+
+    // Validation des champs obligatoires
+    let hasError = false;
+    const validateRequired = (id, errId) => {
+      const el = document.getElementById(id);
+      const errEl = document.getElementById(errId);
+      if (el) {
+        if (!el.value || !el.value.trim()) {
+          el.classList.add('has-error');
+          if (errEl) errEl.classList.add('visible');
+          hasError = true;
+        } else {
+          el.classList.remove('has-error');
+          if (errEl) errEl.classList.remove('visible');
+        }
+      }
+    };
+
+    validateRequired('setting-biz-name', 'err-setting-biz-name');
+    validateRequired('setting-biz-owner', 'err-setting-biz-owner');
+    validateRequired('setting-biz-email', 'err-setting-biz-email');
+
+    if (hasError) {
+      this.showToast('Veuillez renseigner tous les champs obligatoires (*)', 'error');
+      // Rediriger vers l'onglet identité si nécessaire
+      this.switchProfileTab('identity', false);
+      return;
+    }
 
     // 1. Informations personnelles
     if (document.getElementById('setting-biz-owner')) biz.owner = document.getElementById('setting-biz-owner').value.trim();
@@ -10342,31 +12653,69 @@ window.KivoApp = {
     if (document.getElementById('setting-biz-prefix')) biz.invoicePrefix = document.getElementById('setting-biz-prefix').value.trim();
     if (document.getElementById('setting-biz-quote-prefix')) biz.quotePrefix = document.getElementById('setting-biz-quote-prefix').value.trim();
 
-    // 5. Coordonnées bancaires & Moyens de paiement dynamiques
+    // 5. Coordonnées bancaires & Moyens de paiement
     biz.bankDetails = biz.bankDetails || {};
+    const bankActive = document.getElementById('setting-pm-bank-active')?.checked;
+    biz.bankDetails.active = !!bankActive;
     if (document.getElementById('setting-bank-name')) biz.bankDetails.bankName = document.getElementById('setting-bank-name').value.trim();
     if (document.getElementById('setting-bank-account-name')) biz.bankDetails.accountName = document.getElementById('setting-bank-account-name').value.trim();
+    if (document.getElementById('setting-bank-number')) biz.bankDetails.accountNumber = document.getElementById('setting-bank-number').value.trim();
     if (document.getElementById('setting-bank-iban')) biz.bankDetails.iban = document.getElementById('setting-bank-iban').value.trim();
     if (document.getElementById('setting-bank-bic')) biz.bankDetails.bic = document.getElementById('setting-bank-bic').value.trim();
 
-    // Extraction des moyens de paiement dynamiques
-    const pmRows = document.querySelectorAll('#profile-payment-methods-list .payment-method-row');
-    const savedMethods = [];
-    pmRows.forEach(row => {
-      const type = row.querySelector('.pm-type')?.value || 'Autre';
-      const name = row.querySelector('.pm-name')?.value.trim() || '';
-      const val = row.querySelector('.pm-val')?.value.trim() || '';
-      if (name || val) {
-        savedMethods.push({ type, name, value: val });
-      }
-    });
-    biz.paymentMethods = savedMethods;
+    // Mobile Money
+    const momoActive = document.getElementById('setting-pm-momo-active')?.checked;
+    biz.bankDetails.mobileMoney = biz.bankDetails.mobileMoney || {};
+    biz.bankDetails.mobileMoney.active = !!momoActive;
+    if (document.getElementById('setting-pm-momo-operator')) biz.bankDetails.mobileMoney.operator = document.getElementById('setting-pm-momo-operator').value;
+    if (document.getElementById('setting-pm-momo-phone')) {
+      const mPhone = document.getElementById('setting-pm-momo-phone').value.trim();
+      biz.bankDetails.mobileMoney.phone = mPhone;
+      const op = biz.bankDetails.mobileMoney.operator;
+      if (op === 'Wave') biz.bankDetails.mobileMoney.wave = mPhone;
+      else if (op === 'Orange Money') biz.bankDetails.mobileMoney.orangeMoney = mPhone;
+      else if (op === 'MTN MoMo') biz.bankDetails.mobileMoney.mtn = mPhone;
+    }
+    if (document.getElementById('setting-pm-momo-holder')) biz.bankDetails.mobileMoney.holder = document.getElementById('setting-pm-momo-holder').value.trim();
 
-    // 6. Notifications (Désactivées avec badge Business & Bientôt — ne s'enregistrent plus comme actives)
+    // Espèces (Cash)
+    const cashActive = document.getElementById('setting-pm-cash-active')?.checked;
+    biz.bankDetails.cash = biz.bankDetails.cash || {};
+    biz.bankDetails.cash.active = !!cashActive;
+    biz.bankDetails.cash.notice = document.getElementById('setting-pm-cash-notice')?.value || 'Paiement en espèces à la livraison ou au comptoir';
+
+    // Chèque
+    const checkActive = document.getElementById('setting-pm-check-active')?.checked;
+    biz.bankDetails.check = biz.bankDetails.check || {};
+    biz.bankDetails.check.active = !!checkActive;
+    if (document.getElementById('setting-pm-check-payable')) biz.bankDetails.check.payable = document.getElementById('setting-pm-check-payable').value.trim();
+    if (document.getElementById('setting-pm-check-address')) biz.bankDetails.check.address = document.getElementById('setting-pm-check-address').value.trim();
+
+    // Carte bancaire / En ligne
+    const cardActive = document.getElementById('setting-pm-card-active')?.checked;
+    biz.bankDetails.card = biz.bankDetails.card || {};
+    biz.bankDetails.card.active = !!cardActive;
+    if (document.getElementById('setting-pm-card-provider')) biz.bankDetails.card.provider = document.getElementById('setting-pm-card-provider').value;
+    if (document.getElementById('setting-pm-card-link')) biz.bankDetails.card.paymentLink = document.getElementById('setting-pm-card-link').value.trim();
+    if (document.getElementById('setting-pm-card-api-key')) biz.bankDetails.card.apiKey = document.getElementById('setting-pm-card-api-key').value.trim();
+    if (document.getElementById('setting-pm-card-notice')) biz.bankDetails.card.notice = document.getElementById('setting-pm-card-notice').value.trim();
+
+    // 2FA
+    biz.twoFactorEnabled = !!document.getElementById('setting-security-2fa')?.checked;
+
+    // 6. Notifications (Désactivées avec badge Business & Bientôt)
     biz.notifications = biz.notifications || {};
     biz.notifications.notifyDocSent = false;
     biz.notifications.notifyReminder = false;
     biz.notifications.notifyPayment = false;
+
+    this.saveState();
+    this.updatePlanUsageBadge();
+    this.updateUserBrandingUI();
+
+    // Actualiser le snapshot initial pour refléter l'état sauvegardé (désactiver les boutons)
+    this._snapshotSettingsState();
+    this.checkSettingsDirtyState();
 
     this.saveState();
     this.updatePlanUsageBadge();
@@ -10413,10 +12762,11 @@ window.KivoApp = {
         console.log('[KivoApp] Settings saved to Supabase');
       }).catch(err => {
         console.warn('[KivoApp] Supabase settings sync error:', err);
+        this.showToast('Une erreur est survenue, veuillez réessayer', 'error');
       });
     }
 
-    this.showToast('Paramètres et profil enregistrés avec succès !', 'success');
+    this.showToast('Modifications enregistrées avec succès', 'success');
   },
 
   handleProfileLogoUpload: function (files) {
@@ -10471,21 +12821,59 @@ window.KivoApp = {
   // handleLogoUpload is defined below (FileReader + extractColors version)
 
   openModal: function (modalId) {
+    console.log('[DEBUG-MODAL] Ouverture demandée pour:', modalId);
     const el = document.getElementById(modalId);
-    if (el) {
-      el.classList.add('active');
-      el.style.display = 'flex';
-      el.style.visibility = 'visible';
+    if (!el) {
+      console.error('[DEBUG-MODAL] ERREUR: élément introuvable pour id=', modalId);
+      return;
     }
+    // ── FORÇAGE DIRECT EN JS avec !important (contourne TOUT conflit CSS/style inline résiduel) ──
+    el.classList.add('active');
+    el.style.setProperty('display', 'flex', 'important');
+    el.style.setProperty('visibility', 'visible', 'important');
+    el.style.setProperty('opacity', '1', 'important');
+    el.style.setProperty('pointer-events', 'auto', 'important');
+    el.style.setProperty('z-index', '99999', 'important');
+    // Garde anti-fermeture accidentelle pendant les 350ms suivant l'ouverture
+    el.dataset.openedAt = Date.now().toString();
+    try {
+      const cs = window.getComputedStyle(el);
+      console.log('[DEBUG-MODAL] Modale affichée. display computed:', cs.display, 'opacity:', cs.opacity, 'z-index:', cs.zIndex, 'pointerEvents:', cs.pointerEvents);
+    } catch (_) {}
   },
 
-  closeModal: function (modalId) {
+  closeModal: function (modalId, force = false) {
+    console.log('[DEBUG-MODAL] Fermeture demandée pour:', modalId, 'trace:', new Error().stack);
     const el = document.getElementById(modalId);
-    if (el) {
-      el.classList.remove('active');
-      el.style.display = '';
-      el.style.visibility = '';
+    if (!el) {
+      console.warn('[DEBUG-MODAL] WARN: élément introuvable pour closeModal id=', modalId);
+      // Toujours déverrouiller le scroll même si la modale est introuvable
+      document.body.style.overflow = '';
+      document.body.classList.remove('modal-open', 'no-scroll');
+      return;
     }
+    if (!force) {
+      const openedAt = parseInt(el.dataset.openedAt || '0', 10);
+      const delta = Date.now() - openedAt;
+      if (delta < 350) {
+        console.warn('[DEBUG-MODAL] Fermeture ignorée (trop proche de l\'ouverture, delta: ' + delta + 'ms).');
+        return;
+      }
+    }
+    el.classList.remove('active');
+    // Nettoyer les styles inline forcés par openModal
+    el.style.removeProperty('display');
+    el.style.removeProperty('visibility');
+    el.style.removeProperty('opacity');
+    el.style.removeProperty('pointer-events');
+    el.style.removeProperty('z-index');
+    // ── SÉCURITÉ : toujours déverrouiller le scroll du body à la fermeture ──
+    document.body.style.overflow = '';
+    document.body.classList.remove('modal-open', 'no-scroll');
+    try {
+      const cs = window.getComputedStyle(el);
+      console.log('[DEBUG-MODAL] Modale fermée. display computed:', cs.display, 'opacity:', cs.opacity);
+    } catch (_) {}
   },
 
 
@@ -10966,6 +13354,13 @@ window.KivoApp = {
     const existingId = (document.getElementById('new-cli-id') || {}).value || '';
     const isEdit = !!existingId;
 
+    // RÈGLE B1 & B2 : Vérification du quota de clients pour le Forfait Gratuit (3 clients max)
+    if (!isEdit && !this.canUse('create_client')) {
+      this.closeModal('modal-new-client');
+      this.showUpgradePrompt('create_client');
+      return;
+    }
+
     const newClient = {
       id: isEdit ? existingId : this.generateUUID(),
       name: name,
@@ -11218,6 +13613,9 @@ window.KivoApp = {
     const sInput = document.getElementById('builder-color-secondary');
     const secondary = sInput ? sInput.value : (biz.secondaryColor || '#64748B');
 
+    const bgInput = document.getElementById('builder-color-bg');
+    const docBg = bgInput ? bgInput.value : (biz.docBgColor || '#FFFFFF');
+
     // Apply classes to both the builder preview and the public view
     const containers = [
       document.getElementById('live-paper-preview-container'),
@@ -11236,6 +13634,7 @@ window.KivoApp = {
       // Apply CSS variables
       container.style.setProperty('--doc-primary', primary);
       container.style.setProperty('--doc-secondary', secondary);
+      container.style.setProperty('--doc-bg', docBg);
       
       // Auto-calculate text color for primary background
       const hex = primary.replace('#', '');
@@ -11244,6 +13643,14 @@ window.KivoApp = {
       const b = parseInt(hex.substring(4,6), 16) || 0;
       const luminance = (0.299*r + 0.587*g + 0.114*b) / 255;
       container.style.setProperty('--doc-text', luminance > 0.5 ? '#000000' : '#FFFFFF');
+
+      // Auto-calculate text color for doc background
+      const bgHex = docBg.replace('#', '');
+      const bgR = parseInt(bgHex.substring(0,2), 16) || 255;
+      const bgG = parseInt(bgHex.substring(2,4), 16) || 255;
+      const bgB = parseInt(bgHex.substring(4,6), 16) || 255;
+      const bgLum = (0.299*bgR + 0.587*bgG + 0.114*bgB) / 255;
+      container.style.setProperty('--doc-text-on-bg', bgLum > 0.5 ? '#1E293B' : '#F1F5F9');
     });
 
     // Save to global state so it's persisted on saveSettings
@@ -11335,11 +13742,14 @@ window.KivoApp = {
   onBuilderColorChange: function () {
     const pPicker = document.getElementById('builder-color-primary');
     const sPicker = document.getElementById('builder-color-secondary');
+    const bgPicker = document.getElementById('builder-color-bg');
     const pText = document.getElementById('builder-color-primary-text');
     const sText = document.getElementById('builder-color-secondary-text');
+    const bgText = document.getElementById('builder-color-bg-text');
 
     if (pPicker && pText) pText.value = pPicker.value;
     if (sPicker && sText) sText.value = sPicker.value;
+    if (bgPicker && bgText) bgText.value = bgPicker.value;
 
     this.updateLiveInvoicePreview();
   },
@@ -11352,6 +13762,9 @@ window.KivoApp = {
     if (type === 'primary') {
       const pPicker = document.getElementById('builder-color-primary');
       if (pPicker) pPicker.value = hex;
+    } else if (type === 'bg') {
+      const bgPicker = document.getElementById('builder-color-bg');
+      if (bgPicker) bgPicker.value = hex;
     } else {
       const sPicker = document.getElementById('builder-color-secondary');
       if (sPicker) sPicker.value = hex;
@@ -11762,10 +14175,10 @@ window.KivoApp = {
         subject: targetDoc.subject || meta.subject || '',
         showSubject: targetDoc.showSubject !== undefined ? !!targetDoc.showSubject : (meta.showSubject !== undefined ? !!meta.showSubject : true),
         showLogo: targetDoc.showLogo !== undefined ? !!targetDoc.showLogo : (meta.showLogo !== undefined ? !!meta.showLogo : true),
-        paymentMethod: targetDoc.paymentMethod || meta.paymentMethod || 'Virement bancaire',
+        paymentMethod: targetDoc.paymentMethod || meta.paymentMethod || '',
         paymentDetails: targetDoc.paymentDetails || meta.paymentDetails || '',
         showPaymentMethods: targetDoc.showPaymentMethods !== undefined ? !!targetDoc.showPaymentMethods : (meta.showPaymentMethods !== undefined ? !!meta.showPaymentMethods : true),
-        terms: targetDoc.terms || targetDoc.conditions || meta.terms || 'À réception',
+        terms: targetDoc.terms || targetDoc.conditions || meta.terms || '',
         notes: targetDoc.notes || meta.notes || '',
         showNotes: targetDoc.showNotes !== undefined ? !!targetDoc.showNotes : (meta.showNotes !== undefined ? !!meta.showNotes : true),
         thankYouText: targetDoc.thankYouText || meta.thankYouText || 'Merci pour votre confiance !',
@@ -11814,12 +14227,14 @@ window.KivoApp = {
         balanceDue: balanceDue,
         currency: currencyStr,
         primaryColor: targetDoc.primaryColor || meta.primaryColor || biz.primaryColor || '#0F172A',
-        secondaryColor: targetDoc.secondaryColor || meta.secondaryColor || biz.secondaryColor || '#64748B'
+        secondaryColor: targetDoc.secondaryColor || meta.secondaryColor || biz.secondaryColor || '#64748B',
+        bgColor: targetDoc.bgColor || meta.bgColor || biz.docBgColor || (templateId === 'premium' ? '#181A20' : '#FFFFFF')
       };
 
+      const docBg = docData.bgColor;
       const filename = ((targetDoc.number || 'facture_KIVO').trim().replace(/[^a-zA-Z0-9-_]/g, '_')) + '.pdf';
       const renderedHtml = window.KivoTemplates ? window.KivoTemplates.render(templateId, docData) : '';
-      return { renderedHtml, filename, templateId, docData };
+      return { renderedHtml, filename, templateId, docData, bgColor: docBg };
     }
 
     // Sans argument : état courant du builder (y compris avant d'enregistrer)
@@ -11827,6 +14242,7 @@ window.KivoApp = {
     if (window.KivoTemplates && typeof window.KivoTemplates.collectData === 'function') {
       builderData = window.KivoTemplates.collectData(this.state);
     }
+    const docBg = (builderData && builderData.bgColor) || (document.getElementById('builder-color-bg')?.value) || biz.docBgColor || (templateId === 'premium' ? '#181A20' : '#FFFFFF');
     const builderNum = (builderData && builderData.docNum) || (document.getElementById('builder-doc-number') || {}).value || 'facture_KIVO';
     const filename = (builderNum.trim().replace(/[^a-zA-Z0-9-_]/g, '_')) + '.pdf';
     let renderedHtml = '';
@@ -11837,15 +14253,15 @@ window.KivoApp = {
       const sourceEl = document.getElementById('live-paper-preview-container') || document.getElementById('public-doc-printable-area');
       if (sourceEl) renderedHtml = sourceEl.innerHTML;
     }
-    return { renderedHtml, filename, templateId };
+    return { renderedHtml, filename, templateId, docData: builderData, bgColor: docBg };
   },
 
   /**
    * Crée et prépare l'iframe hors écran pour html2canvas / impression
    */
-  _preparePdfIframe: async function (renderedHtml, templateId) {
+  _preparePdfIframe: async function (renderedHtml, templateId, customBgColor) {
     const isDark = (templateId === 'premium');
-    const bgColor = isDark ? '#181A20' : '#FFFFFF';
+    const bgColor = customBgColor || (isDark ? '#181A20' : '#FFFFFF');
 
     const iframe = document.createElement('iframe');
     iframe.id = 'kivo-pdf-render-frame';
@@ -11961,14 +14377,14 @@ window.KivoApp = {
       document.body.appendChild(overlay);
 
       // 2. Extraire données et HTML du document
-      const { renderedHtml, filename, templateId } = this._getDocForRender(targetDocOrId);
+      const { renderedHtml, filename, templateId, bgColor: extractedBg } = this._getDocForRender(targetDocOrId);
       if (!renderedHtml) {
         this.showToast(this._t('toast_doc_no_download'), "error");
         return;
       }
 
       // 3. Monter dans l'iframe hors écran et attendre les ressources
-      const prep = await this._preparePdfIframe(renderedHtml, templateId);
+      const prep = await this._preparePdfIframe(renderedHtml, templateId, extractedBg);
       iframe = prep.iframe;
       const iframeDoc = prep.iframeDoc;
       const bgColor = prep.bgColor;
@@ -12101,13 +14517,13 @@ window.KivoApp = {
       `;
       document.body.appendChild(overlay);
 
-      const { renderedHtml, templateId } = this._getDocForRender(targetDocOrId);
+      const { renderedHtml, templateId, bgColor: extractedBg } = this._getDocForRender(targetDocOrId);
       if (!renderedHtml) {
         this.showToast(this._t('toast_doc_no_print'), "error");
         return;
       }
 
-      const prep = await this._preparePdfIframe(renderedHtml, templateId);
+      const prep = await this._preparePdfIframe(renderedHtml, templateId, extractedBg);
       iframe = prep.iframe;
 
       if (overlay && overlay.parentNode) {
@@ -12176,6 +14592,7 @@ window.KivoApp = {
    * Toggles monthly / annual billing display on the pricing page
    */
   togglePricingBilling: function (billingType) {
+    this._currentPricingCycle = (billingType === 'annual') ? 'annual' : 'monthly';
     const monthlyBtn = document.getElementById('toggle-billing-monthly');
     const annualBtn = document.getElementById('toggle-billing-annual');
     const priceValFree = document.getElementById('price-val-free');
@@ -12205,40 +14622,333 @@ window.KivoApp = {
       monthlyBtn.classList.remove('active');
       if (priceValFree) priceValFree.textContent = '0 FCFA';
       if (pricePeriodFree) pricePeriodFree.textContent = '/ an';
-      // PRO ANNUEL: 38 380 FCFA / an (soit 3 190 FCFA / mois · -20%)
-      if (priceValPro) priceValPro.textContent = '38 380 FCFA';
+      // PRO ANNUEL (B1) : 38 300 FCFA / an (-20%, arrondi à 100)
+      if (priceValPro) priceValPro.textContent = '38 300 FCFA';
       if (pricePeriodPro) pricePeriodPro.textContent = '/ an';
-      if (priceConvPro) priceConvPro.textContent = 'soit 3 190 FCFA / mois (-20%)';
-      // BUSINESS ANNUEL: 95 880 FCFA / an (soit 7 990 FCFA / mois · -20%)
-      if (priceValBiz) priceValBiz.textContent = '95 880 FCFA';
+      if (priceConvPro) priceConvPro.textContent = 'soit 3 192 FCFA / mois (-20%)';
+      // BUSINESS ANNUEL (B1) : 95 900 FCFA / an (-20%, arrondi à 100)
+      if (priceValBiz) priceValBiz.textContent = '95 900 FCFA';
       if (pricePeriodBiz) pricePeriodBiz.textContent = '/ an';
-      if (priceConvBiz) priceConvBiz.textContent = 'soit 7 990 FCFA / mois (-20%) · +1 500 FCFA/membre sup.';
+      if (priceConvBiz) priceConvBiz.textContent = 'soit 7 992 FCFA / mois (-20%) · +1 500 FCFA/membre sup.';
     }
   },
 
   /**
-   * Switch subscription tier (saves in state & shows toast)
+   * Switch subscription tier ou lance le paiement API selon le plan
    */
   switchSubscriptionTier: function (tier) {
-    if (!this.state) this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
-    if (!this.state.business) this.state.business = {};
-    this.state.business.subscriptionTier = tier;
-    this.saveState();
+    const targetPlan = String(tier).toLowerCase();
+    const currentPlan = this.getPlan();
 
-    const labels = { 'Gratuit': 'Free', 'Pro': 'Pro', 'Business': 'Business' };
-    const label = labels[tier] || tier;
-    this.showToast(this._t('toast_plan_activated').replace('{plan}', label), 'success');
+    if (targetPlan === 'gratuit' || targetPlan === 'free') {
+      // Downgrade vers Gratuit
+      // RÈGLE B3 : Business → autre plan avec plusieurs membres : les membres excédentaires sont suspendus (pas supprimés), le propriétaire est averti avant confirmation.
+      if (currentPlan.isBusiness) {
+        const teamMembers = (this.state && this.state.business && this.state.business.teamMembers) || this._teamMembers || [];
+        if (teamMembers.length > 0) {
+          const confirmed = confirm(
+            `Attention : le passage au forfait Gratuit désactivera les 5 sièges d'équipe. Vos ${teamMembers.length} collaborateur(s) invité(s) seront suspendus (aucune donnée supprimée). Confirmez-vous le passage au forfait Gratuit ?`
+          );
+          if (!confirmed) return;
+        }
+      }
 
-    // Log activity
-    if (!this.state.activities) this.state.activities = [];
-    this.state.activities.unshift({
-      id: Date.now().toString(),
-      type: 'subscription',
-      text: `Forfait changé vers ${label}`,
-      date: new Date().toISOString()
-    });
-    this.saveState();
-    this.renderPricingPage();
+      if (!this.state) this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
+      if (!this.state.business) this.state.business = {};
+      this.state.business.subscriptionTier = 'Gratuit';
+      this.state.business.current_plan = 'gratuit';
+      this.saveState();
+
+      if (window.KivoDb && this.supabaseConnected && window.KivoAuth?.user) {
+        window.KivoDb.saveSettings({ current_plan: 'gratuit', subscription_tier: 'gratuit' }).catch(() => {});
+      }
+
+      this.showToast('Forfait Gratuit activé.', 'info');
+      this.renderPricingPage();
+      this.updatePlanUsageBadge();
+      return;
+    }
+
+    // Pour Pro ou Business : ouvrir la modale de paiement sécurisé
+    const cycle = this._currentPricingCycle || 'monthly';
+    this.openSubscriptionCheckout(targetPlan, cycle);
+  },
+
+  /**
+   * Ouvre la modale de paiement d'abonnement KIVO MATIQUE
+   */
+  openSubscriptionCheckout: function (planId, cycle = 'monthly') {
+    const plansModule = window.KivoPlans;
+    const plan = plansModule ? plansModule.getPlan(planId) : { id: planId, name: planId.toUpperCase() };
+    const priceInfo = plansModule ? plansModule.calculateSubscriptionPrice(planId, cycle) : { total: planId === 'pro' ? 3990 : 9990, currency: 'FCFA' };
+
+    this._pendingSubCheckout = {
+      planId: plan.id,
+      cycle: cycle,
+      amount: priceInfo.total,
+      currency: priceInfo.currency || 'FCFA'
+    };
+
+    const titleEl = document.getElementById('sub-modal-title');
+    const planLblEl = document.getElementById('sub-modal-plan-label');
+    const amountEl = document.getElementById('sub-modal-amount');
+    const cycleBadgeEl = document.getElementById('sub-modal-cycle-badge');
+    const sandboxBanner = document.getElementById('sub-modal-sandbox-banner');
+
+    if (titleEl) titleEl.textContent = `Passer au forfait ${plan.name}`;
+    if (planLblEl) planLblEl.textContent = `Abonnement KIVO ${plan.name.toUpperCase()}`;
+    if (amountEl) amountEl.textContent = `${priceInfo.total.toLocaleString('fr-FR')} ${priceInfo.currency || 'FCFA'}`;
+    if (cycleBadgeEl) {
+      cycleBadgeEl.textContent = (cycle === 'annual') ? 'Paiement pour 12 mois' : 'Paiement pour 1 mois';
+    }
+
+    // Détection Sandbox
+    const isSandbox = true; // Par défaut sandbox actif en test
+    if (sandboxBanner) sandboxBanner.style.display = isSandbox ? 'flex' : 'none';
+
+    // Remplir les passerelles selon le pays de l'utilisateur
+    const userCountry = (this.state && this.state.business && this.state.business.country) || 'CG';
+    const gateways = plansModule ? plansModule.getGatewaysForCountry(userCountry) : [];
+    const listEl = document.getElementById('sub-modal-gateways-list');
+
+    if (listEl) {
+      listEl.innerHTML = gateways.map(g => `
+        <button class="add-seat-method-btn" data-gateway="${g.id}" onclick="KivoApp.selectSubPayGateway('${g.id}')"
+          style="display:flex;align-items:center;justify-content:space-between;padding:0.8rem 1rem;border:2px solid var(--border-color,#E5E7EB);border-radius:10px;background:var(--bg-card,#fff);cursor:pointer;text-align:left;">
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <span style="font-size:1.3rem;">${g.type === 'card' ? '💳' : (g.operator === 'MTN' ? '💛' : (g.operator === 'Airtel' ? '🔴' : '📱'))}</span>
+            <div>
+              <strong style="display:block;font-size:0.9rem;color:var(--text-primary);">${g.name}</strong>
+              <span style="font-size:0.75rem;color:var(--text-secondary);">${g.description}</span>
+            </div>
+          </div>
+          <span class="badge badge-accepted" style="font-size:0.7rem;padding:2px 8px;">${g.badge}</span>
+        </button>
+      `).join('');
+    }
+
+    // Réinitialiser les étapes
+    const stepMethod = document.getElementById('sub-step-method');
+    const stepConfirm = document.getElementById('sub-step-confirm');
+    const stepProcessing = document.getElementById('sub-step-processing');
+    if (stepMethod) stepMethod.style.display = 'block';
+    if (stepConfirm) stepConfirm.style.display = 'none';
+    if (stepProcessing) stepProcessing.style.display = 'none';
+
+    this.openModal('modal-subscription-checkout');
+  },
+
+  selectSubPayGateway: function (gatewayId) {
+    this._selectedSubGateway = gatewayId;
+    const stepMethod = document.getElementById('sub-step-method');
+    const stepConfirm = document.getElementById('sub-step-confirm');
+    const inputGroup = document.getElementById('sub-input-group');
+    const labelEl = document.getElementById('sub-input-label');
+    const phoneInput = document.getElementById('sub-phone-input');
+
+    if (stepMethod) stepMethod.style.display = 'none';
+    if (stepConfirm) stepConfirm.style.display = 'block';
+
+    if (gatewayId === 'stripe') {
+      if (inputGroup) inputGroup.style.display = 'none';
+    } else {
+      if (inputGroup) inputGroup.style.display = 'block';
+      if (labelEl) labelEl.textContent = 'Numéro de téléphone Mobile Money';
+      if (phoneInput) {
+        phoneInput.placeholder = '+242 06 000 00 00';
+        phoneInput.value = (this.state && this.state.business && this.state.business.phone) || '';
+      }
+    }
+  },
+
+  backToSubMethod: function () {
+    const stepMethod = document.getElementById('sub-step-method');
+    const stepConfirm = document.getElementById('sub-step-confirm');
+    if (stepMethod) stepMethod.style.display = 'block';
+    if (stepConfirm) stepConfirm.style.display = 'none';
+  },
+
+  confirmSubscriptionPayment: async function () {
+    const checkout = this._pendingSubCheckout;
+    if (!checkout) return;
+
+    const gateway = this._selectedSubGateway || 'stripe';
+    const phoneInput = document.getElementById('sub-phone-input');
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+
+    const stepConfirm = document.getElementById('sub-step-confirm');
+    const stepProcessing = document.getElementById('sub-step-processing');
+    if (stepConfirm) stepConfirm.style.display = 'none';
+    if (stepProcessing) stepProcessing.style.display = 'block';
+
+    const self = this;
+    try {
+      const token = (window.KivoAuth && window.KivoAuth.token) || '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      // 1. Initialisation via /api/payments/create
+      const createRes = await fetch('/api/payments/create', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          planId: checkout.planId,
+          cycle: checkout.cycle,
+          provider: gateway,
+          phone: phone,
+          returnUrl: window.location.origin + window.location.pathname
+        })
+      });
+
+      const createData = await createRes.json();
+      const paymentId = createData.paymentId;
+
+      // 2. Vérification et activation via /api/payments/verify
+      const verifyRes = await fetch('/api/payments/verify', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          paymentId: paymentId,
+          provider: gateway,
+          planId: checkout.planId,
+          cycle: checkout.cycle,
+          amount: checkout.amount
+        })
+      });
+
+      const verifyData = await verifyRes.json();
+
+      if (verifyData.success && verifyData.status === 'succeeded') {
+        // Succès confirmé côté serveur
+        if (!self.state.business) self.state.business = {};
+        const capPlan = checkout.planId === 'business' ? 'Business' : 'Pro';
+        self.state.business.subscriptionTier = capPlan;
+        self.state.business.current_plan = checkout.planId;
+        self.state.business.subscription_status = 'active';
+
+        const now = new Date();
+        const periodEnd = (window.KivoPlans && typeof window.KivoPlans.calculatePeriodEnd === 'function')
+          ? window.KivoPlans.calculatePeriodEnd(now, checkout.cycle)
+          : new Date(now.setMonth(now.getMonth() + 1)).toISOString();
+
+        self.state.business.plan_period_end = periodEnd;
+        self.state.business.plan_expires_at = periodEnd;
+        self.saveState();
+
+        self.closeModal('modal-subscription-checkout');
+        self.showToast(`Félicitations ! Votre forfait ${capPlan} est désormais actif.`, 'success');
+        self.renderPricingPage();
+        self.updatePlanUsageBadge();
+      } else {
+        self.closeModal('modal-subscription-checkout');
+        self.showToast(verifyData.message || 'Le paiement n\'a pas pu être validé. Veuillez réessayer.', 'warning');
+      }
+    } catch (err) {
+      console.warn('[Subscription Payment API Fallback Sandbox]:', err);
+      // Fallback sandbox local si hors ligne
+      if (!self.state.business) self.state.business = {};
+      const capPlan = checkout.planId === 'business' ? 'Business' : 'Pro';
+      self.state.business.subscriptionTier = capPlan;
+      self.state.business.current_plan = checkout.planId;
+      self.saveState();
+      self.closeModal('modal-subscription-checkout');
+      self.showToast(`Forfait ${capPlan} activé avec succès (Mode Test).`, 'success');
+      self.renderPricingPage();
+      self.updatePlanUsageBadge();
+    }
+  },
+
+  /**
+   * Annulation de l'abonnement à la fin de la période
+   */
+  cancelSubscriptionAtPeriodEnd: async function () {
+    const confirmed = confirm("Êtes-vous sûr de vouloir résilier votre abonnement à la fin de la période en cours ? Vous conserverez vos accès complets jusqu'à la date d'échéance.");
+    if (!confirmed) return;
+
+    try {
+      const token = (window.KivoAuth && window.KivoAuth.token) || '';
+      const res = await fetch('/api/subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action: 'cancel_at_period_end' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (!this.state.business) this.state.business = {};
+        this.state.business.cancel_at_period_end = true;
+        this.saveState();
+        this.showToast(data.message, 'info');
+        this.renderProfilePlanSection();
+      } else {
+        this.showToast(data.error || 'Erreur lors de la résiliation.', 'error');
+      }
+    } catch (_) {
+      if (!this.state.business) this.state.business = {};
+      this.state.business.cancel_at_period_end = true;
+      this.saveState();
+      this.showToast("Votre demande de résiliation à la fin de la période a été enregistrée.", 'info');
+      this.renderProfilePlanSection();
+    }
+  },
+
+  /**
+   * Met à jour dynamiquement la section Forfait & Abonnement (Paramètres > Forfait)
+   */
+  renderProfilePlanSection: function () {
+    const plan = this.getPlan();
+    const biz = (this.state && this.state.business) || {};
+
+    const nameEl = document.getElementById('profile-plan-status-name');
+    const descEl = document.getElementById('profile-plan-status-desc');
+    const cycleEl = document.getElementById('profile-plan-cycle-info');
+    const cancelBtn = document.getElementById('btn-cancel-subscription');
+    const docsKpi = document.getElementById('profile-plan-docs-kpi');
+    const clientsKpi = document.getElementById('profile-plan-clients-kpi');
+    const seatsKpi = document.getElementById('profile-plan-seats-kpi');
+
+    if (nameEl) {
+      nameEl.textContent = `Forfait ${plan.planDef ? plan.planDef.name.toUpperCase() : plan.name.toUpperCase()}`;
+    }
+    if (descEl && plan.planDef) {
+      descEl.textContent = plan.planDef.description;
+    }
+
+    if (cycleEl) {
+      if (plan.isGratuit) {
+        cycleEl.textContent = "Formule gratuite permanente.";
+      } else {
+        const expStr = plan.periodEnd ? new Date(plan.periodEnd).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Période active';
+        if (plan.isPastDue) {
+          cycleEl.innerHTML = `<span style="color:#DC2626;font-weight:700;">⚠️ Paiement en retard — Période de grâce (${plan.graceDaysLeft} jour(s) restant(s)).</span>`;
+        } else if (plan.cancelAtPeriodEnd) {
+          cycleEl.innerHTML = `<span style="color:#D97706;font-weight:600;">Résiliation programmée au ${expStr}.</span>`;
+        } else {
+          cycleEl.textContent = `Renouvellement le ${expStr}.`;
+        }
+      }
+    }
+
+    if (cancelBtn) {
+      cancelBtn.style.display = (!plan.isGratuit && !plan.cancelAtPeriodEnd) ? 'inline-block' : 'none';
+    }
+
+    if (docsKpi) {
+      const docsCount = this.getMonthlyDocsCount();
+      docsKpi.textContent = plan.isGratuit ? `${docsCount} / 3` : `${docsCount} (Illimité)`;
+    }
+
+    if (clientsKpi) {
+      const cliCount = (this.state && this.state.clients) ? this.state.clients.length : 0;
+      clientsKpi.textContent = plan.isGratuit ? `${cliCount} / 3` : `${cliCount} (Illimité)`;
+    }
+
+    if (seatsKpi) {
+      const extraSeats = parseInt(biz.extraSeats || 0, 10);
+      seatsKpi.textContent = plan.isBusiness ? `${5 + extraSeats} sièges inclus` : '1 siège inclus';
+    }
   },
 
   /**

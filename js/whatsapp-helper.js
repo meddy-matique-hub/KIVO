@@ -15,10 +15,14 @@ window.WhatsAppHelper = {
     if (!document) return "";
 
     try {
-      const isQuote = document.type === "quote" || document.type === "devis";
-      const docNum = document.number || (isQuote ? `DEV-${document.id || 'N/A'}` : `FAC-${document.id || 'N/A'}`);
-      const currencyStr = document.currency || (window.KivoApp && window.KivoApp.state && window.KivoApp.state.business && window.KivoApp.state.business.currency) || "FCFA";
-      const rawTotal = (typeof document.total === 'number') ? document.total : (parseFloat(document.total) || 0);
+      const view = (typeof window.buildDocumentView === 'function')
+        ? window.buildDocumentView(document)
+        : null;
+
+      const isQuote = (view && view.doc.type === 'quote') || document.type === "quote" || document.type === "devis";
+      const docNum = (view && view.doc.num) || document.number || (isQuote ? `DEV-${document.id || 'N/A'}` : `FAC-${document.id || 'N/A'}`);
+      const currencyStr = (view && view.totals.currency) || document.currency || (window.KivoApp && window.KivoApp.state && window.KivoApp.state.business && window.KivoApp.state.business.currency) || "FCFA";
+      const rawTotal = view ? view.totals.grandTotal : ((typeof document.total === 'number') ? document.total : (parseFloat(document.total) || 0));
       const totalAmount = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(rawTotal)) + " " + currencyStr;
 
       // URL de partage : vérifie si shareUrl est une chaîne valide, sinon reconstruit à partir du token
@@ -31,29 +35,22 @@ window.WhatsAppHelper = {
       }
 
       const bizName = (typeof businessName === 'string' && businessName.trim())
+        || (view && view.issuer.name)
         || (typeof document.bizName === 'string' && document.bizName.trim())
         || (window.KivoApp && typeof window.KivoApp.getBusinessName === 'function' ? window.KivoApp.getBusinessName() : "")
         || "Notre Entreprise";
 
       // {prenom} = premier mot du nom du client si c'est un particulier ; si société ou vide : "Bonjour,"
       const clientType = (document.clientType || document.client_type || '').toUpperCase();
-      const rawClientName = (document.clientName || document.client_name || '').trim();
+      const rawClientName = ((view && view.client.name) || document.clientName || document.client_name || '').trim();
       const isB2B = clientType === 'B2B' || (!clientType && !rawClientName);
       const prenom = (!isB2B && rawClientName) ? rawClientName.split(/\s+/)[0] : '';
       const salutation = prenom ? `Bonjour ${prenom},` : 'Bonjour,';
 
-      // Échéance
-      let echeance = document.dueDate || document.due_date || document.echeance || '';
+      // Échéance formatée
+      let echeance = (view && (view.doc.dueDateFormatted || view.doc.dueDate)) || document.dueDate || document.due_date || document.echeance || '';
       if (!echeance || echeance === 'undefined') {
-        echeance = document.date || document.issueDate || document.date_issued || 'immédiatement';
-      }
-      if (echeance && echeance !== 'immédiatement') {
-        try {
-          const dt = new Date(echeance);
-          if (!isNaN(dt.getTime())) {
-            echeance = dt.toLocaleDateString('fr-FR');
-          }
-        } catch (_) {}
+        echeance = (view && (view.doc.issueDateFormatted || view.doc.issueDate)) || document.date || document.issueDate || 'immédiatement';
       }
 
       const type = messageType || (document.status === 'overdue' ? 'reminder' : (isQuote ? 'quote' : 'invoice'));

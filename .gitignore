@@ -2,6 +2,11 @@
 node_modules/
 .DS_Store
 
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
 # Temporary & Log files
 *.log
 .vscode/
