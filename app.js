@@ -6999,12 +6999,7 @@ window.KivoApp = {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             Marquer comme payée
           </button>
-        ` : `
-          <button class="btn btn-primary" onclick="KivoApp.openPaymentModal('${doc.id}')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:5px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            Payer en ligne (${(doc.total).toLocaleString('fr-FR')} ${currencyStr})
-          </button>
-        `}
+        ` : ``}
         <button class="btn btn-secondary" onclick="KivoApp.downloadPdf('${doc.id}')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Télécharger PDF
@@ -7064,93 +7059,15 @@ window.KivoApp = {
   /**
    * Payment provider modal checkout trigger
    */
-  openPaymentModal: function (docId) {
-    const doc = this.state.documents.find(d => d.id === docId);
-    if (!doc) return;
-
-    this.activePaymentDoc = doc;
-    document.getElementById('pay-modal-doc-num').textContent = doc.number;
-    document.getElementById('pay-modal-amount').textContent = (doc.total).toLocaleString('fr-FR') + ' ' + (doc.currency || 'FCFA');
-
-    const providersListEl = document.getElementById('payment-providers-list');
-    providersListEl.innerHTML = window.PaymentProvider.providers.map(p => `
-      <div class="card" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1rem;" onclick="KivoApp.selectPaymentProvider('${p.id}')">
-        <div style="display: flex; align-items: center; gap: 0.75rem;">
-          <span style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;">${p.icon}</span>
-          <div>
-            <strong style="display: block; font-size: 0.9rem;">${p.name}</strong>
-            <span style="font-size: 0.75rem; color: var(--text-secondary);">${p.description}</span>
-          </div>
-        </div>
-        <span class="badge badge-accepted">${p.badge}</span>
-      </div>
-    `).join('');
-
-    document.getElementById('payment-input-step').style.display = 'none';
-    this.openModal('modal-payment-checkout');
+  openPaymentModal: function () {
+    this.showToast('Le paiement en ligne des factures est temporairement indisponible.', 'info');
   },
 
-  selectPaymentProvider: function (providerId) {
-    this.selectedProviderId = providerId;
-    document.getElementById('payment-input-step').style.display = 'block';
-    
-    const labelEl = document.getElementById('pay-input-label');
-    const inputEl = document.getElementById('pay-input-phone');
-    
-    if (providerId === 'stripe') {
-      if (labelEl) labelEl.textContent = "Numéro de carte bancaire Stripe (Demo)";
-      if (inputEl) inputEl.placeholder = "4242 4242 4242 4242";
-    } else {
-      if (labelEl) labelEl.textContent = "Numéro de téléphone Mobile Money";
-      if (inputEl) inputEl.placeholder = "+221 77 000 00 00";
-    }
+  selectPaymentProvider: function () {},
 
-    inputEl.value = this.activePaymentDoc.clientPhone || '';
-    document.getElementById('pay-confirm-btn').scrollIntoView({ behavior: 'smooth' });
-  },
+  confirmOnlinePayment: function () {},
 
-  confirmOnlinePayment: function () {
-    const doc = this.activePaymentDoc;
-    const details = document.getElementById('pay-input-phone').value;
-    const btn = document.getElementById('pay-confirm-btn');
-
-    btn.textContent = "Traitement sécurisé en cours...";
-    btn.disabled = true;
-
-    window.PaymentProvider.processPayment(doc, this.selectedProviderId, { phone: details }, (record) => {
-      this.closeModal('modal-payment-checkout');
-      btn.textContent = "Confirmer le paiement instantané";
-      btn.disabled = false;
-
-      this.showToast(
-        this._t('toast_payment_confirmed')
-          .replace('{amount}', doc.total.toLocaleString('fr-FR'))
-          .replace('{currency}', doc.currency || 'FCFA')
-          .replace('{provider}', this.selectedProviderId.toUpperCase()),
-        "success"
-      );
-      this.renderPublicDocView();
-    });
-  },
-
-  recordInvoicePayment: function (docId, amount, providerId, transactionId) {
-    const doc = this.state.documents.find(d => d.id === docId);
-    if (doc) {
-      doc.status = 'paid';
-      doc.amountPaid = (doc.amountPaid || 0) + amount;
-
-      this.state.activities.unshift({
-        id: this.generateUUID(),
-        timestamp: "À l'instant",
-        type: 'payment',
-        icon: 'dollar-sign',
-        title: `Paiement reçu pour #${doc.number}`,
-        details: `${amount.toLocaleString('fr-FR')} ${doc.currency || 'FCFA'} encaissés via ${providerId.toUpperCase()} (Tx: ${transactionId})`
-      });
-
-      this.saveState();
-    }
-  },
+  recordInvoicePayment: function () {},
 
   recordInvoiceRefund: function (docId, amount, refundId, reason) {
     const doc = this.state.documents.find(d => d.id === docId);
@@ -11783,7 +11700,6 @@ window.KivoApp = {
     biz.phone = fullPhone;
     biz.email = d.email;
     biz.taxId = d.taxId;
-    biz.subscriptionTier = d.planTier || 'Gratuit';
     biz.billingCycle = d.billingCycle || 'monthly';
     biz.subscriptionStatus = 'active';
 
@@ -11846,12 +11762,8 @@ window.KivoApp = {
     this.navigate('dashboard');
   },
 
-  switchSubscriptionTier: function (tier) {
-    this.state.business.subscriptionTier = tier;
-    this.state.business.subscriptionStatus = 'active';
-    this.saveState();
-    this.renderSettings();
-    this.showToast(this._t('toast_plan_activated').replace('{plan}', tier), "success");
+  switchSubscriptionTier: function () {
+    this.navigate('pricing');
   },
 
   renderSettings: function (subTab) {
@@ -14641,31 +14553,7 @@ window.KivoApp = {
     const currentPlan = this.getPlan();
 
     if (targetPlan === 'gratuit' || targetPlan === 'free') {
-      // Downgrade vers Gratuit
-      // RÈGLE B3 : Business → autre plan avec plusieurs membres : les membres excédentaires sont suspendus (pas supprimés), le propriétaire est averti avant confirmation.
-      if (currentPlan.isBusiness) {
-        const teamMembers = (this.state && this.state.business && this.state.business.teamMembers) || this._teamMembers || [];
-        if (teamMembers.length > 0) {
-          const confirmed = confirm(
-            `Attention : le passage au forfait Gratuit désactivera les 5 sièges d'équipe. Vos ${teamMembers.length} collaborateur(s) invité(s) seront suspendus (aucune donnée supprimée). Confirmez-vous le passage au forfait Gratuit ?`
-          );
-          if (!confirmed) return;
-        }
-      }
-
-      if (!this.state) this.state = JSON.parse(JSON.stringify(this.BLANK_STATE));
-      if (!this.state.business) this.state.business = {};
-      this.state.business.subscriptionTier = 'Gratuit';
-      this.state.business.current_plan = 'gratuit';
-      this.saveState();
-
-      if (window.KivoDb && this.supabaseConnected && window.KivoAuth?.user) {
-        window.KivoDb.saveSettings({ current_plan: 'gratuit', subscription_tier: 'gratuit' }).catch(() => {});
-      }
-
-      this.showToast('Forfait Gratuit activé.', 'info');
-      this.renderPricingPage();
-      this.updatePlanUsageBadge();
+      this.showToast('Le forfait Gratuit est appliqué automatiquement à l\'expiration de votre période en cours.', 'info');
       return;
     }
 
@@ -14819,42 +14707,20 @@ window.KivoApp = {
       const verifyData = await verifyRes.json();
 
       if (verifyData.success && verifyData.status === 'succeeded') {
-        // Succès confirmé côté serveur
-        if (!self.state.business) self.state.business = {};
-        const capPlan = checkout.planId === 'business' ? 'Business' : 'Pro';
-        self.state.business.subscriptionTier = capPlan;
-        self.state.business.current_plan = checkout.planId;
-        self.state.business.subscription_status = 'active';
-
-        const now = new Date();
-        const periodEnd = (window.KivoPlans && typeof window.KivoPlans.calculatePeriodEnd === 'function')
-          ? window.KivoPlans.calculatePeriodEnd(now, checkout.cycle)
-          : new Date(now.setMonth(now.getMonth() + 1)).toISOString();
-
-        self.state.business.plan_period_end = periodEnd;
-        self.state.business.plan_expires_at = periodEnd;
-        self.saveState();
-
+        if (typeof self.syncFromSupabase === 'function') {
+          await self.syncFromSupabase();
+        }
         self.closeModal('modal-subscription-checkout');
-        self.showToast(`Félicitations ! Votre forfait ${capPlan} est désormais actif.`, 'success');
+        self.showToast('Votre abonnement a été activé.', 'success');
         self.renderPricingPage();
         self.updatePlanUsageBadge();
       } else {
         self.closeModal('modal-subscription-checkout');
         self.showToast(verifyData.message || 'Le paiement n\'a pas pu être validé. Veuillez réessayer.', 'warning');
       }
-    } catch (err) {
-      console.warn('[Subscription Payment API Fallback Sandbox]:', err);
-      // Fallback sandbox local si hors ligne
-      if (!self.state.business) self.state.business = {};
-      const capPlan = checkout.planId === 'business' ? 'Business' : 'Pro';
-      self.state.business.subscriptionTier = capPlan;
-      self.state.business.current_plan = checkout.planId;
-      self.saveState();
+    } catch (_err) {
       self.closeModal('modal-subscription-checkout');
-      self.showToast(`Forfait ${capPlan} activé avec succès (Mode Test).`, 'success');
-      self.renderPricingPage();
-      self.updatePlanUsageBadge();
+      self.showToast('Impossible de joindre le serveur de paiement. Veuillez réessayer.', 'error');
     }
   },
 
