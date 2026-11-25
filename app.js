@@ -1450,7 +1450,7 @@ window.KivoApp = {
     }
 
     const publicViews = ['landing', 'auth', 'public-doc', 'pricing'];
-    const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'services', 'products-services', 'catalog', 'reminders', 'analytics', 'settings', 'ai', 'team', 'integrations'];
+    const appViews = ['dashboard', 'documents', 'document-builder', 'clients', 'services', 'products-services', 'catalog', 'reminders', 'analytics', 'settings', 'ai', 'team', 'integrations', 'subscription-return'];
     const validViews = [...publicViews, ...appViews, 'onboarding'];
 
     if (!validViews.includes(viewName)) {
@@ -1542,7 +1542,7 @@ window.KivoApp = {
     }
 
     // public-doc and onboarding are ALWAYS fullwidth — no sidebar, no account chrome — regardless of auth state
-    const alwaysFullWidth = ['public-doc', 'onboarding', 'landing', 'auth'];
+    const alwaysFullWidth = ['public-doc', 'onboarding', 'landing', 'auth', 'subscription-return'];
     const isFullWidthView = alwaysFullWidth.includes(viewName) || (!isAuthenticated && viewName === 'pricing');
     document.body.classList.toggle('full-width-view', isFullWidthView);
 
@@ -2651,6 +2651,9 @@ window.KivoApp = {
         break;
       case 'pricing':
         this.renderPricingPage();
+        break;
+      case 'subscription-return':
+        this.renderSubscriptionReturn();
         break;
       case 'document-builder':
         // Reset mobile tab to "form" view each time builder is opened
@@ -14476,28 +14479,88 @@ window.KivoApp = {
       // Keep default placeholder photo
     }
 
-    // Highlight current subscription tier button
-    const defaultTexts = {
-      'Gratuit': 'Commencer gratuitement',
-      'Pro': 'Passer à Pro',
-      'Business': 'Passer à Business'
-    };
+    this._initPricingButtonsAndConfig();
+  },
+
+  _getAuthAccessToken: async function () {
+    if (window.KivoAuth && window.KivoAuth.session && window.KivoAuth.session.access_token) {
+      return window.KivoAuth.session.access_token;
+    }
+    if (window.KivoDb && window.KivoDb.supabase && window.KivoDb.supabase.auth) {
+      try {
+        const { data } = await window.KivoDb.supabase.auth.getSession();
+        return (data && data.session && data.session.access_token) || '';
+      } catch (_) {}
+    }
+    return '';
+  },
+
+  _refreshSasPayConfig: async function () {
+    this._saspayEnabled = false;
+    try {
+      const token = await this._getAuthAccessToken();
+      if (!token) return false;
+      const res = await fetch('/api/payments/config', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        this._saspayEnabled = !!data.enabled;
+      }
+    } catch (_) {
+      this._saspayEnabled = false;
+    }
+    this._updatePricingActionButtons();
+    return this._saspayEnabled;
+  },
+
+  _updatePricingActionButtons: function () {
+    const biz = (this.state && this.state.business) || {};
     const currentTier = (biz.subscriptionTier || 'Gratuit').toLowerCase();
+    const saspayOn = !!this._saspayEnabled;
+
     document.querySelectorAll('.pricing-btn[data-tier]').forEach(btn => {
       btn.classList.remove('pricing-btn-current');
       btn.disabled = false;
       const tier = btn.getAttribute('data-tier');
-      if (tier && tier.toLowerCase() === currentTier) {
+      const tLow = (tier || '').toLowerCase();
+
+      // Retirer une éventuelle mention précédente
+      const cardBottom = btn.parentElement;
+      const oldNote = cardBottom ? cardBottom.querySelector('.pricing-saspay-note') : null;
+      if (oldNote) oldNote.remove();
+
+      if (tLow === currentTier) {
         btn.textContent = 'Votre forfait actuel';
         btn.classList.add('pricing-btn-current');
         btn.disabled = true;
-      } else if (tier && defaultTexts[tier]) {
-        btn.textContent = defaultTexts[tier];
+      } else if (tLow === 'gratuit') {
+        btn.textContent = 'Commencer gratuitement';
+      } else if (tLow === 'pro' || tLow === 'business') {
+        if (saspayOn) {
+          btn.textContent = 'Payer avec SasPay';
+          if (cardBottom) {
+            const note = document.createElement('p');
+            note.className = 'pricing-saspay-note';
+            note.style.cssText = 'font-size:0.75rem;color:var(--text-secondary,#64748B);text-align:center;margin-top:0.5rem;margin-bottom:0;';
+            note.textContent = 'Paiement par MTN Mobile Money ou Airtel Money';
+            cardBottom.appendChild(note);
+          }
+        } else {
+          btn.textContent = "Demander l'activation par WhatsApp";
+        }
       }
     });
+  },
+
+  // Highlight current subscription tier button & load SasPay config
+  _initPricingButtonsAndConfig: function () {
+    this._updatePricingActionButtons();
+    this._refreshSasPayConfig();
 
     // Default monthly toggle
-    this.togglePricingBilling('monthly');
+    this.togglePricingBilling(this._currentPricingCycle || 'monthly');
   },
 
   /**
@@ -14518,15 +14581,20 @@ window.KivoApp = {
 
     if (!monthlyBtn || !annualBtn) return;
 
+    const plansMod = window.KivoPlans;
+    const proPlan = plansMod ? plansMod.getPlan('pro') : { pricing: { monthly: 3990, annual: 38280, monthlyEquivalentAnnual: 3190 } };
+    const bizPlan = plansMod ? plansMod.getPlan('business') : { pricing: { monthly: 9990, annual: 95880, monthlyEquivalentAnnual: 7990 } };
+    const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
+
     if (billingType === 'monthly') {
       monthlyBtn.classList.add('active');
       annualBtn.classList.remove('active');
       if (priceValFree) priceValFree.textContent = '0 FCFA';
       if (pricePeriodFree) pricePeriodFree.textContent = '/ mois';
-      if (priceValPro) priceValPro.textContent = '3 990 FCFA';
+      if (priceValPro) priceValPro.textContent = fmt(proPlan.pricing.monthly);
       if (pricePeriodPro) pricePeriodPro.textContent = '/ mois';
       if (priceConvPro) priceConvPro.textContent = '≈ 6 € / mois';
-      if (priceValBiz) priceValBiz.textContent = '9 990 FCFA';
+      if (priceValBiz) priceValBiz.textContent = fmt(bizPlan.pricing.monthly);
       if (pricePeriodBiz) pricePeriodBiz.textContent = '/ mois';
       if (priceConvBiz) priceConvBiz.textContent = '5 sièges inclus · +1 500 FCFA/membre sup.';
     } else {
@@ -14534,32 +14602,224 @@ window.KivoApp = {
       monthlyBtn.classList.remove('active');
       if (priceValFree) priceValFree.textContent = '0 FCFA';
       if (pricePeriodFree) pricePeriodFree.textContent = '/ an';
-      // PRO ANNUEL (B1) : 38 300 FCFA / an (-20%, arrondi à 100)
-      if (priceValPro) priceValPro.textContent = '38 300 FCFA';
+      if (priceValPro) priceValPro.textContent = fmt(proPlan.pricing.annual);
       if (pricePeriodPro) pricePeriodPro.textContent = '/ an';
-      if (priceConvPro) priceConvPro.textContent = 'soit 3 192 FCFA / mois (-20%)';
-      // BUSINESS ANNUEL (B1) : 95 900 FCFA / an (-20%, arrondi à 100)
-      if (priceValBiz) priceValBiz.textContent = '95 900 FCFA';
+      if (priceConvPro) priceConvPro.textContent = `soit ${fmt(proPlan.pricing.monthlyEquivalentAnnual)} / mois (-20%)`;
+      if (priceValBiz) priceValBiz.textContent = fmt(bizPlan.pricing.annual);
       if (pricePeriodBiz) pricePeriodBiz.textContent = '/ an';
-      if (priceConvBiz) priceConvBiz.textContent = 'soit 7 992 FCFA / mois (-20%) · +1 500 FCFA/membre sup.';
+      if (priceConvBiz) priceConvBiz.textContent = `soit ${fmt(bizPlan.pricing.monthlyEquivalentAnnual)} / mois (-20%) · +1 500 FCFA/membre sup.`;
     }
   },
 
   /**
-   * Switch subscription tier ou lance le paiement API selon le plan
+   * Switch subscription tier : lance SasPay si activé, sinon WhatsApp
    */
-  switchSubscriptionTier: function (tier) {
+  switchSubscriptionTier: async function (tier) {
     const targetPlan = String(tier).toLowerCase();
-    const currentPlan = this.getPlan();
 
     if (targetPlan === 'gratuit' || targetPlan === 'free') {
       this.showToast('Le forfait Gratuit est appliqué automatiquement à l\'expiration de votre période en cours.', 'info');
       return;
     }
 
-    // Pour Pro ou Business : ouvrir la modale de paiement sécurisé
     const cycle = this._currentPricingCycle || 'monthly';
-    this.openSubscriptionCheckout(targetPlan, cycle);
+    if (!this._saspayEnabled) {
+      const capPlan = targetPlan === 'business' ? 'Business' : 'Pro';
+      this.requestPlanActivationWhatsApp(capPlan, cycle);
+      return;
+    }
+
+    const btn = document.querySelector(`.pricing-btn[data-tier="${targetPlan === 'business' ? 'Business' : 'Pro'}"]`);
+    const originalText = btn ? btn.textContent : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Redirection vers SasPay…';
+    }
+
+    try {
+      const token = await this._getAuthAccessToken();
+      if (!token) {
+        this.showToast('Veuillez vous connecter pour souscrire à un forfait.', 'warning');
+        this.navigate('auth');
+        return;
+      }
+
+      const res = await fetch('/api/payments/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ planId: targetPlan, cycle })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.checkoutUrl) {
+        this.showToast(data.error || 'Impossible de démarrer le paiement. Veuillez réessayer.', 'error');
+        return;
+      }
+
+      window.location.href = data.checkoutUrl;
+    } catch (_) {
+      this.showToast('Impossible de joindre le serveur de paiement. Veuillez réessayer.', 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+  },
+
+  /**
+   * Écran de retour paiement SasPay (#subscription-return)
+   */
+  renderSubscriptionReturn: async function () {
+    const container = document.getElementById('view-subscription-return');
+    if (!container) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref') || '';
+
+    // Nettoyer ?ref=... de l'URL
+    try {
+      if (window.location.search) {
+        window.history.replaceState(null, '', window.location.pathname + '#subscription-return');
+      }
+    } catch (_) {}
+
+    const renderScreen = (title, msg, iconColor, iconSvg, actionHtml) => {
+      container.innerHTML = `
+        <div style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:2rem;">
+          <div class="card" style="max-width:480px;width:100%;text-align:center;padding:2.5rem 2rem;border-radius:16px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:${iconColor};display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;">
+              ${iconSvg}
+            </div>
+            <h2 style="font-size:1.35rem;font-weight:700;margin-bottom:0.75rem;color:var(--text-primary);">${escapeHtml(title)}</h2>
+            <p style="font-size:0.95rem;color:var(--text-secondary);line-height:1.5;margin-bottom:1.75rem;">${escapeHtml(msg)}</p>
+            <div>${actionHtml}</div>
+          </div>
+        </div>
+      `;
+    };
+
+    if (!ref) {
+      renderScreen(
+        'Référence manquante',
+        'Aucun paiement à vérifier.',
+        '#FEE2E2',
+        '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+        `<button class="btn btn-primary" onclick="KivoApp.navigate('pricing')">Retour aux forfaits</button>`
+      );
+      return;
+    }
+
+    renderScreen(
+      'Vérification de votre paiement…',
+      'Merci de patienter quelques secondes pendant la confirmation auprès de SasPay.',
+      '#EEF2FF',
+      '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      ''
+    );
+
+    const startTime = Date.now();
+    const maxDurationMs = 120000;
+    const pollIntervalMs = 4000;
+
+    const runCheck = async () => {
+      try {
+        const token = await this._getAuthAccessToken();
+        const res = await fetch('/api/payments/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ ref })
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (data.status === 'SUCCESS') {
+          if (typeof this.syncFromSupabase === 'function') {
+            await this.syncFromSupabase();
+          }
+          const rawEnd = data.periodEnd || (this.state && this.state.business && (this.state.business.plan_expires_at || this.state.business.plan_period_end));
+          let dateFormatted = '';
+          if (rawEnd) {
+            const d = new Date(rawEnd);
+            if (!isNaN(d.getTime())) {
+              const dd = String(d.getDate()).padStart(2, '0');
+              const mm = String(d.getMonth() + 1).padStart(2, '0');
+              const yyyy = d.getFullYear();
+              dateFormatted = `${dd}/${mm}/${yyyy}`;
+            }
+          }
+          const successMsg = dateFormatted
+            ? `Votre forfait est actif jusqu'au ${dateFormatted}`
+            : 'Votre forfait est désormais actif.';
+          renderScreen(
+            'Paiement confirmé !',
+            successMsg,
+            '#D1FAE5',
+            '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
+            `<button class="btn btn-primary" onclick="KivoApp.navigate('dashboard')">Accéder au tableau de bord</button>`
+          );
+          return;
+        }
+
+        if (data.status === 'FAILED') {
+          renderScreen(
+            'Le paiement n\'a pas abouti',
+            'La transaction a été refusée ou annulée. Aucun montant n\'a été débité.',
+            '#FEE2E2',
+            '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+            `<button class="btn btn-primary" onclick="KivoApp.navigate('pricing')">Réessayer</button>`
+          );
+          return;
+        }
+      } catch (_) {}
+
+      if (Date.now() - startTime < maxDurationMs) {
+        this._subReturnTimer = setTimeout(runCheck, pollIntervalMs);
+      } else {
+        renderScreen(
+          'Confirmation en attente',
+          'Paiement en cours de confirmation, votre forfait s\'activera dans quelques minutes.',
+          '#FEF3C7',
+          '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+          `<button class="btn btn-primary" onclick="KivoApp._verifyPaymentOnce('${escapeHtml(ref)}')">Vérifier à nouveau</button>`
+        );
+      }
+    };
+
+    if (this._subReturnTimer) clearTimeout(this._subReturnTimer);
+    runCheck();
+  },
+
+  _verifyPaymentOnce: async function (ref) {
+    try {
+      const token = await this._getAuthAccessToken();
+      const res = await fetch('/api/payments/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ ref })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.status === 'SUCCESS') {
+        if (typeof this.syncFromSupabase === 'function') await this.syncFromSupabase();
+        this.showToast('Votre forfait est désormais actif !', 'success');
+        this.navigate('dashboard');
+      } else if (data.status === 'FAILED') {
+        this.showToast('Le paiement n\'a pas abouti.', 'error');
+        this.navigate('pricing');
+      } else {
+        this.showToast('Paiement toujours en cours de confirmation.', 'info');
+      }
+    } catch (_) {
+      this.showToast('Impossible de vérifier le paiement pour le moment.', 'error');
+    }
   },
 
   /**
@@ -14815,6 +15075,45 @@ window.KivoApp = {
       const extraSeats = parseInt(biz.extraSeats || 0, 10);
       seatsKpi.textContent = plan.isBusiness ? `${5 + extraSeats} sièges inclus` : '1 siège inclus';
     }
+
+    // Historique des paiements (subscription_payments)
+    const historyEl = document.getElementById('profile-plan-history-list');
+    if (historyEl) {
+      this._loadSubscriptionPaymentHistory(historyEl);
+    }
+  },
+
+  _loadSubscriptionPaymentHistory: async function (historyEl) {
+    try {
+      const token = await this._getAuthAccessToken();
+      if (!token) return;
+      const res = await fetch('/api/subscription', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const rows = Array.isArray(data.paymentsHistory) ? data.paymentsHistory : [];
+      if (rows.length === 0) {
+        historyEl.innerHTML = '<div style="padding:1rem;text-align:center;font-size:0.85rem;color:var(--text-muted);">Aucun paiement enregistré.</div>';
+        return;
+      }
+      historyEl.innerHTML = rows.map(p => {
+        const dt = p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : '—';
+        const planLbl = (p.plan || '').toUpperCase();
+        const amt = Number(p.amount || 0).toLocaleString('fr-FR') + ' ' + (p.currency || 'FCFA');
+        const st = String(p.status || '').toLowerCase();
+        const stLbl = (st === 'succeeded' || st === 'success') ? 'Payé' : (st === 'failed' ? 'Échoué' : 'En attente');
+        const stColor = (st === 'succeeded' || st === 'success') ? '#059669' : (st === 'failed' ? '#DC2626' : '#D97706');
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;border-bottom:1px solid var(--border-color);font-size:0.85rem;">
+          <div><strong>${escapeHtml(planLbl)}</strong> <span style="color:var(--text-muted);">· ${escapeHtml(dt)}</span></div>
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <span style="font-weight:600;">${escapeHtml(amt)}</span>
+            <span style="color:${stColor};font-weight:600;">${escapeHtml(stLbl)}</span>
+          </div>
+        </div>`;
+      }).join('');
+    } catch (_) {}
   },
 
   /**
@@ -14858,24 +15157,29 @@ window.KivoApp = {
     const landingPriceFree  = document.getElementById('landing-price-free');
     const landingPeriodFree = document.getElementById('landing-period-free');
 
+    const plansMod = window.KivoPlans;
+    const proP = plansMod ? plansMod.getPlan('pro').pricing : { monthly: 3990, annual: 38280, monthlyEquivalentAnnual: 3190 };
+    const bizP = plansMod ? plansMod.getPlan('business').pricing : { monthly: 9990, annual: 95880, monthlyEquivalentAnnual: 7990 };
+    const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
+
     if (isYearly) {
       if (landingPriceFree)  landingPriceFree.textContent  = '0 FCFA';
       if (landingPeriodFree) landingPeriodFree.textContent = '/ an';
-      if (landingPricePro)   landingPricePro.textContent   = '38 380 FCFA';
+      if (landingPricePro)   landingPricePro.textContent   = fmt(proP.annual);
       if (landingPeriodPro)  landingPeriodPro.textContent  = '/ an';
-      if (landingNotePro)    landingNotePro.textContent    = 'Pour les créateurs, freelances et professionnels actifs (soit 3 190 FCFA / mois · économisez 20 %).';
-      if (landingPriceBiz)   landingPriceBiz.textContent   = '95 880 FCFA';
+      if (landingNotePro)    landingNotePro.textContent    = `Pour les créateurs, freelances et professionnels actifs (soit ${fmt(proP.monthlyEquivalentAnnual)} / mois · économisez 20 %).`;
+      if (landingPriceBiz)   landingPriceBiz.textContent   = fmt(bizP.annual);
       if (landingPeriodBiz)  landingPeriodBiz.textContent  = '/ an';
-      if (landingNoteBiz)    landingNoteBiz.textContent    = 'Pour les entreprises et équipes (soit 7 990 FCFA / mois · économisez 20 % · 5 sièges inclus).';
+      if (landingNoteBiz)    landingNoteBiz.textContent    = `Pour les entreprises et équipes (soit ${fmt(bizP.monthlyEquivalentAnnual)} / mois · économisez 20 % · 5 sièges inclus).`;
     } else {
       if (landingPriceFree)  landingPriceFree.textContent  = '0 FCFA';
       if (landingPeriodFree) landingPeriodFree.textContent = '/ mois';
-      if (landingPricePro)   landingPricePro.textContent   = '3 990 FCFA';
+      if (landingPricePro)   landingPricePro.textContent   = fmt(proP.monthly);
       if (landingPeriodPro)  landingPeriodPro.textContent  = '/ mois';
-      if (landingNotePro)    landingNotePro.textContent    = 'Pour les créateurs, freelances et professionnels actifs (ou 38 380 FCFA / an soit 3 190 FCFA / mois).';
-      if (landingPriceBiz)   landingPriceBiz.textContent   = '9 990 FCFA';
+      if (landingNotePro)    landingNotePro.textContent    = `Pour les créateurs, freelances et professionnels actifs (ou ${fmt(proP.annual)} / an soit ${fmt(proP.monthlyEquivalentAnnual)} / mois).`;
+      if (landingPriceBiz)   landingPriceBiz.textContent   = fmt(bizP.monthly);
       if (landingPeriodBiz)  landingPeriodBiz.textContent  = '/ mois';
-      if (landingNoteBiz)    landingNoteBiz.textContent    = 'Pour les entreprises et équipes (ou 95 880 FCFA / an soit 7 990 FCFA / mois · 5 sièges inclus).';
+      if (landingNoteBiz)    landingNoteBiz.textContent    = `Pour les entreprises et équipes (ou ${fmt(bizP.annual)} / an soit ${fmt(bizP.monthlyEquivalentAnnual)} / mois · 5 sièges inclus).`;
     }
 
     // ── 4. In-app pricing view (#view-pricing) ─────────────────────────
@@ -14892,28 +15196,21 @@ window.KivoApp = {
    *
    * @param {'Pro'|'Business'} plan
    */
-  requestPlanActivationWhatsApp: function (plan) {
-    const cycle = (this.state && this.state.business && this.state.business.billingCycle) || 'monthly';
-    const isYearly = cycle === 'yearly';
+  requestPlanActivationWhatsApp: function (plan, cycleOverride) {
+    const rawCycle = cycleOverride || (this.state && this.state.business && this.state.business.billingCycle) || 'monthly';
+    const isYearly = (rawCycle === 'yearly' || rawCycle === 'annual');
+    const normCycle = isYearly ? 'annual' : 'monthly';
+    const planKey = String(plan || 'Pro').toLowerCase() === 'business' ? 'business' : 'pro';
+    const plansMod = window.KivoPlans;
+    const p = plansMod ? plansMod.getPlan(planKey).pricing : (planKey === 'business' ? { monthly: 9990, annual: 95880 } : { monthly: 3990, annual: 38280 });
+    const amount = isYearly ? p.annual : p.monthly;
+    const priceLabel = `${Number(amount).toLocaleString('fr-FR')} FCFA / ${isYearly ? 'an' : 'mois'}`;
+    const cycleLabel = isYearly ? 'annuel' : 'mensuel';
+    const accountEmail = (window.KivoAuth && window.KivoAuth.user && window.KivoAuth.user.email)
+      || (this.state && this.state.business && this.state.business.email) || '';
+    const emailLine = accountEmail ? `\nE-mail du compte : ${accountEmail}` : '';
 
-    // Prix et libellés selon le plan et le cycle
-    const prices = {
-      Pro: {
-        monthly: '3 990 FCFA / mois',
-        yearly:  '38 380 FCFA / an (soit 3 190 FCFA / mois · -20 %)'
-      },
-      Business: {
-        monthly: '9 990 FCFA / mois',
-        yearly:  '95 880 FCFA / an (soit 7 990 FCFA / mois · -20 %)'
-      }
-    };
-
-    const priceLabel  = (prices[plan] || prices.Pro)[cycle] || prices.Pro.monthly;
-    const cycleLabel  = isYearly ? 'annuel' : 'mensuel';
-    const bizName     = (this.state && this.state.business && this.state.business.name) || '';
-    const bizNameLine = bizName ? `\nEntreprise : ${bizName}` : '';
-
-    const message = `Bonjour,\n\nJe souhaite activer le forfait *${plan}* KIVO MATIQUE (abonnement ${cycleLabel}) à ${priceLabel}.${bizNameLine}\n\nMerci de me confirmer l'activation.`;
+    const message = `Bonjour,\n\nJe souhaite activer le forfait *${plan}* KIVO MATIQUE (période ${cycleLabel}) : ${priceLabel}.${emailLine}\n\nMerci de me confirmer l'activation.`;
     const encoded = encodeURIComponent(message);
     window.open(`https://wa.me/242068286376?text=${encoded}`, '_blank');
   }

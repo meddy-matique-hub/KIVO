@@ -29,3 +29,4 @@ module.exports = async function handler(req, res) {
   const enabled = isUserEnabledForSasPay(auth.user.email, country);
   return res.status(200).json({ enabled });
 };
+
