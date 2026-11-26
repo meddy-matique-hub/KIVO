@@ -37,7 +37,8 @@ function getServerPrice(planId, cycle) {
 
 function isCountryCongo(country) {
   const c = String(country || '').trim().toLowerCase();
-  return c === 'cg' || c === 'congo' || c === 'congo-brazzaville' || c === 'république du congo' || c === 'republique du congo';
+  // Congo-Brazzaville ou non renseigné (défaut Congo pour l'intégration SasPay en zone FCFA)
+  return !c || c === 'cg' || c === 'congo' || c === 'congo-brazzaville' || c === 'république du congo' || c === 'republique du congo';
 }
 
 function isEmailInRollout(email) {

@@ -11765,10 +11765,6 @@ window.KivoApp = {
     this.navigate('dashboard');
   },
 
-  switchSubscriptionTier: function () {
-    this.navigate('pricing');
-  },
-
   renderSettings: function (subTab) {
     const biz = this.state.business || {};
 
@@ -14534,7 +14530,9 @@ window.KivoApp = {
       if (tLow === currentTier) {
         btn.textContent = 'Votre forfait actuel';
         btn.classList.add('pricing-btn-current');
-        btn.disabled = true;
+        btn.disabled = false;
+        btn.style.opacity = '0.85';
+        btn.style.cursor = 'default';
       } else if (tLow === 'gratuit') {
         btn.textContent = 'Commencer gratuitement';
       } else if (tLow === 'pro' || tLow === 'business') {
@@ -14615,7 +14613,15 @@ window.KivoApp = {
    * Switch subscription tier : lance SasPay si activé, sinon WhatsApp
    */
   switchSubscriptionTier: async function (tier) {
-    const targetPlan = String(tier).toLowerCase();
+    const targetPlan = String(tier || '').toLowerCase().trim();
+    const biz = (this.state && this.state.business) || {};
+    const currentTier = (biz.subscriptionTier || 'Gratuit').toLowerCase().trim();
+
+    if (targetPlan === currentTier) {
+      const planName = targetPlan.charAt(0).toUpperCase() + targetPlan.slice(1);
+      this.showToast(`Vous êtes déjà sur le forfait ${planName}.`, 'info');
+      return;
+    }
 
     if (targetPlan === 'gratuit' || targetPlan === 'free') {
       this.showToast('Le forfait Gratuit est appliqué automatiquement à l\'expiration de votre période en cours.', 'info');
@@ -14623,19 +14629,22 @@ window.KivoApp = {
     }
 
     const cycle = this._currentPricingCycle || 'monthly';
+    const capPlan = targetPlan === 'business' ? 'Business' : 'Pro';
+
     if (!this._saspayEnabled) {
-      const capPlan = targetPlan === 'business' ? 'Business' : 'Pro';
+      this.showToast("Ouverture de WhatsApp pour activer votre forfait...", 'info');
       this.requestPlanActivationWhatsApp(capPlan, cycle);
       return;
     }
 
-    const btn = document.querySelector(`.pricing-btn[data-tier="${targetPlan === 'business' ? 'Business' : 'Pro'}"]`);
+    const btn = document.querySelector(`.pricing-btn[data-tier="${capPlan}"]`);
     const originalText = btn ? btn.textContent : '';
     if (btn) {
       btn.disabled = true;
-      btn.textContent = 'Redirection vers SasPay…';
+      btn.textContent = 'Connexion à SasPay…';
     }
 
+    let isRedirecting = false;
     try {
       const token = await this._getAuthAccessToken();
       if (!token) {
@@ -14643,6 +14652,8 @@ window.KivoApp = {
         this.navigate('auth');
         return;
       }
+
+      this.showToast('Préparation de votre session de paiement sécurisée…', 'info');
 
       const res = await fetch('/api/payments/create', {
         method: 'POST',
@@ -14659,11 +14670,13 @@ window.KivoApp = {
         return;
       }
 
+      if (btn) btn.textContent = 'Redirection vers SasPay…';
+      isRedirecting = true;
       window.location.href = data.checkoutUrl;
     } catch (_) {
       this.showToast('Impossible de joindre le serveur de paiement. Veuillez réessayer.', 'error');
     } finally {
-      if (btn) {
+      if (btn && !isRedirecting) {
         btn.disabled = false;
         btn.textContent = originalText;
       }
@@ -15212,7 +15225,18 @@ window.KivoApp = {
 
     const message = `Bonjour,\n\nJe souhaite activer le forfait *${plan}* KIVO MATIQUE (période ${cycleLabel}) : ${priceLabel}.${emailLine}\n\nMerci de me confirmer l'activation.`;
     const encoded = encodeURIComponent(message);
-    window.open(`https://wa.me/242068286376?text=${encoded}`, '_blank');
+    const waUrl = `https://wa.me/242068286376?text=${encoded}`;
+
+    this.showToast('Ouverture de WhatsApp…', 'info');
+
+    try {
+      const win = window.open(waUrl, '_blank');
+      if (!win || win.closed || typeof win.closed === 'undefined') {
+        window.location.href = waUrl;
+      }
+    } catch (_) {
+      window.location.href = waUrl;
+    }
   }
 };
 
